@@ -1,5 +1,6 @@
-ASAGI/
-bin/
-data/
-scripts/
-output/
+ASAGI
+bin
+data
+scripts
+output
+*~
