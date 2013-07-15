@@ -1,0 +1,106 @@
+#----------------------------------------------------------------#
+# Compiler Flags                                                 #
+#----------------------------------------------------------------#
+FC			= /usr/bin/mpif90 -f90=ifort
+LOADER		= /usr/bin/mpif90 -f90=ifort
+FFLAGS		= -implicitnone -nologo -fpp -I. -ISamoa/ -I"/Program Files/MPICH2/include/"
+LDFLAGS 	= "C:/Program Files/MPICH2/lib/fmpich2.lib"
+EXEC 		= main.exe
+
+#----------------------------------------------------------------#
+# BUILD RULES                                                    #
+#----------------------------------------------------------------#
+
+SOURCES = \
+SFC_data_types.f90 \
+SFC_grid.f90 \
+SFC_fine_grid.f90 \
+Tools_local_function_space_base.f90 \
+Tools_noise.f90 \
+Tools_log.f90 \
+Tools_stack_base.f90 \
+Samoa/Tools_quadrature_rule_base.f90 \
+Samoa/Samoa.f90 \
+SFC_containers.f90 \
+SFC_edge_traversal.f90 \
+SFC_node_traversal.f90 \
+SFC_traversal.f90 \
+SFC_main.f90 \
+LIB_VTK_IO.f90\
+M_kracken.f90\
+Tests/Tests.f90 \
+Tests/Tests_data_types.f90 \
+Tests/Tests_initialize.f90 \
+Tests/Tests_node_dummy_traversal.f90 \
+Tests/Tests_consistency_traversal.f90 \
+Tests/Tests_flops_traversal.f90 \
+Tests/Tests_memory_traversal.f90 \
+Tests/Tests_basis_functions.f90 \
+Darcy/Darcy.f90 \
+Darcy/Darcy_local_function_spaces.f90 \
+Darcy/Darcy_data_types.f90 \
+Darcy/Darcy_basis.f90 \
+Darcy/Darcy_node_dummy.f90 \
+Darcy/Darcy_initialize.f90 \
+Darcy/Darcy_output.f90 \
+Darcy/Darcy_xml_output.f90 \
+Darcy/Darcy_laplace_jacobi.f90 \
+Darcy/Darcy_laplace_cg.f90 \
+Darcy/Darcy_grad_p.f90 \
+Darcy/Darcy_transport_eq.f90 \
+Darcy/Darcy_permeability.f90 \
+Darcy/Darcy_adapt.f90 \
+Heat_Equation/Heat_Eq.f90 \
+Heat_Equation/Heat_Eq_local_function_spaces.f90 \
+Heat_Equation/Heat_Eq_data_types.f90 \
+Heat_Equation/Heat_Eq_basis.f90 \
+Heat_Equation/Heat_Eq_initialize.f90 \
+Heat_Equation/Heat_Eq_output.f90 \
+Heat_Equation/Heat_Eq_xml_output.f90 \
+Heat_Equation/Heat_Eq_euler_timestep.f90 \
+Heat_Equation/Heat_Eq_midpoint_timestep.f90 \
+Heat_Equation/Heat_Eq_heun_timestep.f90 \
+Heat_Equation/Heat_Eq_adapt.f90 \
+Shallow_Water/Shallow_Water.f90 \
+Shallow_Water/Shallow_Water_local_function_spaces.f90 \
+Shallow_Water/Shallow_Water_data_types.f90 \
+Shallow_Water/Shallow_Water_basis.f90 \
+Shallow_Water/Shallow_Water_initialize.f90 \
+Shallow_Water/Shallow_Water_xml_output.f90 \
+Shallow_Water/Shallow_Water_euler_timestep.f90 \
+Shallow_Water/Shallow_Water_adapt.f90
+
+OBJS = $(SOURCES:.f90=.obj)
+
+#----------------------------------------------------------------#
+# TARGETS                                                        #
+#----------------------------------------------------------------#
+
+
+.phony:		compile all debug optdebug opt test clean
+
+all:		opt
+
+debug:		FFLAGS += -g -traceback -fp-stack-check -check bounds -check overflow -DDEBUG
+optdebug:	FFLAGS += -g -traceback -fast -DASSERTION
+test:		FFLAGS += -fast -D_TESTS
+analyze:	FFLAGS += -g -traceback -fast
+opt: 		FFLAGS += -fast 
+
+debug test optdebug : LDFLAGS += -g
+
+debug test optdebug opt : compile
+
+compile: $(EXEC)
+	@move *.obj .obj/
+
+$(EXEC): $(OBJS)
+	$(LOADER) -o $@ $(OBJS) $(LDFLAGS)
+  
+%.obj: %.f90
+	$(FC) $(FFLAGS) -c -o $@ $<
+
+clean:
+	@del /S /Q *.obj *.mod $(EXEC)
+
+-include wdependency.mk

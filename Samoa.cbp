@@ -1,0 +1,434 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Samoa" />
+		<Option makefile_is_custom="1" />
+		<Option pch_mode="2" />
+		<Option default_target="swe_debug" />
+		<Option compiler="ifclin" />
+		<MakeCommands>
+			<Build command="$make -j -f $makefile $target" />
+			<CompileFile command="$make -f $makefile $file" />
+			<Clean command="$make -f $makefile clean" />
+			<DistClean command="$make -f $makefile distclean$target" />
+			<AskRebuildNeeded command="$make -j -q -f $makefile $target" />
+			<SilentBuild command="$make -j -f $makefile $target &gt; $(CMD_NULL)" />
+		</MakeCommands>
+		<Build>
+			<Target title="darcy_debug">
+				<Option output="bin/samoa_darcy_debug" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="ifclin" />
+				<Compiler>
+					<Add option="-debug full" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make -j -f $makefile SCENARIO=DARCY TARGET=DEBUG" />
+					<CompileFile command="$make -f $makefile $file SCENARIO=DARCY TARGET=DEBUG" />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -j -q -f $makefile SCENARIO=DARCY TARGET=DEBUG" />
+					<SilentBuild command="$make -j -f $makefile SCENARIO=DARCY TARGET=DEBUG &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="darcy">
+				<Option output="bin/samoa_darcy" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="ifclin" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make -j -f $makefile SCENARIO=DARCY" />
+					<CompileFile command="$make -f $makefile $file SCENARIO=DARCY" />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -j -q -f $makefile SCENARIO=DARCY" />
+					<SilentBuild command="$make -j -f $makefile SCENARIO=DARCY &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="swe_debug">
+				<Option output="bin/samoa_swe_debug" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="ifclin" />
+				<Compiler>
+					<Add option="-debug full" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make -j -f $makefile SCENARIO=SWE TARGET=DEBUG" />
+					<CompileFile command="$make -f $makefile $file SCENARIO=SWE TARGET=DEBUG" />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -j -q -f $makefile SCENARIO=SWE TARGET=DEBUG" />
+					<SilentBuild command="$make -j -f $makefile SCENARIO=SWE TARGET=DEBUG &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="swe">
+				<Option output="bin/samoa_swe" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="ifclin" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make -j -f $makefile SCENARIO=SWE " />
+					<CompileFile command="$make -f $makefile $file SCENARIO=SWE " />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -j -q -f $makefile SCENARIO=SWE " />
+					<SilentBuild command="$make -j -f $makefile SCENARIO=SWE  &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="heat_eq_debug">
+				<Option output="bin/samoa_heq_debug" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug/" />
+				<Option type="1" />
+				<Option compiler="ifclin" />
+				<Compiler>
+					<Add option="-debug full" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make -j -f $makefile SCENARIO=HEAT_EQ TARGET=DEBUG" />
+					<CompileFile command="$make -f $makefile $file SCENARIO=HEAT_EQ TARGET=DEBUG" />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -j -q -f $makefile SCENARIO=HEAT_EQ TARGET=DEBUG" />
+					<SilentBuild command="$make -j -f $makefile SCENARIO=HEAT_EQ TARGET=DEBUG &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="heat_eq">
+				<Option output="bin/samoa_heq" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="ifclin" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="$make -j -f $makefile SCENARIO=HEAT_EQ " />
+					<CompileFile command="$make -f $makefile $file SCENARIO=HEAT_EQ " />
+					<Clean command="$make -f $makefile clean" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="$make -j -q -f $makefile SCENARIO=HEAT_EQ " />
+					<SilentBuild command="$make -j -f $makefile SCENARIO=HEAT_EQ  &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-warn all" />
+		</Compiler>
+		<Unit filename="Compilation_control.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Conformity/Conformity.f90" />
+		<Unit filename="Darcy/Darcy.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="Darcy/Darcy.py">
+			<Option target="darcy_debug" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_adapt.f90">
+			<Option weight="6" />
+			<Option target="darcy_debug" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_basis.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_grad_p.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_initialize.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_laplace_cg.f90">
+			<Option weight="6" />
+			<Option target="darcy_debug" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_laplace_jacobi.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_local_function_spaces.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_node_dummy.f90">
+			<Option target="darcy_debug" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_output.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_permeability.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_transport_eq.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Darcy/Darcy_xml_output.f90">
+			<Option weight="6" />
+			<Option target="darcy_debug" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq.f90">
+			<Option weight="8" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq.py">
+			<Option target="heat_eq_debug" />
+			<Option target="heat_eq" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_adapt.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_basis.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_euler_timestep.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_heun_timestep.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_initialize.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_jacobi.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_local_function_spaces.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_midpoint_timestep.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_output.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Heat_Equation/Heat_Eq_xml_output.f90">
+			<Option weight="6" />
+			<Option target="heat_eq_debug" />
+			<Option target="heat_eq" />
+		</Unit>
+		<Unit filename="LIB_VTK_IO.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="M_kracken.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Makefile" />
+		<Unit filename="NUMA/NUMA.f90" />
+		<Unit filename="NUMA/NUMA_adapt.f90" />
+		<Unit filename="NUMA/NUMA_basis.f90" />
+		<Unit filename="NUMA/NUMA_constants.f90" />
+		<Unit filename="NUMA/NUMA_data_types.f90" />
+		<Unit filename="NUMA/NUMA_euler_timestep.f90" />
+		<Unit filename="NUMA/NUMA_initialize.f90" />
+		<Unit filename="NUMA/NUMA_local_function_spaces.f90" />
+		<Unit filename="NUMA/NUMA_output.f90" />
+		<Unit filename="NUMA/NUMA_xml_output.f90" />
+		<Unit filename="NUMA/numa.py" />
+		<Unit filename="SFC_data_types.f90">
+			<Option weight="1" />
+		</Unit>
+		<Unit filename="SFC_edge_traversal.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="SFC_fine_grid.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="SFC_generic_adaptive_traversal.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="SFC_generic_traversal_ringbuffer.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="SFC_grid.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="SFC_main.f90">
+			<Option weight="11" />
+		</Unit>
+		<Unit filename="SFC_node_traversal.f90">
+			<Option weight="5" />
+		</Unit>
+		<Unit filename="SFC_traversal.f90">
+			<Option weight="10" />
+		</Unit>
+		<Unit filename="SWE/SWE.f90">
+			<Option weight="9" />
+		</Unit>
+		<Unit filename="SWE/SWE_adapt.f90">
+			<Option weight="8" />
+		</Unit>
+		<Unit filename="SWE/SWE_basis.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="SWE/SWE_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="SWE/SWE_euler_timestep.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="SWE/SWE_initialize.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="SWE/SWE_local_function_spaces.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="SWE/SWE_output.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="SWE/SWE_xml_output.f90">
+			<Option weight="6" />
+			<Option target="swe_debug" />
+			<Option target="swe" />
+		</Unit>
+		<Unit filename="SWE/swe.py">
+			<Option target="swe_debug" />
+			<Option target="swe" />
+		</Unit>
+		<Unit filename="Samoa/Samoa.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="Samoa/Tools_boundary_basis.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Samoa/Tools_hierarchical_basis.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Samoa/Tools_lagrange_basis.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Samoa/Tools_quadrature_rule.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="Samoa/Tools_quadrature_rule_base.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="Samoa/dunavant.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tests/Tests.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="Tests/Tests_basis_functions.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="Tests/Tests_consistency_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Tests/Tests_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tests/Tests_flops_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Tests/Tests_initialize.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Tests/Tests_memory_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Tests/Tests_node_dummy_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="Tools_adaptive_traversal.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_element_block.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_grid.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="Tools_grid_variable.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_list.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_local_function_space.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_log.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_noise.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="Tools_stack.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_stream.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="WMakefile" />
+		<Unit filename="convert_to_vtu_3.4.py" />
+		<Unit filename="convert_to_vtu_3.8.py" />
+		<Unit filename="dependency.mk" />
+		<Unit filename="geoclaw/c_bind_riemannsolvers.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="geoclaw/riemannsolvers.f">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="run_supzero_general.sh" />
+		<Unit filename="run_supzero_small.sh" />
+		<Unit filename="run_supzero_test.sh" />
+		<Unit filename="sierpinski.doxygen" />
+		<Unit filename="vtkautoconstr3.pl" />
+		<Unit filename="wdependency.mk" />
+		<Unit filename="wmake.bat" />
+		<Unit filename="wrun.bat" />
+		<Extensions>
+			<code_completion />
+			<envvars set="default" />
+			<debugger />
+			<DoxyBlocks>
+				<comment_style block="6" line="4" />
+				<doxyfile_project />
+				<doxyfile_build />
+				<doxyfile_warnings />
+				<doxyfile_output />
+				<doxyfile_dot />
+				<general />
+			</DoxyBlocks>
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
