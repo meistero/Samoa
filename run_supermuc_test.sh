@@ -17,8 +17,7 @@
 #@ initialdir = $(home)/Desktop/Samoa
 #@ output = $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.out
 #@ error =  $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.err
-#@ energy_policy_tag = none
-#@ max_perf_decrease_allowed = 1
+#@ max_perf_decrease_allowed = -1
 #@ queue
 
 . /etc/profile 2>/dev/null
