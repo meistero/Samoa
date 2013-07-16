@@ -399,11 +399,14 @@ MODULE SFC_data_types
     subroutine t_statistics_reduce_local(s, v)
         class(t_statistics), intent(inout)	:: s
         type(t_statistics), intent(in)		:: v(:)
+        real (kind = GRID_SR)               :: scaling
 
-		call reduce(s%r_traversal_time, v%r_traversal_time, MPI_MAX, .false.)
-		call reduce(s%r_computation_time, v%r_computation_time, MPI_MAX, .false.)
-		call reduce(s%r_sync_time, v%r_sync_time, MPI_MAX, .false.)
-		call reduce(s%r_barrier_time, v%r_barrier_time, MPI_MAX, .false.)
+        scaling = 1.0 / real(size(v), GRID_SR)
+
+		call reduce(s%r_traversal_time, v%r_traversal_time, MPI_SUM, .false.)
+		call reduce(s%r_computation_time, v%r_computation_time, MPI_SUM, .false.)
+		call reduce(s%r_sync_time, v%r_sync_time, MPI_SUM, .false.)
+		call reduce(s%r_barrier_time, v%r_barrier_time, MPI_SUM, .false.)
 		call reduce(s%i_traversals, v%i_traversals, MPI_MAX, .false.)
 
 		call reduce(s%i_traversed_cells, v%i_traversed_cells, MPI_SUM, .false.)
@@ -411,10 +414,10 @@ MODULE SFC_data_types
 		call reduce(s%i_traversed_nodes, v%i_traversed_nodes, MPI_SUM, .false.)
 		call reduce(s%i_traversed_memory, v%i_traversed_memory, MPI_SUM, .false.)
 
-		s%r_traversal_time = max(0.0, s%r_traversal_time)
-		s%r_computation_time = max(0.0, s%r_computation_time)
-		s%r_sync_time = max(0.0, s%r_sync_time)
-		s%r_barrier_time = max(0.0, s%r_barrier_time)
+		s%r_traversal_time = max(0.0, s%r_traversal_time * scaling)
+		s%r_computation_time = max(0.0, s%r_computation_time * scaling)
+		s%r_sync_time = max(0.0, s%r_sync_time * scaling)
+		s%r_barrier_time = max(0.0, s%r_barrier_time * scaling)
 		s%i_traversals = max(1, s%i_traversals)
      end subroutine
 
@@ -430,27 +433,43 @@ MODULE SFC_data_types
 
     subroutine t_statistics_reduce_global(s)
         class(t_statistics), intent(inout)		        :: s
+        real (kind = GRID_SR)               :: scaling
 
-		call reduce(s%r_traversal_time, mpi_op=MPI_MAX)
-		call reduce(s%r_computation_time, mpi_op=MPI_MAX)
-		call reduce(s%r_sync_time, mpi_op=MPI_MAX)
-		call reduce(s%r_barrier_time, mpi_op=MPI_MAX)
+        scaling = 1.0 / real(size_MPI, GRID_SR)
+
+		call reduce(s%r_traversal_time, mpi_op=MPI_SUM)
+		call reduce(s%r_computation_time, mpi_op=MPI_SUM)
+		call reduce(s%r_sync_time, mpi_op=MPI_SUM)
+		call reduce(s%r_barrier_time, mpi_op=MPI_SUM)
 		call reduce(s%i_traversals, mpi_op=MPI_MAX)
 
 		call reduce(s%i_traversed_cells, mpi_op=MPI_SUM)
 		call reduce(s%i_traversed_edges, mpi_op=MPI_SUM)
 		call reduce(s%i_traversed_nodes, mpi_op=MPI_SUM)
 		call reduce(s%i_traversed_memory, mpi_op=MPI_SUM)
+
+		s%r_traversal_time = max(0.0, s%r_traversal_time * scaling)
+		s%r_computation_time = max(0.0, s%r_computation_time * scaling)
+		s%r_sync_time = max(0.0, s%r_sync_time * scaling)
+		s%r_barrier_time = max(0.0, s%r_barrier_time * scaling)
+		s%i_traversals = max(1, s%i_traversals)
      end subroutine
 
     subroutine t_adaptive_statistics_reduce_global(s)
         class(t_adaptive_statistics), intent(inout)		        :: s
+        real (kind = GRID_SR)               :: scaling
+
+        scaling = 1.0 / real(size_MPI, GRID_SR)
 
         call t_statistics_reduce_global(s%t_statistics)
 
-		call reduce(s%r_allocation_time, mpi_op=MPI_MAX)
-		call reduce(s%r_integrity_time, mpi_op=MPI_MAX)
-		call reduce(s%r_load_balancing_time, mpi_op=MPI_MAX)
+		call reduce(s%r_allocation_time, mpi_op=MPI_SUM)
+		call reduce(s%r_integrity_time, mpi_op=MPI_SUM)
+		call reduce(s%r_load_balancing_time, mpi_op=MPI_SUM)
+
+		s%r_allocation_time = max(0.0, s%r_allocation_time * scaling)
+		s%r_integrity_time = max(0.0, s%r_integrity_time * scaling)
+		s%r_load_balancing_time = max(0.0, s%r_load_balancing_time * scaling)
      end subroutine
 
     elemental function t_statistics_add(s1, s2) result(sr)

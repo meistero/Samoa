@@ -436,12 +436,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
 
-#   if defined(_GT_OUTPUT_SRC)
-        call src_grid%reverse()
-#   endif
-
-	call dest_grid%reverse()
-
     !$omp barrier
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time - omp_get_wtime()
@@ -453,9 +447,15 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time + omp_get_wtime()
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time + omp_get_wtime()
 
-	call set_stats_dest(traversal%children(i_first_local_section : i_last_local_section), dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
+	call set_stats_dest(traversal%children(i_first_local_section : i_last_local_section), dest_grid%sections%elements(i_first_local_section : i_last_local_section))
 
     !$omp barrier
+
+#   if defined(_GT_OUTPUT_SRC)
+        call src_grid%reverse()
+#   endif
+
+	call dest_grid%reverse()
 
     !$omp single
         call traversal%current_stats%reduce(traversal%children%current_stats)

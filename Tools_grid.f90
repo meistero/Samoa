@@ -835,9 +835,7 @@ module Grid
         temp_distance = grid%start_distance
 		grid%start_distance = grid%end_distance
 		grid%end_distance = temp_distance
-		!$omp end single
-
-		!$omp barrier
+		!$omp end single nowait
 	end subroutine
 end module
 

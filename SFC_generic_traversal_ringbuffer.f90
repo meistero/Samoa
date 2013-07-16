@@ -230,8 +230,6 @@ subroutine traverse_grid(traversal, grid)
 
     call grid%reverse()
 
-    !$omp barrier
-
     !sync and call post traversal operator
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = -omp_get_wtime()
 	call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
