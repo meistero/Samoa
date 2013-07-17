@@ -4,7 +4,7 @@
 
 
 !*****************************************************************
-! MODULE SFC_edge_traversal: initialize edge datastructures from an SFC_grid
+! MODULE SFC_edge_traversal: initialize edge data structures from an SFC_grid
 !*****************************************************************
 #include "Compilation_control.f90"
 
