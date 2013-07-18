@@ -175,8 +175,8 @@
 		     w0=0
 		     xc=0.50
 		     zc=0.35
-		     thetac=0.5
-		     rc=.250
+		     thetac=2
+		     rc=.20
 		    pi=4.0*atan(1.0)
 		    earth_radius=160
 		    omega=7.29e-5
@@ -204,7 +204,7 @@
 		Q%h = rho_k
 		Q%p(1) = rho_k * u0
 		Q%p(2) = rho_k * w0
-		Q%e = (rho_k * theta_k)
+		Q%e = (theta_k)
 	!	 if (Q%e < 348) then
 	!		print *,"state: ", Q%e,Q%h, dtheta,gasr
 	!	endif
@@ -214,11 +214,11 @@
 		Q%h_ref = rho_ref
 		Q%p_ref (1) = rho_ref * u0 +10
 		Q%p_ref (2) = rho_ref * w0 +2.5
-		Q%e_ref  = (rho_ref * theta_ref)
+		Q%e_ref  = (theta_ref)
 		!print *, Q%e_ref,rho_ref,theta_ref
 		!print *,"TERMS: ", Q%e_ref
-		Q%e = Q%e - Q%e_ref
-		Q%h = Q%h - Q%h_ref
+		Q%e = (Q%e - Q%e_ref)*rho_k
+		Q%h = -(Q%h - Q%h_ref)
 		end function
 	END MODULE
 #endif

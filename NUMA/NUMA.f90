@@ -194,17 +194,17 @@
 			do
 
 				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. numa%euler%stats%i_traversals >= i_max_time_steps)) then
-				_log_write(0, *) " EXIT CALLED!"	
-				_log_write(0, *) (r_max_time >= 0.0) 
-				_log_write(0, *) (r_max_time)
-				_log_write(0, *) (grid%r_time >= r_max_time)
-				_log_write(0, *) (grid%r_time)
-				_log_write(0, *) (r_max_time)
-				_log_write(0, *) (i_max_time_steps >= 0)
-				_log_write(0, *) (i_max_time_steps)
-				_log_write(0, *) (numa%euler%stats%i_traversals >= i_max_time_steps)
-				_log_write(0, *) (numa%euler%stats%i_traversals)
-				_log_write(0, *) (i_max_time_steps)
+				!_log_write(0, *) " EXIT CALLED!"	
+				!_log_write(0, *) (r_max_time >= 0.0) 
+				!_log_write(0, *) (r_max_time)
+				!_log_write(0, *) (grid%r_time >= r_max_time)
+				!_log_write(0, *) (grid%r_time)
+				!_log_write(0, *) (r_max_time)
+				!_log_write(0, *) (i_max_time_steps >= 0)
+				!_log_write(0, *) (i_max_time_steps)
+				!_log_write(0, *) (numa%euler%stats%i_traversals >= i_max_time_steps)
+				!_log_write(0, *) (numa%euler%stats%i_traversals)
+				!_log_write(0, *) (i_max_time_steps)
 					exit
 				end if
 				if (numa%euler%i_refinements_issued > 0) then
@@ -223,7 +223,7 @@
                 !$omp end master
 
 				!output grid
-			_log_write(0, *) "OUTPUT-------------------------->",r_output_step,grid%r_time ,r_time_next_output , (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output)
+			!_log_write(0, *) "OUTPUT-------------------------->",r_output_step,grid%r_time ,r_time_next_output , (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output)
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
 					call numa%xml_output%traverse(grid)
 					r_time_next_output = r_time_next_output + r_output_step

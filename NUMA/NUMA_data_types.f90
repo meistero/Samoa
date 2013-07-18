@@ -30,7 +30,7 @@
 
 		!> Data type for the scenario configuration
 		type num_global_data
-			real (kind = GRID_SR)							:: r_dt	= 1e-2					!< time step
+			real (kind = GRID_SR)							:: r_dt	= 1e-3					!< time step
 			real (kind = GRID_SR)							:: u_max					!< maximum wave velocity for cfl condition
 			integer (kind = 1)								:: d_max					!< current maximum grid depth
 

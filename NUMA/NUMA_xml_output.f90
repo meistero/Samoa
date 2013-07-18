@@ -213,8 +213,8 @@
 						e_io = vtk%VTK_VAR_XML(i_points, 'water height', traversal%point_data%Q%h)
 						e_io = vtk%VTK_VAR_XML(i_points, 'energy', traversal%point_data%Q%e)
 
-						r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%h)
-						r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%h)
+						r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h)
+						r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h)
 						e_io = vtk%VTK_VAR_XML(i_points, 'velocity',  r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
 					end if
 				e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
@@ -224,8 +224,8 @@
 						e_io = vtk%VTK_VAR_XML(i_cells, 'water height', traversal%cell_data%Q%h)
 						e_io = vtk%VTK_VAR_XML(i_cells, 'energy', traversal%cell_data%Q%e)
 
-						r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%h)
-						r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%h)
+						r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h)
+						r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h)
 						e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
 					end if
 
