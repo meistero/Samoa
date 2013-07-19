@@ -21,7 +21,7 @@ limit=02:00:00
 
 for asagimode in 2
 do
-	for sections in 8 16 32
+	for sections in 8 16
 	do
 		for processes in 8 16 32 64 128 256
 		do

@@ -12,6 +12,8 @@ script_dir=$(dirname $0)
 mkdir -p $output_dir
 mkdir -p scripts
 
+export KMP_AFFINITY="granularity=core,compact,1"
+
 echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
