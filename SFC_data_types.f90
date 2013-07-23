@@ -74,8 +74,8 @@ MODULE SFC_data_types
     integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * sizeof(1.0_GRID_SR) - 4_1
 	real (kind = GRID_SR), parameter									:: PI = 3.14159265358979323846_GRID_SR 		!< PI. Apparently, "_GRID_SR" is necessary to avoid digit truncation
 
-	integer 			:: rank_MPI = 0
-	integer 			:: size_MPI = 1
+	integer 				:: rank_MPI = 0
+	integer 				:: size_MPI = 1
 
 	real (kind = GRID_SR)   :: r_asagi_time = 0.0_GRID_SR, r_asagi_time_initial = 0.0_GRID_SR
 
@@ -401,7 +401,7 @@ MODULE SFC_data_types
         type(t_statistics), intent(in)		:: v(:)
         real (kind = GRID_SR)               :: scaling
 
-        scaling = 1.0 / real(size(v), GRID_SR)
+        scaling = 1.0 / real(max(1, size(v)), GRID_SR)
 
 		call reduce(s%r_traversal_time, v%r_traversal_time, MPI_SUM, .false.)
 		call reduce(s%r_computation_time, v%r_computation_time, MPI_SUM, .false.)

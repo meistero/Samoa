@@ -95,7 +95,12 @@ endif
 ifeq ($(ASAGI), YES)
   FFLAGS 		+= -D_ASAGI -I"ASAGI/include"
   LDFLAGS 		+= "-Wl,-rpath,ASAGI" -L"ASAGI/"
-  LDFLAGS		+= -lasagi
+
+  ifeq ($(OPENMP), YES)
+    LDFLAGS		+= -lasagi
+  else
+    LDFLAGS		+= -lasagi_nomt
+  endif
 
   ifeq ($(ASAGI_TIMING), YES)
     FFLAGS 		+= -D_ASAGI_TIMING
@@ -124,9 +129,6 @@ else ifeq ($(SWE_SOLVER), LLF_BATH)
 else ifeq ($(SWE_SOLVER), FWAVE)
   FFLAGS 		+= -D_SWE_FWAVE
   EXEC			:= $(EXEC)_fwave
-#else ifeq ($(SWE_SOLVER), SSQ_FWAVE)
-#  FFLAGS 		+= -D_SWE_SSQ_FWAVE
-#  EXEC			:= $(EXEC)_ssqfwave
 else ifeq ($(SWE_SOLVER), AUG_RIEMANN)
   FFLAGS 		+= -D_SWE_AUG_RIEMANN
 else
@@ -148,6 +150,7 @@ else ifeq ($(TARGET), PROF)
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
+#TODO: -g raushauen, lädt debug libraries
   FFLAGS 		+= -g -fast -inline-level=2 -funroll-loops -unroll
   LDFLAGS 		+= -g -O3 -ip -ipo
 else
@@ -263,7 +266,7 @@ F77_OBJS = $(F77_SOURCES:.f=.o)
 
 all: compile
 
-#if a scenario was defined as target, recurisvely call make with the desired scenario as parameter
+#if a scenario was defined as target, recursively call make with the desired scenario as parameter
 
 darcy:
 	@$(MAKE) SCENARIO=DARCY

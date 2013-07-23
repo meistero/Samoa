@@ -17,6 +17,7 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Running scenarios..."
 
+class=test
 limit=02:00:00
 
 for asagimode in 2
@@ -30,7 +31,7 @@ do
 				nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 
 				script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-				cat run_supermuc_test.sh > $script
+				cat run_supermuc_template.sh > $script
 
 				sed -i 's=$asagimode='$asagimode'=g' $script
 				sed -i 's=$sections='$sections'=g' $script
@@ -39,6 +40,7 @@ do
 				sed -i 's=$output_dir='$output_dir'=g' $script
 				sed -i 's=$nodes='$nodes'=g' $script
 				sed -i 's=$limit='$limit'=g' $script
+				sed -i 's=$class='$class'=g' $script
 
 				llsubmit $script
 			done

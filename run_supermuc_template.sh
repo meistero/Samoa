@@ -23,7 +23,7 @@
 . /etc/profile 2>/dev/null
 . /etc/profile.d/modules.sh 2>/dev/null
 
-export KMP_AFFINITY="granularity=core,compact,1"
+#export KMP_AFFINITY="granularity=core,compact,1"
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
@@ -31,10 +31,10 @@ echo "  Sections: "$sections
 echo "  ASAGI mode: "$asagimode
 
 echo "  Running Darcy..."
-mpiexec -n $processes ./bin/samoa_darcy -asagihints $asagimode -dmin 26 -dmax 40 -tsteps 10 -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_darcy -asagihints $asagimode -dmin 26 -dmax 40 -tsteps 10 -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
 echo "  Running SWE..."
-mpiexec -n $processes ./bin/samoa_swe -asagihints $asagimode -dmin 8 -dmax 30 -tsteps 100 -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_swe -asagihints $asagimode -dmin 8 -dmax 30 -tsteps 100 -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 

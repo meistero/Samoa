@@ -321,6 +321,10 @@
 			type(t_cell_transform_data), pointer			:: p_plotter_data
 #		endif
 
+		assert_ne(element%cell%geometry%i_plotter_type, 0)
+		assert_ge(element%cell%geometry%i_plotter_type, -8)
+		assert_le(element%cell%geometry%i_plotter_type, 8)
+
 		element%transform_data%plotter_data => ref_plotter_data(element%cell%geometry%i_plotter_type)
 		element%transform_data%custom_data%scaling = element%cell%geometry%get_scaling()
 
@@ -392,6 +396,8 @@
                 call _OP3(read, d, d, b)(traversal, thread, section, element)
             case(SINGLE_NEW_BND)
                 call _OP3(read, d, b, b)(traversal, thread, section, element)
+			case default
+				assert_eq(element%cell%geometry%i_edge_types, INNER_OLD)
         end select
 	end subroutine
 
@@ -432,6 +438,8 @@
                 call _OP3(write, d, d, b)(traversal, thread, section, element)
             case(SINGLE_NEW_BND)
                 call _OP3(write, d, b, b)(traversal, thread, section, element)
+			case default
+				assert_eq(element%cell%geometry%i_edge_types, INNER_OLD)
         end select
 	end subroutine
 #endif

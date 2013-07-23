@@ -31,7 +31,7 @@ do
 			nodes=$(( ($processes * $threads - 1) / 40 + 1 ))
 
 			script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-			cat run_supzero_test.sh > $script
+			cat run_supzero_template.sh > $script
 
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script

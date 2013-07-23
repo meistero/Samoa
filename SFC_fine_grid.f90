@@ -52,6 +52,7 @@ subroutine assign_fine_tri_from_fem(fine_tri, fem)
 
 	fine_tri%i_plotter_type = fem%i_plotter_type
 	fine_tri%i_turtle_type = 4 - abs(fem%i_turtle_type)
+	fine_tri%i_edge_types = 0
 
 	previous_edge_index = get_previous_edge_index(fem%i_turtle_type)
 	color_edge_index = get_color_edge_index(fem%i_turtle_type)
