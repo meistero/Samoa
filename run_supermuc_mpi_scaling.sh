@@ -24,26 +24,25 @@ for asagimode in 2
 do
 	for sections in 8 16
 	do
-		for processes in 8 16 32 64 128 256
+		for concurrency in 1 2 4 8 16 32 64 128 256
 		do
-			for threads in 1
-			do
-				nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+			processes=$concurrency
+			threads=1
+			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 
-				script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-				cat run_supermuc_template.sh > $script
+			script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
+			cat run_supermuc_template.sh > $script
 
-				sed -i 's=$asagimode='$asagimode'=g' $script
-				sed -i 's=$sections='$sections'=g' $script
-				sed -i 's=$processes='$processes'=g' $script
-				sed -i 's=$threads='$threads'=g' $script
-				sed -i 's=$output_dir='$output_dir'=g' $script
-				sed -i 's=$nodes='$nodes'=g' $script
-				sed -i 's=$limit='$limit'=g' $script
-				sed -i 's=$class='$class'=g' $script
+			sed -i 's=$asagimode='$asagimode'=g' $script
+			sed -i 's=$sections='$sections'=g' $script
+			sed -i 's=$processes='$processes'=g' $script
+			sed -i 's=$threads='$threads'=g' $script
+			sed -i 's=$output_dir='$output_dir'=g' $script
+			sed -i 's=$nodes='$nodes'=g' $script
+			sed -i 's=$limit='$limit'=g' $script
+			sed -i 's=$class='$class'=g' $script
 
-				llsubmit $script
-			done
+			llsubmit $script
 		done
 	done
 done

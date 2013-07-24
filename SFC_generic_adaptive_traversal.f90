@@ -75,12 +75,11 @@ type, extends(num_traversal_data) :: t_thread_data
     type(t_traversal_element), dimension(8)			        :: src_elements							!< Input element ring buffer (must be 8, because transfer nodes can be referenced back up to 8 elements)
     type(t_traversal_element), dimension(11)        		:: dest_elements						!< Output element ring buffer (must be 11, because transfer nodes can be referenced back up to 8 + 3 new refinement elements)
 
-    type(t_traversal_element), pointer						:: p_src_element, p_dest_element        !< Current source and destination element
+    type(t_traversal_element), pointer						:: p_src_element => null(), p_dest_element => null()        !< Current source and destination element
 end type
 
 type, extends(t_section_data) :: _GT
     type(_GT), pointer                                      :: children_alloc(:) => null(), children(:) => null()			!< section data
-	type(t_thread_data), pointer							:: threads(:) => null()
 
     contains
 
@@ -96,10 +95,6 @@ subroutine finalize(traversal)
 
     if (associated(traversal%children_alloc)) then
         deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
-    end if
-
-    if (associated(traversal%threads)) then
-        deallocate(traversal%threads, stat = i_error); assert_eq(i_error, 0)
     end if
 end subroutine
 
@@ -268,14 +263,17 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
 	type(t_grid_section), target							:: src_section
 	type(t_grid_section), pointer							:: dest_section
-	type(t_thread_data), pointer	                        :: thread_traversal
     integer (kind = GRID_SI)			                    :: i_thread, i_src_section, i_dest_section, i_first_local_section, i_last_local_section
     integer (kind = GRID_SI)			                    :: i_src_cell
 	integer                                                 :: i_error
 	integer (kind = 1)										:: i_color
+	type(t_thread_data), target, save						:: thread_traversal
+	!$omp threadprivate(thread_traversal)
 
-    !$omp single
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(dest_grid%sections%elements)) then
+		!$omp barrier    	
+
+		!$omp single
         if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < size(dest_grid%sections%elements)) then
             if (associated(traversal%children_alloc)) then
                 deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
@@ -285,28 +283,22 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
         end if
 
         traversal%children => traversal%children_alloc(1 : size(dest_grid%sections%elements))
+    	!$omp end single
     end if
 
-    if (.not. associated(traversal%threads)) then
-        allocate(traversal%threads(omp_get_num_threads()), stat = i_error); assert_eq(i_error, 0)
+	if (.not. associated(thread_traversal%p_src_element)) then
+		assert(.not. associated(thread_traversal%p_dest_element))
+	
+    	!create ringbuffers and temporary elements
+		call create_ringbuffer(thread_traversal%src_elements)
+		call create_ringbuffer(thread_traversal%dest_elements)
+		call create_refinement_element(thread_traversal%refinement_elements)
 
-        !create ringbuffer
-        do i_thread = 1, omp_get_num_threads()
-            !create ringbuffers
-            call create_ringbuffer(traversal%threads(i_thread)%src_elements)
-            call create_ringbuffer(traversal%threads(i_thread)%dest_elements)
-
-            !create temporary elements
-            call create_refinement_element(traversal%threads(i_thread)%refinement_elements)
-
-            traversal%threads(i_thread)%p_src_element => traversal%threads(i_thread)%src_elements(1)
-            traversal%threads(i_thread)%p_dest_element => traversal%threads(i_thread)%dest_elements(1)
-        end do
-    end if
-    !$omp end single
+		thread_traversal%p_src_element => thread_traversal%src_elements(1)
+		thread_traversal%p_dest_element => thread_traversal%dest_elements(1)
+	end if
 
     i_thread = 1 + omp_get_thread_num()
-    thread_traversal => traversal%threads(i_thread)
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = -omp_get_wtime()

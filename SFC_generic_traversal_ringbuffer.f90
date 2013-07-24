@@ -67,12 +67,11 @@ end type
 
 type, extends(num_traversal_data) :: t_thread_data
     type(t_traversal_element), dimension(8)     			:: elements									!< Element ring buffer (must contain at least 8 elements, because transfer nodes can be referenced back up to 8 elements)
-    type(t_traversal_element), pointer						:: p_current_element						!< Current element
+    type(t_traversal_element), pointer						:: p_current_element => null()				!< Current element
 end type
 
 type, extends(t_section_data) :: _GT
     type(_GT), pointer                                      :: children_alloc(:) => null(), children(:) => null()			!< section data
-	type(t_thread_data), pointer							:: threads(:) => null()
 
     contains
 
@@ -88,10 +87,6 @@ subroutine finalize(traversal)
 
     if (associated(traversal%children_alloc)) then
         deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
-    end if
-
-    if (associated(traversal%threads)) then
-        deallocate(traversal%threads, stat = i_error); assert_eq(i_error, 0)
     end if
 end subroutine
 
@@ -171,8 +166,13 @@ subroutine traverse_grid(traversal, grid)
 	integer (kind = GRID_SI)                            :: i_section, i_thread, i_first_local_section, i_last_local_section
 	integer (kind = GRID_SI)                            :: i_error
 
-    !$omp single
+	type(t_thread_data), target, save					:: thread_traversal
+	!$omp threadprivate(thread_traversal)
+
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(grid%sections%elements_alloc)) then
+		!$omp barrier		
+    	
+		!$omp single
         if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < size(grid%sections%elements_alloc)) then
             if (associated(traversal%children_alloc)) then
                 deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
@@ -182,18 +182,13 @@ subroutine traverse_grid(traversal, grid)
         end if
 
         traversal%children => traversal%children_alloc(1 : size(grid%sections%elements_alloc))
+    	!$omp end single
     end if
 
-    if (.not. associated(traversal%threads)) then
-        allocate(traversal%threads(omp_get_num_threads()), stat = i_error); assert_eq(i_error, 0)
-
-        !create ringbuffer
-        do i_thread = 1, omp_get_num_threads()
-            call create_ringbuffer(traversal%threads(i_thread)%elements)
-            traversal%threads(i_thread)%p_current_element => traversal%threads(i_thread)%elements(1)
-        end do
-    end if
-    !$omp end single
+	if (.not. associated(thread_traversal%p_current_element)) then
+   		call create_ringbuffer(thread_traversal%elements)
+    	thread_traversal%p_current_element => thread_traversal%elements(1)
+	end if
 
     i_thread = 1 + omp_get_thread_num()
     call grid%get_local_sections(i_first_local_section, i_last_local_section)
@@ -222,7 +217,7 @@ subroutine traverse_grid(traversal, grid)
 
     !call pre traversal operator
 	do i_section = i_first_local_section, i_last_local_section
-        call traverse_section(traversal%threads(i_thread), traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+        call traverse_section(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
         call send_mpi_boundary(grid%sections%elements_alloc(i_section))
     end do
 

@@ -150,9 +150,8 @@ else ifeq ($(TARGET), PROF)
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
-#TODO: -g raushauen, lädt debug libraries
-  FFLAGS 		+= -g -fast -inline-level=2 -funroll-loops -unroll
-  LDFLAGS 		+= -g -O3 -ip -ipo
+  FFLAGS 		+= -fast -inline-level=2 -funroll-loops -unroll
+  LDFLAGS 		+= -O3 -ip -ipo
 else
   $(error Invalid value for TARGET: $(TARGET))
 endif

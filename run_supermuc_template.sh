@@ -23,7 +23,7 @@
 . /etc/profile 2>/dev/null
 . /etc/profile.d/modules.sh 2>/dev/null
 
-#export KMP_AFFINITY="granularity=core,compact,1"
+export KMP_AFFINITY="granularity=core,compact,1"
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
