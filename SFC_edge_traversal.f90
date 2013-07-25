@@ -238,6 +238,8 @@ module SFC_edge_traversal
         call collect_minimum_distances(dest_grid, src_neighbor_list_green, neighbor_min_distances_green, GREEN)
         !$omp end single
 
+        !barrier here, all destination sections must have found their boundary elements in order to continue
+
         !find all destination grid neighbors by checking if any overlap between local sections and neighbors exists
         call create_dest_neighbor_lists(dest_grid, src_neighbor_list_red, src_neighbor_list_green, neighbor_min_distances_red, neighbor_min_distances_green)
 

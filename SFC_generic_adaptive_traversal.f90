@@ -271,7 +271,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	!$omp threadprivate(thread_traversal)
 
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(dest_grid%sections%elements)) then
-		!$omp barrier    	
+		!$omp barrier
 
 		!$omp single
         if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < size(dest_grid%sections%elements)) then
@@ -288,7 +288,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
 	if (.not. associated(thread_traversal%p_src_element)) then
 		assert(.not. associated(thread_traversal%p_dest_element))
-	
+
     	!create ringbuffers and temporary elements
 		call create_ringbuffer(thread_traversal%src_elements)
 		call create_ringbuffer(thread_traversal%dest_elements)
@@ -303,8 +303,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = -omp_get_wtime()
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = -omp_get_wtime()
-
-    !$omp barrier
 
     !$omp single
     call pre_traversal_grid_dest(traversal, dest_grid)
@@ -323,8 +321,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
         call pre_traversal_dest(traversal%children(i_dest_section), dest_section)
     end do
-
-    !$omp barrier
 
     !traversal
 
@@ -391,34 +387,27 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
 
-    !$omp barrier
-
     call update_distances(dest_grid)
-
-    !$omp barrier
 
     !$omp single
     assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
-    !$omp end single
+    !$omp end single nowait
 
 	!update communication info
 	call update_neighbors(src_grid, dest_grid)
 
     !$omp barrier
 
+    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = -omp_get_wtime()
+
     do i_dest_section = i_first_local_section, i_last_local_section
         call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
         call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
     end do
 
-    !$omp barrier
-
     !sync and call post traversal operator
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = -omp_get_wtime()
 	call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time + omp_get_wtime()
-
-    !$omp barrier
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time - omp_get_wtime()
 

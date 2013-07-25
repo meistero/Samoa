@@ -179,29 +179,16 @@
 #		endif
 	end subroutine
 
-	subroutine _OP0(pre_traversal)(traversal, section)
+	subroutine _OP0(boundary_skeleton)(traversal, section)
 		type(_GT), intent(inout)					                :: traversal
 		type(t_grid_section), intent(inout)					        :: section
 
-		integer (kind = GRID_SI)							        :: i, i_color
+		integer (kind = GRID_SI)							        :: i_color
         integer (kind = GRID_SI)							        :: i_comm
         type(t_comm_interface), pointer                             :: comm
-        type(t_edge_data), pointer                                  :: edges(:)
 
-#		if defined(_GT_PRE_TRAVERSAL_OP)
-			call _GT_PRE_TRAVERSAL_OP(traversal, section)
-#		endif
-
-		do i_color = RED, GREEN
-#			if defined(_GT_NODES) .and. defined(_GT_NODE_FIRST_TOUCH_OP)
-                call _GT_NODE_FIRST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements)
-#			endif
-
-#			if defined(_GT_EDGES) .and. defined(_GT_EDGE_FIRST_TOUCH_OP)
-                call _GT_EDGE_FIRST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
-#			endif
-
-#			if defined(_GT_EDGES) .and. defined(_GT_SKELETON_OP)
+#       if defined(_GT_EDGES) .and. defined(_GT_SKELETON_OP)
+            do i_color = RED, GREEN
                 do i_comm = 1, size(section%comms(i_color)%elements)
                     comm => section%comms(i_color)%elements(i_comm)
 
@@ -215,6 +202,27 @@
                         call _GT_BND_SKELETON_OP(traversal, section, comm%p_local_edges, comm%p_local_edges%rep, comm%p_local_edges%update)
                     end if
                 end do
+            end do
+#       endif
+	end subroutine
+
+	subroutine _OP0(pre_traversal)(traversal, section)
+		type(_GT), intent(inout)					                :: traversal
+		type(t_grid_section), intent(inout)					        :: section
+
+		integer (kind = GRID_SI)							        :: i_color
+
+#		if defined(_GT_PRE_TRAVERSAL_OP)
+			call _GT_PRE_TRAVERSAL_OP(traversal, section)
+#		endif
+
+		do i_color = RED, GREEN
+#			if defined(_GT_NODES) .and. defined(_GT_NODE_FIRST_TOUCH_OP)
+                call _GT_NODE_FIRST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements)
+#			endif
+
+#			if defined(_GT_EDGES) .and. defined(_GT_EDGE_FIRST_TOUCH_OP)
+                call _GT_EDGE_FIRST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
 #			endif
 		end do
 	end subroutine

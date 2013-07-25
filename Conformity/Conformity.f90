@@ -60,8 +60,6 @@ module Conformity
         type(t_grid), intent(inout)	    :: grid
         integer (kind = GRID_SI)        :: i_section, i_first_local_section, i_last_local_section, i_thread
 
-        !$omp barrier
-
 		_log_write(3, "(3X, A)") "Initial conformity traversal:"
 
         i_thread = 1 + omp_get_thread_num()
@@ -78,8 +76,6 @@ module Conformity
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
 
-        !$omp barrier
-
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_traversal_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_traversal_time + omp_get_wtime()
     end subroutine
 
@@ -88,11 +84,8 @@ module Conformity
 
         integer (kind = GRID_SI)        :: i_section, i_first_local_section, i_last_local_section, i_thread
 
-        !$omp barrier
-
  		_log_write(3, '(3X, A)') "Update conformity traversal:"
 
-        i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_traversal_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_traversal_time - omp_get_wtime()
@@ -104,7 +97,7 @@ module Conformity
         end do
 
         do i_section = i_first_local_section, i_last_local_section
-            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+            i_thread = 1 + omp_get_thread_num()
 
             !do a conformity traversal only if it is required
             do while (.not. grid%sections%elements_alloc(i_section)%l_conform)
@@ -119,15 +112,9 @@ module Conformity
 
         call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%estimate_load()
 
-        !$omp barrier
-
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time - omp_get_wtime()
-
         call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
-
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time + omp_get_wtime()
-
-        !$omp barrier
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_barrier_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_barrier_time - omp_get_wtime()
 
@@ -144,8 +131,6 @@ module Conformity
         type(t_grid), intent(inout)     :: grid
 
         integer (kind = GRID_SI)        :: i_section, i_first_local_section, i_last_local_section, i_thread
-
-        !$omp barrier
 
  		_log_write(3, '(3X, A)') "Empty traversal:"
 
@@ -166,8 +151,6 @@ module Conformity
         end do
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
-
-        !$omp barrier
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_barrier_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_barrier_time - omp_get_wtime()
 
