@@ -387,14 +387,18 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
 
+    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time = -omp_get_wtime()
     call update_distances(dest_grid)
+    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time + omp_get_wtime()
 
     !$omp single
     assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
     !$omp end single nowait
 
 	!update communication info
+    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time = -omp_get_wtime()
 	call update_neighbors(src_grid, dest_grid)
+    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time + omp_get_wtime()
 
     !$omp barrier
 

@@ -106,7 +106,7 @@ PROGRAM gridtest
 
 		call mpi_comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, mpi_tag_upper_bound, mpi_flag, i_error); assert_eq(i_error, 0)
 		assert(mpi_flag)
-		assert_ge(mpi_tag_upper_bound, ishft(1, 31) - 1)
+		assert_ge(mpi_tag_upper_bound, ishft(1, 30) - 1)
 #	else
 		size_MPI = 1
 		rank_MPI = 0

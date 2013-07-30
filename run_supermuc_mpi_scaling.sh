@@ -18,7 +18,7 @@ echo ""
 echo "Running scenarios..."
 
 class=test
-limit=02:00:00
+limit=00:20:00
 
 for asagimode in 2
 do

@@ -380,6 +380,8 @@ module SFC_edge_traversal
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - omp_get_wtime()
+
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
 
@@ -387,7 +389,11 @@ module SFC_edge_traversal
             call set_comms_local_data(grid, section, src_neighbor_list_green, neighbor_min_distances_green, GREEN)
         end do
 
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
+
         !$omp barrier
+
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - omp_get_wtime()
 
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
@@ -398,6 +404,8 @@ module SFC_edge_traversal
                 call set_comm_neighbor_data(grid, section, i_color)
             end do
         end do
+
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
     end subroutine
 
     subroutine set_comms_local_data(grid, section, src_neighbor_list, neighbor_min_distances, i_color)
@@ -712,7 +720,7 @@ module SFC_edge_traversal
         i_comm_start = 1
         i_comm_end = size(comms)
 
-        is_increasing = ishft(comms(i_comm_end)%neighbor_rank, 16) + comms(i_comm_end)%neighbor_section > ishft(comms(i_comm_start)%neighbor_rank, 16) + comms(i_comm_start)%neighbor_section
+        is_increasing = ishft(comms(i_comm_end)%neighbor_rank, 15) + comms(i_comm_end)%neighbor_section > ishft(comms(i_comm_start)%neighbor_rank, 15) + comms(i_comm_start)%neighbor_section
 
         if (is_increasing) then
             do while (i_comm_end - i_comm_start > vector_threshold)
@@ -759,7 +767,7 @@ module SFC_edge_traversal
         end if
 
         !switch to a linear search for small arrays
-        i_comm = minloc(abs((ishft(comms(i_comm_start : i_comm_end)%neighbor_rank, 16) + comms(i_comm_start : i_comm_end)%neighbor_section) - (ishft(i_rank, 16) + i_section)), 1)
+        i_comm = minloc(abs((ishft(comms(i_comm_start : i_comm_end)%neighbor_rank, 15) + comms(i_comm_start : i_comm_end)%neighbor_section) - (ishft(i_rank, 15) + i_section)), 1)
         comm => comms(i_comm)
 
         assert_eq(comm%neighbor_rank, i_rank)
@@ -843,9 +851,11 @@ module SFC_edge_traversal
                         _log_write(4, '(6X, A)') trim(comm%to_string())
                         assert(associated(comm%p_neighbor_edges))
                         assert(associated(comm%p_neighbor_nodes))
+						assert_lt(comm%local_section, ishft(1, 15))
+						assert_lt(comm%neighbor_section, ishft(1, 15))
 
-                        send_tag = ishft(comm%local_section, 16) + comm%neighbor_section
-                        recv_tag = ishft(comm%neighbor_section, 16) + comm%local_section
+                        send_tag = ishft(comm%local_section, 15) + comm%neighbor_section
+                        recv_tag = ishft(comm%neighbor_section, 15) + comm%local_section
 
                         _log_write(5, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "send from: ", comm%local_rank, comm%local_section,  " to  : ", comm%neighbor_rank, comm%neighbor_section, " send tag: ", send_tag
 
@@ -885,9 +895,11 @@ module SFC_edge_traversal
                         _log_write(4, '(6X, A)') trim(comm%to_string())
                         assert(associated(comm%p_neighbor_edges))
                         assert(associated(comm%p_neighbor_nodes))
+						assert_lt(comm%local_section, ishft(1, 15))
+						assert_lt(comm%neighbor_section, ishft(1, 15))
 
-                        send_tag = ishft(comm%local_section, 16) + comm%neighbor_section
-                        recv_tag = ishft(comm%neighbor_section, 16) + comm%local_section
+                        send_tag = ishft(comm%local_section, 15) + comm%neighbor_section
+                        recv_tag = ishft(comm%neighbor_section, 15) + comm%local_section
 
                         _log_write(5, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "recv to  : ", comm%local_rank, comm%local_section, " from: ", comm%neighbor_rank, comm%neighbor_section, " recv tag: ", recv_tag
 
@@ -1091,6 +1103,7 @@ module SFC_edge_traversal
         type(t_grid_section)					        :: empty_section
         type(t_grid_section), pointer					:: section, section_nb
 		type(t_comm_interface), pointer                 :: comm
+		type(t_comm_interface)                 			:: old_comm
 
         _log_write(3, '(3X, A)') "distribute load"
 		imbalance = 0
@@ -1242,13 +1255,18 @@ module SFC_edge_traversal
                         comm => section%comms(i_color)%elements(i_comm)
                         _log_write(4, '(6X, A)') trim(comm%to_string())
 
-                        send_tag = ishft(comm%local_section, 16) + comm%neighbor_section
-                        recv_tag = ishft(comm%neighbor_section, 16) + comm%local_section
+						old_comm = comm
+
                         comm%local_rank = new_rank
                         comm%local_section = new_section
 
                         if (comm%neighbor_rank .ge. 0) then
                             call comm%destroy_buffer()
+
+							assert_lt(old_comm%local_section, ishft(1, 15))
+							assert_lt(old_comm%neighbor_section, ishft(1, 15))
+				            send_tag = ishft(old_comm%local_section, 15) + old_comm%neighbor_section
+				            recv_tag = ishft(old_comm%neighbor_section, 15) + old_comm%local_section
 
                             _log_write(4, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "send from: ", comm%local_rank, comm%local_section,  " to  : ", comm%neighbor_rank, comm%neighbor_section, " send tag: ", send_tag
                             _log_write(4, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "recv to  : ", comm%local_rank, comm%local_section, " from: ", comm%neighbor_rank, comm%neighbor_section, " recv tag: ", recv_tag
@@ -1256,10 +1274,10 @@ module SFC_edge_traversal
                             assert_veq(comm%send_requests, MPI_REQUEST_NULL)
                             assert_veq(comm%recv_requests, MPI_REQUEST_NULL)
 
-                            call mpi_isend(comm%local_section,           1, MPI_INTEGER, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
-                            call mpi_isend(comm%local_rank,              1, MPI_INTEGER, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
-                            call mpi_irecv(comm%neighbor_section,        1, MPI_INTEGER, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
-                            call mpi_irecv(comm%neighbor_rank,           1, MPI_INTEGER, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
+                            call mpi_isend(comm%local_rank,              1, MPI_INTEGER, old_comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
+                            call mpi_isend(comm%local_section,           1, MPI_INTEGER, old_comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
+                            call mpi_irecv(comm%neighbor_rank,           1, MPI_INTEGER, old_comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
+                            call mpi_irecv(comm%neighbor_section,        1, MPI_INTEGER, old_comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
 
                             assert_vne(comm%send_requests, MPI_REQUEST_NULL)
                             assert_vne(comm%recv_requests, MPI_REQUEST_NULL)

@@ -172,6 +172,8 @@ MODULE SFC_data_types
 
 	type, extends(t_statistics) ::  t_adaptive_statistics
         real (kind = GRID_SR)					        	:: r_allocation_time = 0.0_GRID_SR
+        real (kind = GRID_SR)					        	:: r_update_distances_time = 0.0_GRID_SR
+        real (kind = GRID_SR)					        	:: r_update_neighbors_time = 0.0_GRID_SR
         real (kind = GRID_SR)					        	:: r_integrity_time = 0.0_GRID_SR
         real (kind = GRID_SR)					        	:: r_load_balancing_time = 0.0_GRID_SR
 
@@ -424,8 +426,17 @@ MODULE SFC_data_types
     subroutine t_adaptive_statistics_reduce_local(s, v)
         class(t_adaptive_statistics), intent(inout)	    :: s
         type(t_adaptive_statistics), intent(in)		    :: v(:)
+        real (kind = GRID_SR)               			:: scaling
+
+        scaling = 1.0 / real(max(1, size(v)), GRID_SR)
 
 		call t_statistics_reduce_local(s, v%t_statistics)
+
+		call reduce(s%r_update_distances_time, v%r_update_distances_time, MPI_SUM, .false.)
+		call reduce(s%r_update_neighbors_time, v%r_update_neighbors_time, MPI_SUM, .false.)
+
+		s%r_update_distances_time = max(0.0, s%r_update_distances_time * scaling)
+		s%r_update_neighbors_time = max(0.0, s%r_update_neighbors_time * scaling)
 
 		!allocation, integrity and load balancing time is measured globally, not per section
 		!so we do not reduce these locally
@@ -466,10 +477,14 @@ MODULE SFC_data_types
 		call reduce(s%r_allocation_time, mpi_op=MPI_SUM)
 		call reduce(s%r_integrity_time, mpi_op=MPI_SUM)
 		call reduce(s%r_load_balancing_time, mpi_op=MPI_SUM)
+		call reduce(s%r_update_distances_time, mpi_op=MPI_SUM)
+		call reduce(s%r_update_neighbors_time, mpi_op=MPI_SUM)
 
 		s%r_allocation_time = max(0.0, s%r_allocation_time * scaling)
 		s%r_integrity_time = max(0.0, s%r_integrity_time * scaling)
 		s%r_load_balancing_time = max(0.0, s%r_load_balancing_time * scaling)
+		s%r_update_distances_time = max(0.0, s%r_update_distances_time * scaling)
+		s%r_update_neighbors_time = max(0.0, s%r_update_neighbors_time * scaling)
      end subroutine
 
     elemental function t_statistics_add(s1, s2) result(sr)
@@ -496,6 +511,8 @@ MODULE SFC_data_types
 		sr%r_allocation_time = s1%r_allocation_time + s2%r_allocation_time
 		sr%r_integrity_time = s1%r_integrity_time + s2%r_integrity_time
 		sr%r_load_balancing_time = s1%r_load_balancing_time + s2%r_load_balancing_time
+		sr%r_update_distances_time = s1%r_update_distances_time + s2%r_update_distances_time
+		sr%r_update_neighbors_time = s1%r_update_neighbors_time + s2%r_update_neighbors_time
     end function
 
     elemental function t_statistics_inv(s1) result(sr)
@@ -522,6 +539,8 @@ MODULE SFC_data_types
 		sr%r_allocation_time = -s1%r_allocation_time
 		sr%r_integrity_time = -s1%r_integrity_time
 		sr%r_load_balancing_time = -s1%r_load_balancing_time
+		sr%r_update_distances_time = -s1%r_update_distances_time
+		sr%r_update_neighbors_time = -s1%r_update_neighbors_time
     end function
 
     elemental function t_statistics_sub(s1, s2) result(sr)
@@ -556,7 +575,7 @@ MODULE SFC_data_types
         class(t_adaptive_statistics), intent(in)	:: s
 		character (len = 256)					    :: str
 
-        write(str, '(A, " integrity: ", F0.4, "s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")'), trim(t_statistics_to_string(s)), s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
+        write(str, '(A, " update distances: ", F0.4, " update neighbors: ", F0.4, " integrity: ", F0.4, "s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")'), trim(t_statistics_to_string(s)), s%r_update_distances_time, s%r_update_neighbors_time, s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
 	end function
 
     elemental function t_global_data_to_string(gd) result(str)

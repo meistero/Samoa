@@ -110,8 +110,6 @@ module Conformity
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
 
-        call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%estimate_load()
-
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time - omp_get_wtime()
         call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_sync_time + omp_get_wtime()
@@ -151,6 +149,8 @@ module Conformity
         end do
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
+
+        call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%estimate_load()
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_barrier_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_barrier_time - omp_get_wtime()
 
@@ -1076,6 +1076,8 @@ module Conformity
 
         assert(.not. local_edges%remove)
         assert(.not. neighbor_edges%remove)
+        assert(.not. local_edges%refine .or. neighbor_edges%refine)
+        assert(local_edges%coarsen .or. .not. neighbor_edges%coarsen)
 
         l_conform = (local_edges%refine .eqv. neighbor_edges%refine) .and. (local_edges%coarsen .eqv. neighbor_edges%coarsen)
 

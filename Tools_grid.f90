@@ -595,7 +595,7 @@ module Grid_section
 	elemental subroutine grid_section_estimate_load(section)
 		class(t_grid_section), intent(inout)		        :: section
 
-		section%load = section%dest_cells
+		section%load = section%stats%r_computation_time
     end subroutine
 
 	subroutine grid_section_traverse_empty(section)

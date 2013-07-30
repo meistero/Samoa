@@ -224,7 +224,7 @@ subroutine traverse_grid(traversal, grid)
     end do
 
 	do i_section = i_first_local_section, i_last_local_section
-        !$omp task firstprivate(i_section) private(i_thread)
+        !$omp task firstprivate(i_section) private(i_thread) mergeable
             i_thread = 1 + omp_get_thread_num()
             call pre_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
             call traverse_section(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
