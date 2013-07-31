@@ -532,7 +532,7 @@ module SFC_edge_traversal
         end do
 
         !add a domain boundary comm and serialize comm list for faster access
-        call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = -1, local_section = section%index, neighbor_section = huge(1_GRID_SI), min_distance = -huge(1_GRID_DI)))
+        call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = -1, local_section = section%index, neighbor_section = -1, min_distance = -huge(1_GRID_DI)))
 
         !merge old and new comm lists (new list must be reversed first)
         call section%comms_type(NEW, i_color)%reverse()
@@ -702,72 +702,16 @@ module SFC_edge_traversal
         end do
     end subroutine
 
+	!>finds the correct comm index for a certain rank and section
     function find_section_comm(comms, i_rank, i_section) result(comm)
         type(t_comm_interface), pointer, intent(in)         :: comms(:)
         type(t_comm_interface), pointer                     :: comm
         integer (kind = GRID_SI), intent(in)                :: i_rank
         integer (kind = GRID_SI), intent(in)                :: i_section
-        logical                                             :: is_increasing
 
-        integer (kind = GRID_SI)                            :: i_comm_start, i_comm_end, i_comm
-        integer (kind = GRID_SI), parameter                 :: vector_threshold = 16 - 1
+        integer (kind = GRID_SI)                            :: i_comm
 
-        !find the correct comm index
-
-        !i_comm = minloc(abs(comms%neighbor_section - i_section), 1)
-
-        !use binary search as long as the array is still big
-        i_comm_start = 1
-        i_comm_end = size(comms)
-
-        is_increasing = ishft(comms(i_comm_end)%neighbor_rank, 15) + comms(i_comm_end)%neighbor_section > ishft(comms(i_comm_start)%neighbor_rank, 15) + comms(i_comm_start)%neighbor_section
-
-        if (is_increasing) then
-            do while (i_comm_end - i_comm_start > vector_threshold)
-                i_comm = (i_comm_start + i_comm_end) / 2
-                comm => comms(i_comm)
-
-                select case(comm%neighbor_rank - i_rank)
-                case (0)
-                    select case(comm%neighbor_section - i_section)
-                    case (0)
-                        return
-                    case(:-1)
-                        i_comm_start = i_comm + 1
-                    case(1:)
-                        i_comm_end = i_comm - 1
-                    end select
-                case(:-1)
-                    i_comm_start = i_comm + 1
-                case(1:)
-                    i_comm_end = i_comm - 1
-                end select
-            end do
-        else
-            do while (i_comm_end - i_comm_start > vector_threshold)
-                i_comm = (i_comm_start + i_comm_end) / 2
-                comm => comms(i_comm)
-
-                select case(i_rank - comm%neighbor_rank)
-                case (0)
-                    select case(i_section - comm%neighbor_section)
-                    case (0)
-                        return
-                    case(:-1)
-                        i_comm_end = i_comm - 1
-                    case(1:)
-                        i_comm_start = i_comm + 1
-                    end select
-                case(:-1)
-                    i_comm_end = i_comm - 1
-                case(1:)
-                    i_comm_start = i_comm + 1
-                end select
-            end do
-        end if
-
-        !switch to a linear search for small arrays
-        i_comm = minloc(abs((ishft(comms(i_comm_start : i_comm_end)%neighbor_rank, 15) + comms(i_comm_start : i_comm_end)%neighbor_section) - (ishft(i_rank, 15) + i_section)), 1)
+        i_comm = minloc(abs(comms%neighbor_rank - i_rank) + abs(comms%neighbor_section - i_section), 1)
         comm => comms(i_comm)
 
         assert_eq(comm%neighbor_rank, i_rank)
