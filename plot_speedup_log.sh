@@ -45,6 +45,9 @@ for file in swe*.log; do
 	echo ""  >> "swe.plt"
 done
 
+sort -t" " -n +2 +0 +1 darcy.plt -o darcy.plt
+sort -t" " -n +2 +0 +1 swe.plt -o swe.plt
+
 gnuplot &> /dev/null << EOT
 
 set terminal postscript enhanced color
@@ -53,10 +56,6 @@ set ylabel "M/s"
 set logscale xy 2
 
 title(n) = sprintf("%d section(s)", n)
-
-p(x) = x / (b * (x + a))
-r(x) = x / (a * b)
-u(x) = 1 / b
 
 #*******
 # Darcy
@@ -67,14 +66,11 @@ unset output
 set xrange [*:*]
 set yrange [*:*]
 
-fit p(x) "darcy.plt" u (\$1*\$2):4 via a, b
-
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w points t title(n) lw 4
+plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4
 
 set output '| ps2pdf - darcy_elem_init.pdf'
 
-replot p(x) w lines lt 1 lc 0 lw 4 title "regression",  \
-	log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
+replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
 
 #********
 
@@ -82,14 +78,12 @@ set title "Darcy element throughput - time steps"
 unset output
 set xrange [*:*]
 set yrange [*:*]
-fit p(x) "darcy.plt" u (\$1*\$2):5 via a, b
 
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w points t title(n) lw 4
+plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
 		
 set output '| ps2pdf - darcy_elem.pdf'
 
-replot p(x) w lines lt 1 lc 0 lw 4 title "regression",  \
-	log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
+replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
 
 #*****
 # SWE
@@ -99,14 +93,12 @@ set title "SWE flux solver throughput"
 unset output
 set xrange [*:*]
 set yrange [*:*]
-fit p(x) "swe.plt" u (\$1*\$2):5 via a, b
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w points t title(n) lw 4
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
 
 set output '| ps2pdf - swe_flux.pdf'
 
-replot p(x) w lines lt 1 lc 0 lw 4 title "regression",  \
-	log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
+replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
 
 
 #********
@@ -115,14 +107,12 @@ set title "SWE cell update throughput"
 unset output
 set xrange [*:*]
 set yrange [*:*]
-fit p(x) "swe.plt" u (\$1*\$2):4 via a, b
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w points t title(n) lw 4
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4
 
 set output '| ps2pdf - swe_cells.pdf'
 
-replot p(x) w lines lt 1 lc 0 lw 4 title "regression",  \
-	log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
+replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x w lines lt 1 lc 1 lw 4 title "reference"
 
 
 EOT
