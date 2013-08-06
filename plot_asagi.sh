@@ -45,6 +45,9 @@ for file in swe*.log; do
 	echo ""  >> "swe.plt"
 done
 
+sort -t" " -n -k 3,3 -k 1,1 -k 2,2 darcy.plt -o darcy.plt
+sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
+
 gnuplot &> /dev/null << EOT
 
 set terminal postscript enhanced color
@@ -52,23 +55,18 @@ set xlabel "ASAGI mode"
 set ylabel "M/s"
 set xtics ("default" 0, "pass through" 1, "no mpi" 2, "no mpi + small cache" 3, "large grid" 4)
 
+title(n) = sprintf("%d section(s)", n)
+
 set title "Darcy - element throughput"
 set output '| ps2pdf - darcy_asagi.pdf'
 
-plot	"darcy.plt" u 1:(\$2 == 8 ? \$4 : 1/0) w points title "initialization 8 sections" lw 4, \
-		"darcy.plt" u 1:(\$2 == 16 ? \$4 : 1/0) w points title "initialization 16 sections" lw 4, \
-		"darcy.plt" u 1:(\$2 == 32 ? \$4 : 1/0) w points title "initialization 32 sections" lw 4, \
-		"darcy.plt" u 1:(\$2 == 8 ? \$5 : 1/0) w points title "time steps 8 sections" lw 4, \
-		"darcy.plt" u 1:(\$2 == 16 ? \$5 : 1/0) w points title "time steps 16 sections" lw 4, \
-		"darcy.plt" u 1:(\$2 == 32 ? \$5 : 1/0) w points title "time steps 32 sections" lw 4
+plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4, \
+	for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
 
 set title "SWE - element throughput"
 set output '| ps2pdf - swe_asagi.pdf'
-plot	"swe.plt" u 1:(\$2 == 8 ? \$4 : 1/0) w points title "initialization 8 sections" lw 4, \
-		"swe.plt" u 1:(\$2 == 16 ? \$4 : 1/0) w points title "initialization 16 sections" lw 4, \
-		"swe.plt" u 1:(\$2 == 32 ? \$4 : 1/0) w points title "initialization 32 sections" lw 4, \
-		"swe.plt" u 1:(\$2 == 8 ? \$5 : 1/0) w points title "time steps 8 sections" lw 4, \
-		"swe.plt" u 1:(\$2 == 16 ? \$5 : 1/0) w points title "time steps 16 sections" lw 4, \
-		"swe.plt" u 1:(\$2 == 32 ? \$5 : 1/0) w points title "time steps 32 sections" lw 4
+
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4, \
+	for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
 
 EOT

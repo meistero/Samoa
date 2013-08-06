@@ -35,9 +35,9 @@ PRIVATE create, destroy, is_empty, push_element, push_pointer, pop_element, pop_
 !define a common interface for all derived types
 
 type _CNT
-	_T, dimension(:), pointer					:: elements => null()		!< element array
-
-	integer (kind = GRID_SI)					:: i_current_element = 0	!< number of elements stored on stack
+	_T, dimension(:), pointer	:: elements => null()		!< element array
+	integer (kind = GRID_SI)	:: i_current_element = 0	!< number of elements stored on stack
+    logical                     :: exists = .true.
 
 	contains
 

@@ -45,8 +45,8 @@ for file in swe*.log; do
 	echo ""  >> "swe.plt"
 done
 
-sort -t" " -n +2 +0 +1 darcy.plt -o darcy.plt
-sort -t" " -n +2 +0 +1 swe.plt -o swe.plt
+sort -t" " -n -k 3,3 -k 1,1 -k 2,2 darcy.plt -o darcy.plt
+sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 
 gnuplot &> /dev/null << EOT
 

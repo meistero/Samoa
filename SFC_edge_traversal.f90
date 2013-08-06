@@ -492,7 +492,7 @@ module SFC_edge_traversal
         end do
 
         !add a domain boundary comm and serialize comm list for faster access
-        call section%comms_type(OLD, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = -1, local_section = section%index, neighbor_section = -1, min_distance = -huge(1_GRID_DI)))
+        call section%comms_type(OLD, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = -1, local_section = section%index, neighbor_section = 0, min_distance = -huge(1_GRID_DI)))
 
         !second, iterate over new boundary
         max_distance = max(section%start_distance(i_color), section%end_distance(i_color))
@@ -532,7 +532,7 @@ module SFC_edge_traversal
         end do
 
         !add a domain boundary comm and serialize comm list for faster access
-        call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = -1, local_section = section%index, neighbor_section = -1, min_distance = -huge(1_GRID_DI)))
+        call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = -1, local_section = section%index, neighbor_section = 0, min_distance = -huge(1_GRID_DI)))
 
         !merge old and new comm lists (new list must be reversed first)
         call section%comms_type(NEW, i_color)%reverse()
@@ -710,6 +710,8 @@ module SFC_edge_traversal
         integer (kind = GRID_SI), intent(in)                :: i_section
 
         integer (kind = GRID_SI)                            :: i_comm
+
+        !find the correct comm index
 
         i_comm = minloc(abs(comms%neighbor_rank - i_rank) + abs(comms%neighbor_section - i_section), 1)
         comm => comms(i_comm)

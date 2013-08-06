@@ -218,6 +218,7 @@ subroutine traverse_in_place(traversal, grid)
         !$omp barrier
         _log_write(4, '(X, A)') "Reverse destination grid.."
         call grid_temp%reverse()
+        !$omp barrier
     end if
 
     assert_eq(grid%sections%is_forward(), grid_temp%sections%is_forward())
