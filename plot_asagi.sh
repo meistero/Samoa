@@ -45,8 +45,8 @@ for file in swe*.log; do
 	echo ""  >> "swe.plt"
 done
 
-sort -t" " -n -k 3,3 -k 1,1 -k 2,2 darcy.plt -o darcy.plt
-sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
+sort -t" " -n -k 2,2 -k 3,3 -k 1,1 darcy.plt -o darcy.plt
+sort -t" " -n -k 2,2 -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 
 gnuplot &> /dev/null << EOT
 
@@ -55,18 +55,19 @@ set xlabel "ASAGI mode"
 set ylabel "M/s"
 set xtics ("default" 0, "pass through" 1, "no mpi" 2, "no mpi + small cache" 3, "large grid" 4)
 
-title(n) = sprintf("%d section(s)", n)
+init_title(n) = sprintf("init %d section(s)", n)
+ts_title(n) = sprintf("ts %d section(s)", n)
 
 set title "Darcy - element throughput"
 set output '| ps2pdf - darcy_asagi.pdf'
 
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4, \
-	for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
+plot for [n=1:64] "darcy.plt" u 1:(\$2 == n ? \$4 : 1/0) w linespoints t init_title(n) lw 4, \
+	for [n=1:64] "darcy.plt" u 1:(\$2 == n ? \$5 : 1/0) w linespoints t ts_title(n) lw 4
 
 set title "SWE - element throughput"
 set output '| ps2pdf - swe_asagi.pdf'
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4, \
-	for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
+plot for [n=1:64] "swe.plt" u 1:(\$2 == n ? \$4 : 1/0) w linespoints t init_title(n) lw 4, \
+	for [n=1:64] "swe.plt" u 1:(\$2 == n ? \$5 : 1/0) w linespoints t ts_title(n) lw 4
 
 EOT

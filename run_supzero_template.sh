@@ -10,11 +10,14 @@
 #@ wall_clock_limit = $limit
 #@ node = $nodes
 #@ total_tasks = $processes
+#@ island_count = 1
 #@ node_usage = not_shared
 #@ class = $class
+#@ network.MPI = sn_all,not_shared,us
 #@ initialdir = $(home)/Desktop/Samoa
 #@ output = $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.$(jobid).out
 #@ error =  $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.$(jobid).err
+#@ max_perf_decrease_allowed = -1
 #@ queue
 
 . /etc/profile 2>/dev/null
@@ -32,5 +35,6 @@ mpiexec -prepend-rank -n $processes ./bin/samoa_darcy -dmin 26 -dmax 40 -tsteps 
 echo "  Done."
 
 echo "  Running SWE..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe -dmin 8 -dmax 30 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_swe -dmin 8 -dmax 30 -tsteps 60 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
+

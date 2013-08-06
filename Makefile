@@ -145,8 +145,8 @@ else ifeq ($(TARGET), PROF)
   EXEC 			:= $(EXEC)_prof
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
-  FFLAGS 		+= -g -fast -traceback -inline-level=0 -funroll-loops -unroll
-  LDFLAGS 		+= -g -O3 -traceback -ip -ipo
+  FFLAGS 		+= -g -trace -fast -inline-level=0 -funroll-loops -unroll
+  LDFLAGS 		+= -g -trace -O3 -ip -ipo
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO

@@ -18,11 +18,11 @@ echo ""
 echo "Running scenarios..."
 
 class=test
-limit=00:20:00
+limit=02:00:00
 
 for asagimode in 2
 do
-	for sections in 8 16
+	for sections in 8 12 16
 	do
 		for concurrency in 1 2 4 8 16 32 64 128 256
 		do
