@@ -417,6 +417,7 @@ module Grid_section
 		type(t_statistics)															:: stats
 
  		integer (kind = GRID_SI)													:: index					                    !< source rank of the section
+		!logical                                                                     :: is_synchronized(RED:GREEN)                   !< if true, the boundary is sychronized with neighbors
 
 		type(t_cell_stream)															:: cells										!< cell geometry + pers data + refinement stream
 		type(t_crossed_edge_stream)													:: crossed_edges_in, crossed_edges_out			!< crossed edge geometry + pers data stream
@@ -595,8 +596,8 @@ module Grid_section
 	elemental subroutine grid_section_estimate_load(section)
 		class(t_grid_section), intent(inout)		        :: section
 
-		!section%load = section%stats%r_computation_time
-		section%load = section%dest_cells
+		section%load = 0.9 * section%load + 0.1 * section%stats%r_computation_time
+		!section%load = section%dest_cells
     end subroutine
 
 	subroutine grid_section_traverse_empty(section)

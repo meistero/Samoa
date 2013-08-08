@@ -79,8 +79,6 @@ module Conformity
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
 
-        call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%estimate_load()
-
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_traversal_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_traversal_time + omp_get_wtime()
     end subroutine
 

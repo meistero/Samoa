@@ -301,24 +301,24 @@ module SFC_edge_traversal
         integer (kind = 1), intent(in)				        :: i_color
 
         integer(kind = GRID_DI), allocatable                :: local_min_distances(:)
-        integer, allocatable							    :: requests(:, :), i_neighbor_sections(:)
+        integer, allocatable							    :: requests(:, :)
         integer											    :: i_comm, i_neighbors, i_section, i_error, i_sections, i_max_sections
 
-        !Collect minimum distances from all sections oif all neighbor processes
+        !Collect minimum distances from all sections of all neighbor processes
         _log_write(3, '(3X, A, A)') "collect minimum distances from sections: ", trim(color_to_char(i_color))
 
 #		if defined(_MPI)
             i_sections = size(grid%sections%elements_alloc)
-            i_max_sections = omp_get_num_threads() * grid%i_sections_per_thread * 2
+            i_max_sections = omp_get_max_threads() * grid%i_sections_per_thread
             i_neighbors = size(rank_list%elements)
             assert_le(i_sections, i_max_sections)
 
-		   	allocate(i_neighbor_sections(i_neighbors), stat = i_error); assert_eq(i_error, 0)
 		   	allocate(requests(i_neighbors, 2), stat = i_error); assert_eq(i_error, 0)
 		    requests = MPI_REQUEST_NULL
 
-            allocate(local_min_distances(i_sections), stat = i_error); assert_eq(i_error, 0)
-            local_min_distances = grid%sections%elements_alloc%min_distance(i_color)
+            allocate(local_min_distances(i_max_sections), stat = i_error); assert_eq(i_error, 0)
+            local_min_distances( : i_sections) = grid%sections%elements_alloc%min_distance(i_color)
+            local_min_distances(i_sections + 1 : ) = huge(1_GRID_DI)
 
             _log_write(4, '(4X, A, I0, A)') "rank: ", rank_MPI, " (local)"
             do i_section = 1, i_sections
@@ -326,28 +326,14 @@ module SFC_edge_traversal
             end do
 
             allocate(neighbor_min_distances(i_max_sections, i_neighbors), stat = i_error); assert_eq(i_error, 0)
-            neighbor_min_distances = huge(1_GRID_DI)
-
-            !send/receive number of sections
-
-            assert_veq(requests, MPI_REQUEST_NULL)
-
-		    do i_comm = 1, i_neighbors
-                call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
-                call mpi_irecv(i_neighbor_sections(i_comm), 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
- 		    end do
-
-            call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-
-            requests = MPI_REQUEST_NULL
 
             !send/receive distances
 
             assert_veq(requests, MPI_REQUEST_NULL)
 
 		    do i_comm = 1, i_neighbors
-                call mpi_isend(local_min_distances(1), sizeof(local_min_distances), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
-                call mpi_irecv(neighbor_min_distances(1, i_comm), i_neighbor_sections(i_comm) * sizeof(neighbor_min_distances(1, i_comm)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_isend(local_min_distances(1), i_max_sections * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
+                call mpi_irecv(neighbor_min_distances(1, i_comm), i_max_sections * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
  		    end do
 
             call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
@@ -356,13 +342,12 @@ module SFC_edge_traversal
 
             do i_comm = 1, i_neighbors
                 _log_write(4, '(4X, A, I0)') "rank: ", rank_list%elements(i_comm)
-                do i_section = 1, i_neighbor_sections(i_comm)
+                do i_section = 1, i_max_sections
                     _log_write(4, '(5X, A, I0, A, F0.4)') "section: ", i_section, " , distance: ", decode_distance(neighbor_min_distances(i_section, i_comm))
                 end do
             end do
 
         	deallocate(requests, stat = i_error); assert_eq(i_error, 0)
-        	deallocate(i_neighbor_sections, stat = i_error); assert_eq(i_error, 0)
         	deallocate(local_min_distances, stat = i_error); assert_eq(i_error, 0)
 #		endif
     end subroutine
@@ -447,7 +432,7 @@ module SFC_edge_traversal
         type(t_grid_section), pointer                   :: section_2
 
         min_distance = section%min_distance(i_color)
-        i_max_sections = omp_get_num_threads() * grid%i_sections_per_thread * 2
+        i_max_sections = omp_get_max_threads() * grid%i_sections_per_thread
 
         !clear comm list if it is not empty
         assert(.not. associated(section%comms(i_color)%elements) .or. size(section%comms(i_color)%elements) .eq. 0)
@@ -871,7 +856,7 @@ module SFC_edge_traversal
         integer (kind = 1)							    :: i_color
         type(t_grid_section), pointer					:: section
         type(t_comm_interface), pointer			        :: comm
-        integer (kind = GRID_SI)       					:: i_first_node, i_last_node, i
+        integer (kind = GRID_SI)       					:: i_first_node, i_last_node, i, i_iteration
 
         _log_write(4, '(3X, A)') "sync boundary sections:"
 
@@ -888,12 +873,12 @@ module SFC_edge_traversal
             _log_write(4, '(4X, A, I0)') "gather neighbor data: section ", section%index
 
              do i_color = RED, GREEN
+
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
 #               if defined(_MPI)
                     !make sure that the section has finished all its mpi communication before proceeding
                     !otherwise a race condition might occur when merging boundary data
-
                     _log_write(4, '(6X, "wait for MPI neighbors:")')
                     do i_comm = 1, size(section%comms(i_color)%elements)
                         comm => section%comms(i_color)%elements(i_comm)
@@ -924,6 +909,7 @@ module SFC_edge_traversal
                     end do
 #               endif
 
+                !proceed with edge and node merging
                 !gather data in section with lowest index
 
                 _log_write(4, '(6X, "merge edges and nodes:")')
@@ -1038,6 +1024,7 @@ module SFC_edge_traversal
         type(t_grid), intent(inout)						:: grid
         integer                                         :: imbalance
 
+        real (kind = GRID_SR), parameter                :: load_tolerance = 0.05_GRID_SR
         integer (kind = GRID_DI)						:: tmp_distances(RED: GREEN)
         integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section, i_comm
         integer						                    :: previous_requests(2), next_requests(2), i_error, send_tag, recv_tag
@@ -1081,18 +1068,18 @@ module SFC_edge_traversal
                 section => grid%sections%elements_alloc(i_section)
                 assert_eq(section%index, i_section)
 
-                !if the last cell index of this section is less than the first cell index for this rank (after load balancing),
-                !then move this section to the previous rank
+                !if this section's load range is smaller than the minimum range of the ideally balanced rank by a tolerance margin,
+                !then move this section to the previous rank.
 
-                !if the first cell index of this section is greater than the last cell index for this rank (after load balancing),
-                !then move this section to the next rank
-
-                if ((grid%partial_load - grid%load + section%partial_load - 0.5_GRID_SR * section%load) * size_MPI < r_total_load * rank_MPI) then
+                if ((grid%partial_load - grid%load + section%partial_load - 0.5_GRID_SR * section%load) * size_MPI + load_tolerance * r_total_load < r_total_load * rank_MPI) then
                     !$omp atomic
                     i_previous_sections_out = i_previous_sections_out + 1
                 end if
 
-                if ((grid%partial_load - grid%load + section%partial_load - 0.5_GRID_SR * section%load) * size_MPI > r_total_load * (rank_MPI + 1)) then
+                !if this section's load range is greater than the maximum range of the ideally balanced rank by a tolerance margin,
+                !then move this section to the next rank.
+
+                if ((grid%partial_load - grid%load + section%partial_load - 0.5_GRID_SR * section%load) * size_MPI - load_tolerance * r_total_load > r_total_load * (rank_MPI + 1)) then
                     !$omp atomic
                     i_next_sections_out = i_next_sections_out + 1
                 end if
@@ -1101,7 +1088,7 @@ module SFC_edge_traversal
             assert_le(i_previous_sections_out + i_next_sections_out, i_sections)
 
             !$omp single
-            !compute current imblance
+            !compute current imbalance
             imbalance = i_previous_sections_out + i_next_sections_out
 		    call mpi_allreduce(MPI_IN_PLACE, imbalance, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
             !$omp end single copyprivate(imbalance)
