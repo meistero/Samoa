@@ -6,7 +6,7 @@
 #include "Compilation_control.f90"
 
 #if defined(_ASAGI)
-#	include 'asagi.f90'
+#	include "asagi.f90"
 #endif
 
 MODULE SFC_data_types
@@ -67,11 +67,11 @@ MODULE SFC_data_types
         enumerator ::   RED = -1, GREEN = 0
     end enum
 
-	character (LEN = 5), dimension(RED : GREEN), parameter 				:: color_to_char = [ 'RED', 'GREEN']
+	character (LEN = 5), dimension(RED : GREEN), parameter 				:: color_to_char = [ '  RED', 'GREEN']
 	character (LEN = 1), dimension(K : H), parameter 					:: turtle_type_to_char = [ 'K', 'V', 'H' ]
-	character (LEN = 11), dimension(OLD : NEW_BND), parameter		    :: edge_type_to_char = [ 'OLD', 'NEW', 'OLD_BND', 'NEW_BND']
+	character (LEN = 7), dimension(OLD : NEW_BND), parameter		    :: edge_type_to_char = [ '    OLD', '    NEW', 'OLD_BND', 'NEW_BND']
 
-    integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * sizeof(1.0_GRID_SR) - 4_1
+    integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * GRID_SR - 4_1
 	real (kind = GRID_SR), parameter									:: PI = 3.14159265358979323846_GRID_SR 		!< PI. Apparently, "_GRID_SR" is necessary to avoid digit truncation
 
 	integer 				:: rank_MPI = 0
@@ -278,7 +278,7 @@ MODULE SFC_data_types
 	type, extends(t_node_stream_data)						:: t_node_data
 		type(num_node_data_temp)							:: data_temp
 
-#		if .not. defined(_STORE_NODE_COORDS)
+#		if !defined(_STORE_NODE_COORDS)
 			real (kind = GRID_SR), dimension(2)				:: position
 #		endif
 

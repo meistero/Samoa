@@ -8,7 +8,7 @@
 #define COMPILATION_CONTROL
 
 ! define debug level if not already defined
-#if .not. defined(_DEBUG_LEVEL)
+#if !defined(_DEBUG_LEVEL)
 #	define _DEBUG_LEVEL				1
 #endif
 
