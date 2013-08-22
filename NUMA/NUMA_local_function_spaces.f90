@@ -16,14 +16,14 @@
 #	define _LFS_NODE_SIZE			0
 
 	MODULE NUMA_lfs_Q
-		use SFC_grid
+		use SFC_data_types
 
 #		define _LFS_type			real(kind = GRID_SR)
 #		include "Tools_local_function_space.f90"
 	END MODULE
 
 	MODULE NUMA_gv_Q
-		use SFC_grid
+		use SFC_data_types
 		use NUMA_lfs_Q
 
 #		define _GV_type_NAME		t_gv_Q
@@ -45,7 +45,7 @@
 #	define _LFS_NODE_SIZE			0
 
 	MODULE NUMA_lfs_flux
-		use SFC_grid
+		use SFC_data_types
 
 #		define _LFS_type			real(kind = GRID_SR)
 #		include "Tools_local_function_space.f90"

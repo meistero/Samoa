@@ -20,6 +20,8 @@ MODULE SFC_data_types
 		use SWE_data_types
 #	elif defined(_NUMA)
 		use NUMA_data_types
+#	elif defined(_PYOP2)
+		use pyop2_data_types
 #	endif
 
 	use Tools_log

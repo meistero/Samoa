@@ -6,7 +6,7 @@
 #include "Compilation_control.f90"
 
 MODULE Samoa
-	use SFC_grid
+	use SFC_data_types
 
 	use Tools_quadrature_rule_base
 

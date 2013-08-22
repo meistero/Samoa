@@ -3,10 +3,11 @@ Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 
 Thanks to: 
 * Randall J. LeVeque for the geoclaw library
-* Alexander Breuer for the geoclaw wrapper
+* Alexander Breuer for the geoclaw fortran90 wrapper
 * Enrico Cavallini and Renato N. Elias for the LIB_VTK_IO library
 * John S. Urban for the Kracken library
 * David Dunavant for the Dunavant library
+* Sebastian Rettenberger for the ASAGI library
 
 All copyrights remain with the respective authors.
 

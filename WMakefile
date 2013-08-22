@@ -13,7 +13,7 @@ EXEC 		= main.exe
 
 SOURCES = \
 SFC_data_types.f90 \
-SFC_grid.f90 \
+SFC_data_types.f90 \
 SFC_fine_grid.f90 \
 Tools_local_function_space_base.f90 \
 Tools_noise.f90 \
@@ -85,7 +85,7 @@ debug:		FFLAGS += -g -traceback -fp-stack-check -check bounds -check overflow -D
 optdebug:	FFLAGS += -g -traceback -fast -DASSERTION
 test:		FFLAGS += -fast -D_TESTS
 analyze:	FFLAGS += -g -traceback -fast
-opt: 		FFLAGS += -fast 
+opt: 		FFLAGS += -fast
 
 debug test optdebug : LDFLAGS += -g
 
@@ -96,7 +96,7 @@ compile: $(EXEC)
 
 $(EXEC): $(OBJS)
 	$(LOADER) -o $@ $(OBJS) $(LDFLAGS)
-  
+
 %.obj: %.f90
 	$(FC) $(FFLAGS) -c -o $@ $<
 

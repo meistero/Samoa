@@ -4,16 +4,15 @@
 
 
 !*****************************************************************
-! MODULE SFC_edge_traversal: initialize edge data structures from an SFC_grid
+! MODULE SFC_edge_traversal: initialize edge data structures from an SFC_data_types
 !*****************************************************************
 #include "Compilation_control.f90"
 
 #include "Tools_grid.f90"
 
 module SFC_edge_traversal
-	use SFC_fine_grid
-	use Grid
-	use Grid_section
+	use SFC_data_types
+    use Grid
 
 	implicit none
 

@@ -7,7 +7,7 @@
 
 #if defined(_HEAT_EQ)
 	MODULE Heat_Eq_grid_matrix
-		use SFC_grid
+		use SFC_data_types
 
 		PUBLIC
 
@@ -24,14 +24,14 @@
 #	define _LFS_NODE_SIZE		_HEAT_EQ_NODE_SIZE
 
 	MODULE Heat_Eq_lfs_T_mod
-		use SFC_grid
+		use SFC_data_types
 
 #		define _LFS_type		real (kind = GRID_SR)
 #		include "Tools_local_function_space.f90"
 	END MODULE
 
 	MODULE Heat_Eq_gv_T_mod
-		use SFC_grid
+		use SFC_data_types
 		use Heat_Eq_lfs_T_mod
 
 #		define _GV_type_NAME		heat_eq_gv_T
@@ -43,7 +43,7 @@
 	END MODULE
 
 	MODULE Heat_Eq_gv_T_temp_mod
-		use SFC_grid
+		use SFC_data_types
 		use Heat_Eq_lfs_T_mod
 
 #		define _GV_type_NAME		heat_eq_gv_T_temp
@@ -55,7 +55,7 @@
 	END MODULE
 
 	MODULE Heat_Eq_gv_r_mod
-		use SFC_grid
+		use SFC_data_types
 		use Heat_Eq_lfs_T_mod
 
 #		define _GV_type_NAME		heat_eq_gv_r
@@ -67,7 +67,7 @@
 	END MODULE
 
 	MODULE Heat_Eq_gv_mat_mass_diagonal_mod
-		use SFC_grid
+		use SFC_data_types
 		use Heat_Eq_lfs_T_mod
 
 #		define _GV_type_NAME		heat_eq_gv_mat_mass_diagonal

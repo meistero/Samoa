@@ -4,7 +4,7 @@
 
 
 !*****************************************************************
-! MODULE SFC_node_traversal: initialize node datastructures from an SFC_grid
+! MODULE SFC_node_traversal: initialize node datastructures from an SFC_data_types
 !*****************************************************************
 
 #include "Compilation_control.f90"
@@ -15,25 +15,53 @@ MODULE SFC_node_traversal
 	implicit none
 
 	private
-	public recursive_traversal_init
+	public init_grid
 
 	CONTAINS
 
-	subroutine recursive_traversal_init(triangles, num_coarse_triangles, grid)
-		type(triangle_tree), dimension(:), intent(inout), target	:: triangles		! initial triangle array
-		integer (kind = GRID_SI), intent(in)		:: num_coarse_triangles
+	subroutine init_grid(grid)
 		type(t_grid), intent(inout)			        :: grid
 		integer (kind = GRID_SI)            		:: i_section, i_thread
 
 		! local variables
+		type(t_section_info)           	            :: section_descriptor
+		type(t_section_info_list)           	    :: section_descriptors
         type(t_edge_data)			                :: last_crossed_edge_data
+
+		!the start grid belongs to rank 0 and will be distributed during runtime
+		if (rank_MPI == 0) then
+			section_descriptor = t_section_info(&
+                index = 1, &
+				i_cells = 4, &
+				i_stack_nodes = [4, 2], &
+				i_stack_edges = [3, 1], &
+				i_boundary_edges = 0, &
+				i_boundary_nodes = 0, &
+				i_comms = 0)
+
+			call section_descriptor%estimate_bounds()
+
+            !add only section to the section desctiptor list
+            call section_descriptors%add(section_descriptor)
+		endif
+
+        grid%i_min_depth = 1
+        grid%i_max_depth = 14
+        grid%start_distance = 0
+        grid%min_distance = 0
+        grid%end_distance = 0
+        grid%i_sections_per_thread = 4
+
+		!$omp parallel
+        call grid%create(section_descriptors, section_descriptor%i_stack_nodes)
+		!$omp end parallel
 
 		if (rank_MPI == 0) then
             grid%sections%elements%t_global_data = grid%t_global_data
             i_thread = 1 + omp_get_thread_num()
 
             do i_section = 1, size(grid%sections%elements)
-                call recursive_traversal_init_section(triangles, num_coarse_triangles, grid%threads%elements(i_thread), grid%sections%elements(i_section))
+                call init_section(grid%threads%elements(i_thread), grid%sections%elements(i_section))
 
                 call grid%threads%elements(i_thread)%edges_stack(RED)%pop(last_crossed_edge_data)
                 call find_section_boundary_elements(grid%threads%elements(i_thread), grid%sections%elements(i_section), grid%sections%elements(i_section)%cells%i_current_element, last_crossed_edge_data)
@@ -46,32 +74,28 @@ MODULE SFC_node_traversal
         call grid%reverse()
  	end subroutine
 
-	subroutine recursive_traversal_init_section(triangles, num_coarse_triangles, thread, section)
-		type(triangle_tree), intent(inout), target	:: triangles(:)		! initial triangle array
-		integer (kind = GRID_SI), intent(in)		:: num_coarse_triangles
+	subroutine init_section(thread, section)
 		type(t_grid_thread), intent(inout)			:: thread
 		type(t_grid_section), intent(inout)			:: section
 
-		type(fem_triangle)							:: first_fem_triangle
-		integer (kind = GRID_SI)					:: i, i_color
-		integer (kind = GRID_SI)	                :: i_triang
+		type(fine_triangle), parameter				:: first_cell = fine_triangle(i_edge_types = FIRST_OLD_BND, i_depth = 0, &
+            refinement = 0, i_plotter_type = -2, i_turtle_type = K, l_color_edge_color = RED)
 
+		type(fine_triangle)							:: second_cell = fine_triangle(i_edge_types = LAST_NEW_BND, i_depth = 0, &
+            refinement = 0, i_plotter_type = -6, i_turtle_type = H, l_color_edge_color = RED)
+
+        double precision, parameter                 :: first_coords(2, 3) = reshape([[0, 0], [1, 0], [1, 1]], shape(first_coords))
+        double precision, parameter                 :: second_coords(2, 3) = reshape([[1, 1], [0, 1], [0, 0]], shape(second_coords))
 
 #	    if (_DEBUG_LEVEL > 3)
             _log_write(4, '(X, A)') "Initial section state :"
             call section%print()
 #	    endif
 
-        i_triang = 1
+        !use hardcoded cells to form a unit square
 
-		DO i = 1, num_coarse_triangles
-			triangles(i_triang)%i_output_index = triangles(i_triang)%i_input_min - 1
-
-			call read_first_fem_triangle(triangles(i_triang), first_fem_triangle)
- 			call sfc_init_recursion(triangles(i_triang), first_fem_triangle, thread, section)
-
-			i_triang = i_triang + 1
-		end DO
+        call sfc_init_recursion(thread, section, first_cell, first_coords, 1)
+        call sfc_init_recursion(thread, section, second_cell, second_coords, 1)
 
 #	    if (_DEBUG_LEVEL > 5)
             _log_write(6, '(2X, A)') "initial output cells:"
@@ -82,37 +106,38 @@ MODULE SFC_node_traversal
 #	    endif
 	end subroutine
 
-	recursive subroutine sfc_init_recursion(p_tree, fem_tri, thread, section)
-		type(triangle_tree), intent(inout), target						:: p_tree 		! intent(inout) (for the contents of the target)
-		type(fem_triangle), intent(inout)								:: fem_tri
-		type(t_grid_thread), intent(inout)			:: thread
+	recursive subroutine sfc_init_recursion(thread, section, cell, coords, levels)
+		type(t_grid_thread), intent(inout)			                    :: thread
 		type(t_grid_section), intent(inout)								:: section
+		type(fine_triangle), intent(in)                                 :: cell
+		double precision, intent(in)								    :: coords(2, 3)
+		integer                                                         :: levels
 
 		!local variables
-		type(fem_triangle)												:: fem_child
 		type(t_cell_stream_data), pointer								:: p_cell_data
+		type(fine_triangle)								                :: first_cell, second_cell
+		double precision								                :: first_coords(2, 3), second_coords(2, 3)
 
-		if (is_leaf_triangle(fem_tri)) then		! initialize EDGE structures
+		if (levels == 0) then
 			p_cell_data => section%cells%next()
-			p_cell_data%fine_triangle = fem_tri
+			p_cell_data%fine_triangle = cell
 
-			call sfc_init(thread, section, p_cell_data, fem_tri)
+			call sfc_init(thread, section, p_cell_data, coords)
 		else
-			call read_first_child(p_tree, fem_tri, fem_child)
-			call sfc_init_recursion(p_tree, fem_child, thread, section)
+			call create_child_cells(cell, first_cell, second_cell)
+			first_coords = reshape([coords(:, 1), 0.5 * (coords(:, 1) + coords(:, 3)), coords(:, 2)], shape(first_coords))
+			second_coords = reshape([coords(:, 2), 0.5 * (coords(:, 1) + coords(:, 3)), coords(:, 3)], shape(second_coords))
 
-			call read_second_child(p_tree, fem_tri, fem_child)
-			call sfc_init_recursion(p_tree, fem_child, thread, section)
+			call sfc_init_recursion(thread, section, first_cell, first_coords, levels - 1)
+			call sfc_init_recursion(thread, section, second_cell, second_coords, levels - 1)
 		endif
-
-		call write_triangle_out(p_tree, fem_tri%triangle)
 	end subroutine
 
-	subroutine sfc_init(thread, section, cell_data, fem_tri)
+	subroutine sfc_init(thread, section, cell_data, coords)
 		type(t_grid_thread), intent(inout)			                    :: thread
 		type(t_grid_section), intent(inout)								:: section
 		type(t_cell_stream_data), intent(inout)							:: cell_data
-		type(fem_triangle), intent(in)									:: fem_tri
+		double precision, intent(in)									            :: coords(2, 3)
 
 		integer (kind = 1)                                              :: edge_depths(3)
 
@@ -184,9 +209,9 @@ MODULE SFC_node_traversal
 				next_edge => boundary_edge%t_crossed_edge_stream_data
 		end select
 
-		transfer_node%position = fem_tri%r_coords(:, i_transfer_node_index)
-		color_node_out%position = fem_tri%r_coords(:, i_color_node_out_index)
-		color_node_in%position = fem_tri%r_coords(:, i_color_node_in_index)
+		transfer_node%position = coords(:, i_transfer_node_index)
+		color_node_out%position = coords(:, i_color_node_out_index)
+		color_node_in%position = coords(:, i_color_node_in_index)
 
 		select case (i_color_edge_type)
 			case (OLD)
@@ -198,4 +223,46 @@ MODULE SFC_node_traversal
 
 		call cell_data%reverse()
 	end subroutine
+
+	subroutine create_child_cells(parent_cell, first_child_cell, second_child_cell)
+        type(fine_triangle), intent(in)						:: parent_cell
+        type(fine_triangle), intent(inout)					:: first_child_cell, second_child_cell
+
+        integer(kind = 1), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
+        integer(kind = 1), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
+        integer(kind = 1)			 						:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+        integer(kind = 1)								 	:: i
+
+        first_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 1)
+        second_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 2)
+
+        !check for correctness
+        assert_eq(parent_cell%i_turtle_type, ieor(first_child_cell%i_turtle_type, second_child_cell%i_turtle_type))
+        assert_gt(first_child_cell%i_turtle_type, second_child_cell%i_turtle_type)
+
+        first_child_cell%i_plotter_type = i_plotter_child_type(parent_cell%i_plotter_type)
+        first_child_cell%i_depth = parent_cell%i_depth + 1
+        second_child_cell%i_plotter_type = -i_plotter_child_type(-parent_cell%i_plotter_type)
+        second_child_cell%i_depth = parent_cell%i_depth + 1
+
+        call parent_cell%get_edge_types(i_previous_edge_type, i_color_edge_type, i_next_edge_type)
+
+        select case (parent_cell%i_turtle_type)
+            case (K)
+                call first_child_cell%set_edge_types(i_previous_edge_type, i_next_edge_type, NEW)
+                call second_child_cell%set_edge_types(OLD, i_color_edge_type, i_next_edge_type)
+                first_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
+                second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+            case (V)
+                call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, NEW)
+                call second_child_cell%set_edge_types(OLD, i_color_edge_type, i_next_edge_type)
+                first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+                second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+            case (H)
+                call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, NEW)
+                call second_child_cell%set_edge_types(OLD, i_previous_edge_type, i_next_edge_type)
+                first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+                second_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
+        end select
+    end subroutine
 end MODULE

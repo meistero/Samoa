@@ -9,7 +9,7 @@
 #include "Compilation_control.f90"
 
 MODULE SFC_traversal
-	use SFC_grid
+	use SFC_data_types
     use SFC_edge_traversal
 	use SFC_node_traversal
 
@@ -23,6 +23,8 @@ MODULE SFC_traversal
 		use SWE
 #	elif defined(_NUMA)
 		use NUMA
+#	elif defined(_PYOP2)
+		use PyOP2
 #	endif
 
 	implicit none
@@ -38,14 +40,10 @@ MODULE SFC_traversal
 
 	contains
 
-	subroutine sfc_generic(tree, num_coarse_triangles)
-		type(triangle_tree), DIMENSION(:), INTENT(inout), TARGET			:: tree		! initial triangle array
-		integer (kind = GRID_SI), INTENT(in)								:: num_coarse_triangles
+	subroutine sfc_generic()
 
 		! local variables
 		type(t_grid)														:: grid
-		type(t_section_info)           	                                    :: section_descriptor
-		type(t_section_info_list)           	                            :: section_descriptors
 
 #       if defined(_HEAT_EQ)
 
@@ -57,6 +55,8 @@ MODULE SFC_traversal
            type(t_swe)          											:: swe
 #	    elif defined(_NUMA)
            type(t_numa)                                               		:: numa
+#	    elif defined(_PYOP2)
+           type(t_pyop2)                                               		:: pyop2
 #	    endif
 
         if (rank_MPI == 0) then
@@ -73,6 +73,8 @@ MODULE SFC_traversal
                 _log_write(0, '(" Scenario: SWE")')
 #    		elif defined(_NUMA)
                 _log_write(0, '(" Scenario: NUMA")')
+#    		elif defined(_PYOP2)
+                _log_write(0, '(" Scenario: PYOP2")')
 #    		endif
 
 #    		if defined(_OMP)
@@ -129,36 +131,12 @@ MODULE SFC_traversal
         !init element transformation data
         call init_transform_data()
 
-		!the start grid belongs to rank 0 and will be distributed during runtime
-		if (rank_MPI == 0) then
-			section_descriptor = t_section_info(&
-                index = 1, &
-				i_cells = 4, &
-				i_stack_nodes = [4, 2], &
-				i_stack_edges = [3, 1], &
-				i_boundary_edges = 0, &
-				i_boundary_nodes = 0, &
-				i_comms = 0)
-
-			call section_descriptor%estimate_bounds()
-
-            !add only section to the section desctiptor list
-            call section_descriptors%add(section_descriptor)
-		endif
+		!create initial grid
+        call init_grid(grid)
 
         grid%i_min_depth = i_min_depth
         grid%i_max_depth = i_max_depth
-        grid%start_distance = 0
-        grid%min_distance = 0
-        grid%end_distance = 0
         grid%i_sections_per_thread = i_sections_per_thread
-
-		!$omp parallel
-        call grid%create(section_descriptors, section_descriptor%i_stack_nodes)
-		!$omp end parallel
-
-		!create initial grid
-        call recursive_traversal_init(tree, num_coarse_triangles, grid)
 
 		!create, run and destroy scenario
 
@@ -203,6 +181,14 @@ MODULE SFC_traversal
 			!$omp end parallel
 
 			call numa%destroy(grid, l_log)
+#		elif defined(_PYOP2)
+			call pyop2%create(grid, l_log)
+
+            !$omp parallel
+			call pyop2%run(grid)
+			!$omp end parallel
+
+			call pyop2%destroy(grid, l_log)
 #		endif
 
         call grid%destroy()

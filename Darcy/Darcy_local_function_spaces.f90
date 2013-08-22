@@ -16,14 +16,14 @@
 #	define _LFS_NODE_SIZE		_DARCY_P_NODE_SIZE
 
 	MODULE Darcy_lfs_pressure_mod
-		use SFC_grid
+		use SFC_data_types
 
 #		define _LFS_type		real (kind = GRID_SR)
 #		include "Tools_local_function_space.f90"
 	END MODULE
 
 	MODULE Darcy_gv_p_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_pressure_mod
 
 #		define _GV_type_NAME		darcy_gv_p
@@ -35,7 +35,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_r_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_pressure_mod
 
 #		define _GV_type_NAME		darcy_gv_r
@@ -47,7 +47,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_d_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_pressure_mod
 
 #		define _GV_type_NAME		darcy_gv_d
@@ -59,7 +59,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_A_d_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_pressure_mod
 
 #		define _GV_type_NAME		darcy_gv_A_d
@@ -71,7 +71,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_r_temp_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_pressure_mod
 
 #		define _GV_type_NAME		darcy_gv_r_temp
@@ -83,7 +83,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_mat_diagonal_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_pressure_mod
 
 #		define _GV_type_NAME		darcy_gv_mat_diagonal
@@ -110,14 +110,14 @@
 #	define _LFS_NODE_SIZE		_DARCY_U_NODE_SIZE
 
 	MODULE Darcy_lfs_velocity_mod
-		use SFC_grid
+		use SFC_data_types
 
 #		define _LFS_type		real (kind = GRID_SR)
 #		include "Tools_local_function_space.f90"
 	END MODULE
 
 	MODULE Darcy_gv_u_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_velocity_mod
 
 #		define _GV_type_NAME		darcy_gv_u
@@ -145,14 +145,14 @@
 #	define _LFS_NODE_SIZE		_DARCY_FLOW_NODE_SIZE
 
 	MODULE Darcy_lfs_flow_mod
-		use SFC_grid
+		use SFC_data_types
 
 #		define _LFS_type		real (kind = GRID_SR)
 #		include "Tools_local_function_space.f90"
 	END MODULE
 
 	MODULE Darcy_gv_saturation_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_flow_mod
 
 #		define _GV_type_NAME		darcy_gv_saturation
@@ -164,7 +164,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_flux_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_flow_mod
 
 #		define _GV_type_NAME		darcy_gv_flux
@@ -176,7 +176,7 @@
 	END MODULE
 
 	MODULE Darcy_gv_volume_mod
-		use SFC_grid
+		use SFC_data_types
 		use Darcy_lfs_flow_mod
 
 #		define _GV_type_NAME		darcy_gv_volume

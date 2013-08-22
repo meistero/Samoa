@@ -10,7 +10,7 @@
 # Usage: call "make <scenario> [<FLAG=VALUE>]*" or "make [<FLAG=VALUE>]*"
 #
 # make flags:
-#  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS
+#  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|PYOP2
 #  SWE_SOLVER=LAX_FRIEDRICHS|LAX_FRIEDRICHS_BATH|FWAVE|SSQ_FWAVE|AUG_JCP
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=YES|NO
@@ -53,6 +53,10 @@ ifeq ($(SCENARIO), DARCY)
   EXEC 			:= $(EXEC)_darcy
   FFLAGS		+= -D_DARCY
   ASAGI 		?= YES
+else ifeq ($(SCENARIO), PYOP2)
+  EXEC 			:= $(EXEC)_pyop2
+  FFLAGS		+= -D_PYOP2
+  ASAGI 		?= NO
 else ifeq ($(SCENARIO), SWE)
   EXEC			:= $(EXEC)_swe
   FFLAGS		+= -D_SWE
@@ -194,6 +198,9 @@ Tests/Tests_consistency_traversal.f90 \
 Tests/Tests_flops_traversal.f90 \
 Tests/Tests_memory_traversal.f90 \
 Tests/Tests_basis_functions.f90 \
+PyOP2/PyOP2.f90 \
+PyOP2/PyOP2_data_types.f90 \
+PyOP2/PyOP2_initialize.f90 \
 Darcy/Darcy.f90 \
 Darcy/Darcy_local_function_spaces.f90 \
 Darcy/Darcy_data_types.f90 \
@@ -228,18 +235,6 @@ SWE/SWE_output.f90 \
 SWE/SWE_xml_output.f90 \
 SWE/SWE_euler_timestep.f90 \
 SWE/SWE_adapt.f90 \
-Samoa/Samoa.f90 \
-Samoa/Tools_quadrature_rule_base.f90 \
-SFC_grid.f90 \
-SFC_fine_grid.f90 \
-SFC_node_traversal.f90 \
-SFC_edge_traversal.f90 \
-SFC_data_types.f90 \
-LIB_VTK_IO.f90\
-M_kracken.f90\
-Tools_noise.f90 \
-Tools_log.f90 \
-Conformity/Conformity.f90 \
 NUMA/NUMA.f90 \
 NUMA/NUMA_local_function_spaces.f90 \
 NUMA/NUMA_data_types.f90 \
@@ -251,8 +246,19 @@ NUMA/NUMA_euler_timestep.f90 \
 NUMA/NUMA_adapt.f90 \
 NUMA/NUMA_constants.f90 \
 geoclaw/c_bind_riemannsolvers.f90 \
+Samoa/Samoa.f90 \
+Samoa/Tools_quadrature_rule_base.f90 \
+SFC_node_traversal.f90 \
+SFC_edge_traversal.f90 \
+SFC_data_types.f90 \
+LIB_VTK_IO.f90\
+M_kracken.f90\
+Tools_noise.f90 \
+Tools_log.f90 \
+Conformity/Conformity.f90 \
 
-F77_SOURCES = geoclaw/riemannsolvers.f
+F77_SOURCES = \
+geoclaw/riemannsolvers.f
 
 F90_OBJS = $(F90_SOURCES:.f90=.o)
 F77_OBJS = $(F77_SOURCES:.f=.o)
@@ -281,6 +287,9 @@ heat_eq:
 
 tests:
 	@$(MAKE) SCENARIO=TESTS
+
+pyop2:
+	@$(MAKE) SCENARIO=PYOP2
 
 dirs:
 	@mkdir -p bin output
