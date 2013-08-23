@@ -1079,7 +1079,7 @@ module SFC_edge_traversal
 
             i_first_rank_out = ((partial_load - load) * size_MPI) / total_load	!round down
             i_last_rank_out = (partial_load * size_MPI - 1) / total_load		!round up and subtract 1 (if below 0, round to 0)
-	        !$omp end single copyprivate(i_sections, partial_load, total_load, rank_imbalance, i_first_rank_out, i_last_rank_out)
+	        !$omp end single copyprivate(rank_imbalance, i_sections, load, partial_load, total_load, i_first_rank_out, i_last_rank_out)
 
 	        !exit early if the imbalance cannot be improved
 	        if (rank_imbalance .le. 0) then
@@ -1263,7 +1263,7 @@ module SFC_edge_traversal
             else
                 call grid_temp%sections%resize(0)
             end if
-            !$omp end single
+            !$omp end single copyprivate(grid_temp)
 
 			call send_recv_section_infos(grid, grid_temp, i_rank_out, i_rank_in)
 			call send_recv_section_data(grid, grid_temp, i_rank_out, i_rank_in)
@@ -1508,7 +1508,10 @@ module SFC_edge_traversal
 		    dest_requests = MPI_REQUEST_NULL
 
 		    do i_section = i_first_dest_section, i_last_dest_section
-                if (i_rank_in(i_section) .ne. rank_MPI) then
+                select case (i_rank_in(i_section) - rank_MPI)
+				case (0)
+					!do nothing
+				case default
                     section => dest_grid%sections%elements_alloc(i_section)
 
                     call mpi_irecv(section%t_global_data, sizeof(section%t_global_data), MPI_BYTE, i_rank_in(i_section), i_section, MPI_COMM_WORLD, dest_requests(1, i_section), i_error); assert_eq(i_error, 0)
@@ -1523,13 +1526,17 @@ module SFC_edge_traversal
                         call mpi_irecv(section%boundary_nodes(i_color)%get_c_pointer(),  sizeof(section%boundary_nodes(i_color)%elements), MPI_BYTE, i_rank_in(i_section), i_section, MPI_COMM_WORLD, dest_requests(9 + i_color, i_section), i_error); assert_eq(i_error, 0)
                         call mpi_irecv(section%comms(i_color)%get_c_pointer(),           sizeof(section%comms(i_color)%elements),          MPI_BYTE, i_rank_in(i_section), i_section, MPI_COMM_WORLD, dest_requests(11 + i_color, i_section), i_error); assert_eq(i_error, 0)
                     end do
-                end if
+                end select
 		    end do
 
 		    do i_section = i_first_src_section, i_last_src_section
-                if (i_rank_out(i_section) .ne. rank_MPI) then
-                    section => src_grid%sections%elements_alloc(i_section)
+                section => src_grid%sections%elements_alloc(i_section)
 
+                select case (i_rank_out(i_section) - rank_MPI)
+				case (0)
+				    !local sections are simply copied to the new list
+                    dest_grid%sections%elements_alloc(section%index) = section
+				case default
                     call mpi_isend(section%t_global_data, sizeof(section%t_global_data), MPI_BYTE, i_rank_out(i_section), section%index, MPI_COMM_WORLD, src_requests(1, i_section), i_error); assert_eq(i_error, 0)
 
                     call mpi_isend(section%cells%get_c_pointer(),             sizeof(section%cells%elements),                MPI_BYTE, i_rank_out(i_section), section%index, MPI_COMM_WORLD, src_requests(2, i_section), i_error); assert_eq(i_error, 0)
@@ -1542,18 +1549,18 @@ module SFC_edge_traversal
                         call mpi_isend(section%boundary_nodes(i_color)%get_c_pointer(), sizeof(section%boundary_nodes(i_color)%elements),  MPI_BYTE, i_rank_out(i_section), section%index, MPI_COMM_WORLD, src_requests(9 + i_color, i_section), i_error); assert_eq(i_error, 0)
                         call mpi_isend(section%comms(i_color)%get_c_pointer(), sizeof(section%comms(i_color)%elements),                    MPI_BYTE, i_rank_out(i_section), section%index, MPI_COMM_WORLD, src_requests(11 + i_color, i_section), i_error); assert_eq(i_error, 0)
                     end do
-		        end if
+		        end select
 		    end do
 
-		    !wait until the load has been distributed by all neighbor processes
+		    !wait until the load has been distributed by all neighbor threads and processes
+			!$omp barrier
 
 		    do i_section = i_first_src_section, i_last_src_section
 				section => src_grid%sections%elements_alloc(i_section)
 
                 select case (i_rank_out(i_section) - rank_MPI)
                     case (0)
-                        !local sections are simply copied to the new list
-                        dest_grid%sections%elements_alloc(section%index) = section
+						!do nothing
                     case default
                         call mpi_waitall(11, src_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
