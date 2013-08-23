@@ -23,7 +23,7 @@
 
 #default compiler and compiler-specific flags
 
-FFLAGS			= -implicitnone -nologo -fpp -I"./" -I"Samoa/"
+FFLAGS			= -implicitnone -nologo -cpp -I"./" -I"Samoa/"
 EXEC 			= bin/samoa
 
 #default values for compilation switches

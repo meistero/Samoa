@@ -79,13 +79,13 @@
  			type(t_grid_section), intent(inout)					:: section
 			type(t_element_base), intent(inout), target			:: element
 
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)		:: d
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)		:: A_d
+			real(kind = GRID_SR)		:: d(_DARCY_P_SIZE)
+			real(kind = GRID_SR)		:: A_d(_DARCY_P_SIZE)
 
 			call gv_d%read(element, d)
 
 			!call element operator
-			call alpha_volume_op(section, element, d, A_d, element%cell%data_pers%permeability)
+			call alpha_volume_op(section%stiffness_matrix, d, A_d, element%cell%data_pers%permeability)
 
 			call gv_A_d%add(element, A_d)
 		end subroutine
@@ -156,14 +156,13 @@
 			A_d = 0.0_GRID_SR
 		end subroutine
 
-		pure subroutine alpha_volume_op(section, element, d, A_d, permeability)
- 			type(t_grid_section), intent(in)					                :: section
-			type(t_element_base), intent(in)									:: element
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(in)			:: d
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(out)		:: A_d
-			real (kind = GRID_SR), intent(in)									:: permeability
+		pure subroutine alpha_volume_op(A, d, A_d, permeability)
+ 			real (kind = GRID_SR), intent(in) 	:: A(_DARCY_P_SIZE, _DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(in)	:: d(_DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(out)	:: A_d(_DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(in)	:: permeability
 
-			A_d = permeability * MATMUL(section%stiffness_matrix, d)
+			A_d = permeability * matmul(A, d)
 		end subroutine
 
 		elemental subroutine reduce_dof_op(d_A_d, d, A_d)
@@ -253,10 +252,10 @@
 
 			!local variables
 
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: mat_diagonal
+			real(kind = GRID_SR)	:: mat_diagonal(_DARCY_P_SIZE)
 
 			!call element operator
-			call alpha_volume_op(section, element, mat_diagonal, element%cell%data_pers%permeability)
+			call alpha_volume_op(section%stiffness_matrix, mat_diagonal, element%cell%data_pers%permeability)
 
 			call gv_mat_diagonal%add(element, mat_diagonal)
 		end subroutine
@@ -338,17 +337,16 @@
 			mat_diagonal = tiny(1.0_GRID_SR)
 		end subroutine
 
-		pure subroutine alpha_volume_op(section, element, mat_diagonal, permeability)
- 			type(t_grid_section), intent(in)							:: section
-			type(t_element_base), intent(inout)								:: element
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(out)	:: mat_diagonal
-			real (kind = GRID_SR), intent(in)								:: permeability
+		pure subroutine alpha_volume_op(A, mat_diagonal, permeability)
+ 			real (kind = GRID_SR), intent(in) 	:: A(_DARCY_P_SIZE, _DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(out)	:: mat_diagonal(_DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(in)	:: permeability
 
-			integer (kind = GRID_SI)										:: i
+			integer (kind = GRID_SI)			:: i
 
 			!add up matrix diagonal
 			forall (i = 1 : _DARCY_P_SIZE)
-				mat_diagonal(i) = permeability * section%stiffness_matrix(i, i)
+				mat_diagonal(i) = permeability * A(i, i)
 			end forall
 		end subroutine
 
@@ -447,20 +445,18 @@
 		!*******************************
 
 		subroutine element_op(traversal, section, element)
-  			type(t_cg2_exact_traversal), intent(inout)							:: traversal
- 			type(t_grid_section), intent(inout)							:: section
+  			type(t_cg2_exact_traversal), intent(inout)		:: traversal
+ 			type(t_grid_section), intent(inout)				:: section
 			type(t_element_base), intent(inout), target		:: element
 
 			!local variables
 
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: p
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: r
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: mat_diagonal
+			real(kind = GRID_SR)	:: p(_DARCY_P_SIZE), r(_DARCY_P_SIZE), mat_diagonal(_DARCY_P_SIZE)
 
 			call gv_p%read(element, p)
 
 			!call alpha volume operator
-			call alpha_volume_op(section, element, p, r, mat_diagonal, element%cell%data_pers%permeability)
+			call alpha_volume_op(section%stiffness_matrix, p, r, mat_diagonal, element%cell%data_pers%permeability)
 
 			call gv_r%add(element, r)
 			call gv_mat_diagonal%add(element, mat_diagonal)
@@ -549,22 +545,21 @@
 			mat_diagonal = tiny(1.0_GRID_SR)
 		end subroutine
 
-		pure subroutine alpha_volume_op(section, element, p, r, mat_diagonal, permeability)
- 			type(t_grid_section), intent(inout)							    :: section
-			type(t_element_base), intent(inout)								:: element
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(in)		:: p
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(out)	:: r
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(out)	:: mat_diagonal
-			real (kind = GRID_SR), intent(in)								:: permeability
+		pure subroutine alpha_volume_op(A, p, r, mat_diagonal, permeability)
+ 			real (kind = GRID_SR), intent(in) 	:: A(_DARCY_P_SIZE, _DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(in)	:: p(_DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(out)	:: r(_DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(out)	:: mat_diagonal(_DARCY_P_SIZE)
+			real (kind = GRID_SR), intent(in)	:: permeability
 
-			integer (kind = GRID_SI)										:: i
+			integer (kind = GRID_SI)			:: i
 
 			!add up matrix diagonal
 			forall (i = 1 : _DARCY_P_SIZE)
-				mat_diagonal(i) = permeability * section%stiffness_matrix(i, i)
+				mat_diagonal(i) = permeability * A(i, i)
 			end forall
 
-			r = -permeability * MATMUL(section%stiffness_matrix, p)
+			r = -permeability * matmul(A, p)
 		end subroutine
 
 		elemental subroutine post_dof_op(alpha, p, r, d, A_d, mat_diagonal)

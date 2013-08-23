@@ -8,7 +8,7 @@
 #define COMPILATION_CONTROL
 
 ! define debug level if not already defined
-#if .not. defined(_DEBUG_LEVEL)
+#if !defined(_DEBUG_LEVEL)
 #	define _DEBUG_LEVEL				1
 #endif
 
@@ -80,6 +80,7 @@
 #	define assert_v(x)				if (.not. all(x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x; flush(6); PRINT *, 0 / 0; end if
 #	define assert_veq(x, y)			if (.not. all(x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " == ", #y, ": ", x, y; flush(6); PRINT *, 0 / 0; end if
 #	define assert_vne(x, y)			if (.not. any(x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " != ", #y, ": ", x, y; flush(6); PRINT *, 0 / 0; end if
+#	define mpi_isend				mpi_issend
 #else
 #	define assert(x)
 #	define assert_pure(x)
