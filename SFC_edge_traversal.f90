@@ -1020,12 +1020,12 @@ module SFC_edge_traversal
         !$omp barrier
     end subroutine
 
-    subroutine distribute_load(grid, max_imbalance)
+    subroutine distribute_load(grid, r_max_imbalance)
         type(t_grid), intent(inout)						:: grid
-		real, intent(in)                                :: max_imbalance		!< maximum allowed global imbalance (i.e. 0.1 = 10%)
+		real, intent(in)               					:: r_max_imbalance		!< maximum allowed global imbalance (i.e. 0.1 = 10%)
 
-        real (kind = GRID_SR)						    :: total_load
-		real                                            :: imbalance
+        integer*8										:: load, partial_load, total_load
+		real (kind = GRID_SR)							:: r_total_load, r_imbalance
 		integer                                         :: rank_imbalance
         integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_rank, i_section, i_comm
 		integer									        :: i_first_rank_out, i_last_rank_out, i_first_rank_in, i_last_rank_in
@@ -1045,44 +1045,49 @@ module SFC_edge_traversal
 
 		    call prefix_sum(grid%sections%elements_alloc%partial_load, grid%sections%elements_alloc%load)
 		    call reduce(grid%load, grid%sections%elements_alloc%load, MPI_SUM, .false.)
+			call mpi_allreduce(grid%load, r_total_load, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
-			call mpi_scan(grid%load, grid%partial_load, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+			!check imbalance
+            r_imbalance = grid%load / r_total_load * size_MPI - 1.0_GRID_SR
+			call mpi_allreduce(MPI_IN_PLACE, r_imbalance, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+	        !$omp end single copyprivate(r_total_load, r_imbalance)
+	        
+			!exit early if the imbalance is small enough
+	        if (r_imbalance .le. r_max_imbalance) then
+                _log_write(2, '(4X, "load balancing: no, imbalance is below threshold: ", F0.3, " < ", F0.3)') r_imbalance, r_max_imbalance
+                return
+           	end if
 
-            total_load = grid%partial_load
-            call mpi_bcast(total_load, 1, MPI_DOUBLE_PRECISION, size_MPI - 1, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+		    !$omp single
+			!switch to integer arithmetics from now on, we need exact arithmetics
 
-			!make sure there is no 0-load by adding 1% of the total load to each component
-			grid%load = grid%load + (0.01_GRID_SR * total_load) / size_MPI
-			grid%partial_load = grid%partial_load + (0.01_GRID_SR * total_load * (rank_MPI + 1)) / size_MPI
-			total_load = 1.01_GRID_SR * total_load
+			load = 1_GRID_DI + (grid%load / r_total_load * 99.0_GRID_SR * size_MPI)
+			call mpi_scan(load, partial_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+			call mpi_allreduce(load, total_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
+			assert_gt(load, 0)
+			assert_gt(total_load, 0)
 			i_sections = size(grid%sections%elements_alloc)
 
             if (i_sections > 0) then
-                rank_imbalance = int((grid%partial_load - 0.5_GRID_SR * grid%sections%elements_alloc(i_sections)%load) * size_MPI / total_load) - int((grid%partial_load - grid%load + 0.5_GRID_SR * grid%sections%elements_alloc(1)%load) * size_MPI / total_load)
+                rank_imbalance = ((partial_load - (0.5_GRID_SR * grid%sections%elements_alloc(i_sections)%load / grid%load) * load) * size_MPI) / total_load - ((partial_load - load + (0.5_GRID_SR * grid%sections%elements_alloc(1)%load / grid%load) * load) * size_MPI) / total_load
             else
                 rank_imbalance = 0
             end if
 
-            i_first_rank_out = floor((grid%partial_load - grid%load) / total_load * size_MPI)
-            i_last_rank_out = ceiling(grid%partial_load / total_load * size_MPI) - 1
+			call mpi_allreduce(MPI_IN_PLACE, rank_imbalance, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
-			call mpi_allreduce(MPI_IN_PLACE, rank_imbalance, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+            i_first_rank_out = ((partial_load - load) * size_MPI) / total_load	!round down
+            i_last_rank_out = (partial_load * size_MPI - 1) / total_load		!round up and subtract 1 (if below 0, round to 0)
+	        !$omp end single copyprivate(i_sections, partial_load, total_load, rank_imbalance, i_first_rank_out, i_last_rank_out)
 
-            imbalance = grid%load * size_MPI / total_load - 1.0
-			call mpi_allreduce(MPI_IN_PLACE, imbalance, 1, MPI_REAL, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-	        !$omp end single copyprivate(i_sections, total_load, rank_imbalance, imbalance, i_first_rank_out, i_last_rank_out)
-
-	        !exit early if the imbalance is small enough
-	        if (imbalance .le. max_imbalance) then
-                _log_write(2, '(4X, "load balancing: no, imbalance is below threshold: ", F0.3, " < ", F0.3)') imbalance, max_imbalance
-                return
-            else if (rank_imbalance .le. 0) then
-                _log_write(2, '(4X, "load balancing: no, imbalance is above threshold but cannot be improved: ", F0.3, " > ", F0.3)') imbalance, max_imbalance
+	        !exit early if the imbalance cannot be improved
+	        if (rank_imbalance .le. 0) then
+                _log_write(2, '(4X, "load balancing: no, imbalance is above threshold but cannot be improved: ", F0.3, " > ", F0.3)') r_imbalance, r_max_imbalance
                 return
 	        end if
 
-	        _log_write(2, '(4X, "load balancing: yes, imbalance is above threshold and can be improved: ", F0.3, " > ", F0.3)') imbalance, max_imbalance
+	        _log_write(2, '(4X, "load balancing: yes, imbalance is above threshold and can be improved: ", F0.3, " > ", F0.3)') r_imbalance, r_max_imbalance
 
 			!$omp single
 			!allocate space for variables that are stored per output section
@@ -1113,7 +1118,7 @@ module SFC_edge_traversal
 	            assert_eq(section%index, i_section)
 
 	            !assign this section to its respective ideal rank
-	            i_rank = int((grid%partial_load - grid%load + section%partial_load - 0.5_GRID_SR * section%load) / total_load * size_MPI)
+	            i_rank = ((partial_load - load + (section%partial_load - 0.5_GRID_SR * section%load) / grid%load * load) * size_MPI) / total_load
 	        	assert_ge(i_rank, i_first_rank_out)
 	        	assert_le(i_rank, i_last_rank_out)
 
@@ -1144,12 +1149,12 @@ module SFC_edge_traversal
             end do
 
 			!check if i am first and last input rank for first and last output rank (meaning an exact match)
-			if ((grid%partial_load - grid%load) * size_MPI == total_load * i_first_rank_out) then
+			if ((partial_load - load) * size_MPI == total_load * i_first_rank_out) then
                 call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_first_rank_out, 1, MPI_COMM_WORLD, requests_out(1, i_first_rank_out), i_error); assert_eq(i_error, 0)
                _log_write(3, '("first send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_first_rank_out, 1
 			end if
 
-			if (grid%partial_load * size_MPI == total_load * (i_last_rank_out + 1)) then
+			if (partial_load * size_MPI == total_load * (i_last_rank_out + 1)) then
                 call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_last_rank_out, 2, MPI_COMM_WORLD, requests_out(2, i_last_rank_out), i_error); assert_eq(i_error, 0)		
                 _log_write(3, '("last send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_last_rank_out, 2
 			end if
@@ -1546,20 +1551,13 @@ module SFC_edge_traversal
 				section => src_grid%sections%elements_alloc(i_section)
 
                 select case (i_rank_out(i_section) - rank_MPI)
-                    case (: -1)
-                        call mpi_waitall(11, src_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-
-                        call section%destroy()
-                    case (1 :)
-                        call mpi_waitall(11, src_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-
-						!$omp atomic
-						src_grid%partial_load = src_grid%partial_load - section%load
-
-                        call section%destroy()
                     case (0)
                         !local sections are simply copied to the new list
                         dest_grid%sections%elements_alloc(section%index) = section
+                    case default
+                        call mpi_waitall(11, src_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+
+                        call section%destroy()
                 end select
  		    end do
 
@@ -1569,30 +1567,11 @@ module SFC_edge_traversal
 				section => dest_grid%sections%elements_alloc(i_section)
 
                 select case (i_rank_in(i_section) - rank_MPI)
-                    case (: -1)
+                    case (0)
+						!do nothing
+					case default
                         call mpi_waitall(11, dest_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
-                        !$omp atomic
-                        src_grid%max_dest_stack(RED) = src_grid%max_dest_stack(RED) + section%max_dest_stack(RED) - section%min_dest_stack(RED) + 1
-                        !$omp atomic
-                        src_grid%max_dest_stack(GREEN) = src_grid%max_dest_stack(GREEN) + section%max_dest_stack(GREEN) - section%min_dest_stack(GREEN) + 1
-
-                        if (section%cells%elements(1)%get_previous_edge_type() .ne. OLD_BND) then
-                            _log_write(4, '(A, I0)') "Reversing section ", i_section
-                            call section%reverse()
-
-                            !do not swap distances
-                            tmp_distances = section%start_distance
-                            section%start_distance = section%end_distance
-                            section%end_distance = tmp_distances
-
-                            l_reverse_section_list = .true.
-                        end if
-                    case (1:)
-                        call mpi_waitall(11, dest_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-
-                        !$omp atomic
-                        src_grid%partial_load = src_grid%partial_load + section%load
                         !$omp atomic
                         src_grid%max_dest_stack(RED) = src_grid%max_dest_stack(RED) + section%max_dest_stack(RED) - section%min_dest_stack(RED) + 1
                         !$omp atomic
