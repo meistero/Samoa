@@ -1059,8 +1059,9 @@ module SFC_edge_traversal
 
 		    !$omp single
 			!switch to integer arithmetics from now on, we need exact arithmetics
+			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-			load = 1_GRID_DI + (grid%load / r_total_load * 99.0_GRID_SR * size_MPI)
+			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0_GRID_SR * size_MPI, GRID_DI))
 			call mpi_scan(load, partial_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 			call mpi_allreduce(load, total_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
@@ -1140,8 +1141,8 @@ module SFC_edge_traversal
 			!and the last input rank for all my output ranks except the last one
 
             do i_rank = i_first_rank_out + 1, i_last_rank_out
-                call mpi_issend(rank_MPI, 1, MPI_INTEGER, i_rank, 1, MPI_COMM_WORLD, requests_out(1, i_rank), i_error); assert_eq(i_error, 0)
-                call mpi_issend(rank_MPI, 1, MPI_INTEGER, i_rank - 1, 2, MPI_COMM_WORLD, requests_out(2, i_rank - 1), i_error); assert_eq(i_error, 0)
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank, 1, MPI_COMM_WORLD, requests_out(1, i_rank), i_error); assert_eq(i_error, 0)
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank - 1, 2, MPI_COMM_WORLD, requests_out(2, i_rank - 1), i_error); assert_eq(i_error, 0)
 
                 _log_write(3, '("send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_rank, 1
                 _log_write(3, '("send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_rank - 1, 2

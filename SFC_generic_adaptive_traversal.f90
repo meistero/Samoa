@@ -190,7 +190,7 @@ subroutine traverse_in_place(traversal, grid)
 
 #	if .not. defined(_GT_INPUT_DEST)
 	    !exchange grid sections with neighbors if the destination grid will not be balanced
-		call distribute_load(grid, 0.05)
+		call distribute_load(grid, 0.01)
         !$omp barrier
 #	endif
 

@@ -22,9 +22,9 @@ limit=02:00:00
 
 for asagimode in 2
 do
-	for sections in 8 12 16
+	for sections in 8 16 32
 	do
-		for concurrency in 1 2 5 10 20 40 80 120 160
+		for concurrency in 10 20 40 80 120 160
 		do
 			processes=$(( ($concurrency - 1) / 40 + 1 ))
 			threads=$(( $concurrency / $processes )) 
