@@ -9,12 +9,16 @@
 	MODULE PyOP2
 		use PyOP2_data_types
 		use PyOP2_init_indices
+		use PyOP2_traversal
+		use PyOP2_adaptive_traversal
 		use SFC_edge_traversal
 
 		implicit none
 
 		type t_pyop2
             type(t_pyop2_init_indices_traversal)    :: init_indices
+            type(t_pyop2_traversal)                 :: traversal
+            type(t_pyop2_adaptive_traversal)        :: adaptive_traversal
 
             contains
 

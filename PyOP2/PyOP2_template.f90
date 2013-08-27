@@ -6,16 +6,29 @@
 #include "Compilation_control.f90"
 
 #if defined(_PYOP2)
-	MODULE mod_%(name)
+	MODULE pyop2_traversal
 		use SFC_edge_traversal
+		use Samoa
+        use, intrinsic :: iso_c_binding
 
         implicit none
 
+        ! Define kernel wrapper interface
+        abstract interface
+            subroutine kernel_wrapper_op(cell_index, edge_indices, vertex_indices, coords)
+                use, intrinsic :: iso_c_binding
+                integer(kind=c_int), intent(in) :: cell_index
+                integer(kind=c_int), intent(in) :: edge_indices(3)
+                integer(kind=c_int), intent(in) :: vertex_indices(3)
+                real(kind=c_double), intent(in) :: coords(2, 3)
+            end subroutine
+        end interface
+
         type num_traversal_data
-            !additional data definitions
+            procedure(kernel_wrapper_op), nopass, pointer :: kernel_wrapper
         end type
 
-#		define _GT_NAME							%(name)
+#		define _GT_NAME							t_pyop2_traversal
 
 #		define _GT_EDGES
 #		define _GT_NODES
@@ -27,43 +40,30 @@
 
 #		define _GT_ELEMENT_OP					element_op
 
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
-#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
-#		define _GT_NODE_REDUCE_OP		        node_reduce_op
-#		define _GT_NODE_MERGE_OP		        node_merge_op
-
-#		define _GT_INNER_EDGE_FIRST_TOUCH_OP	inner_edge_first_touch_op
-#		define _GT_INNER_EDGE_LAST_TOUCH_OP		inner_edge_last_touch_op
-#		define _GT_EDGE_REDUCE_OP		        edge_reduce_op
-#		define _GT_EDGE_MERGE_OP		        edge_merge_op
-
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
 		subroutine pre_traversal_grid_op(traversal, grid)
-  			type(%(name)), intent(inout)	    :: traversal
+  			type(t_pyop2_traversal), intent(inout)	        :: traversal
  			type(t_grid), intent(inout)					    :: grid
 
-
+			traversal%children%kernel_wrapper => traversal%kernel_wrapper
 		end subroutine
 
  		subroutine post_traversal_grid_op(traversal, grid)
-  			type(%(name)), intent(inout)	    :: traversal
+  			type(t_pyop2_traversal), intent(inout)	        :: traversal
  			type(t_grid), intent(inout)					    :: grid
-
 
 		end subroutine
 
  		subroutine pre_traversal_op(traversal, section)
- 			type(t_darcy_jacobi_solver), intent(inout)	    :: traversal
+ 			type(t_pyop2_traversal), intent(inout)	        :: traversal
   			type(t_grid_section), intent(inout)				:: section
-
 
 		end subroutine
 
  		subroutine post_traversal_op(traversal, section)
- 			type(t_darcy_jacobi_solver), intent(inout)	    :: traversal
+ 			type(t_pyop2_traversal), intent(inout)	    :: traversal
   			type(t_grid_section), intent(inout)				:: section
-
 
 		end subroutine
 
@@ -74,62 +74,36 @@
 		!element
 
 		subroutine element_op(traversal, section, element)
- 			type(%(name)), intent(inout)	                :: traversal
+ 			type(t_pyop2_traversal), intent(inout)	        :: traversal
  			type(t_grid_section), intent(inout)			    :: section
 			type(t_element_base), intent(inout), target		:: element
 
+            real (kind = c_double),  parameter  :: base_coords(2, 3) = [[1, 0, 0], [0, 0, 1]]
+			real (kind = c_double)              :: coords(2, 3)
+			integer (kind = c_int)              :: vertex_indices(3), edge_indices(3), cell_index, i
 
+			cell_index = element%cell%data_pers%index
+
+            do i = 1, 3
+                edge_indices(i) = element%edges(i)%ptr%data_pers%index
+                vertex_indices(i) = element%nodes(i)%ptr%data_pers%index
+
+                coords(:, i) = samoa_barycentric_to_world_point(element%transform_data, base_coords(:, i))
+            end do
+
+			call traversal%kernel_wrapper(cell_index, edge_indices, vertex_indices, coords)
 		end subroutine
 
-		! first touches
+		subroutine run_kernel(c_kernel_wrapper) bind(c)
+            type(c_funptr), intent(in)      :: c_kernel_wrapper
 
-		subroutine inner_node_first_touch_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(in)		    :: traversal
- 			type(t_grid_section), intent(in)			    :: section
-			type(t_node_data), intent(inout)			    :: node
+            type(t_pyop2_traversal)         :: traversal
+            type(t_grid)                    :: grid !TODO: this should be a global variable that is reused during traversals
 
+            ! Convert C to Fortran procedure pointer.
+            call c_f_procpointer(c_kernel_wrapper, traversal%kernel_wrapper)
 
-		end subroutine
-
-		subroutine inner_edge_first_touch_op(traversal, section, node)
- 			type(%(name)), intent(in)		                :: traversal
- 			type(t_grid_section), intent(in)			    :: section
-			type(t_node_data), intent(inout)			    :: node
-
-
-		end subroutine
-
-		!last touches
-
-		subroutine inner_node_last_touch_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(in)		    :: traversal
- 			type(t_grid_section), intent(in)			    :: section
-			type(t_node_data), intent(inout)			    :: node
-
-
-		end subroutine
-
-		subroutine inner_edge_last_touch_op(traversal, section, edge)
- 			type(%(name)), intent(in)		                :: traversal
- 			type(t_grid_section), intent(in)			    :: section
-			type(t_edge_data), intent(inout)			    :: edge
-
-
-		end subroutine
-
-		subroutine node_reduce_op(traversal, section, node)
- 			type(%(name)), intent(inout)	                :: traversal
- 			type(t_grid_section), intent(in)			    :: section
-			type(t_node_data), intent(in)			        :: node
-
-
-		end subroutine
-
-		subroutine node_merge_op(local_node, neighbor_node)
- 			type(t_node_data), intent(inout)			    :: local_node
-			type(t_node_data), intent(in)				    :: neighbor_node
-
-
+            call traversal%traverse(grid)
         end subroutine
 	END MODULE
 #endif

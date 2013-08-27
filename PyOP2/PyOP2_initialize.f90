@@ -8,6 +8,7 @@
 #if defined(_PYOP2)
 	MODULE pyOP2_init_indices
 		use SFC_edge_traversal
+		use Samoa
 
 		implicit none
 

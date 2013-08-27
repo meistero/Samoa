@@ -201,6 +201,8 @@ Tests/Tests_basis_functions.f90 \
 PyOP2/PyOP2.f90 \
 PyOP2/PyOP2_data_types.f90 \
 PyOP2/PyOP2_initialize.f90 \
+PyOP2/PyOP2_template.f90 \
+PyOP2/PyOP2_adapt_template.f90 \
 Darcy/Darcy.f90 \
 Darcy/Darcy_local_function_spaces.f90 \
 Darcy/Darcy_data_types.f90 \
