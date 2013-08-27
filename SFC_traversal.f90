@@ -131,12 +131,12 @@ MODULE SFC_traversal
         !init element transformation data
         call init_transform_data()
 
-		!create initial grid
-        call init_grid(grid)
-
         grid%i_min_depth = i_min_depth
         grid%i_max_depth = i_max_depth
         grid%i_sections_per_thread = i_sections_per_thread
+
+		!create initial grid
+        call init_grid(grid)
 
 		!create, run and destroy scenario
 

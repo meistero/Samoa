@@ -1158,9 +1158,6 @@ module SFC_edge_traversal
                 _log_write(3, '("last send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_last_rank_out, 2
 			end if
 
-			!Comparing two reals for identity is dangerous, 
-			!but since exact arothmetics cannot be used for measured data, we had to do this
-
 			call mpi_waitall(size(requests_out), requests_out, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 			call mpi_waitall(size(requests), requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 

@@ -45,12 +45,9 @@ MODULE SFC_node_traversal
             call section_descriptors%add(section_descriptor)
 		endif
 
-        grid%i_min_depth = 1
-        grid%i_max_depth = 14
         grid%start_distance = 0
         grid%min_distance = 0
         grid%end_distance = 0
-        grid%i_sections_per_thread = 4
 
 		!$omp parallel
         call grid%create(section_descriptors, section_descriptor%i_stack_nodes)
