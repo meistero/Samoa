@@ -845,6 +845,41 @@ MODULE SFC_data_types
         distance = real(code, GRID_SR) * scaling
     end function
 
+    !> initializes the mpi communicator
+    subroutine init_mpi()
+        integer :: i_error, mpi_tag_upper_bound, mpi_prov_thread_support
+        logical :: mpi_flag
+
+#       if defined(_MPI)
+#           if defined(_OMP)
+                call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
+                assert_eq(MPI_THREAD_MULTIPLE, mpi_prov_thread_support)
+#           else
+                call mpi_init(i_error); assert_eq(i_error, 0)
+#           endif
+
+            call mpi_comm_size(MPI_COMM_WORLD, size_MPI, i_error); assert_eq(i_error, 0)
+            call mpi_comm_rank(MPI_COMM_WORLD, rank_MPI, i_error); assert_eq(i_error, 0)
+
+            call mpi_comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, mpi_tag_upper_bound, mpi_flag, i_error); assert_eq(i_error, 0)
+            assert(mpi_flag)
+            assert_ge(mpi_tag_upper_bound, ishft(1, 30) - 1)
+#       else
+            size_MPI = 1
+            rank_MPI = 0
+#       endif
+    end subroutine
+
+    !> finalizes the mpi communicator
+    subroutine finalize_mpi()
+        integer :: i_error
+
+#	    if defined(_MPI)
+            call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+            call mpi_finalize(i_error); assert_eq(i_error, 0)
+#	    endif
+    end subroutine
+
 	!**********************************
 	!Transformation data initialization
 	!**********************************

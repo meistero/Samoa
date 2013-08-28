@@ -24,7 +24,7 @@
 #default compiler and compiler-specific flags
 
 FFLAGS			= -implicitnone -nologo -fpp -I"./" -I"Samoa/"
-EXEC 			= bin/samoa
+EXEC 			= samoa
 
 #default values for compilation switches
 
@@ -53,26 +53,32 @@ ifeq ($(SCENARIO), DARCY)
   EXEC 			:= $(EXEC)_darcy
   FFLAGS		+= -D_DARCY
   ASAGI 		?= YES
+  LIB 			?= NO
 else ifeq ($(SCENARIO), PYOP2)
   EXEC 			:= $(EXEC)_pyop2
   FFLAGS		+= -D_PYOP2
   ASAGI 		?= NO
+  LIB 			?= YES
 else ifeq ($(SCENARIO), SWE)
   EXEC			:= $(EXEC)_swe
   FFLAGS		+= -D_SWE
   ASAGI			?= YES
+  LIB 			?= NO
 else ifeq ($(SCENARIO), NUMA)
   EXEC			:= $(EXEC)_numa
   FFLAGS		+= -D_NUMA
   ASAGI			?= NO
+  LIB 			?= NO
 else ifeq ($(SCENARIO), HEAT_EQ)
   EXEC			:= $(EXEC)_heq
   FFLAGS		+= -D_HEAT_EQ
   ASAGI			?= NO
+  LIB 			?= NO
 else ifeq ($(SCENARIO), TESTS)
   EXEC			:= $(EXEC)_tests
   FFLAGS		+= -D_TESTS
   ASAGI			?= NO
+  LIB 			?= NO
 else
   $(error Invalid value for SCENARIO: $(SCENARIO))
 endif
@@ -181,6 +187,16 @@ ifeq ($(STD), YES)
 else ifeq ($(STD), NO)
 else
   $(error Invalid value for STD: $(STD))
+endif
+
+ifeq ($(LIB), YES)
+  EXEC			:= bin/lib$(EXEC).so
+  FFLAGS		+= -fpic
+  LDFLAGS		+= -fpic -shared
+else ifeq ($(LIB), NO)
+  EXEC			:= bin/$(EXEC)
+else
+  $(error Invalid value for LIB: $(LIB))
 endif
 
 #----------------------------------------------------------------#

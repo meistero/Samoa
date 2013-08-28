@@ -8,8 +8,10 @@
 #if defined(_PYOP2)
 	MODULE pyop2_adaptive_traversal
 		use SFC_edge_traversal
+		use SFC_node_traversal
 		use Conformity
 		use Samoa
+		use pyOP2_init_indices
 
         implicit none
 

@@ -12,8 +12,8 @@ PROGRAM gridtest
 	implicit none
 
 	! command line arguments
-	logical					                            :: l_help, l_version, mpi_flag
-	integer          									:: i, i_error, i_threads, mpi_tag_upper_bound, mpi_prov_thread_support
+	logical					                            :: l_help, l_version
+	integer          									:: i, i_error, i_threads
 	character(256)                                      :: arguments
 
 	!define default command arguments and default values for all scenarios
@@ -80,33 +80,17 @@ PROGRAM gridtest
         stop
     end if
 
-#	if defined(_MPI)
-#       if defined(_OMP)
-            call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
-            assert_eq(MPI_THREAD_MULTIPLE, mpi_prov_thread_support)
-#       else
-            call mpi_init(i_error); assert_eq(i_error, 0)
-#       endif
+    call omp_set_num_threads(i_threads)
 
-		call mpi_comm_size(MPI_COMM_WORLD, size_MPI, i_error); assert_eq(i_error, 0)
-		call mpi_comm_rank(MPI_COMM_WORLD, rank_MPI, i_error); assert_eq(i_error, 0)
+    !init mpi
+    call init_mpi()
 
-		call mpi_comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, mpi_tag_upper_bound, mpi_flag, i_error); assert_eq(i_error, 0)
-		assert(mpi_flag)
-		assert_ge(mpi_tag_upper_bound, ishft(1, 30) - 1)
-#	else
-		size_MPI = 1
-		rank_MPI = 0
-#	endif
-
-	call omp_set_num_threads(i_threads)
+    !init element transformation data
+    call init_transform_data()
 
     call sfc_generic()
 
-#	if defined(_MPI)
-		call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-		call mpi_finalize(i_error); assert_eq(i_error, 0)
-#	endif
+    call finalize_mpi()
 
 	stop
 end PROGRAM gridtest

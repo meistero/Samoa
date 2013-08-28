@@ -60,6 +60,10 @@
 			if (l_log) then
 				_log_close_file()
 			endif
+
+            !test the wrapper (call must come from a non-parallel-region)
+            !give a kernel as argument and let the wrapper generate a grid
+            call run_f90_kernel(print_indices_kernel)
 		end subroutine
 
 		!> Sets the initial values of the scenario and runs the time steps
@@ -68,7 +72,25 @@
  			type(t_grid), intent(inout)									:: grid
 
             call pyop2%init_indices%traverse(grid)
+
+            !test the traversal
+            !bind a kernel and call traversal directly
+
+            pyop2%traversal%kernel => print_indices_kernel
+            call pyop2%traversal%traverse(grid)
+            call pyop2%adaptive_traversal%traverse(grid)
 		end subroutine
+
+		subroutine print_indices_kernel(cell_index, edge_indices, vertex_indices, coords)
+            use, intrinsic :: iso_c_binding
+            integer(kind=c_int), intent(in) :: cell_index
+            integer(kind=c_int), intent(in) :: edge_indices(3)
+            integer(kind=c_int), intent(in) :: vertex_indices(3)
+            real(kind=c_double), intent(in) :: coords(6)
+
+            _log_write(1, '("cell index: ", I0 , " edge indices: ", 3(I0, X) , " vertex indices: ", 3(I0, X))') cell_index, edge_indices, vertex_indices
+            _log_write(1, '("coords: ", 3("( ", 2(F0.3, X), ") "))') coords
+        end subroutine
 	END MODULE PyOP2
 #endif
 

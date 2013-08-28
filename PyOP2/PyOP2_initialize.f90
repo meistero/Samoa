@@ -70,7 +70,11 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)			        :: nodes(:)
 
-            nodes%data_pers%index = traversal%vertex_index
+            integer :: i
+
+            forall (i = 1 : size(nodes))
+                nodes(i)%data_pers%index = traversal%vertex_index - 1 + i
+            end forall
 
             traversal%vertex_index = traversal%vertex_index + size(nodes)
 		end subroutine
@@ -90,7 +94,11 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_edge_data), intent(inout)			        :: edges(:)
 
-            edges%data_pers%index = traversal%edge_index
+            integer :: i
+
+            forall (i = 1 : size(edges))
+                edges(i)%data_pers%index = traversal%edge_index - 1 + i
+            end forall
 
             traversal%edge_index = traversal%edge_index + size(edges)
 		end subroutine
