@@ -4,6 +4,7 @@
 
 /** \brief Executes a kernel on a triangular mesh in Sierpinski order
  * The following order is chosen for local edge and vertex numbering:
+ *
  * 2
  * |\
  * | \
@@ -17,6 +18,7 @@
  * \param edge_indices      map from local to global edge indices
  * \param vertex_indices    map from local to global vbertex indices
  * \param coords            vertex coordinates in local order
+ * \param refinement        refinement flag: set to 1 for refinement, -1 for coarsening, 0 for no changes (default: 0)
  *
  */
 extern "C" void samoa_run_c_kernel(void (*)(const int cell_index, const int edge_indices[3], const int vertex_indices[3], const double coords[3][2], char* refinement));
