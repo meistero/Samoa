@@ -179,13 +179,11 @@ MODULE SFC_traversal
 
 			call numa%destroy(grid, l_log)
 #		elif defined(_PYOP2)
-			call pyop2%create(grid, l_log)
+            !this scenario is a special case - grid and parallel execution are managed on ots own
 
-            !$omp parallel
-			call pyop2%run(grid)
-			!$omp end parallel
-
-			call pyop2%destroy(grid, l_log)
+			call pyop2%create(l_log)
+			call pyop2%run()
+			call pyop2%destroy(l_log)
 #		endif
 
         call grid%destroy()

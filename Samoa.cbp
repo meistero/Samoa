@@ -241,11 +241,14 @@
 		<Unit filename="NUMA/NUMA_output.f90" />
 		<Unit filename="NUMA/NUMA_xml_output.f90" />
 		<Unit filename="NUMA/numa.py" />
+		<Unit filename="PyOP2/Makefile" />
 		<Unit filename="PyOP2/PyOP2.f90" />
 		<Unit filename="PyOP2/PyOP2_adapt_template.f90" />
 		<Unit filename="PyOP2/PyOP2_data_types.f90" />
 		<Unit filename="PyOP2/PyOP2_initialize.f90" />
 		<Unit filename="PyOP2/PyOP2_template.f90" />
+		<Unit filename="PyOP2/print_kernel_test.cpp" />
+		<Unit filename="PyOP2/samoa.h" />
 		<Unit filename="SFC_data_types.f90">
 			<Option weight="1" />
 		</Unit>
@@ -393,8 +396,6 @@
 			<Option weight="0" />
 		</Unit>
 		<Unit filename="WMakefile" />
-		<Unit filename="convert_to_vtu_3.4.py" />
-		<Unit filename="convert_to_vtu_3.8.py" />
 		<Unit filename="dependency.mk" />
 		<Unit filename="geoclaw/c_bind_riemannsolvers.f90">
 			<Option weight="0" />
@@ -402,9 +403,6 @@
 		<Unit filename="geoclaw/riemannsolvers.f">
 			<Option weight="0" />
 		</Unit>
-		<Unit filename="run_supzero_general.sh" />
-		<Unit filename="run_supzero_small.sh" />
-		<Unit filename="run_supzero_test.sh" />
 		<Unit filename="sierpinski.doxygen" />
 		<Unit filename="vtkautoconstr3.pl" />
 		<Unit filename="wdependency.mk" />

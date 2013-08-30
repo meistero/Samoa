@@ -63,10 +63,10 @@ NUMA/NUMA_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NU
 NUMA/NUMA_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
 NUMA/NUMA_constants.o: NUMA/NUMA_data_types.o
 
-PyOP2/PyOP2.o: PyOP2/PyOP2_data_types.o PyOP2/PyOP2_initialize.o PyOP2/PyOP2_template.o PyOP2/PyOP2_adapt_template.o
-PyOP2/PyOP2_initialize.o: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.o SFC_node_traversal.o Samoa/Samoa.o
-PyOP2/PyOP2_template.o: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.o SFC_node_traversal.o Samoa/Samoa.o PyOP2/PyOP2_initialize.o
-PyOP2/PyOP2_adapt_template.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o Samoa/Samoa.o PyOP2/PyOP2_initialize.o
+PyOP2/PyOP2.o: PyOP2/PyOP2_data_types.o  SFC_node_traversal.o PyOP2/PyOP2_initialize.o PyOP2/PyOP2_template.o PyOP2/PyOP2_adapt_template.o
+PyOP2/PyOP2_initialize.o: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.o Samoa/Samoa.o
+PyOP2/PyOP2_template.o: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.o Samoa/Samoa.o
+PyOP2/PyOP2_adapt_template.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o Samoa/Samoa.o
 
 Samoa/Samoa.o: SFC_data_types.o Samoa/Tools_quadrature_rule_base.o
 Samoa/Tools_quadrature_rule_base.o: SFC_data_types.o

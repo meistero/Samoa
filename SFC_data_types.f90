@@ -847,8 +847,9 @@ MODULE SFC_data_types
 
     !> initializes the mpi communicator
     subroutine init_mpi()
-        integer :: i_error, mpi_tag_upper_bound, mpi_prov_thread_support
-        logical :: mpi_flag
+        integer                         :: i_error, mpi_prov_thread_support
+        integer(kind=MPI_ADDRESS_KIND)  :: mpi_tag_upper_bound
+        logical                         :: mpi_flag
 
 #       if defined(_MPI)
 #           if defined(_OMP)
