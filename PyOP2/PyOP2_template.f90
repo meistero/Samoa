@@ -50,7 +50,12 @@
   			type(t_pyop2_traversal), intent(inout)	        :: traversal
  			type(t_grid), intent(inout)					    :: grid
 
-			traversal%children%kernel => traversal%kernel
+ 			integer :: i
+
+			do i = 1, size(traversal%children)
+                traversal%children(i)%kernel => traversal%kernel
+			end do
+
 			traversal%adapt = .false.
 		end subroutine
 

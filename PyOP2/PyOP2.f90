@@ -113,7 +113,9 @@
                 allocate(grid)
                 grid%i_min_depth = 1
                 grid%i_max_depth = 14
-                grid%i_sections_per_thread = 8
+                grid%i_sections_per_thread = 1
+
+                call omp_set_num_threads(1)
 
                 call init_grid(grid)
 

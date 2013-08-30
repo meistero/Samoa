@@ -15,7 +15,7 @@ LDFLAGS 		= "-Wl,-rpath,../bin" -L"../bin/"
 #default target
 
 all:
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o print_kernel_test -lsamoa_pyop2_noasagi_debug print_kernel_test.cpp
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o print_kernel_test -lsamoa_pyop2_noasagi print_kernel_test.cpp
 
 clean:
 	@rm -f print_kernel_test

@@ -84,6 +84,8 @@ MODULE SFC_node_traversal
         double precision, parameter                 :: first_coords(2, 3) = reshape([[0, 0], [1, 0], [1, 1]], shape(first_coords))
         double precision, parameter                 :: second_coords(2, 3) = reshape([[1, 1], [0, 1], [0, 0]], shape(second_coords))
 
+        integer :: i
+
 #	    if (_DEBUG_LEVEL > 3)
             _log_write(4, '(X, A)') "Initial section state :"
             call section%print()
