@@ -4,9 +4,9 @@
 
 #default compiler and compiler-specific flags
 
-CXX				= mpicxx.mpich2 -cxx=icc
+CXX				= mpicxx.mpich2 -cxx=g++
 CXXFLAGS		= -O3 -std=c++0x
-LDFLAGS 		= "-Wl,-rpath,../bin" -L"../bin/"
+LDFLAGS 		= -L"../bin/" -lsamoa_pyop2_noasagi "-Wl,-rpath,../bin"
 
 #----------------------------------------------------------------#
 # Build targets                                                  #
@@ -15,7 +15,7 @@ LDFLAGS 		= "-Wl,-rpath,../bin" -L"../bin/"
 #default target
 
 all:
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) -o print_kernel_test -lsamoa_pyop2_noasagi print_kernel_test.cpp
+	$(CXX) -o print_kernel_test print_kernel_test.cpp $(CXXFLAGS) $(LDFLAGS)
 
 clean:
 	@rm -f print_kernel_test
