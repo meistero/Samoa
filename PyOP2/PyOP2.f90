@@ -28,6 +28,8 @@
             procedure , pass :: destroy => pyop2_destroy
         end type
 
+        type(t_grid), allocatable, save               :: grid
+
 		private
 		public t_pyop2
 
@@ -97,7 +99,6 @@
 		subroutine samoa_run_f90_kernel(f90_kernel)
             procedure(pyop2_kernel), pointer, intent(in)        :: f90_kernel
 
-            type(t_grid), allocatable, save                     :: grid
             type(t_pyop2_adaptive_traversal), save              :: adaptive_traversal
             type(t_pyop2_traversal), save                       :: kernel_traversal
             type(t_pyop2_init_indices_traversal), save          :: init_indices

@@ -849,15 +849,24 @@ MODULE SFC_data_types
     subroutine init_mpi()
         integer                         :: i_error, mpi_prov_thread_support
         integer(kind=MPI_ADDRESS_KIND)  :: mpi_tag_upper_bound
-        logical                         :: mpi_flag
+        logical                         :: mpi_flag, mpi_is_initialized
 
 #       if defined(_MPI)
-#           if defined(_OMP)
-                call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
-                assert_eq(MPI_THREAD_MULTIPLE, mpi_prov_thread_support)
-#           else
-                call mpi_init(i_error); assert_eq(i_error, 0)
-#           endif
+            call mpi_initialized(mpi_is_initialized, i_error); assert_eq(i_error, 0)
+
+            if (.not. mpi_is_initialized) then
+#               if defined(_OMP)
+                    call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
+                    assert_ge(mpi_prov_thread_support, MPI_THREAD_MULTIPLE)
+#               else
+                    call mpi_init(i_error); assert_eq(i_error, 0)
+#               endif
+            else
+#               if defined(_OMP)
+                    call mpi_query_thread(mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
+                    assert_ge(mpi_prov_thread_support, MPI_THREAD_MULTIPLE)
+#               endif
+            end if
 
             call mpi_comm_size(MPI_COMM_WORLD, size_MPI, i_error); assert_eq(i_error, 0)
             call mpi_comm_rank(MPI_COMM_WORLD, rank_MPI, i_error); assert_eq(i_error, 0)
@@ -873,12 +882,17 @@ MODULE SFC_data_types
 
     !> finalizes the mpi communicator
     subroutine finalize_mpi()
-        integer :: i_error
+        integer                         :: i_error
+        logical                         :: mpi_is_finalized
 
-#	    if defined(_MPI)
-            call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-            call mpi_finalize(i_error); assert_eq(i_error, 0)
-#	    endif
+        call mpi_finalized(mpi_is_finalized, i_error); assert_eq(i_error, 0)
+
+        if (.not. mpi_is_finalized) then
+#	        if defined(_MPI)
+                call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+                call mpi_finalize(i_error); assert_eq(i_error, 0)
+#	        endif
+        end if
     end subroutine
 
 	!**********************************
