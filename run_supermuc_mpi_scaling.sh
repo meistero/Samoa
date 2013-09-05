@@ -15,10 +15,14 @@ mkdir -p scripts
 echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
+echo "Compiling..."
+./make_test.sh OPENMP=NO
+
 echo "Running scenarios..."
 
 class=test
 limit=02:00:00
+postfix=_noomp
 
 for asagimode in 2
 do
@@ -41,6 +45,7 @@ do
 			sed -i 's=$nodes='$nodes'=g' $script
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
+			sed -i 's=$postfix='$postfix'=g' $script
 
 			llsubmit $script
 		done
