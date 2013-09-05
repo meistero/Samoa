@@ -13,9 +13,8 @@
 		implicit none
 
         type num_traversal_data
-            integer :: cell_index
-            integer :: edge_index
-            integer :: vertex_index
+            integer :: cell_index, edge_index, vertex_index
+            integer :: i_cells, i_edges, i_vertices
         end type
 
 #		define	_GT_NAME						t_pyop2_init_indices_traversal
@@ -39,9 +38,6 @@
  			type(t_pyop2_init_indices_traversal), intent(inout)      	:: traversal
  			type(t_grid), intent(inout)							        :: grid
 
- 			traversal%cell_index = 0
- 			traversal%edge_index = 0
- 			traversal%vertex_index = 0
 		end subroutine
 
 
@@ -49,9 +45,21 @@
  			type(t_pyop2_init_indices_traversal), intent(inout)      	:: traversal
  			type(t_grid_section), intent(inout)							:: section
 
- 			traversal%cell_index = 0
- 			traversal%edge_index = 0
- 			traversal%vertex_index = 0
+ 			traversal%cell_index = 1
+ 			traversal%edge_index = 1
+ 			traversal%vertex_index = 1
+
+ 			traversal%i_vertices = size(section%nodes_in%elements) &
+                + size(section%boundary_nodes(RED)%elements) + size(section%boundary_nodes(GREEN)%elements)
+ 			traversal%i_edges = size(section%crossed_edges_in%elements) + size(section%color_edges_in%elements) &
+                + size(section%boundary_edges(RED)%elements) + size(section%boundary_edges(GREEN)%elements)
+ 			traversal%i_cells = size(section%cells%elements)
+
+            if (.not. allocated(section%cells_to_edges_map)) then
+                allocate(section%cells_to_edges_map(3, traversal%i_cells))
+                allocate(section%cells_to_nodes_map(3, traversal%i_cells))
+                allocate(section%edges_to_nodes_map(2, traversal%i_edges))
+            end if
 		end subroutine
 
 		!******************
@@ -63,7 +71,58 @@
  			type(t_grid_section), intent(inout)				    :: section
 			type(t_element_base), intent(inout)				    :: element
 
+			integer                     :: vertex_indices(3), edge_indices(3), cell_index
+            integer (kind = 1)          :: edge_types(3)
+
+			integer (kind = 1)          :: i_previous_edge, i_color_edge, i_next_edge, i
+
+			cell_index = element%cell%data_pers%index
+
+            do i = 1, 3
+                edge_indices(i) = element%edges(i)%ptr%data_pers%index
+                vertex_indices(i) = element%nodes(i)%ptr%data_pers%index
+            end do
+
+			call element%cell%geometry%get_edge_indices(i_previous_edge, i_color_edge, i_next_edge)
+			call element%cell%geometry%get_edge_types(edge_types(i_previous_edge), edge_types(i_color_edge), edge_types(i_next_edge))
+
+            call init_map(traversal%i_cells, traversal%i_edges, section%cells_to_edges_map, section%cells_to_nodes_map, section%edges_to_nodes_map, &
+                cell_index, edge_indices, vertex_indices, edge_types)
 		end subroutine
+
+
+		subroutine init_map(i_cells, i_edges, cells_to_edges_map, cells_to_nodes_map, edges_to_nodes_map, i_c, i_e, i_v, edge_types)
+ 			integer, intent(in)                                 :: i_cells, i_edges
+ 			integer, intent(inout)                              :: cells_to_edges_map(3, i_cells)
+ 			integer, intent(inout)                              :: cells_to_nodes_map(3, i_cells)
+ 			integer, intent(inout)                              :: edges_to_nodes_map(2, i_edges)
+ 			integer, intent(in)                                 :: i_c, i_e(3), i_v(3)
+ 			integer (kind = 1), intent(in)                      :: edge_types(3)
+
+            integer :: i
+
+            do i = 1, 3
+                cells_to_nodes_map(i, i_c) = i_v(i)
+            end do
+
+            do i = 1, 3
+                cells_to_edges_map(i, i_c) = i_e(i)
+            end do
+
+            do i = 1, 3
+                select case (edge_types(i))
+                    case (NEW, NEW_BND)
+                        edges_to_nodes_map(1, i_e(i)) = i_v(1 + mod(i, 3))
+                        edges_to_nodes_map(2, i_e(i)) = i_v(1 + mod(i + 1, 3))
+                    case (OLD_BND)
+                        edges_to_nodes_map(1, i_e(i)) = i_v(1 + mod(i + 1, 3))
+                        edges_to_nodes_map(2, i_e(i)) = i_v(1 + mod(i, 3))
+                    case (OLD)
+                        assert_eq(edges_to_nodes_map(1, i_e(i)), i_v(1 + mod(i + 1, 3)))
+                        assert_eq(edges_to_nodes_map(2, i_e(i)), i_v(1 + mod(i, 3)))
+                end select
+            end do
+        end subroutine
 
 		subroutine node_first_touch_vector_op(traversal, section, nodes)
  			type(t_pyop2_init_indices_traversal), intent(inout) :: traversal

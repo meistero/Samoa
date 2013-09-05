@@ -63,7 +63,7 @@
 
 		!> Base data type for the scenario configuration
 		type num_global_data
-
+ 			integer, allocatable :: cells_to_edges_map(:, :), cells_to_nodes_map(:, :), edges_to_nodes_map(:, :)
 		end type
 	end module PyOP2_data_types
 #endif

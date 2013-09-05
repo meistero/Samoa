@@ -17,8 +17,9 @@
 
         ! Define kernel wrapper interface
         abstract interface
-            subroutine pyop2_kernel(cell_index, edge_indices, vertex_indices, coords, refinement)
+            subroutine pyop2_kernel(section_index, cell_index, edge_indices, vertex_indices, coords, refinement)
                 use, intrinsic :: iso_c_binding
+                integer(kind=c_int), value, intent(in) :: section_index
                 integer(kind=c_int), value, intent(in) :: cell_index
                 integer(kind=c_int), intent(in) :: edge_indices(3)
                 integer(kind=c_int), intent(in) :: vertex_indices(3)
@@ -105,7 +106,7 @@
 
             refinement = 0
 
-			call traversal%kernel(cell_index, edge_indices, vertex_indices, coords, refinement)
+			call traversal%kernel(section%index, cell_index, edge_indices, vertex_indices, coords, refinement)
 
 			element%cell%geometry%refinement = refinement
             traversal%adapt = traversal%adapt .or. (refinement .ne. 0)

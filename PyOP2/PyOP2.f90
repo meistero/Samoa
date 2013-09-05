@@ -63,15 +63,16 @@
 			endif
 		end subroutine
 
-		subroutine print_indices_kernel(cell_index, edge_indices, vertex_indices, coords, refinement)
+		subroutine print_indices_kernel(section_index, cell_index, edge_indices, vertex_indices, coords, refinement)
             use, intrinsic :: iso_c_binding
+            integer(kind=c_int), value, intent(in) :: section_index
             integer(kind=c_int), value, intent(in) :: cell_index
             integer(kind=c_int), intent(in) :: edge_indices(3)
             integer(kind=c_int), intent(in) :: vertex_indices(3)
             real(kind=c_double), intent(in) :: coords(6)
             integer(kind=c_char), intent(inout) :: refinement
 
-            _log_write(1, '("cell index: ", I0 , " edge indices: ", 3(I0, X) , " vertex indices: ", 3(I0, X))') cell_index, edge_indices, vertex_indices
+            _log_write(1, '("section index: ", I0 , "cell index: ", I0 , " edge indices: ", 3(I0, X) , " vertex indices: ", 3(I0, X))') section_index, cell_index, edge_indices, vertex_indices
             _log_write(1, '("coords: ", 3("( ", 2(F0.3, X), ") "))') coords
         end subroutine
 
@@ -114,9 +115,9 @@
                 allocate(grid)
                 grid%i_min_depth = 1
                 grid%i_max_depth = 14
-                grid%i_sections_per_thread = 1
+                grid%i_sections_per_thread = 8
 
-                call omp_set_num_threads(1)
+                !call omp_set_num_threads(1)
 
                 call init_grid(grid)
 
