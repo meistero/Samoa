@@ -17,14 +17,11 @@
 
         ! Define kernel wrapper interface
         abstract interface
-            subroutine pyop2_kernel(section_index, cell_index, edge_indices, vertex_indices, coords, refinement)
+            subroutine pyop2_kernel(section_index, cell_index, refinement)
                 use, intrinsic :: iso_c_binding
-                integer(kind=c_int), value, intent(in) :: section_index
-                integer(kind=c_int), value, intent(in) :: cell_index
-                integer(kind=c_int), intent(in) :: edge_indices(3)
-                integer(kind=c_int), intent(in) :: vertex_indices(3)
-                real(kind=c_double), intent(in) :: coords(6)
-                integer(kind=c_char), intent(inout) :: refinement
+                integer(kind=c_int), value, intent(in)          :: section_index
+                integer(kind=c_long_long), value, intent(in)    :: cell_index
+                integer(kind=c_char), intent(inout)             :: refinement
             end subroutine
         end interface
 
@@ -35,8 +32,7 @@
 
 #		define _GT_NAME							t_pyop2_traversal
 
-#		define _GT_EDGES
-#		define _GT_NODES
+#		define _GT_NO_COORDS
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
@@ -90,23 +86,13 @@
  			type(t_grid_section), intent(inout)			    :: section
 			type(t_element_base), intent(inout), target		:: element
 
-            real (kind = c_double),  parameter  :: base_coords(2, 3) = [[1, 0, 0], [0, 0, 1]]
-			real (kind = c_double)              :: coords(6)
-			integer (kind = c_int)              :: vertex_indices(3), edge_indices(3), cell_index
-			integer (kind = c_char)             :: i, refinement
+			integer (kind = c_long_long)        :: cell_index
+			integer (kind = c_char)             :: refinement
 
 			cell_index = element%cell%data_pers%index
-
-            do i = 1, 3
-                edge_indices(i) = element%edges(i)%ptr%data_pers%index
-                vertex_indices(i) = element%nodes(i)%ptr%data_pers%index
-
-                coords(2 * i - 1 : 2 * i) = samoa_barycentric_to_world_point(element%transform_data, base_coords(:, i))
-            end do
-
             refinement = 0
 
-			call traversal%kernel(section%index, cell_index, edge_indices, vertex_indices, coords, refinement)
+			call traversal%kernel(section%index, cell_index, refinement)
 
 			element%cell%geometry%refinement = refinement
             traversal%adapt = traversal%adapt .or. (refinement .ne. 0)

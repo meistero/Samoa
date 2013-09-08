@@ -7,6 +7,8 @@
 
 #if defined(_PYOP2)
 	module pyOP2_data_types
+        use, intrinsic :: iso_c_binding
+
 		public
 
 		!data precision
@@ -63,7 +65,9 @@
 
 		!> Base data type for the scenario configuration
 		type num_global_data
- 			integer, allocatable :: cells_to_edges_map(:, :), cells_to_nodes_map(:, :), edges_to_nodes_map(:, :)
+            integer (kind = c_long_long)                :: i_cells, i_edges, i_nodes
+ 			integer (kind = c_long_long), allocatable   :: cells_to_edges_map(:, :), cells_to_nodes_map(:, :), edges_to_nodes_map(:, :)
+ 			real (kind = c_double), allocatable         :: coords(:, :)
 		end type
 	end module PyOP2_data_types
 #endif

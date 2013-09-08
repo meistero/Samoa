@@ -2,56 +2,61 @@
 // Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 // This program is licensed under the GPL, for details see the file LICENSE
 
-/** \brief Allocates a samoa data array
+/** \brief Returns the grid data in a specified section
  *
- * \param cell_size         (in)section index
- * \param cell_size         (in)number of DoFs on each cell
- * \param edge_size         (in)number of DoFs on each edge
- * \param vertex_size       (in)number of DoFs on each vertex
- * \param dim               (in)DoF dimension (flattened)
- * \return                  (out)handle to the array
+ * \param section_index     (in)index of the current section
+ * \param cells             (out)number of cells
+ * \param edges             (out)number of edges
+ * \param nodes             (out)number of nodes
+ * \param cells_to_edges    (out)map from cells to edges
+ * \param cells_to_nodes    (out)map from cells to nodes
+ * \param edges_to_nodes    (out)map from edges to nodes
+ * \param coords            (out)node coordinates
  *
  */
-extern "C" int samoa_malloc(const int cell_size, const int edge_size, const int vertex_size, const int dim);
+extern "C" void samoa_get_grid(const int section_index,
+                               long long& i_cells, long long& i_edges, long long& i_nodes,
+                               long long*& cells_to_edges, long long*& cells_to_nodes, long long*& edges_to_nodes,
+                               double*& coords);
+
+
+/** \brief Allocates a samoa data array in a specified section
+ *
+ * \param section_index     (in)index of the current section
+ * \param dofs              (in)number of DoFs
+ * \param cells_to_dofs     (in)map from cell interiors to DoFs
+ * \param edges_to_dofs     (in)map from edge interiors to DoFs
+ * \param nodes_to_dofs     (in)map from nodes to DoFs
+ * \param dim               (in)DoF dimension
+ * \return                  (out)array pointer
+ *
+ */
+extern "C" double* samoa_malloc(const int section_index, const long long dofs, const int dim, const long long cells_to_dofs[], const long long edges_to_dofs[], const long long nodes_to_dofs[]);
 
 /** \brief Deallocates a samoa data array
  *
- * \param handle            (in)handle to the array
- * \param cell_size         (in)section index
+ * \param data            (in)array pointer
  *
  */
-extern "C" void samoa_free(const int handle);
-
-
-/** \brief Accesses a samoa data array on a section
- *
- * \param handle            (in)handle to the array
- * \param cell_size         (in)section index
- * \return                  (out)pointer to the array for the specified section
- *
- */
-extern "C" double* samoa_access(const int handle, const int section_index);
+extern "C" void samoa_free(double* data);
 
 
 /** \brief Executes a kernel on a triangular mesh in Sierpinski order
- * The following order is chosen for local edge and vertex numbering:
+ * The following order is assumed for local DoF numbering:
  *
  * 2
  * |\
  * | \
- * 0  1
- * |   \
+ * 4  5
+ * | 7 \
  * |    \
- * 1--2--0
+ * 1--6--0
  *
  *
  * \param kernel            (in)kernel function
  * \param section_index     (in)index of the current section
  * \param cell_index        (in)index of the cell
- * \param edge_indices      (in)map from local to global edge indices
- * \param vertex_indices    (in)map from local to global vertex indices
- * \param coords            (in)vertex coordinates in local order
  * \param refinement        (out)refinement flag: set to 1 for cell refinement, -1 for coarsening, 0 for no changes (default: 0)
  *
  */
-extern "C" void samoa_run_c_kernel(void (*kernel)(const int section_index, const int cell_index, const int edge_indices[3], const int vertex_indices[3], const double coords[3][2], char* refinement));
+extern "C" void samoa_run_kernel(void (*kernel)(const int section_index, const long long cell_index, char& refinement));

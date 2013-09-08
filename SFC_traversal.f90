@@ -128,17 +128,15 @@ MODULE SFC_traversal
 			end select
 #		endif
 
-        grid%i_min_depth = i_min_depth
-        grid%i_max_depth = i_max_depth
-        grid%i_sections_per_thread = i_sections_per_thread
-
-        !create initial grid
-        call init_grid(grid)
-
 		!create, run and destroy scenario
 
 #		if defined(_TESTS)
-			!TODO: tests should be able to execute in addition to one of the scenarios!
+            grid%i_sections_per_thread = i_sections_per_thread
+
+            !TODO: tests should be able to execute in addition to one of the scenarios!
+
+            !create initial grid
+            call init_grid(grid)
 			call tests_create(grid, l_log, i_asagi_mode)
 
 			!$omp parallel
@@ -146,7 +144,14 @@ MODULE SFC_traversal
 			!$omp end parallel
 
 			call tests_destroy(grid, l_log)
+            call grid%destroy()
 #		elif defined (_HEAT_EQ)
+            grid%i_min_depth = i_min_depth
+            grid%i_max_depth = i_max_depth
+            grid%i_sections_per_thread = i_sections_per_thread
+
+            !create initial grid
+            call init_grid(grid)
 			call heat_eq_create(grid, l_log, i_asagi_mode)
 
 			!$omp parallel
@@ -154,7 +159,14 @@ MODULE SFC_traversal
 			!$omp end parallel
 
 			call heat_eq_destroy(grid, l_log)
+            call grid%destroy()
 #		elif defined(_DARCY)
+            grid%i_min_depth = i_min_depth
+            grid%i_max_depth = i_max_depth
+            grid%i_sections_per_thread = i_sections_per_thread
+
+            !create initial grid
+            call init_grid(grid)
 			call darcy%create(grid, l_log, i_asagi_mode)
 
             !$omp parallel
@@ -162,7 +174,14 @@ MODULE SFC_traversal
 			!$omp end parallel
 
 			call darcy%destroy(grid, l_log)
+            call grid%destroy()
 #		elif defined(_SWE)
+            grid%i_min_depth = i_min_depth
+            grid%i_max_depth = i_max_depth
+            grid%i_sections_per_thread = i_sections_per_thread
+
+            !create initial grid
+            call init_grid(grid)
 			call swe%create(grid, l_log, i_asagi_mode)
 
             !$omp parallel
@@ -170,7 +189,14 @@ MODULE SFC_traversal
 			!$omp end parallel
 
 			call swe%destroy(grid, l_log)
+            call grid%destroy()
 #		elif defined(_NUMA)
+            grid%i_min_depth = i_min_depth
+            grid%i_max_depth = i_max_depth
+            grid%i_sections_per_thread = i_sections_per_thread
+
+            !create initial grid
+            call init_grid(grid)
 			call numa%create(grid, l_log)
 
             !$omp parallel
@@ -178,14 +204,13 @@ MODULE SFC_traversal
 			!$omp end parallel
 
 			call numa%destroy(grid, l_log)
+            call grid%destroy()
 #		elif defined(_PYOP2)
-            !this scenario is a special case - grid and parallel execution are managed on ots own
+            !this scenario is a special case - grid and parallel execution are managed on its own
 
 			call pyop2%create(l_log)
 			call pyop2%run()
 			call pyop2%destroy(l_log)
 #		endif
-
-        call grid%destroy()
 	end subroutine sfc_generic
 end MODULE SFC_traversal

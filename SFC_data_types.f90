@@ -196,7 +196,6 @@ MODULE SFC_data_types
 
 	type, extends(num_global_data) :: t_global_data
         integer (kind = GRID_SI)					        :: i_sections_per_thread
-        integer (kind = 1)					                :: i_min_depth, i_max_depth
         integer (kind = GRID_DI), dimension(RED : GREEN)	:: start_distance, min_distance, end_distance
 
         integer (kind = GRID_SI), dimension(RED : GREEN)	:: start_dest_stack, end_dest_stack, min_dest_stack, max_dest_stack
@@ -584,7 +583,6 @@ MODULE SFC_data_types
         class(t_global_data), intent(in)		:: gd
 		character (len = 256)					:: str
 
-		write(str, '(A, I0, X, I0, X, I0)') "depth (min, max): ", gd%i_min_depth, gd%i_max_depth
 		write(str, '(A, A, F0.4, X, F0.4, X, F0.4)') trim(str), " distance RED (start, min, end): ", decode_distance(gd%start_distance(RED)), decode_distance(gd%min_distance(RED)), decode_distance(gd%end_distance(RED))
 		write(str, '(A, A, F0.4, X, F0.4, X, F0.4)') trim(str), " distance GREEN (start, min, end): ", decode_distance(gd%start_distance(GREEN)), decode_distance(gd%min_distance(GREEN)), decode_distance(gd%end_distance(GREEN))
     end function
@@ -744,7 +742,7 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(in)		:: cell
         integer (kind = 1)                      :: i
 		real (kind = GRID_SR)					:: scaling
-        real (kind = GRID_SR), parameter, dimension(MAX_DEPTH)		:: r_scalings = [ (0.5_GRID_SR ** i, 0.5_GRID_SR ** i, i = 1, MAX_DEPTH/2) ]
+        real (kind = GRID_SR), parameter, dimension(-1 : MAX_DEPTH)		:: r_scalings = [ (0.5_GRID_SR ** i, 0.5_GRID_SR ** i, i = 0, MAX_DEPTH/2) ]
 
 		scaling = r_scalings(cell%i_depth)
 	end function
@@ -754,7 +752,7 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(in)		:: cell
         integer (kind = 1)                      :: i
 		real (kind = GRID_SR)					:: volume
-        real (kind = GRID_SR), parameter, dimension(MAX_DEPTH)		:: r_volumes = [ (0.5_GRID_SR ** (i + 1), i = 1, MAX_DEPTH) ]
+        real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)		:: r_volumes = [ (0.5_GRID_SR ** (i + 1), i = 0, MAX_DEPTH) ]
 
 		volume = r_volumes(cell%i_depth)
 	end function
@@ -797,7 +795,7 @@ MODULE SFC_data_types
         integer (kind = 1)                      :: i
 		real (kind = GRID_SR)					:: volume
 
-        real (kind = GRID_SR), parameter, dimension(MAX_DEPTH)		:: r_volumes = [ (0.5_GRID_SR ** (i + 1), i = 1, MAX_DEPTH) ]
+        real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)		:: r_volumes = [ (0.5_GRID_SR ** (i + 1), i = 0, MAX_DEPTH) ]
 
 		volume = r_volumes(depth)
 	end function

@@ -106,6 +106,7 @@
 
 		!> Base data type for the scenario configuration
 		type num_global_data
+            integer (kind = 1)					        :: i_min_depth, i_max_depth !< minimum and maximum grid depth
 			real (kind = GRID_SR)						:: r_epsilon				!< error bound
 			real (kind = GRID_SR)						:: r_rel_permeability		!< relative permeability of the entering fluid
 			real (kind = GRID_SR)						:: r_rho					!< fluid density

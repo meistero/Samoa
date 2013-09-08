@@ -20,7 +20,7 @@
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
 
 		integer, PARAMETER :: GRID_SL = 1
- 
+
 		real (kind = GRID_SR), parameter					:: g = 9.80665_GRID_SR		!< gravitational constant
 
 
@@ -30,6 +30,7 @@
 
 		!> Data type for the scenario configuration
 		type num_global_data
+            integer (kind = 1)					            :: i_min_depth, i_max_depth !< minimum and maximum grid depth
 			real (kind = GRID_SR)							:: r_dt	= 1e-3					!< time step
 			real (kind = GRID_SR)							:: u_max					!< maximum wave velocity for cfl condition
 			integer (kind = 1)								:: d_max					!< current maximum grid depth
@@ -48,11 +49,11 @@
 
 		!> state vector of DoFs, either as absoulte values or updates
 		type t_dof_state
-			real (kind = GRID_SR)												:: h						
-			real (kind = GRID_SR), dimension(2)										:: p						
+			real (kind = GRID_SR)												:: h
+			real (kind = GRID_SR), dimension(2)										:: p
 			real (kind = GRID_SR)												:: e
 			real (kind = GRID_SR)												:: h_ref	!cell constant initialised in the beginning
-			real (kind = GRID_SR), dimension(2)										:: p_ref	!cell constant initialised in the beginning				
+			real (kind = GRID_SR), dimension(2)										:: p_ref	!cell constant initialised in the beginning
 			real (kind = GRID_SR)												:: e_ref	!cell constant initialised in the beginning
 		end type
 
@@ -81,7 +82,7 @@
 
 		!> persistent scenario data on a node
 		type num_node_data_pers
-			integer (kind = 1)															:: dummy					!< no data	
+			integer (kind = 1)															:: dummy					!< no data
 		END type num_node_data_pers
 
 		!> persistent scenario data on an edge
@@ -130,7 +131,7 @@
 		elemental function state_add(Q1, Q2)	result(Q_out)
 			type (t_state), intent(in)		:: Q1, Q2
 			type (t_state)					:: Q_out
-			
+
 			Q_out = t_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%e + Q2%e , Q1%h_ref + Q2%h_ref, Q1%p_ref + Q2%p_ref, Q1%e_ref + Q2%e_ref)
 		end function
 
@@ -138,7 +139,7 @@
 		elemental function update_add(f1, f2)	result(f_out)
 			type (t_update), intent(in)		:: f1, f2
 			type (t_update)					:: f_out
-			
+
 			f_out = t_update(f1%h + f2%h, f1%p + f2%p, f1%e + f2%e , f1%h_ref + f2%h_ref, f1%p_ref + f2%p_ref, f1%e_ref + f2%e_ref, f1%max_wave_speed + f2%max_wave_speed)
 		end function
 
@@ -146,7 +147,7 @@
 		elemental function dof_state_add(Q1, Q2)	result(Q_out)
 			type (t_dof_state), intent(in)		:: Q1, Q2
 			type (t_dof_state)					:: Q_out
-			
+
 			Q_out = t_dof_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%e + Q2%e , Q1%h_ref+ Q2%h_ref, Q1%p_ref + Q2%p_ref, Q1%e_ref + Q2%e_ref)
 		end function
 
@@ -154,7 +155,7 @@
 		elemental function dof_state_inv(f)	result(f_out)
 			type (t_dof_state), intent(in)		:: f
 			type (t_dof_state)					:: f_out
-			
+
 			f_out = t_dof_state(-f%h, -f%p, -f%e, -f%h_ref, -f%p_ref, -f%e_ref)
 		end function
 
@@ -162,7 +163,7 @@
 		elemental function t_update_state_inv(f)	result(f_out)
 			type (t_update), intent(in)		:: f
 			type (t_update)					:: f_out
-			
+
 			f_out = t_update(-f%h, -f%p, -f%e, -f%h_ref, -f%p_ref, -f%e_ref,f%max_wave_speed)
 		end function
 
@@ -172,7 +173,7 @@
 			real (kind = GRID_SR), intent(in)		:: s
 			type (t_dof_state), intent(in)		:: f
 			type (t_dof_state)					:: f_out
-			
+
 			f_out = t_dof_state(s * f%h, s * f%p, s * f%e , s * f%h_ref, s * f%p_ref, s * f%e_ref)
 		end function
 	END MODULE NUMA_data_types

@@ -19,22 +19,32 @@ MODULE SFC_node_traversal
 
 	CONTAINS
 
-	subroutine init_grid(grid)
+	subroutine init_grid(grid, depth)
 		type(t_grid), intent(inout)			        :: grid
+		integer (kind = 1), intent(in), optional    :: depth
 		integer (kind = GRID_SI)            		:: i_section, i_thread
 
 		! local variables
 		type(t_section_info)           	            :: section_descriptor
 		type(t_section_info_list)           	    :: section_descriptors
         type(t_edge_data)			                :: last_crossed_edge_data
+		integer                                     :: start_depth
+
+        !set start depth to the passed argument if available, otherwise to 0
+        start_depth = 0
+
+		if (present(depth)) then
+            assert_ge(depth, 0)
+            start_depth = depth
+        end if
 
 		!the start grid belongs to rank 0 and will be distributed during runtime
 		if (rank_MPI == 0) then
 			section_descriptor = t_section_info(&
                 index = 1, &
-				i_cells = 4, &
-				i_stack_nodes = [4, 2], &
-				i_stack_edges = [3, 1], &
+				i_cells = 2 ** (start_depth + 1), &
+				i_stack_nodes = [2 ** ((start_depth + 4) / 2), 2 ** ((start_depth + 3) / 2)], &
+				i_stack_edges = [2 ** ((start_depth + 4) / 2) - 1, 2 ** ((start_depth + 3) / 2) - 1], &
 				i_boundary_edges = 0, &
 				i_boundary_nodes = 0, &
 				i_comms = 0)
@@ -58,7 +68,7 @@ MODULE SFC_node_traversal
             i_thread = 1 + omp_get_thread_num()
 
             do i_section = 1, size(grid%sections%elements)
-                call init_section(grid%threads%elements(i_thread), grid%sections%elements(i_section))
+                call init_section(grid%threads%elements(i_thread), grid%sections%elements(i_section), start_depth)
 
                 call grid%threads%elements(i_thread)%edges_stack(RED)%pop(last_crossed_edge_data)
                 call find_section_boundary_elements(grid%threads%elements(i_thread), grid%sections%elements(i_section), grid%sections%elements(i_section)%cells%i_current_element, last_crossed_edge_data)
@@ -71,9 +81,10 @@ MODULE SFC_node_traversal
         call grid%reverse()
  	end subroutine
 
-	subroutine init_section(thread, section)
+	subroutine init_section(thread, section, start_depth)
 		type(t_grid_thread), intent(inout)			:: thread
 		type(t_grid_section), intent(inout)			:: section
+		integer                                     :: start_depth
 
 		type(fine_triangle), parameter				:: first_cell = fine_triangle(i_edge_types = FIRST_OLD_BND, i_depth = 0, &
             refinement = 0, i_plotter_type = -2, i_turtle_type = K, l_color_edge_color = RED)
@@ -93,8 +104,8 @@ MODULE SFC_node_traversal
 
         !use hardcoded cells to form a unit square
 
-        call sfc_init_recursion(thread, section, first_cell, first_coords, 1)
-        call sfc_init_recursion(thread, section, second_cell, second_coords, 1)
+        call sfc_init_recursion(thread, section, first_cell, first_coords, start_depth)
+        call sfc_init_recursion(thread, section, second_cell, second_coords, start_depth)
 
 #	    if (_DEBUG_LEVEL > 5)
             _log_write(6, '(2X, A)') "initial output cells:"
