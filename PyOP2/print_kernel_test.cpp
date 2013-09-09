@@ -7,15 +7,15 @@
 #include <stdio.h>
 #include "samoa.h"
 
-long long i_cells, i_edges, i_nodes;
 long long* cells_to_edges, *cells_to_nodes, *edges_to_nodes;
+double* coords;
 
 int main(int argc, char* args[]) {
     // run a few test cases with the samoa library
-    double* coords;
+    long long i_cells, i_edges, i_nodes;
 
     samoa_get_grid(1, i_cells, i_edges, i_nodes, cells_to_edges, cells_to_nodes, edges_to_nodes, coords);
-    printf("Initial grid: cells: %lli edges: %lli vertices: %lli\n", i_cells, i_edges, i_nodes);
+    printf("Grid: cells: %lli edges: %lli vertices: %lli\n", i_cells, i_edges, i_nodes);
 
 	samoa_run_kernel([] (const int is, const long long ic, char& refinement) {
     	printf(" section index: %i, cell index: %lli\n", is, ic);
@@ -23,14 +23,14 @@ int main(int argc, char* args[]) {
     	printf("  node indices: %lli %lli %lli\n", cells_to_nodes[3 * ic + 0], cells_to_nodes[3 * ic + 1], cells_to_nodes[3 * ic + 2]);
 	});
 
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 2; i++) {
         //refine each cell
         samoa_run_kernel([] (const int is, const long long ic, char& refinement) {
             refinement = 1;
         });
 
         samoa_get_grid(1, i_cells, i_edges, i_nodes, cells_to_edges, cells_to_nodes, edges_to_nodes, coords);
-        printf("Refined grid: cells: %lli edges: %lli vertices: %lli\n", i_cells, i_edges, i_nodes);
+        printf("Grid: cells: %lli edges: %lli vertices: %lli\n", i_cells, i_edges, i_nodes);
     }
 
     samoa_run_kernel([] (const int is, const long long ic, char& refinement) {

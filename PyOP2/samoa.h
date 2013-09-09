@@ -3,14 +3,15 @@
 // This program is licensed under the GPL, for details see the file LICENSE
 
 /** \brief Returns the grid data in a specified section
+ * Multi-dimensional data is returned in row-wise layout
  *
  * \param section_index     (in)index of the current section
  * \param cells             (out)number of cells
  * \param edges             (out)number of edges
  * \param nodes             (out)number of nodes
- * \param cells_to_edges    (out)map from cells to edges
- * \param cells_to_nodes    (out)map from cells to nodes
- * \param edges_to_nodes    (out)map from edges to nodes
+ * \param cells_to_edges    (out)map from cells to edges using zero-based index entries
+ * \param cells_to_nodes    (out)map from cells to nodes using zero-based index entries
+ * \param edges_to_nodes    (out)map from edges to nodes using zero-based index entries
  * \param coords            (out)node coordinates
  *
  */
@@ -47,10 +48,10 @@ extern "C" void samoa_free(double* data);
  * 2
  * |\
  * | \
- * 4  5
- * | 7 \
+ * 3  4
+ * | 6 \
  * |    \
- * 1--6--0
+ * 1--5--0
  *
  *
  * \param kernel            (in)kernel function
