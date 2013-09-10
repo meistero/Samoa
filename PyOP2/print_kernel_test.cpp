@@ -7,20 +7,22 @@
 #include <stdio.h>
 #include "samoa.h"
 
-long long* cells_to_edges, *cells_to_nodes, *edges_to_nodes;
-double* coords;
+int i_sections;
+Samoa_grid* grid;
 
 int main(int argc, char* args[]) {
     // run a few test cases with the samoa library
-    long long i_cells, i_edges, i_nodes;
 
-    samoa_get_grid(1, i_cells, i_edges, i_nodes, cells_to_edges, cells_to_nodes, edges_to_nodes, coords);
-    printf("Grid: cells: %lli edges: %lli vertices: %lli\n", i_cells, i_edges, i_nodes);
+    samoa_get_grid(i_sections, grid);
+
+    for (int is = 0; is < i_sections; is++) {
+        printf("section index: %i: cells: %lli edges: %lli vertices: %lli\n", is, grid[is].i_cells, grid[is].i_edges, grid[is].i_nodes);
+    }
 
 	samoa_run_kernel([] (const int is, const long long ic, char& refinement) {
-    	printf(" section index: %i, cell index: %lli\n", is, ic);
-    	printf("  edge indices: %lli %lli %lli\n", cells_to_edges[3 * ic + 0], cells_to_edges[3 * ic + 1], cells_to_edges[3 * ic + 2]);
-    	printf("  node indices: %lli %lli %lli\n", cells_to_nodes[3 * ic + 0], cells_to_nodes[3 * ic + 1], cells_to_nodes[3 * ic + 2]);
+    	printf("  section index: %i, cell index: %lli\n", is, ic);
+    	printf("   edge indices: %lli %lli %lli\n", grid[is].cells_to_edges[3 * ic + 0], grid[is].cells_to_edges[3 * ic + 1], grid[is].cells_to_edges[3 * ic + 2]);
+    	printf("   node indices: %lli %lli %lli\n", grid[is].cells_to_nodes[3 * ic + 0], grid[is].cells_to_nodes[3 * ic + 1], grid[is].cells_to_nodes[3 * ic + 2]);
 	});
 
     for (int i = 0; i < 2; i++) {
@@ -29,14 +31,17 @@ int main(int argc, char* args[]) {
             refinement = 1;
         });
 
-        samoa_get_grid(1, i_cells, i_edges, i_nodes, cells_to_edges, cells_to_nodes, edges_to_nodes, coords);
-        printf("Grid: cells: %lli edges: %lli vertices: %lli\n", i_cells, i_edges, i_nodes);
+        samoa_get_grid(i_sections, grid);
+
+        for (int is = 0; is < i_sections; is++) {
+            printf("section index: %i: cells: %lli edges: %lli vertices: %lli\n", is, grid[is].i_cells, grid[is].i_edges, grid[is].i_nodes);
+        }
     }
 
     samoa_run_kernel([] (const int is, const long long ic, char& refinement) {
-        printf(" section index: %i, cell index: %lli\n", is, ic);
-    	printf("  edge indices: %lli %lli %lli\n", cells_to_edges[3 * ic + 0], cells_to_edges[3 * ic + 1], cells_to_edges[3 * ic + 2]);
-    	printf("  node indices: %lli %lli %lli\n", cells_to_nodes[3 * ic + 0], cells_to_nodes[3 * ic + 1], cells_to_nodes[3 * ic + 2]);
+        printf("  section index: %i, cell index: %lli\n", is, ic);
+    	printf("   edge indices: %lli %lli %lli\n", grid[is].cells_to_edges[3 * ic + 0], grid[is].cells_to_edges[3 * ic + 1], grid[is].cells_to_edges[3 * ic + 2]);
+    	printf("   node indices: %lli %lli %lli\n", grid[is].cells_to_nodes[3 * ic + 0], grid[is].cells_to_nodes[3 * ic + 1], grid[is].cells_to_nodes[3 * ic + 2]);
     });
 
     return 0;

@@ -92,7 +92,7 @@
 			cell_index = element%cell%data_pers%index
             refinement = 0
 
-			call traversal%kernel(section%index, cell_index, refinement)
+			call traversal%kernel(section%index - 1, cell_index, refinement)
 
 			element%cell%geometry%refinement = refinement
             traversal%adapt = traversal%adapt .or. (refinement .ne. 0)

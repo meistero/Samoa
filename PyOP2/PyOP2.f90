@@ -28,10 +28,17 @@
             procedure , pass :: destroy => pyop2_destroy
         end type
 
-        type(t_grid), allocatable, save               :: grid
+        type t_c_section
+            integer (kind = c_long_long)    :: i_cells, i_edges, i_nodes
+            type(c_ptr)                     :: cells_to_edges, cells_to_nodes, edges_to_nodes
+            type(c_ptr)                     :: coords
+        end type
+
+        type(t_grid), allocatable, save             :: grid
+        type(t_c_section), allocatable, save        :: c_sections(:)
 
 		private
-		public t_pyop2, samoa_run_kernel
+		public t_pyop2, samoa_run_kernel, samoa_get_grid
 
 		contains
 
@@ -119,12 +126,12 @@
             call samoa_run_kernel(f90_kernel)
         end subroutine
 
-        subroutine samoa_get_grid(i_section, i_cells, i_edges, i_nodes, cells_to_edges, cells_to_nodes, edges_to_nodes, coords) bind(c)
-            integer (kind = c_int), intent(in), value           :: i_section
-            integer (kind = c_long_long), intent(out)           :: i_cells, i_edges, i_nodes
-            type(c_ptr), intent(out)                            :: cells_to_edges, cells_to_nodes, edges_to_nodes, coords
+        subroutine samoa_get_grid(i_sections, c_grid) bind(c)
+            integer (kind = c_int), intent(out) :: i_sections
+            type(c_ptr), intent(out)            :: c_grid
 
-            type(t_grid_section), pointer                       :: section
+            type(t_grid_section), pointer       :: section
+            integer (kind= GRID_SI)             :: i_first_section, i_last_section, i_section
 
             if (.not. allocated(grid)) then
                 !init the grid with default settings
@@ -132,17 +139,36 @@
                 call samoa_create(0, 1)
             end if
 
-            assert_ge(i_section, 1)
-            assert_le(i_section, size(grid%sections%elements_alloc))
-            section => grid%sections%elements_alloc(i_section)
+            i_sections = size(grid%sections%elements_alloc)
 
-            i_cells = section%i_cells
-            i_edges = section%i_edges
-            i_nodes = section%i_nodes
-            cells_to_edges = c_loc(section%cells_to_edges_map)
-            cells_to_nodes = c_loc(section%cells_to_nodes_map)
-            edges_to_nodes = c_loc(section%edges_to_nodes_map)
-            coords = c_loc(section%coords)
+            if (allocated(c_sections)) then
+                if (size(c_sections) .ne. i_sections) then
+                    deallocate(c_sections)
+                    allocate(c_sections(i_sections))
+                end if
+            else
+                allocate(c_sections(i_sections))
+            end if
+
+            !$omp parallel
+
+            call grid%get_local_sections(i_first_section, i_last_section)
+
+            do i_section = i_first_section, i_last_section
+                section => grid%sections%elements_alloc(i_section)
+
+                c_sections(i_section)%i_cells = section%i_cells
+                c_sections(i_section)%i_edges = section%i_edges
+                c_sections(i_section)%i_nodes = section%i_nodes
+                c_sections(i_section)%cells_to_edges = c_loc(section%cells_to_edges_map)
+                c_sections(i_section)%cells_to_nodes = c_loc(section%cells_to_nodes_map)
+                c_sections(i_section)%edges_to_nodes = c_loc(section%edges_to_nodes_map)
+                c_sections(i_section)%coords = c_loc(section%coords)
+            end do
+
+            c_grid = c_loc(c_sections)
+
+            !$omp end parallel
         end subroutine
 
 
@@ -150,7 +176,7 @@
         !Fortran interface
         !*****************
 
-		!> Sets the initial values of the scenario and runs the time steps
+		!> Runs a test kernel
 		subroutine pyop2_run(pyop2)
             class(t_pyop2)                                              :: pyop2
 

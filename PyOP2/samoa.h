@@ -2,23 +2,31 @@
 // Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 // This program is licensed under the GPL, for details see the file LICENSE
 
-/** \brief Returns the grid data in a specified section
- * Multi-dimensional data is returned in row-wise layout
+/** \brief Describes all grid entities and their relations via maps
+ * Multi-dimensional data is stored in row-wise layout, indices are zero-based.
  *
- * \param section_index     (in)index of the current section
- * \param cells             (out)number of cells
- * \param edges             (out)number of edges
- * \param nodes             (out)number of nodes
- * \param cells_to_edges    (out)map from cells to edges using zero-based index entries
- * \param cells_to_nodes    (out)map from cells to nodes using zero-based index entries
- * \param edges_to_nodes    (out)map from edges to nodes using zero-based index entries
- * \param coords            (out)node coordinates
+ * \param cells             number of cells
+ * \param edges             number of edges
+ * \param nodes             number of nodes
+ * \param cells_to_edges    map from cells to edges
+ * \param cells_to_nodes    map from cells to nodes
+ * \param edges_to_nodes    map from edges to nodes
+ * \param coords            node coordinates
  *
  */
-extern "C" void samoa_get_grid(const int section_index,
-                               long long& i_cells, long long& i_edges, long long& i_nodes,
-                               long long*& cells_to_edges, long long*& cells_to_nodes, long long*& edges_to_nodes,
-                               double*& coords);
+struct Samoa_grid {
+    long long i_cells, i_edges, i_nodes;
+    long long* cells_to_edges, *cells_to_nodes, *edges_to_nodes;
+    double* coords;
+};
+
+/** \brief Returns the grid data of a specified section
+ *
+ * \param i_sections        (out)number of sections in the grid
+ * \param grid              (out)array of samoa sections that describe all grid entities and their relations
+ *
+ */
+extern "C" void samoa_get_grid(int& i_sections, Samoa_grid*& sections);
 
 
 /** \brief Allocates a samoa data array in a specified section
@@ -32,7 +40,7 @@ extern "C" void samoa_get_grid(const int section_index,
  * \return                  (out)array pointer
  *
  */
-extern "C" double* samoa_malloc(const int section_index, const long long dofs, const int dim, const long long cells_to_dofs[], const long long edges_to_dofs[], const long long nodes_to_dofs[]);
+extern "C" double* samoa_malloc(const int section_index, const long long dofs, const int dim, const long long* cells_to_dofs, const long long* edges_to_dofs, const long long* nodes_to_dofs);
 
 /** \brief Deallocates a samoa data array
  *
