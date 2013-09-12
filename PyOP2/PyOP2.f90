@@ -83,15 +83,17 @@
         !C interface
         !***********
 
-        subroutine samoa_create(i_depth, i_sections) bind(c)
-            integer (kind = c_char), value, intent(in)          :: i_depth
+        subroutine samoa_create(i_sections, i_depth) bind(c)
             integer (kind = c_int), value, intent(in)           :: i_sections
+            integer (kind = c_char), value, intent(in)          :: i_depth
 
             type(t_pyop2_init_indices_traversal), save          :: init_indices
 
             assert(.not. allocated(grid))
 
             allocate(grid)
+
+            _log_write(2, '("Create grid...")')
 
             !init MPI and element transformation data
             call init_MPI()
@@ -107,6 +109,8 @@
 
         subroutine samoa_destroy() bind(c)
             assert(allocated(grid))
+
+            _log_write(2, '("Destroy grid...")')
 
             call grid%destroy()
             deallocate(grid)
@@ -136,7 +140,7 @@
             if (.not. allocated(grid)) then
                 !init the grid with default settings
                 call omp_set_num_threads(1)
-                call samoa_create(0, 1)
+                call samoa_create(1, 3)
             end if
 
             i_sections = size(grid%sections%elements_alloc)
@@ -195,7 +199,7 @@
             if (.not. allocated(grid)) then
                 !init the grid with default settings
                 call omp_set_num_threads(1)
-                call samoa_create(0, 1)
+                call samoa_create(1, 3)
             end if
 
             !$omp parallel default(shared)
