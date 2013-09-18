@@ -58,7 +58,7 @@
                 allocate(section%cells_to_edges_map(3, 0 : section%i_cells - 1))
                 allocate(section%cells_to_nodes_map(3, 0 : section%i_cells - 1))
                 allocate(section%edges_to_nodes_map(2, 0 : section%i_edges - 1))
-                allocate(section%coords(2, 0:section%i_nodes))
+                allocate(section%coords(2, 0 : section%i_nodes))
             end if
 		end subroutine
 

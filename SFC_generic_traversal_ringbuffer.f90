@@ -161,7 +161,7 @@ end function
 !> @author Oliver Meister
 subroutine traverse_grid(traversal, grid)
 	class(_GT), intent(inout)	                        :: traversal
-	type(t_grid), intent(inout)							:: grid
+	class(t_grid), intent(inout)					    :: grid
 
 	integer (kind = GRID_SI)                            :: i_section, i_thread, i_first_local_section, i_last_local_section
 	integer (kind = GRID_SI)                            :: i_error

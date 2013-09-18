@@ -12,6 +12,7 @@ module Tools_mpi
 		enum, bind(c)
 		    enumerator :: MPI_REQUEST_NULL = 0, MPI_STATUS_SIZE
 		    enumerator :: MPI_MAX, MPI_MIN, MPI_SUM, MPI_PROD, MPI_LAND, MPI_LOR
+		    enumerator :: MPI_ADDRESS_KIND = 1
 		end enum
 #   endif
 

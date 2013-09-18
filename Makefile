@@ -7,19 +7,20 @@
 # Compiler Flags                                                 #
 #----------------------------------------------------------------#
 
-# Usage: call "make <scenario> [<FLAG=VALUE>]*" or "make [<FLAG=VALUE>]*"
+# Usage: call "make [<scenario>] [<FLAG=VALUE>]*"
 #
 # make flags:
 #  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|PYOP2
 #  SWE_SOLVER=LAX_FRIEDRICHS|LAX_FRIEDRICHS_BATH|FWAVE|SSQ_FWAVE|AUG_JCP
 #  TARGET=DEBUG|PROF|OPT
-#  MPI=YES|NO
+#  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
 #  OPENMP=YES|NO
 #  STD=YES|NO
 #  ASAGI=YES|NO
 #  ASAGI_TIMING=YES|NO
 #  DEBUG_LEVEL = (0-7)
 #  ASSERT = YES|NO
+#  VEC_REPORT = (0-3)
 
 #default compiler and compiler-specific flags
 
@@ -29,19 +30,28 @@ EXEC 			= samoa
 #default values for compilation switches
 
 SCENARIO		?= DARCY
-TARGET			?= OPT
-OPENMP			?= YES
-MPI 			?= YES
-STD 			?= NO
-VEC_REPORT		?= 0
 SWE_SOLVER		?= AUG_RIEMANN
+TARGET			?= OPT
+MPI 			?= DEFAULT
+OPENMP			?= YES
+STD 			?= NO
 ASAGI_TIMING 	?= NO
+VEC_REPORT		?= 0
 
 #check switches, set flags of dependent switches and compiler flags accordingly
 
-ifeq ($(MPI), YES)
-  FC			= mpif90 -f90=ifort
-  LOADER		= mpif90 -f90=ifort
+ifeq ($(MPI), DEFAULT)
+  FC			= MPICH_F90=ifort OMPI_FC=ifort I_MPI_F90=ifort mpif90
+  LOADER		= MPICH_F90=ifort OMPI_FC=ifort I_MPI_F90=ifort mpif90
+else ifeq ($(MPI), OPENMPI)
+  FC			= OMPI_FC=ifort mpif90.openmpi
+  LOADER		= OMPI_FC=ifort mpif90.openmpi
+else ifeq ($(MPI), MPICH2)
+  FC			= MPICH_F90=ifort mpif90.mpich2
+  LOADER		= MPICH_F90=ifort mpif90.mpich2
+  else ifeq ($(MPI), INTEL)
+  FC			= I_MPI_F90=ifort mpif90.intel
+  LOADER		= I_MPI_F90=ifort mpif90.intel
 else ifeq ($(MPI), NO)
   FC			= ifort
   LOADER		= ifort
@@ -94,12 +104,10 @@ else
   $(error Invalid value for OPENMP: $(OPENMP))
 endif
 
-ifeq ($(MPI), YES)
-  FFLAGS		+= -D_MPI
-else ifeq ($(MPI), NO)
+ifeq ($(MPI), NO)
   EXEC 			:= $(EXEC)_nompi
 else
-  $(error Invalid value for MPI: $(MPI))
+  FFLAGS		+= -D_MPI
 endif
 
 ifeq ($(ASAGI), YES)
@@ -316,13 +324,13 @@ compile: $(EXEC)
 	@rm -f $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
-	$(LOADER) -o $@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS)
+	@$(LOADER) -o $@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS)
 
 %.o: %.f90
-	$(FC) $(FFLAGS) -c -o $@ $<
+	@$(FC) $(FFLAGS) -c -o $@ $<
 
 %.o: %.f
-	$(FC) $(FFLAGS) -c -o $@ $<
+	@$(FC) $(FFLAGS) -c -o $@ $<
 
 clean:
 	@rm -f bin/* $(F90_OBJS) $(F77_OBJS) *.mod

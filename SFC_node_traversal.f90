@@ -20,7 +20,7 @@ MODULE SFC_node_traversal
 	CONTAINS
 
 	subroutine init_grid(grid, depth)
-		type(t_grid), intent(inout)			        :: grid
+		class(t_grid), intent(inout)			    :: grid
 		integer (kind = 1), intent(in), optional    :: depth
 		integer (kind = GRID_SI)            		:: i_section, i_thread
 

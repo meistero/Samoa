@@ -17,16 +17,18 @@
 
         ! Define kernel wrapper interface
         abstract interface
-            subroutine pyop2_kernel(section_index, cell_index, refinement)
+            subroutine pyop2_kernel(section_index, cell_index, refinement, data)
                 use, intrinsic :: iso_c_binding
                 integer(kind=c_int), value, intent(in)          :: section_index
                 integer(kind=c_long_long), value, intent(in)    :: cell_index
                 integer(kind=c_char), intent(inout)             :: refinement
+                type(c_ptr), intent(in), value                  :: data
             end subroutine
         end interface
 
         type num_traversal_data
             procedure(pyop2_kernel), nopass, pointer    :: kernel => null()
+            type(c_ptr)                                 :: data
             logical                                     :: adapt = .false.
         end type
 
@@ -51,6 +53,7 @@
 
 			do i = 1, size(traversal%children)
                 traversal%children(i)%kernel => traversal%kernel
+                traversal%children(i)%data = traversal%data
 			end do
 
 			traversal%adapt = .false.
@@ -92,7 +95,7 @@
 			cell_index = element%cell%data_pers%index
             refinement = 0
 
-			call traversal%kernel(section%index - 1, cell_index, refinement)
+			call traversal%kernel(section%index - 1, cell_index, refinement, traversal%data)
 
 			element%cell%geometry%refinement = refinement
             traversal%adapt = traversal%adapt .or. (refinement .ne. 0)

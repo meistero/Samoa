@@ -14,6 +14,8 @@
 		use SFC_edge_traversal
 		use SFC_node_traversal
 
+        use, intrinsic :: iso_c_binding
+
 		implicit none
 
 		type t_pyop2
@@ -23,9 +25,9 @@
 
             contains
 
-            procedure , pass :: create => pyop2_create
-            procedure , pass :: run => pyop2_run
-            procedure , pass :: destroy => pyop2_destroy
+            procedure, pass :: create => pyop2_create
+            procedure, pass :: run => pyop2_run
+            procedure, pass :: destroy => pyop2_destroy
         end type
 
         type t_c_section
@@ -34,8 +36,13 @@
             type(c_ptr)                     :: coords
         end type
 
-        type(t_grid), allocatable, save             :: grid
-        type(t_c_section), allocatable, save        :: c_sections(:)
+        type, extends(t_grid) :: t_c_grid
+            type(t_c_section), allocatable  :: c_sections(:)
+            logical :: in_use = .false.
+        end type
+
+        type(t_c_grid), allocatable, save   :: grids(:)
+
 
 		private
 		public t_pyop2, samoa_run_kernel, samoa_get_grid
@@ -70,109 +77,132 @@
 			endif
 		end subroutine
 
-		subroutine print_indices_kernel(section_index, cell_index, refinement)
+		subroutine print_indices_kernel(section_index, cell_index, refinement, data)
             use, intrinsic :: iso_c_binding
             integer(kind=c_int), value, intent(in)          :: section_index
             integer(kind=c_long_long), value, intent(in)    :: cell_index
             integer(kind=c_char), intent(inout)             :: refinement
+            type(c_ptr), value, intent(in)                  :: data
 
-            _log_write(1, '("section index: ", I0 , "cell index: ", I0)') section_index, cell_index
+            _log_write(1, '("section index: ", I0 , " cell index: ", I0)') section_index, cell_index
         end subroutine
 
         !***********
         !C interface
         !***********
 
-        subroutine samoa_create(i_sections, i_depth) bind(c)
+        function samoa_create_grid(i_sections, i_depth) result(handle) bind(c)
             integer (kind = c_int), value, intent(in)           :: i_sections
             integer (kind = c_char), value, intent(in)          :: i_depth
+            integer (kind = c_int)                              :: handle
 
-            type(t_pyop2_init_indices_traversal), save          :: init_indices
+            type(t_c_grid), allocatable                         :: grids_tmp(:)
+            type(t_pyop2_init_indices_traversal)                :: init_indices
 
-            assert(.not. allocated(grid))
+            do handle = 1, size(grids)
+                if (.not. grids(handle)%in_use) then
+                    exit
+                end if
+            end do
 
-            allocate(grid)
+            if (.not. allocated(grids)) then
+                handle = 1
+                allocate(grids(handle))
+            else
+                if (handle > size(grids)) then
+                    allocate(grids_tmp(handle))
 
-            _log_write(2, '("Create grid...")')
+                    grids_tmp(1 : size(grids)) = grids
+                    call move_alloc(grids_tmp, grids)
+                end if
+            end if
+
+            grids(handle)%in_use = .true.
 
             !init MPI and element transformation data
+
+            call omp_set_num_threads(1);
             call init_MPI()
             call init_transform_data()
 
             !init grid
-            grid%i_sections_per_thread = i_sections
-            call init_grid(grid, i_depth)
+            grids(handle)%i_sections_per_thread = i_sections
+            call init_grid(grids(handle), i_depth)
 
             !set entity indices
-            call init_indices%traverse(grid)
-        end subroutine
+            call init_indices%traverse(grids(handle))
+        end function
 
-        subroutine samoa_destroy() bind(c)
-            assert(allocated(grid))
+        subroutine samoa_destroy_grid(handle) bind(c)
+            integer (kind = c_int), value, intent(in)       :: handle
+            assert_ge(size(grids), handle)
 
-            _log_write(2, '("Destroy grid...")')
+            assert(grids(handle)%in_use)
 
-            call grid%destroy()
-            deallocate(grid)
+            call grids(handle)%destroy()
+
+            if (allocated(grids(handle)%c_sections)) then
+                deallocate(grids(handle)%c_sections)
+            end if
+
+            grids(handle)%in_use = .false.
 
             call finalize_mpi()
         end subroutine
 
-		subroutine samoa_run_c_kernel(c_kernel) bind(c,name="samoa_run_kernel")
-            use, intrinsic :: iso_c_binding
-            type(c_funptr), intent(in), value   :: c_kernel
+		subroutine samoa_run_c_kernel(handle, data, c_kernel) bind(c,name="samoa_run_kernel")
+            integer (kind = c_int), value, intent(in)   :: handle
+            type(c_ptr), intent(in), value              :: data
+            type(c_funptr), intent(in), value           :: c_kernel
 
-            procedure(pyop2_kernel), pointer    :: f90_kernel
+            procedure(pyop2_kernel), pointer            :: f90_kernel
+
+            assert_ge(size(grids), handle)
 
             ! Convert C to Fortran procedure pointer.
             call c_f_procpointer(c_kernel, f90_kernel)
 
-            call samoa_run_kernel(f90_kernel)
+            call samoa_run_kernel(handle, data, f90_kernel)
         end subroutine
 
-        subroutine samoa_get_grid(i_sections, c_grid) bind(c)
-            integer (kind = c_int), intent(out) :: i_sections
-            type(c_ptr), intent(out)            :: c_grid
+        subroutine samoa_get_grid(handle, i_sections, c_sections) bind(c)
+            integer (kind = c_int), value, intent(in)   :: handle
+            integer (kind = c_int), intent(out)         :: i_sections
+            type(c_ptr), intent(out)                    :: c_sections
 
-            type(t_grid_section), pointer       :: section
-            integer (kind= GRID_SI)             :: i_first_section, i_last_section, i_section
+            type(t_grid_section), pointer               :: section
+            integer (kind= GRID_SI)                     :: i_first_section, i_last_section, i_section
 
-            if (.not. allocated(grid)) then
-                !init the grid with default settings
-                call omp_set_num_threads(1)
-                call samoa_create(1, 3)
-            end if
+            assert_ge(size(grids), handle)
 
-            i_sections = size(grid%sections%elements_alloc)
+            i_sections = size(grids(handle)%sections%elements_alloc)
 
-            if (allocated(c_sections)) then
-                if (size(c_sections) .ne. i_sections) then
-                    deallocate(c_sections)
-                    allocate(c_sections(i_sections))
+            if (allocated(grids(handle)%c_sections)) then
+                if (size(grids(handle)%c_sections) .ne. i_sections) then
+                    deallocate(grids(handle)%c_sections)
+                    allocate(grids(handle)%c_sections(i_sections))
                 end if
             else
-                allocate(c_sections(i_sections))
+                allocate(grids(handle)%c_sections(i_sections))
             end if
 
             !$omp parallel
-
-            call grid%get_local_sections(i_first_section, i_last_section)
+            call grids(handle)%get_local_sections(i_first_section, i_last_section)
 
             do i_section = i_first_section, i_last_section
-                section => grid%sections%elements_alloc(i_section)
+                section => grids(handle)%sections%elements_alloc(i_section)
 
-                c_sections(i_section)%i_cells = section%i_cells
-                c_sections(i_section)%i_edges = section%i_edges
-                c_sections(i_section)%i_nodes = section%i_nodes
-                c_sections(i_section)%cells_to_edges = c_loc(section%cells_to_edges_map)
-                c_sections(i_section)%cells_to_nodes = c_loc(section%cells_to_nodes_map)
-                c_sections(i_section)%edges_to_nodes = c_loc(section%edges_to_nodes_map)
-                c_sections(i_section)%coords = c_loc(section%coords)
+                grids(handle)%c_sections(i_section)%i_cells = section%i_cells
+                grids(handle)%c_sections(i_section)%i_edges = section%i_edges
+                grids(handle)%c_sections(i_section)%i_nodes = section%i_nodes
+                grids(handle)%c_sections(i_section)%cells_to_edges = c_loc(section%cells_to_edges_map)
+                grids(handle)%c_sections(i_section)%cells_to_nodes = c_loc(section%cells_to_nodes_map)
+                grids(handle)%c_sections(i_section)%edges_to_nodes = c_loc(section%edges_to_nodes_map)
+                grids(handle)%c_sections(i_section)%coords = c_loc(section%coords)
             end do
-
-            c_grid = c_loc(c_sections)
-
             !$omp end parallel
+
+            c_sections = c_loc(grids(handle)%c_sections)
         end subroutine
 
 
@@ -184,45 +214,46 @@
 		subroutine pyop2_run(pyop2)
             class(t_pyop2)                                              :: pyop2
 
+            integer :: grid_handle
+
             !test the wrapper (call must come from a non-parallel-region)
             !give a kernel as argument and let the wrapper generate a grid
-            call samoa_run_kernel(print_indices_kernel)
+            grid_handle = samoa_create_grid(1, 3)
+
+            call samoa_run_kernel(grid_handle, c_ptr(null()), print_indices_kernel)
+
+            call samoa_destroy_grid(grid_handle)
 		end subroutine
 
-		subroutine samoa_run_kernel(kernel)
+		subroutine samoa_run_kernel(handle, data, kernel)
+            integer (kind = c_int), intent(in)                  :: handle
+            type(c_ptr), value, intent(in)                      :: data
             procedure(pyop2_kernel), pointer, intent(in)        :: kernel
 
-            type(t_pyop2_adaptive_traversal), save              :: adaptive_traversal
-            type(t_pyop2_traversal), save                       :: kernel_traversal
-            type(t_pyop2_init_indices_traversal), save          :: init_indices
+            type(t_pyop2_adaptive_traversal)                    :: adaptive_traversal
+            type(t_pyop2_traversal)                             :: kernel_traversal
+            type(t_pyop2_init_indices_traversal)                :: init_indices
 
-            if (.not. allocated(grid)) then
-                !init the grid with default settings
-                call omp_set_num_threads(1)
-                call samoa_create(1, 3)
-            end if
+            assert_ge(size(grids), handle)
+            assert(grids(handle)%in_use)
+
+            kernel_traversal%kernel => kernel
+            kernel_traversal%data = data
 
             !$omp parallel default(shared)
-                !attach kernel and run traversal
-                !$omp single
-                    kernel_traversal%kernel => kernel
-                !$omp end single
-
-                call kernel_traversal%traverse(grid)
+                call kernel_traversal%traverse(grids(handle))
 
                 !$omp barrier
 
-                !$omp single
-                    kernel_traversal%kernel => null()
-                !$omp end single
-
                 if (kernel_traversal%adapt) then
                     !$omp barrier
-                    call adaptive_traversal%traverse(grid)
+                    call adaptive_traversal%traverse(grids(handle)%t_grid)
 
                     !set entity indices
-                    call init_indices%traverse(grid)
+                    call init_indices%traverse(grids(handle))
                 end if
+
+                !$omp barrier
             !$omp end parallel
         end subroutine
 	END MODULE PyOP2

@@ -2,55 +2,53 @@
 // Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 // This program is licensed under the GPL, for details see the file LICENSE
 
-/** \brief Describes all grid entities and their relations via maps
+#include <assert.h>
+
+/** \brief Describes all grid entities and their relations via maps.
  * Multi-dimensional data is stored in row-wise layout, indices are zero-based.
  *
- * \param cells             number of cells
- * \param edges             number of edges
- * \param nodes             number of nodes
+ * \param ncells            number of cells
+ * \param nedges            number of edges
+ * \param nnodes            number of nodes
  * \param cells_to_edges    map from cells to edges
  * \param cells_to_nodes    map from cells to nodes
  * \param edges_to_nodes    map from edges to nodes
  * \param coords            node coordinates
  *
  */
-struct Samoa_grid {
-    long long i_cells, i_edges, i_nodes;
+struct Samoa_section {
+    long long ncells, nedges, nnodes;
     long long* cells_to_edges, *cells_to_nodes, *edges_to_nodes;
     double* coords;
 };
 
-/** \brief Returns the grid data of a specified section
+/** \brief Creates a samoa grid with an initial depth and the section partitioning per thread.
+ * The grid is not balanced and may be empty for the current process. It can be retrieved using `samoa_get_grid`
  *
- * \param i_sections        (out)number of sections in the grid
- * \param grid              (out)array of samoa sections that describe all grid entities and their relations
- *
- */
-extern "C" void samoa_get_grid(int& i_sections, Samoa_grid*& sections);
-
-
-/** \brief Allocates a samoa data array in a specified section
- *
- * \param section_index     (in)index of the current section
- * \param dofs              (in)number of DoFs
- * \param cells_to_dofs     (in)map from cell interiors to DoFs
- * \param edges_to_dofs     (in)map from edge interiors to DoFs
- * \param nodes_to_dofs     (in)map from nodes to DoFs
- * \param dim               (in)DoF dimension
- * \return                  (out)array pointer
+ * \param i_sections_per_thread     (in)number of sections per thread (must not be < 0, usually a good value would be around 16)
+ * \param i_depth                   (in)initial depth
+ * \return                          handle to the grid
  *
  */
-extern "C" double* samoa_malloc(const int section_index, const long long dofs, const int dim, const long long* cells_to_dofs, const long long* edges_to_dofs, const long long* nodes_to_dofs);
+extern "C" int samoa_create_grid(const int i_sections_per_thread, const char i_depth);
 
-/** \brief Deallocates a samoa data array
+/** \brief Destroys the samoa grid.
  *
- * \param data            (in)array pointer
+ * \param handle            (in)handle to the grid
+ */
+extern "C" void samoa_destroy_grid(const int handle);
+
+/** \brief Returns the samoa grid of the current process.
+ * If no such grid exists, a default grid of depth 0 will be created.
+ *
+ * \param handle            (in)handle to the grid
+ * \param nsections         (out)number of sections in the grid
+ * \param sections          (out)array of samoa sections that describe all grid entities and their relations
  *
  */
-extern "C" void samoa_free(double* data);
+extern "C" void samoa_get_grid(const int handle, int& nsections, Samoa_section*& sections);
 
-
-/** \brief Executes a kernel on a triangular mesh in Sierpinski order
+/** \brief Executes a kernel on a triangular mesh in Sierpinski order.
  * The following order is assumed for local DoF numbering:
  *
  * 2
@@ -62,10 +60,55 @@ extern "C" void samoa_free(double* data);
  * 1--5--0
  *
  *
+ * \param handle            (in)handle to the grid
+ * \param data              (in)pointer to custom data
  * \param kernel            (in)kernel function
  * \param section_index     (in)index of the current section
  * \param cell_index        (in)index of the cell
  * \param refinement        (out)refinement flag: set to 1 for cell refinement, -1 for coarsening, 0 for no changes (default: 0)
  *
  */
-extern "C" void samoa_run_kernel(void (*kernel)(const int section_index, const long long cell_index, char& refinement));
+extern "C" void samoa_run_kernel(const int handle, void* data, void (*kernel)(const int section_index, const long long cell_index, char& refinement, void* data));
+
+
+/** \brief Describes a grid which is composed of multiple sections
+ *
+ * \param handle               Samoa handle
+ * \param nsections            number of sections
+ * \param sections             section data
+ *
+ */
+struct Samoa_grid {
+private:
+    int handle;
+    int nsections;
+    Samoa_section* sections;
+
+public:
+    Samoa_grid(int depth) {
+        handle = samoa_create_grid(1, depth);
+
+        update();
+    }
+
+    ~Samoa_grid() {
+        samoa_destroy_grid(handle);
+    }
+
+    Samoa_section& operator[](int idx) {
+        assert(0 <= idx && idx < nsections);
+        return sections[idx];
+    }
+
+    int get_nsections() {
+        return nsections;
+    }
+
+    void update() {
+        samoa_get_grid(handle, nsections, sections);
+    }
+
+    void run_kernel(void* data, void (*kernel)(const int section_index, const long long cell_index, char& refinement, void* data)) {
+        samoa_run_kernel(handle, data, kernel);
+    }
+};
