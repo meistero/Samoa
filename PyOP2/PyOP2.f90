@@ -32,7 +32,9 @@
 
         type t_c_section
             integer (kind = c_long_long)    :: i_cells, i_edges, i_nodes
+            integer (kind = c_long_long)    :: i_bcells, i_bedges, i_bnodes
             type(c_ptr)                     :: cells_to_edges, cells_to_nodes, edges_to_nodes
+            type(c_ptr)                     :: bcells_to_cells, bedges_to_edges, bnodes_to_nodes
             type(c_ptr)                     :: coords
         end type
 
@@ -198,6 +200,14 @@
                 grids(handle)%c_sections(i_section)%cells_to_edges = c_loc(section%cells_to_edges_map)
                 grids(handle)%c_sections(i_section)%cells_to_nodes = c_loc(section%cells_to_nodes_map)
                 grids(handle)%c_sections(i_section)%edges_to_nodes = c_loc(section%edges_to_nodes_map)
+
+                grids(handle)%c_sections(i_section)%i_bcells = section%i_bcells
+                grids(handle)%c_sections(i_section)%i_bedges = section%i_bedges
+                grids(handle)%c_sections(i_section)%i_bnodes = section%i_bnodes
+                grids(handle)%c_sections(i_section)%bcells_to_cells = c_loc(section%bcells_to_cells_map)
+                grids(handle)%c_sections(i_section)%bedges_to_edges = c_loc(section%bedges_to_edges_map)
+                grids(handle)%c_sections(i_section)%bnodes_to_nodes = c_loc(section%bnodes_to_nodes_map)
+
                 grids(handle)%c_sections(i_section)%coords = c_loc(section%coords)
             end do
             !$omp end parallel
