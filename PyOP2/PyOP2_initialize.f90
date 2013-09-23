@@ -110,7 +110,7 @@
 			call element%cell%geometry%get_edge_indices(i_previous_edge, i_color_edge, i_next_edge)
 			call element%cell%geometry%get_edge_types(edge_types(i_previous_edge), edge_types(i_color_edge), edge_types(i_next_edge))
 
-            call init_maps(section%i_cells, section%i_edges, &
+            call init_maps(section %i_cells, section%i_edges, &
                 section%cells_to_edges_map, section%cells_to_nodes_map, section%edges_to_nodes_map, &
                 cell_index, edge_indices, node_indices, edge_types)
 		end subroutine

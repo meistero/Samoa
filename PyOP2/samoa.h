@@ -18,7 +18,9 @@
  */
 struct Samoa_section {
     long long ncells, nedges, nnodes;
+    long long nbcells, nbedges, nbnodes;
     long long* cells_to_edges, *cells_to_nodes, *edges_to_nodes;
+    long long* bcells, *bedges, *bnodes;
     double* coords;
 };
 

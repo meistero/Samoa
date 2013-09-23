@@ -51,12 +51,13 @@
 
  			integer :: i
 
+			traversal%adapt = .false.
+
 			do i = 1, size(traversal%children)
                 traversal%children(i)%kernel => traversal%kernel
                 traversal%children(i)%data = traversal%data
+                traversal%children(i)%adapt = .false.
 			end do
-
-			traversal%adapt = .false.
 		end subroutine
 
  		subroutine post_traversal_grid_op(traversal, grid)

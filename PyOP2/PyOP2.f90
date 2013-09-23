@@ -252,7 +252,6 @@
 
             !$omp parallel default(shared)
                 call kernel_traversal%traverse(grids(handle))
-
                 !$omp barrier
 
                 if (kernel_traversal%adapt) then
