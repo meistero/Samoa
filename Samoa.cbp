@@ -181,6 +181,14 @@
 			<Option target="darcy_debug" />
 			<Option target="darcy" />
 		</Unit>
+		<Unit filename="Generic/Generic.f90" />
+		<Unit filename="Generic/Generic_adapt_template.f90" />
+		<Unit filename="Generic/Generic_data_types.f90" />
+		<Unit filename="Generic/Generic_initialize.f90" />
+		<Unit filename="Generic/Generic_template.f90" />
+		<Unit filename="Generic/Makefile" />
+		<Unit filename="Generic/print_kernel_test.cpp" />
+		<Unit filename="Generic/samoa.h" />
 		<Unit filename="Heat_Equation/Heat_Eq.f90">
 			<Option weight="8" />
 		</Unit>
@@ -242,13 +250,6 @@
 		<Unit filename="NUMA/NUMA_xml_output.f90" />
 		<Unit filename="NUMA/numa.py" />
 		<Unit filename="PyOP2/Makefile" />
-		<Unit filename="PyOP2/PyOP2.f90" />
-		<Unit filename="PyOP2/PyOP2_adapt_template.f90" />
-		<Unit filename="PyOP2/PyOP2_data_types.f90" />
-		<Unit filename="PyOP2/PyOP2_initialize.f90" />
-		<Unit filename="PyOP2/PyOP2_template.f90" />
-		<Unit filename="PyOP2/print_kernel_test.cpp" />
-		<Unit filename="PyOP2/samoa.h" />
 		<Unit filename="SFC_data_types.f90">
 			<Option weight="1" />
 		</Unit>

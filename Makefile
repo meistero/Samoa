@@ -74,11 +74,6 @@ else ifeq ($(SCENARIO), SWE)
   FFLAGS		+= -D_SWE
   ASAGI			?= YES
   LIB 			?= NO
-else ifeq ($(SCENARIO), NUMA)
-  EXEC			:= $(EXEC)_numa
-  FFLAGS		+= -D_NUMA
-  ASAGI			?= NO
-  LIB 			?= NO
 else ifeq ($(SCENARIO), HEAT_EQ)
   EXEC			:= $(EXEC)_heq
   FFLAGS		+= -D_HEAT_EQ
@@ -261,16 +256,6 @@ SWE/SWE_output.f90 \
 SWE/SWE_xml_output.f90 \
 SWE/SWE_euler_timestep.f90 \
 SWE/SWE_adapt.f90 \
-NUMA/NUMA.f90 \
-NUMA/NUMA_local_function_spaces.f90 \
-NUMA/NUMA_data_types.f90 \
-NUMA/NUMA_basis.f90 \
-NUMA/NUMA_initialize.f90 \
-NUMA/NUMA_output.f90 \
-NUMA/NUMA_xml_output.f90 \
-NUMA/NUMA_euler_timestep.f90 \
-NUMA/NUMA_adapt.f90 \
-NUMA/NUMA_constants.f90 \
 geoclaw/c_bind_riemannsolvers.f90 \
 Samoa/Samoa.f90 \
 Samoa/Tools_quadrature_rule_base.f90 \

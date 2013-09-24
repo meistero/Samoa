@@ -1,7 +1,7 @@
-SFC_data_types.o: Tools_log.o Heat_Equation/Heat_Eq_data_types.o Darcy/Darcy_data_types.o SWE/SWE_data_types.o Tests/Tests_data_types.o NUMA/NUMA_data_types.o Generic/Generic_data_types.o
+SFC_data_types.o: Tools_log.o Heat_Equation/Heat_Eq_data_types.o Darcy/Darcy_data_types.o SWE/SWE_data_types.o Tests/Tests_data_types.o Generic/Generic_data_types.o #NUMA/NUMA_data_types.o
 SFC_edge_traversal.o: SFC_data_types.o
 SFC_node_traversal.o: SFC_edge_traversal.o
-SFC_traversal.o: SFC_node_traversal.o Heat_Equation/Heat_Eq.o Darcy/Darcy.o Tests/Tests.o SWE/SWE.o NUMA/NUMA.o Generic/Generic.o
+SFC_traversal.o: SFC_node_traversal.o Heat_Equation/Heat_Eq.o Darcy/Darcy.o Tests/Tests.o SWE/SWE.o Generic/Generic.o #NUMA/NUMA.o
 SFC_main.o: M_kracken.o SFC_traversal.o
 Tools_local_function_space_base.o: SFC_data_types.o
 Tools_noise.o: SFC_data_types.o
@@ -53,15 +53,15 @@ SWE/SWE_initialize.o: SFC_generic_traversal_ringbuffer.f90 SWE/SWE_euler_timeste
 SWE/SWE_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o SWE/SWE_basis.o SWE/SWE_local_function_spaces.o SWE/SWE_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
 SWE/SWE_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o SWE/SWE_basis.o SWE/SWE_local_function_spaces.o SWE/SWE_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
 
-NUMA/NUMA.o: NUMA/NUMA_data_types.o NUMA/NUMA_basis.o NUMA/NUMA_initialize.o NUMA/NUMA_output.o NUMA/NUMA_xml_output.o NUMA/NUMA_euler_timestep.o NUMA/NUMA_adapt.o Samoa/Samoa.o
-NUMA/NUMA_local_function_spaces.o: SFC_data_types.o
-NUMA/NUMA_basis.o: SFC_data_types.o NUMA/NUMA_local_function_spaces.o Samoa/Samoa.o
-NUMA/NUMA_adapt.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o NUMA/NUMA_basis.o Samoa/Samoa.o NUMA/NUMA_euler_timestep.o NUMA/NUMA_initialize.o
-NUMA/NUMA_euler_timestep.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_constants.o Samoa/Samoa.o geoclaw/c_bind_riemannsolvers.o
-NUMA/NUMA_initialize.o: SFC_generic_traversal_ringbuffer.f90 NUMA/NUMA_euler_timestep.o Tools_noise.o SFC_node_traversal.o NUMA/NUMA_basis.o Samoa/Samoa.o NUMA/NUMA_local_function_spaces.o
-NUMA/NUMA_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
-NUMA/NUMA_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
-NUMA/NUMA_constants.o: NUMA/NUMA_data_types.o
+#NUMA/NUMA.o: NUMA/NUMA_data_types.o NUMA/NUMA_basis.o NUMA/NUMA_initialize.o NUMA/NUMA_output.o NUMA/NUMA_xml_output.o NUMA/NUMA_euler_timestep.o NUMA/NUMA_adapt.o Samoa/Samoa.o
+#NUMA/NUMA_local_function_spaces.o: SFC_data_types.o
+#NUMA/NUMA_basis.o: SFC_data_types.o NUMA/NUMA_local_function_spaces.o Samoa/Samoa.o
+#NUMA/NUMA_adapt.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o NUMA/NUMA_basis.o Samoa/Samoa.o NUMA/NUMA_euler_timestep.o NUMA/NUMA_initialize.o
+#NUMA/NUMA_euler_timestep.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_constants.o Samoa/Samoa.o geoclaw/c_bind_riemannsolvers.o
+#NUMA/NUMA_initialize.o: SFC_generic_traversal_ringbuffer.f90 NUMA/NUMA_euler_timestep.o Tools_noise.o SFC_node_traversal.o NUMA/NUMA_basis.o Samoa/Samoa.o NUMA/NUMA_local_function_spaces.o
+#NUMA/NUMA_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
+#NUMA/NUMA_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
+#NUMA/NUMA_constants.o: NUMA/NUMA_data_types.o
 
 Generic/Generic.o: Generic/Generic_data_types.o  SFC_node_traversal.o Generic/Generic_initialize.o Generic/Generic_template.o Generic/Generic_adapt_template.o
 Generic/Generic_initialize.o: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.o Samoa/Samoa.o
