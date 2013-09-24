@@ -23,8 +23,8 @@ MODULE SFC_traversal
 		use SWE
 #	elif defined(_NUMA)
 		use NUMA
-#	elif defined(_PYOP2)
-		use PyOP2
+#	elif defined(_GENERIC)
+		use Generic
 #	endif
 
 	implicit none
@@ -55,8 +55,8 @@ MODULE SFC_traversal
            type(t_swe)          											:: swe
 #	    elif defined(_NUMA)
            type(t_numa)                                               		:: numa
-#	    elif defined(_PYOP2)
-           type(t_pyop2)                                               		:: pyop2
+#	    elif defined(_GENERIC)
+           type(t_generic)                                               		:: generic
 #	    endif
 
         if (rank_MPI == 0) then
@@ -73,8 +73,8 @@ MODULE SFC_traversal
                 _log_write(0, '(" Scenario: SWE")')
 #    		elif defined(_NUMA)
                 _log_write(0, '(" Scenario: NUMA")')
-#    		elif defined(_PYOP2)
-                _log_write(0, '(" Scenario: PYOP2")')
+#    		elif defined(_GENERIC)
+                _log_write(0, '(" Scenario: GENERIC")')
 #    		endif
 
 #    		if defined(_OMP)
@@ -205,12 +205,12 @@ MODULE SFC_traversal
 
 			call numa%destroy(grid, l_log)
             call grid%destroy()
-#		elif defined(_PYOP2)
+#		elif defined(_GENERIC)
             !this scenario is a special case - grid and parallel execution are managed on its own
 
-			call pyop2%create(l_log)
-			call pyop2%run()
-			call pyop2%destroy(l_log)
+			call generic%create(l_log)
+			call generic%run()
+			call generic%destroy(l_log)
 #		endif
 	end subroutine sfc_generic
 end MODULE SFC_traversal

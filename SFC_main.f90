@@ -30,7 +30,7 @@ PROGRAM gridtest
         write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
 #	elif defined(_TESTS)
         write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
-#	elif defined(_PYOP2)
+#	elif defined(_GENERIC)
         write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
 #	else
 #       error No scenario selected!

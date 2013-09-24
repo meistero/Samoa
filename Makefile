@@ -10,7 +10,7 @@
 # Usage: call "make [<scenario>] [<FLAG=VALUE>]*"
 #
 # make flags:
-#  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|PYOP2
+#  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|GENERIC
 #  SWE_SOLVER=LAX_FRIEDRICHS|LAX_FRIEDRICHS_BATH|FWAVE|SSQ_FWAVE|AUG_JCP
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
@@ -64,9 +64,9 @@ ifeq ($(SCENARIO), DARCY)
   FFLAGS		+= -D_DARCY
   ASAGI 		?= YES
   LIB 			?= NO
-else ifeq ($(SCENARIO), PYOP2)
-  EXEC 			:= $(EXEC)_pyop2
-  FFLAGS		+= -D_PYOP2
+else ifeq ($(SCENARIO), GENERIC)
+  EXEC 			:= $(EXEC)_generic
+  FFLAGS		+= -D_GENERIC
   ASAGI 		?= NO
   LIB 			?= YES
 else ifeq ($(SCENARIO), SWE)
@@ -222,11 +222,11 @@ Tests/Tests_consistency_traversal.f90 \
 Tests/Tests_flops_traversal.f90 \
 Tests/Tests_memory_traversal.f90 \
 Tests/Tests_basis_functions.f90 \
-PyOP2/PyOP2.f90 \
-PyOP2/PyOP2_data_types.f90 \
-PyOP2/PyOP2_initialize.f90 \
-PyOP2/PyOP2_template.f90 \
-PyOP2/PyOP2_adapt_template.f90 \
+Generic/Generic.f90 \
+Generic/Generic_data_types.f90 \
+Generic/Generic_initialize.f90 \
+Generic/Generic_template.f90 \
+Generic/Generic_adapt_template.f90 \
 Darcy/Darcy.f90 \
 Darcy/Darcy_local_function_spaces.f90 \
 Darcy/Darcy_data_types.f90 \
@@ -314,8 +314,8 @@ heat_eq:
 tests:
 	@$(MAKE) SCENARIO=TESTS
 
-pyop2:
-	@$(MAKE) SCENARIO=PYOP2
+generic:
+	@$(MAKE) SCENARIO=GENERIC
 
 dirs:
 	@mkdir -p bin output
