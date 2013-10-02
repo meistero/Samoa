@@ -15,18 +15,22 @@ mkdir -p scripts
 echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
+echo "Compiling..."
+./make_test.sh
+
 echo "Running scenarios..."
 
 class=fattest
 limit=02:00:00
+postfix=
 
 for asagimode in 2
 do
-	for sections in 8 12 16
+	for sections in 8 16 32
 	do
-		for concurrency in 1 2 5 10 20 40 80 120 160
+		for concurrency in 10 20 40 80 120 160
 		do
-			processes=$(( ($concurrency - 1) / 40 + 1 ))
+			processes=$(( ($concurrency - 1) / 10 + 1 ))
 			threads=$(( $concurrency / $processes )) 
 			nodes=$(( ($processes * $threads - 1) / 40 + 1 ))
 
@@ -41,6 +45,7 @@ do
 			sed -i 's=$nodes='$nodes'=g' $script
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
+			sed -i 's=$postfix='$postfix'=g' $script
 
 			llsubmit $script
 		done
