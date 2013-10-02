@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2013.6.7)  26 JUN 2013 15:19
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2013.6.7)  2 OCT 2013 14:21
 entering extended mode
  %&-line parsing enabled.
 **samoa.tex
@@ -237,24 +237,24 @@ Overfull \hbox (30.19817pt too wide) in paragraph at lines 56--65
  []
 
 [2] [3]
-Overfull \hbox (47.31299pt too wide) in paragraph at lines 119--119
+Overfull \hbox (47.31299pt too wide) in paragraph at lines 118--118
 [] 
  []
 
 [4]
-Underfull \hbox (badness 887) in paragraph at lines 155--156
+Underfull \hbox (badness 887) in paragraph at lines 154--155
 \T1/ptm/m/n/10 Depending on the choice of the ba-sis func-tions $\OT1/cmr/m/n/1
 0 (\OML/cmm/m/it/10 ^^^[]\OT1/cmr/m/n/10 )[]$ \T1/ptm/m/n/10 and test func-tion
 s
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 155--156
+Underfull \hbox (badness 10000) in paragraph at lines 154--155
 
  []
 
 [5]
-Overfull \hbox (20.90047pt too wide) in paragraph at lines 189--189
+Overfull \hbox (20.90047pt too wide) in paragraph at lines 188--188
 [] 
  []
 
@@ -263,7 +263,7 @@ Underfull \vbox (badness 3219) has occurred while \output is active []
 
  [6]
 [7] [8] [9] [10]
-LaTeX Font Info:    Try loading font information for U+euf on input line 283.
+LaTeX Font Info:    Try loading font information for U+euf on input line 282.
  (/usr/share/texmf-texlive/tex/latex/amsfonts/ueuf.fd
 File: ueuf.fd 2009/06/22 v3.00 Euler Fraktur
 ) [11]
@@ -271,16 +271,31 @@ File: ueuf.fd 2009/06/22 v3.00 Euler Fraktur
 
 Package amsmath Warning: Foreign command \atopwithdelims;
 (amsmath)                \frac or \genfrac should be used instead
-(amsmath)                 on input line 470.
+(amsmath)                 on input line 468.
 
 [15] [16]
-Overfull \hbox (16.53838pt too wide) in paragraph at lines 545--548
+Overfull \hbox (16.53838pt too wide) in paragraph at lines 543--546
 \T1/ptm/m/n/10 It is ob-vi-ous that $\OML/cmm/m/it/10 C[] \OT1/cmr/m/n/10 = [] 
 \OML/cmm/m/it/10 c[]$\T1/ptm/m/n/10 . Via in-duc-tion, one can show that $\OML/
 cmm/m/it/10 S[] \OT1/cmr/m/n/10 = [] []$\T1/ptm/m/n/10 . 
  []
 
-[17] (./samoa.aux)
+[17]
+Underfull \hbox (badness 10000) in paragraph at lines 552--553
+
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 564--566
+
+ []
+
+[18]
+Underfull \hbox (badness 10000) in paragraph at lines 606--607
+
+ []
+
+[19] (./samoa.aux)
 
 LaTeX Warning: There were undefined references.
 
@@ -291,11 +306,11 @@ LaTeX Warning: There were multiply-defined labels.
 Here is how much of TeX's memory you used:
  2408 strings out of 495061
  27503 string characters out of 1182622
- 82744 words of memory out of 3000000
+ 82746 words of memory out of 3000000
  5565 multiletter control sequences out of 15000+50000
  39125 words of font info for 66 fonts, out of 3000000 for 9000
  28 hyphenation exceptions out of 8191
- 27i,10n,25p,645b,253s stack positions out of 5000i,500n,10000p,200000b,50000s
+ 27i,10n,25p,649b,253s stack positions out of 5000i,500n,10000p,200000b,50000s
 {/usr/share/texmf-texlive/fonts/enc/dvips/base/8r.enc}</usr/share/texmf-texli
 ve/fonts/type1/public/amsfonts/cm/cmbsy10.pfb></usr/share/texmf-texlive/fonts/t
 ype1/public/amsfonts/cm/cmbx10.pfb></usr/share/texmf-texlive/fonts/type1/public
@@ -312,9 +327,9 @@ fonts/cm/cmr7.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy
 /fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts
 /type1/urw/times/utmb8a.pfb></usr/share/texmf-texlive/fonts/type1/urw/times/utm
 r8a.pfb></usr/share/texmf-texlive/fonts/type1/urw/times/utmri8a.pfb>
-Output written on samoa.pdf (17 pages, 254135 bytes).
+Output written on samoa.pdf (19 pages, 261405 bytes).
 PDF statistics:
- 130 PDF objects out of 1000 (max. 8388607)
+ 137 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
  1 words of extra memory for PDF output out of 10000 (max. 10000000)
 

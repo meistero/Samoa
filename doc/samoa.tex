@@ -90,26 +90,25 @@ For instance, in a 2D case a solution for $\Omega := [0, 1]^2$ with $u = 0$ on $
 
 \subsection{Weak formulation}
 
-Special cases are of no use in solving the general case though, so one method to simplify the general problem is to solve a modified system given by the weak formulation of the PDE instead.
-A weak formulation for a given set of $n \in \mathbb{N}$ test functions $(\psi_j)_{j \in \{1, \dots , n\}}$, where $\psi_j : \Omega \rightarrow \mathbb{R}$, is obtained by the inner products of $\dot u$ with each $\psi_j$, $j \in \{1, \dots , n\}$ over $\Omega$:
+Special cases are of no use in solving the general case though, so one method to simplify the general problem is to solve a modified system given by the weak formulation of the PDE instead. A weak formulation of the PDE is obtained by assuming that $u, f$ are in $S(\Omega)$, the Sobolev space over the domain, and computing the inner product of the PDE with a test function in $S(\Omega)$. So for any $\nu \in S(\Omega)$, the following equation must hold:
 \begin{equation}
-	\int \limits_{\Omega} \dot u \cdot \psi_j d\Omega = \int \limits_{\Omega} \left( \diverg (- c \cdot \nabla u) + f \right) \cdot \psi_j d\Omega
+	\int \limits_{\Omega} \dot u \cdot \nu \; d\Omega = \int \limits_{\Omega} \left( \diverg (- c \cdot \nabla u) + f \right) \cdot \nu \; d\Omega
 \end{equation}
 Splitting the integral and applying the Divergence Theorem gives:
 \begin{align}
-	\int \limits_{\Omega} \dot u \cdot \psi_j d\Omega &= \int \limits_{\Omega} \diverg (- c \cdot \nabla u) \cdot \psi_j d\Omega + \int \limits_{\Omega} f \cdot \psi_j d\Omega \\
-	&= \int \limits_{\Omega} c \cdot (\nabla u \circ \nabla \psi_j ) d\Omega - \int \limits_{\partial \Omega} (c \cdot \nabla u \cdot \psi_j) \circ d \vec{S} + \int \limits_{\Omega} f \cdot \psi_j d\Omega \\
-	\Rightarrow \int \limits_{\Omega} \dot u \cdot \psi_j d\Omega &= \int \limits_{\Omega} c \cdot ( \nabla u \circ \nabla \psi_j ) d\Omega + \int \limits_{\Omega} f \cdot \psi_j d\Omega - \int \limits_{\Gamma_N} c \cdot g \cdot \psi_j d\Omega
+	\int \limits_{\Omega} \dot u \cdot \nu \; d\Omega &= \int \limits_{\Omega} \diverg (- c \cdot \nabla u) \cdot \nu \; d\Omega + \int \limits_{\Omega} f \cdot \nu \; d\Omega \\
+	&= \int \limits_{\Omega} c \cdot (\nabla u \circ \nabla \nu ) d\Omega - \int \limits_{\partial \Omega} (c \cdot \nabla u \cdot \nu) \circ d \vec{S} + \int \limits_{\Omega} f \cdot \nu \; d\Omega \\
+	\Rightarrow \int \limits_{\Omega} \dot u \cdot \nu \; d\Omega &= \int \limits_{\Omega} c \cdot ( \nabla u \circ \nabla \nu ) d\Omega + \int \limits_{\Omega} f \cdot \nu \; d\Omega - \int \limits_{\Gamma_N} c \cdot g \cdot \nu \; d\Omega
 	\label{eqn:heq_weak_form}
 \end{align}
 
-The main difference here is, that while the strong form of the PDE requires the correctness of the solution in each point, a weak form only demands equality of integrals over the whole domain for a limited number of equations, depending on the choice of $n$.
-It is obvious that a solution of the strong formulation is also a solution of a weak formulation, the reverse implication is generally not true, however. Weak solutions even do not have to be strictly differentiable or continuous anymore, which in some cases allows a weak solution where a strong solution does not exist.
+The main difference here is, that while a strong form of a PDE requires the correctness of the solution in each point, a weak form only demands equality of integrals over the whole domain for a set of equations.
+It is obvious that a solution of the strong formulation is also a solution of a weak formulation, the reverse implication is generally not true, however. Weak solutions even do not have to be strictly differentiable or continuous anymore, which in many cases allows a weak solution where a strong solution does not exist.
 
-\subsection{FEM discretization}
+\subsection{Galerkin projection}
 
 Unfortunately, an algebraic solution of the weak form in equation (\ref{eqn:heq_weak_form}) still is not possible in most cases, however there are means to approximate the solution.
-The Finite Element Method (FEM) suggests discretization of the temperature unknown $u$ by a weighted sum over $n$ basis functions $(\phi_i)_{i \in \{1, \dots , n\}}$, where $\phi_i : \Omega \rightarrow \mathbb{R}$.\\
+The Finite Element Method (FEM) suggests projection of the Sobolev space $S(\Omega)$ to the span of a finite set of ansatz and test functions $(\phi_i)_{i \in \{1, \dots , n\}}$ and $(\psi_j)_{j \in \{1, \dots , n\}}$, where $\phi_i, \psi_j : \Omega \rightarrow \mathbb{R}$.
 So, assuming that $u = \sum \limits_{i = 1}^{n} u_i \cdot \phi_i$ for certain $u_i$ with $u_i(t) \in \mathbb{R}$ $\forall t \in \mathbb{R}^{+}$, $\forall i \in \{1, \dots , n\}$, it immediately follows that $\dot u := \sum \limits_{i = 1}^{n} \dot u_i \cdot \phi_i$ which, inserted into equation (\ref{eqn:heq_weak_form}), gives for each $j \in \{1, \dots , n\}$:
 \begin{align}
 	\int \limits_{\Omega} (\sum \limits_{i = 1}^{n} \dot u_i \cdot \phi_i) \cdot \psi_j d\Omega &= \int \limits_{\Omega} c \cdot (\nabla (\sum \limits_{i = 1}^{n} u_i \cdot \phi_i) \circ \nabla \psi_j) d\Omega + \int 
@@ -135,17 +134,17 @@ where the original terms have been replaced by the following variables:
 \subsection{Time discretization}
 
 Again, a general solution is difficult, but only because the time-dependent external heat vector $\mathbf f$ is not known.\\
-If we assume $\mathbf f = 0$, we have all we need to solve the equation. For that matter, we linearize the system by solving the time derivative $\mathbf M \mathbf{\ddot u} = \mathbf A \mathbf{\dot u}$ instead and setting $\mathbf u = \mathbf A^{-1} ( \mathbf M \mathbf{\dot u} + \mathbf b )$. The solution is $\mathbf{\dot u} = \exp( \mathbf M^{-1} \cdot \mathbf A \cdot t) \cdot \mathbf{\dot u}_0$, which means $\mathbf u = \mathbf A^{-1} \mathbf M \cdot \exp ( \mathbf M^{-1} \cdot \mathbf A \cdot t ) \cdot \mathbf M^{-1} \cdot (\mathbf A \cdot \mathbf u_0 - \mathbf b)  + \mathbf A^{-1} \mathbf b$. This simplifies to:
+If we assume $\mathbf f = 0$, we have all we need to solve the equation. For that matter, we linearize the system by solving the time derivative $\mathbf M \mathbf{\ddot u} = \mathbf A \mathbf{\dot u}$ instead and setting $\mathbf u = \mathbf A^{-1} ( \mathbf M \mathbf{\dot u} + \mathbf b )$. The solution is $\mathbf{\dot u}(t) = \exp(t \cdot \mathbf M^{-1} \cdot \mathbf A) \cdot \mathbf{\dot u}(0)$, which means $\mathbf u(t) = \mathbf A^{-1} \mathbf M \cdot \exp (t \cdot \mathbf M^{-1} \cdot \mathbf A) \cdot \mathbf M^{-1} \cdot (\mathbf A \cdot \mathbf u_0 - \mathbf b)  + \mathbf A^{-1} \mathbf b$. This simplifies to:
 \begin{equation}
-	\mathbf u = \exp ( \mathbf M^{-1} \cdot \mathbf A \cdot t ) \cdot (\mathbf u_0 - \mathbf A^{-1} \mathbf b) + \mathbf A^{-1} \mathbf b
+	\mathbf u(t) = \exp (t \cdot \mathbf M^{-1} \cdot \mathbf A) \cdot (\mathbf u_0 - \mathbf A^{-1} \mathbf b) + \mathbf A^{-1} \mathbf b
 \end{equation}
-If $\mathbf f$ is chosen arbitrarily, we have to discretize time as well. For example, one could use Euler's Method which approximates $\mathbf{\dot u}$ by either the forward difference $\mathbf{\dot u}(t) \approx \frac{1}{\delta t} (\mathbf u (t + \delta t) - \mathbf u (t))$ (explicit Euler) or the backward difference $\mathbf{\dot u}(t + \delta t) \approx \frac{1}{\delta t} (\mathbf u (t + \delta t) - \mathbf u (t))$ (implicit Euler). Solving for the update $\mathbf u(t + \delta t) - \mathbf u(t)$, we would obtain the following linear system in the explicit case:
+If $\mathbf f$ is chosen arbitrarily, we have to discretize time as well. For example, one could use Euler's Method which approximates $\mathbf{\dot u}$ by either the forward difference $\mathbf{\dot u}(t) \approx \frac{1}{\delta t} (\mathbf u (t + \delta t) - \mathbf u (t))$ (explicit Euler) or the backward difference $\mathbf{\dot u}(t + \delta t) \approx \frac{1}{\delta t} (\mathbf u (t + \delta t) - \mathbf u (t))$ (implicit Euler). Solving for $\mathbf u(t + \delta t)$, we would obtain the following linear system in the explicit case:
 \begin{equation}
-	\mathbf M (\mathbf u(t + \delta t) - \mathbf u(t)) = \delta t \cdot (\mathbf A \mathbf{u} (t) + \mathbf f - \mathbf b)
+	\mathbf M \mathbf u(t + \delta t) = (\mathbf M + \delta t \cdot \mathbf A) \mathbf{u}(t) + \delta t (\mathbf f(t) - \mathbf b)
 \end{equation}
 which must be modified only slightly for the implicit case:
 \begin{equation}
-	(\mathbf M - \delta t \cdot \mathbf A) (\mathbf u(t + \delta t) - \mathbf u(t)) = \delta t \cdot (\mathbf A \mathbf{u} (t) + \mathbf f - \mathbf b)
+	(\mathbf M - \delta t \cdot \mathbf A) \mathbf u(t + \delta t) = \mathbf M \mathbf{u}(t) + \delta t (\mathbf f(t + \delta t) - \mathbf b)
 \end{equation}
 
 \subsection{Mass matrix and stiffness matrix computation}
@@ -156,12 +155,12 @@ Depending on the choice of the basis functions $(\phi_i)_{i \in \{1, \dots , n\}
 
 \subsubsection{Reference functions}
 
-Efficient computation of the matrix entries can be done if certain assumptions about the basis and test functions are made. Let there be a small (independent of $n$) set of $m \in \mathbb{N}$ "reference" basis functions $(\hat \phi_r)_{r \in \{1, \dots , m\}}$ and test functions $(\hat \psi_q)_{q \in \{1, \dots , m\}}$, and for each basis function $\phi_i$ and test function $\phi_j$ there is assumed to be a respective basis function $\hat \phi_r$ and test function $\hat \psi_q$, so that the following equations hold:
+Efficient computation of the matrix entries can be done if certain assumptions about the basis and test functions are made. Let there be a small (independent of $n$) set of $m \in \mathbb{N}$ "reference" basis functions $(\hat \phi_r)_{r \in \{1, \dots , m\}}$ and test functions $(\hat \psi_q)_{q \in \{1, \dots , m\}}$, and for each basis function $\phi_i$ and test function $\psi_j$ there is assumed to be a respective basis function $\hat \phi_r$ and test function $\hat \psi_q$, so that the following equations hold:
 \begin{align}
 	\phi_i(\mathbf x) &= \hat \phi_r(\mathbf t^{-1} (\mathbf x)) & \forall \mathbf x \in \Omega_e \\
 	\psi_j(\mathbf x) &= \hat \psi_q(\mathbf t^{-1} (\mathbf x)) & \forall \mathbf x \in \Omega_e
 \end{align}
-where $\mathbf{t}$ is an invertible transformation $\mathbf{t}: \Omega_0 \rightarrow \Omega_e$ with $\Omega_0 \subseteq \Omega$, $\Omega_e = \mathbf{t}(\Omega_0)$. The Jacobian of $\mathbf t$ is $\mathbf J_{\mathbf t}: \Omega_0 \rightarrow \mathbb{R}^{d \times d}$, the Jacobian of $\mathbf t^{-1}$ is $\mathbf J_{\mathbf t^{-1}}: \Omega_e \rightarrow \mathbb{R}^{d \times d}$. From simple analysis it's obvious, that $\mathbf J_{\mathbf t^{-1}} (\mathbf t) = \mathbf J^{-1}_{\mathbf t}$.\\
+where $\mathbf{t}$ is an invertible transformation $\mathbf{t}: \Omega_0 \rightarrow \Omega_e$ with $\Omega_0 \subseteq \Omega$, $\Omega_e = \mathbf{t}(\Omega_0)$. The Jacobian of $\mathbf t$ is $\mathbf J_{\mathbf t}: \Omega_0 \rightarrow \mathbb{R}^{d \times d}$, the Jacobian of $\mathbf t^{-1}$ is $\mathbf J_{\mathbf t^{-1}}: \Omega_e \rightarrow \mathbb{R}^{d \times d}$. From simple analysis it is obvious that $\mathbf J_{\mathbf t^{-1}} (\mathbf t) = \mathbf J^{-1}_{\mathbf t}$.\\
 Computing the gradients yields:
 \begin{align*}
 	\nabla \phi_i(\mathbf x) &= \mathbf J_{\mathbf t^{-1}}^T(\mathbf x) \cdot \nabla \hat \phi_r(\mathbf t^{-1} (\mathbf x)) = (\mathbf J_{\mathbf t}^{-T} \cdot \nabla \hat \phi_r)(\mathbf t^{-1} (\mathbf x)) & \forall \mathbf x \in \Omega_e \\
@@ -205,7 +204,7 @@ Assuming $c$ is constant in $\mathbf t(\Omega_0) = \Omega_e$ and using the ident
 \begin{align*}
 	& \int \limits_{\Omega_e} c \cdot (\nabla \phi_i \circ \nabla \psi_j) d\Omega = c_e \cdot \left| \det(\mathbf J_{\mathbf t}) \right| \cdot \left( (\mathbf J_{\mathbf{t}}^T \cdot \mathbf J_{\mathbf{t}})^{-1} \circ \int \limits_{\Omega_0} \nabla \hat \phi_r \cdot \nabla \hat \psi_q^T d\Omega \right)
 \end{align*}
-Evaluation of all $\mathcal O(n^2)$ integrals thus requires the computation of $\mathcal O(m^2 \cdot d^2)$ integrals, a small number for lower order basis and test functions usually, that - most importantly - does not scale with $n$.
+Evaluation of all $n^2$ integrals thus requires the computation of $m^2 \cdot d^2$ integrals, a small number for lower order basis and test functions usually, that - most importantly - does not scale with $n$.
 
 \subsubsection{Conformal map}
 
@@ -230,7 +229,7 @@ In all other cases, it is also necessary to assume $h$ to be constant to continu
 	& \int \limits_{\Omega_e} \phi_i \cdot \psi_j d\Omega = h^d \cdot \int \limits_{\Omega_0} \hat \phi_r \cdot \hat \psi_q d\Omega \\
 	& \int \limits_{\Omega_e} c \cdot (\nabla \phi_i \circ \nabla \psi_j) d\Omega = c_e \cdot h^{d-2} \cdot \int \limits_{\Omega_0} (\nabla \hat \phi_r \circ \nabla \hat \psi_q) d\Omega
 \end{align*}
-At this point, evaluation of all $\mathcal O(n^2)$ integrals requires the computation of no more than $\mathcal O(m^2)$ integrals.
+At this point, evaluation of all $n^2$ integrals requires only the computation of $m^2$ integrals.
 
 \subsubsection{Combination of maps}
 
@@ -310,7 +309,6 @@ The Brooks-Corey Model, which is motivated by capillary pressure, suggests inste
 	\kappa_n(1 - S) &= (1 - S)^2 \cdot (1 - S^{\frac{2}{\lambda} + 1}) 
 \end{align}
 for an empirical constant $\lambda \in [ 0.2, 3.0 ]$.
-
 
 \newpage
 \section{Sierpinski grids}
@@ -542,10 +540,72 @@ This lemma states that in order to get an affine estimate of the load depending 
 \end{lemma}
 
 \begin{proof}
-	Let $C_0 := 0$, $S_0 := 0$ and for $k \in [n]$ let $C_k$ be the wall clock time where computation of the $k$-th section has ended and $S_k$ be the wall clock time where sending of the $k$-th section has ended. Since computation for section $k$ starts iff all previous computations have finished, $C_{k + 1} = C_k + c_{k + 1}$. Synchronization for section $k$ starts iff computation of section $k$ has finished and all previous sending has ended. Thus $S_{k + 1} = \max(C_{k + 1}, S_k) + s_{k + 1}$.\\
+	Let $C_0 := 0$, $S_0 := 0$ and for $k \in [n]$ let $C_k$ be the wall clock time where computation of the $k$-th section has ended and $S_k$ be the wall clock time where sending of the $k$-th section has ended. Since computation for section $k + 1$ starts iff all previous computations have finished, $C_{k + 1} = C_k + c_{k + 1}$. Synchronization for section $k + 1$ starts iff computation of section $k + 1$ has finished and all previous sending has ended. Thus $S_{k + 1} = \max(C_{k + 1}, S_k) + s_{k + 1}$.\\
 	It is obvious that $C_k = \sum \limits_{i = 1}^{k} c_i$. Via induction, one can show that $S_k = \max \limits_{j \in [k]} \left( \sum \limits_{i = 1}^{j} c_i + \sum \limits_{i = j}^{k} s_i \right)$.\\
 	Since $S_n = \max(C_n, S_{n - 1}) + s_n \geq C_n$, $t_n = S_n$ is the overall wall clock time.
 \end{proof}
+
+
+\newpage
+\section{Dynamic Adaptivity}
+
+We assume two grids G and F exist, which cover the same domain $\Omega$. Migration of unknowns from $G$ to $F$ in a FEM sense consequently means migration of functions on $\Omega$ from G to F. So the goal is to find a function $f: \Omega \rightarrow \mathbb{R}^d$ on $F$, which resembles a function $g: \Omega \rightarrow \mathbb{R}^d$ on $G$ as closely as possible with respect to some metric.\\
+
+\subsection{Mass conversion}
+One solution approach is based on FEM theory, where
+$$f = g \Leftrightarrow \int \limits_{\Omega} f \nu \; d\Omega = \int \limits_{\Omega} g \nu \; d\Omega$$
+for any $f, g, \nu$ in the Sobolev space $S(\Omega)$. Using a Galerkin projection the Sobolev space is reduced to the span of a set of ansatz and test basis functions $<(\phi_i)_{i \in [n]}>$, $<(\psi_j)_{j \in [n]}>$ on $F$ and $<(\bar \phi_i)_{i \in [m]}>$, $<(\bar \psi_j)_{j \in [m]}>$ on $G$ respectively. When the projection is applied, a system of equations is obtained:
+$$\int \limits_{\Omega} \sum \limits_{i=1}^n f_i \phi_i \psi_j d\Omega = \int \limits_{\Omega} \sum \limits_{i=1}^m g_i \bar \phi_i \psi_j d\Omega \; \forall j \in [n]$$
+which simplifies to
+$$\sum \limits_{i=1}^n f_i \int \limits_{\Omega} \phi_i \psi_j d\Omega = \sum \limits_{i=1}^m g_i \int \limits_{\Omega} \bar \phi_i \psi_j d\Omega \; \forall j \in [n].$$
+and can be represented in matrix-vector notation with mass matrices and coefficient vectors:
+\begin{equation}
+ \mathbf M_{(\phi, \psi)} \mathbf f_\phi = \mathbf M_{(\bar \phi, \psi)} \mathbf g_{\bar \phi}
+\end{equation}
+At this point the question may arise, if $(\bar \psi_j)_{j \in [m]}$ instead of $(\psi_j)_{j \in [n]}$ can be chosen as a test basis, but since we need to solve the system for $\mathbf f$, it is clear that a unique solution can only be obtained if the test space of the new grid is chosen.\\
+
+Clearly, the obtained adaptivity scheme conserves quantities well. However, for dicretizations of higher order than $0$, $\mathbf M_{(\phi, \psi)}$ is not diagonal anymore and the inverse becomes dense in general, which makes the method global. Because of this, it is expensive and likely to produce unwanted side effects. \\
+Additionally, one may wonder if $f = g$ is actually a requirement for adaptivity. For instance, if a Poisson equation is solved, $\bigtriangleup f = \bigtriangleup g$ is required instead of $f = g$. The resulting method is almost the same in this case, except the stiffness matrix $\mathbf A$ is used in place of the mass matrix $\mathbf M$:
+\begin{equation}
+ \mathbf A_{(\phi, \psi)} \mathbf f_\phi = \mathbf A_{(\bar \phi, \psi)} \mathbf g_{\bar \phi}
+\end{equation}
+In any case, the model appears to have a strong influence on how unknowns should be treated with respect to dynamic adaptivity and must be included into any migration scheme.
+
+\subsection{Multi-step FEM methods}
+A better scheme is obtained if the idea from the previous chapter is used for general FEM-based solution step methods.
+
+\subsubsection{Heat Equation}
+
+The heat equation consists of a system of equations:
+\begin{align*}
+	\dot u &= \diverg (- c \cdot \nabla u) + f & \textnormal{ in } \Omega \\
+	\nabla u \circ \vec{n} &= g & \textnormal{ in } \Gamma_N \subseteq \partial \Omega \\
+	u  &= h & \textnormal{ in } \Gamma_D = \partial \Omega \setminus \Gamma_N
+\end{align*}
+which yields the following explicit Euler method:
+\begin{equation*}
+	\mathbf M \mathbf u(t + \delta t) = (\mathbf M + \delta t \mathbf A) \mathbf{u} (t) + \delta t (\mathbf f(t) - \mathbf b)
+\end{equation*}
+We apply the notation of the previous chapter now:
+\begin{equation*}
+ \mathbf M_{(\phi, \psi)} \mathbf u_\phi(t + \delta t) = (\mathbf M_{(\phi, \psi)} + \delta t \mathbf A_{(\phi, \psi)}) \mathbf u_\phi(t) + \delta t (\mathbf f_\psi(t) - \mathbf b_\psi)
+\end{equation*}
+Changing this Euler method from static to dynamic grids can be done in different ways:
+\begin{enumerate}
+\item One idea may be to alternate size-$0$ time steps with adaptivity and size-$\delta t$ time steps without adaptivity. In order to do that, the ansatz basis $(\phi_i)_{i \in [n]}$ on the right hand side is replaced by $(\bar \phi_i)_{i \in [m]}$ in the size-$0$ time step:
+\begin{align*}
+ \mathbf M_{(\phi, \psi)} \mathbf u_\phi(t + 0) &= (\mathbf M_{(\bar \phi, \psi)} + 0 \mathbf A_{(\bar \phi, \psi)}) \mathbf u_{\bar \phi}(t) + 0 (\mathbf f_\psi(t) - \mathbf b_\psi)\\
+ \mathbf M_{(\phi, \psi)} \mathbf u_\phi(t + \delta t) &= (\mathbf M_{(\phi, \psi)} + \delta t \mathbf A_{(\phi, \psi)}) \mathbf u_{\phi}(t) + \delta t (\mathbf f_\psi(t) - \mathbf b_\psi)
+\end{align*}
+The main observation here is that unknowns are migrated simply by mass conversion, which was explained in the previous chapter. As heat is a conserved quantity in the system, this is not unexpected.
+\item At this point, it is clear that there is no need for the extra step though, since the ansatz basis can just be replaced directly in the time step method:
+\begin{equation*}
+ \mathbf M_{(\phi, \psi)} \mathbf u_\phi(t + \delta t) = (\mathbf M_{(\bar \phi, \psi)} + \delta t \mathbf A_{(\bar \phi, \psi)}) \mathbf u_{\bar \phi}(t) + \delta t (\mathbf f_\psi(t) - \mathbf b_\psi)
+\end{equation*}
+
+This adaptivity scheme is not only faster but also more accurate than mass conversion, because there is no artificial time step in the computation that can introduce additional errors.\\
+
+\end{enumerate}
 
 \end{document}
 
