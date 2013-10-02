@@ -256,20 +256,19 @@ these equations can be reduced to a single multidimensional equation:
 
 \subsection{Weak formulation}
 
-Let $\Omega_e \subseteq \Omega$ be an open subset of the domain.
-An element-wise weak formulation for a given set of $n \in \mathbb{N}$ test functions $(\psi_j)_{j \in \{1, \dots , n\}}$, where $\psi_j : \Omega_e \rightarrow \mathbb{R}$, for all $j \in \{1, \dots , n\}$, is obtained by the inner products of $\dot{\mathbf q}$ with each $\psi_j$ over $\Omega_e$:
+A weak formulation is obtained by the inner products of the PDE with a test function. For any $\nu$ in $S(\Omega)$ the following equation holds:
 \begin{align}
-	\int \limits_{\Omega_e} \dot{\mathbf q} \cdot \psi_j d\Omega &= - \int \limits_{\Omega_e} \diverg (\mathbf F(\mathbf q)) \cdot \psi_j d\Omega
+	\int \limits_{\Omega_e} \dot{\mathbf q} \cdot \nu \; d\Omega &= - \int \limits_{\Omega_e} \diverg (\mathbf F(\mathbf q)) \cdot \nu \; d\Omega
 \end{align}
 Applying the Divergence Theorem gives:
 \begin{align}
-	\int \limits_{\Omega_e} \dot{\mathbf q} \cdot \psi_j d\Omega &= \int \limits_{\Omega_e} \nabla \psi_j^T \cdot \mathbf F(\mathbf q) d\Omega - \int \limits_{\partial \Omega_e} \mathbf F(\mathbf q) \cdot \psi_j \cdot d \vec{S}
+	\int \limits_{\Omega} \dot{\mathbf q} \cdot \nu \; d\Omega &= \int \limits_{\Omega} \nabla \nu^T \cdot \mathbf F(\mathbf q) d\Omega - \int \limits_{\partial \Omega} \mathbf F(\mathbf q) \cdot \nu \cdot d \vec{S}
 	\label{eqn:swe_weak_form}
 \end{align}
 
 \subsection{DG discretization}
 
-Let there be $n$ basis functions $(\phi_i)_{i \in \{1, \dots , n\}}$, where $\phi_i : \Omega_e \rightarrow \mathbb{R}$.\\
+Let $\Omega_e \subseteq \Omega$ be an open subset of the domain. Using Galerkin projection, we define ansatz functions $(\phi_i)_{i \in \{1, \dots , n\}}$ and test functions $(\psi_j)_{j \in \{1, \dots , n\}}$, where $\psi_j, \phi_i : \Omega_e \rightarrow \mathbb{R}$, for all $i,j \in \{1, \dots , n\}$.\\
 Assuming that $\mathbf q = \sum \limits_{i = 1}^{n} \mathbf q_i \cdot \phi_i$ and $\mathbf F(\mathbf q) = \sum \limits_{i = 1}^{n} \mathbf F_i \cdot \phi_i$ in  $\Omega_e$ with $\mathbf q_i(t) \in \mathbb{R}^{d + 1}$, $\mathbf F_i(t) \in \mathbb R^{(d+1) \times d}$ $\forall t \in \mathbb{R}^{+}$ $\forall i \in \{1, \dots , n\}$:
 \begin{align}
 	\int \limits_{\Omega} (\sum \limits_{i = 1}^{n} \dot{\mathbf q}_i \cdot \phi_i) \cdot \psi_j d\Omega &= \int \limits_{\Omega_e} (\sum \limits_{i = 1}^{n} \mathbf F_i \cdot \phi_i) \cdot \nabla \psi_j d\Omega - \int \limits_{\partial \Omega_e} ((\sum \limits_{i = 1}^{n} \mathbf F^T_i \cdot \phi_i) \cdot \psi_j) \cdot d \vec{S}\\

@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2013.6.7)  2 OCT 2013 14:21
+This is pdfTeX, Version 3.1415926-1.40.10 (TeX Live 2009/Debian) (format=pdflatex 2013.6.7)  2 OCT 2013 17:54
 entering extended mode
  %&-line parsing enabled.
 **samoa.tex
@@ -263,7 +263,7 @@ Underfull \vbox (badness 3219) has occurred while \output is active []
 
  [6]
 [7] [8] [9] [10]
-LaTeX Font Info:    Try loading font information for U+euf on input line 282.
+LaTeX Font Info:    Try loading font information for U+euf on input line 281.
  (/usr/share/texmf-texlive/tex/latex/amsfonts/ueuf.fd
 File: ueuf.fd 2009/06/22 v3.00 Euler Fraktur
 ) [11]
@@ -271,27 +271,27 @@ File: ueuf.fd 2009/06/22 v3.00 Euler Fraktur
 
 Package amsmath Warning: Foreign command \atopwithdelims;
 (amsmath)                \frac or \genfrac should be used instead
-(amsmath)                 on input line 468.
+(amsmath)                 on input line 467.
 
 [15] [16]
-Overfull \hbox (16.53838pt too wide) in paragraph at lines 543--546
+Overfull \hbox (16.53838pt too wide) in paragraph at lines 542--545
 \T1/ptm/m/n/10 It is ob-vi-ous that $\OML/cmm/m/it/10 C[] \OT1/cmr/m/n/10 = [] 
 \OML/cmm/m/it/10 c[]$\T1/ptm/m/n/10 . Via in-duc-tion, one can show that $\OML/
 cmm/m/it/10 S[] \OT1/cmr/m/n/10 = [] []$\T1/ptm/m/n/10 . 
  []
 
 [17]
-Underfull \hbox (badness 10000) in paragraph at lines 552--553
+Underfull \hbox (badness 10000) in paragraph at lines 551--552
 
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 564--566
+Underfull \hbox (badness 10000) in paragraph at lines 563--565
 
  []
 
 [18]
-Underfull \hbox (badness 10000) in paragraph at lines 606--607
+Underfull \hbox (badness 10000) in paragraph at lines 605--606
 
  []
 
@@ -327,7 +327,7 @@ fonts/cm/cmr7.pfb></usr/share/texmf-texlive/fonts/type1/public/amsfonts/cm/cmsy
 /fonts/type1/public/amsfonts/symbols/msbm10.pfb></usr/share/texmf-texlive/fonts
 /type1/urw/times/utmb8a.pfb></usr/share/texmf-texlive/fonts/type1/urw/times/utm
 r8a.pfb></usr/share/texmf-texlive/fonts/type1/urw/times/utmri8a.pfb>
-Output written on samoa.pdf (19 pages, 261405 bytes).
+Output written on samoa.pdf (19 pages, 261388 bytes).
 PDF statistics:
  137 PDF objects out of 1000 (max. 8388607)
  0 named destinations out of 1000 (max. 500000)
