@@ -50,11 +50,21 @@ sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 
 gnuplot &> /dev/null << EOT
 
-set terminal postscript enhanced color
-set xlabel "concurrency"
-set ylabel "M/s"
+set terminal postscript enhanced color font ',30'
+set xlabel "Threads"
+set ylabel "Mio. Elements per sec."
+set key left top
 
 title(n) = sprintf("%d section(s)", n)
+
+set style line 1 lt 2 lw 8 lc rgb "black"
+
+set for [n=2:64] style line n lt 1 lw 8
+set style line 2 lc rgb "orange"
+set style line 4 lc rgb "magenta"
+set style line 8 lc rgb "red"
+set style line 16 lc rgb "blue"
+set style line 32 lc rgb "green"
 
 #*******
 # Darcy
@@ -65,12 +75,12 @@ unset output
 set xrange [0:*]
 set yrange [0:*]
 
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4
+plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
 
-set output '| ps2pdf - darcy_elem_init.pdf'
+set output '| ps2pdf - darcy_elem_init_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines lt 1 lc 1 lw 4 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
 
 #********
 
@@ -79,12 +89,12 @@ unset output
 set xrange [0:*]
 set yrange [0:*]
 
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
+plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls n w linespoints t title(n)
 		
-set output '| ps2pdf - darcy_elem.pdf'
+set output '| ps2pdf - darcy_elem_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines lt 1 lc 1 lw 4 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
 
 #*****
 # SWE
@@ -95,12 +105,12 @@ unset output
 set xrange [0:*]
 set yrange [0:*]
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) w linespoints t title(n) lw 4
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls n w linespoints t title(n)
 
-set output '| ps2pdf - swe_flux.pdf'
+set output '| ps2pdf - swe_flux_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines lt 1 lc 1 lw 4 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
 
 
 #********
@@ -110,12 +120,12 @@ unset output
 set xrange [0:*]
 set yrange [0:*]
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) w linespoints t title(n) lw 4
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
 
-set output '| ps2pdf - swe_cells.pdf'
+set output '| ps2pdf - swe_cells_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines lt 1 lc 1 lw 4 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
 
 
 EOT

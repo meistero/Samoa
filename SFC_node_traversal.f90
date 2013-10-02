@@ -57,7 +57,7 @@ MODULE SFC_node_traversal
 
         grid%start_distance = 0
         grid%min_distance = 0
-        grid%end_distance = 0
+		grid%end_distance = 0
 
 		!$omp parallel
         call grid%create(section_descriptors, section_descriptor%i_stack_nodes)

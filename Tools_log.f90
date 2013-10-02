@@ -776,7 +776,8 @@ MODULE Tools_log
     pure subroutine raise_error()
         integer :: i
 
-        i = 0 / 0
+        i = 0
+        i = i / i
     end subroutine
 end MODULE
 

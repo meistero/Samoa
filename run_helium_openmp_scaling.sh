@@ -19,26 +19,30 @@ export KMP_AFFINITY="granularity=core,compact,1"
 echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
+echo "Compiling..."
+./make_test.sh MPI=NO
+
 echo "Running scenarios..."
 
 limit=02:00:00
 
 for asagimode in 2
 do
-	for sections in 4 8 16
+	for sections in 8 16 32
 	do
-		for processes in 1
+		for concurrency in 40
 		do
-			for threads in 1 2 3 4 5 6 7 8
-			do
-				echo "  Running Darcy..."
-				./bin/samoa_darcy_nompi_debug -asagihints $asagimode -dmin 16 -dmax 24 -tsteps 10 -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
-				echo "  Done."
+			processes=1
+			threads=$concurrency
+			nodes=$(( ($processes * $threads - 1) / 40 + 1 ))
 
-				echo "  Running SWE..."
-				./bin/samoa_swe_nompi_debug -asagihints $asagimode -dmin 8 -dmax 18 -tsteps 100 -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
-				echo "  Done."
-			done
+			echo "  Running Darcy..."
+			./bin/samoa_darcy_nompi -asagihints $asagimode -dmin 16 -dmax 24 -tsteps 10 -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+			echo "  Done."
+
+			echo "  Running SWE..."
+			./bin/samoa_swe_nompi -asagihints $asagimode -dmin 8 -dmax 18 -tsteps 100 -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+			echo "  Done."
 		done
 	done
 done

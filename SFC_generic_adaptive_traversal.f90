@@ -172,7 +172,6 @@ subroutine traverse_in_place(traversal, grid)
 	type(t_grid), intent(inout)							:: grid
 
 	type(t_grid), save							        :: grid_temp
-	integer                                             :: imbalance, balance_steps
 
     !no traversal on empty grids
     !$omp barrier
@@ -190,16 +189,8 @@ subroutine traverse_in_place(traversal, grid)
     !$omp end single
 
 #	if .not. defined(_GT_INPUT_DEST)
-	    !exchange grid sections with neighbors as long as the grid is not balanced
-		do balance_steps = 0, huge(1)
-	        imbalance = distribute_load(grid)
-
-	        if (imbalance .le. 0) then
-	            exit
-	        end if
-	    end do
-
-   		_log_write(2, "(2X, I0, A)") balance_steps, " load balancing iteration(s) performed."
+	    !exchange grid sections with neighbors if the destination grid will not be balanced
+		call distribute_load(grid, 0.01)
         !$omp barrier
 #	endif
 
