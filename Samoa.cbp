@@ -249,7 +249,15 @@
 		<Unit filename="NUMA/NUMA_output.f90" />
 		<Unit filename="NUMA/NUMA_xml_output.f90" />
 		<Unit filename="NUMA/numa.py" />
+<<<<<<< HEAD
 		<Unit filename="PyOP2/Makefile" />
+=======
+		<Unit filename="PyOP2/PyOP2.f90" />
+		<Unit filename="PyOP2/PyOP2_adapt_template.f90" />
+		<Unit filename="PyOP2/PyOP2_data_types.f90" />
+		<Unit filename="PyOP2/PyOP2_initialize.f90" />
+		<Unit filename="PyOP2/PyOP2_template.f90" />
+>>>>>>> master
 		<Unit filename="SFC_data_types.f90">
 			<Option weight="1" />
 		</Unit>

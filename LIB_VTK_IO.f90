@@ -421,6 +421,8 @@ integer(I1P), parameter::            tipo_I1=0                    ! prototype of
 
 
 type t_vtk_writer
+private
+
 integer(I4P)::            f_out        = f_out_ascii ! current output-format (initialized to ascii format)
 character(len=maxlen)::   topology                   ! mesh vtk_writer%topology
 integer(I4P)::            Unit_VTK                   ! internal logical unit
@@ -429,8 +431,6 @@ integer(I4P)::            N_Byte                     ! number of byte to be writ
 integer(I4P)::            ioffset                    ! offset pointer
 integer(I4P)::            indent                     ! vtk_writer%indent pointer
 !----------------------------------------------------------------------------------------------------------------------------------
-
-    private
 
     contains
 
@@ -699,7 +699,7 @@ contains
          form     = 'FORMATTED',    &
          access   = 'SEQUENTIAL',   &
          action   = 'WRITE',        &
-         buffered = 'YES',          &
+         !buffered = 'YES',          &
          iostat   = E_IO)
 
     ! writing header of file
@@ -716,9 +716,9 @@ contains
          form       = 'UNFORMATTED',  &
          access     = 'SEQUENTIAL',   &
          action     = 'WRITE',        &
-         convert    = 'BIG_ENDIAN',   &
-         recordtype = 'STREAM',       &
-         buffered   = 'YES',          &
+         !convert    = 'BIG_ENDIAN',   &
+         !recordtype = 'STREAM',       &
+         !buffered   = 'YES',          &
          iostat     = E_IO)
 
    ! writing header of file
@@ -2089,7 +2089,7 @@ contains
          form   = 'FORMATTED',    &
          access = 'SEQUENTIAL',   &
          action = 'WRITE',        &
-         buffered   = 'YES',      &
+         !buffered   = 'YES',      &
          iostat = E_IO)
 
     ! writing header of file
@@ -2114,9 +2114,9 @@ contains
          form       = 'UNFORMATTED',  &
          access     = 'SEQUENTIAL',   &
          action     = 'WRITE',        &
-         convert    = 'BIG_endIAN',   &
-         recordtype = 'STREAM',       &
-         buffered   = 'YES',          &
+         !convert    = 'BIG_endIAN',   &
+         !recordtype = 'STREAM',       &
+         !buffered   = 'YES',          &
          iostat     = E_IO)
 
     ! writing header of file
@@ -2140,9 +2140,9 @@ contains
          form       = 'UNFORMATTED',   &
          access     = 'SEQUENTIAL',    &
          action     = 'WRITE',         &
-         convert    = 'BIG_endIAN',    &
-         recordtype = 'STREAM',        &
-         buffered   = 'YES',           &
+         !convert    = 'BIG_ENDIAN',    &
+         !recordtype = 'STREAM',        &
+         !buffered   = 'YES',           &
          status     = 'SCRATCH',       &
          iostat     = E_IO)
 
