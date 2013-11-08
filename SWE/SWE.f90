@@ -12,6 +12,7 @@
 
 		use SWE_adapt
 		use SWE_initialize
+		use SWE_displace
 		use SWE_output
 		use SWE_xml_output
 		use SWE_euler_timestep
@@ -25,6 +26,7 @@
 
 		type t_swe
             type(t_swe_init_traversal)              :: init
+            type(t_swe_displace_traversal)          :: displace
             type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
             type(t_swe_euler_timestep_traversal)    :: euler
@@ -95,19 +97,22 @@
 			integer, pointer						:: afh
 
 #			if defined(_ASAGI)
-				grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
+				grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
 				grid%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
 
-                i_error = asagi_open(grid%afh_displacement, "data/displ.nc", 0); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(grid%afh_bathymetry, "data/bath.nc", 0); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(grid%afh_displacement, "data/seissol_displ.nc", 0); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(grid%afh_bathymetry, "data/seissol_bathymetry.nc", 0); assert_eq(i_error, GRID_SUCCESS)
 
                 if (rank_MPI == 0) then
                     afh => grid%afh_displacement
-                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/displ.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
+                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/seissol_displ.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]", "time: [", grid_min_z(afh), ", ", grid_max_z(afh), "]"
 
                     afh => grid%afh_bathymetry
-                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/bath.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
+                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/seissol_bathymetry.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
                 end if
+
+                grid%scaling = 1.0e6
+                grid%offset = -0.5e6
 #			endif
 		end subroutine
 
@@ -193,7 +198,7 @@
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
 				call swe%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + r_output_step
+				r_time_next_output = r_time_next_output + min(0.1, r_output_step)
 			end if
 
             !$omp master
@@ -210,6 +215,37 @@
 
             r_t3 = omp_get_wtime()
 
+            !non-adaptive time-steps are executed while the earthquake takes place
+
+			do
+                if (grid%r_time >= grid_max_z(grid%afh_displacement)) then
+                    exit
+                end if
+
+				!displace time-dependent bathymetry
+				call swe%displace%traverse(grid)
+
+                !do an euler time step
+                call swe%adaption%traverse(grid)
+				call swe%euler%traverse(grid)
+
+                grid_info = grid%get_capacity(.false.)
+
+                !$omp master
+                if (rank_MPI == 0) then
+                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", swe%euler%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                end if
+                !$omp end master
+
+				!output grid
+				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+                    call swe%xml_output%traverse(grid)
+                    r_time_next_output = r_time_next_output + min(0.1, r_output_step)
+                end if
+			end do
+
+            !regular time steps begin after the earthquake is over
+
 			do
 				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
 					exit
@@ -219,7 +255,7 @@
 					call swe%adaption%traverse(grid)
 				!end if
 
-				!do a timestep
+				!do a time step
 				call swe%euler%traverse(grid)
 
                 grid_info = grid%get_capacity(.false.)

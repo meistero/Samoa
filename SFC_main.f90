@@ -25,7 +25,7 @@ PROGRAM gridtest
 #	elif defined(_HEAT_EQ)
         write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
 #	elif defined(_SWE)
-        write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 2.0e-3 -tout -1.0"
+        write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0"
 #	elif defined(_NUMA)
         write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
 #	elif defined(_TESTS)

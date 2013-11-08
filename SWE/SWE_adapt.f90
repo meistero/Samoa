@@ -30,6 +30,7 @@
 
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
+#		define _GT_POST_TRAVERSAL_OP			post_traversal_op
 
 #		define _GT_TRANSFER_OP					transfer_op
 #		define _GT_REFINE_OP					refine_op
@@ -54,6 +55,10 @@
 			section%d_max = 0
 		end subroutine
 
+		subroutine post_traversal_op(traversal, section)
+			type(t_swe_adaption_traversal), intent(inout)				:: traversal
+			type(t_grid_section), intent(inout)							:: section
+		end subroutine
 		!******************
 		!Adaption operators
 		!******************
@@ -93,7 +98,7 @@
 				Q_in = Q_out(:, refinement_path(i))
 			end do
 
-			Q_in%b = get_bathymetry(section, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
+			Q_in%b = get_bathymetry(section, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), section%r_time, dest_element%cell%geometry%i_depth / 2_GRID_SI)
 
 			call gv_Q%write( dest_element%t_element_base, Q_in)
 		end subroutine

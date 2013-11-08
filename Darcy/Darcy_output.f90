@@ -216,7 +216,7 @@
 				end forall
 
 				traversal%i_connectivity(7 * traversal%i_cell_data_index - 6) = 6
-				traversal%i_connectivity(7 * traversal%i_cell_data_index - 5 : 7 * traversal%i_cell_data_index) = point_data_indices((/ 1, 2, 3, 6, 4, 5 /)) - 1
+				traversal%i_connectivity(7 * traversal%i_cell_data_index - 5 : 7 * traversal%i_cell_data_index) = point_data_indices([ 1, 2, 3, 6, 4, 5 ]) - 1
 			else
 				forall (i = 1 : 3)
 					traversal%point_data(point_data_indices(i))%coords = samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i))

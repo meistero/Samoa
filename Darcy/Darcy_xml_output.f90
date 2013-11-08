@@ -87,12 +87,13 @@
 			type(t_grid), intent(inout)							    :: grid
 
 			character (len = 64)							:: s_file_name
+            integer                                         :: i_error
 			integer(4)										:: i_rank, i_section, e_io
 			logical                                         :: l_exists
             type(t_vtk_writer)                              :: vtk
 
 #           if defined(_MPI)
-                call mpi_barrier(MPI_COMM_WORLD)
+                call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
             if (rank_MPI == 0) then

@@ -251,6 +251,7 @@ SWE/SWE.f90 \
 SWE/SWE_local_function_spaces.f90 \
 SWE/SWE_data_types.f90 \
 SWE/SWE_basis.f90 \
+SWE/SWE_displace.f90 \
 SWE/SWE_initialize.f90 \
 SWE/SWE_output.f90 \
 SWE/SWE_xml_output.f90 \

@@ -59,7 +59,12 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			grid%r_dt = 0.45_GRID_SR * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+            grid%r_dt = 0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+
+            if (grid%r_time < grid_max_z(grid%afh_bathymetry)) then
+                grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry))
+			end if
+
 			grid%u_max = 0.0_GRID_SR
 		end subroutine
 
@@ -70,6 +75,8 @@
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
 			grid%r_time = grid%r_time + grid%r_dt
+
+			grid%sections%elements%r_time = grid%r_time
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -247,8 +254,8 @@
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
 
-			volume = element%cell%geometry%get_volume()
-			edge_lengths = element%cell%geometry%get_edge_sizes()
+			volume = section%scaling * section%scaling * element%cell%geometry%get_volume()
+			edge_lengths = section%scaling * element%cell%geometry%get_edge_sizes()
 
 			dQ%h = sum(edge_lengths * fluxes%h)
 			dQ%p(1) = sum(edge_lengths * fluxes%p(1))
@@ -261,10 +268,10 @@
 			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 
 			depth = element%cell%geometry%i_depth
-			if (depth < section%i_max_depth .and. dQ_norm > (2.0_GRID_SR ** 2)) then
+			if (depth < section%i_max_depth .and. dQ_norm > (section%scaling * 2.0_GRID_SR) ** 2) then
 				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-			else if (depth > section%i_min_depth .and. dQ_norm < (1.0_GRID_SR ** 2)) then
+			else if (depth > section%i_min_depth .and. dQ_norm < (section%scaling * 1.0_GRID_SR) ** 2) then
 				element%cell%geometry%refinement = -1
 			endif
 

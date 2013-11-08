@@ -1050,7 +1050,7 @@ module SFC_edge_traversal
             r_imbalance = grid%load / r_total_load * size_MPI - 1.0_GRID_SR
 			call mpi_allreduce(MPI_IN_PLACE, r_imbalance, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 	        !$omp end single copyprivate(r_total_load, r_imbalance)
-	        
+
 			!exit early if the imbalance is small enough
 	        if (r_imbalance .le. r_max_imbalance) then
                 _log_write(2, '(4X, "load balancing: no, imbalance is below threshold: ", F0.3, " < ", F0.3)') r_imbalance, r_max_imbalance
@@ -1155,7 +1155,7 @@ module SFC_edge_traversal
 			end if
 
 			if (partial_load * size_MPI == total_load * (i_last_rank_out + 1)) then
-                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_last_rank_out, 2, MPI_COMM_WORLD, requests_out(2, i_last_rank_out), i_error); assert_eq(i_error, 0)		
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_last_rank_out, 2, MPI_COMM_WORLD, requests_out(2, i_last_rank_out), i_error); assert_eq(i_error, 0)
                 _log_write(3, '("last send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_last_rank_out, 2
 			end if
 

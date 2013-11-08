@@ -48,6 +48,7 @@
 #		define _GT_NAME								t_swe_xml_output_traversal
 
 #		define _GT_EDGES
+#		define _GT_EDGES_TEMP
 
 #		define _GT_PRE_TRAVERSAL_OP					pre_traversal_op
 #		define _GT_POST_TRAVERSAL_OP				post_traversal_op
@@ -75,12 +76,13 @@
 			type(t_grid), intent(inout)							        :: grid
 
             character (len = 64)							:: s_file_name
+            integer                                         :: i_error
 			integer(4)										:: i_rank, i_section, e_io
 			logical                                         :: l_exists
             type(t_vtk_writer)                              :: vtk
 
 #           if defined(_MPI)
-                call mpi_barrier(MPI_COMM_WORLD)
+                call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
             if (rank_MPI == 0) then
@@ -112,13 +114,15 @@
                 e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
 
                 do i_rank = 0, size_MPI
-                    do i_section = 1, omp_get_max_threads() * grid%i_sections_per_thread * 2
+                    do i_section = 1, huge(1)
                         write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
                         inquire(file = s_file_name, exist = l_exists)
 
                         if (l_exists) then
                             write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
                             e_io = vtk%VTK_GEO_XML(s_file_name)
+                        else
+                            exit
                         end if
                     end do
                 end do
@@ -203,7 +207,7 @@
 
 			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
-			e_io = vtk%VTK_INI_XML('binary', traversal%s_file_stamp, 'UnstructuredGrid')
+			e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
 				e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
 				e_io = vtk%VTK_CON_XML(i_cells, i_connectivity, i_offsets, i_types)
