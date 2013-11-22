@@ -5,7 +5,27 @@
 
 #include "Compilation_control.f90"
 
+
 #if defined(_DARCY)
+
+#   define _CG                  darcy_pressure_solver
+#   define _CG_mod_types        Samoa_darcy
+
+#   define _GV_NODE_SIZE        _DARCY_P_NODE_SIZE
+#   define _GV_EDGE_SIZE        _DARCY_P_EDGE_SIZE
+#   define _GV_CELL_SIZE        _DARCY_P_CELL_SIZE
+
+#   define _gm_A                darcy_gm_A
+#   define _gv_x                darcy_gv_p
+
+#   define _gv_r                darcy_gv_r
+#   define _gv_d                darcy_gv_d
+#   define _gv_A_d              darcy_gv_A_d
+#   define _gv_trace_A          darcy_gv_mat_diagonal
+#   define _gv_dirichlet        darcy_gv_is_dirichlet_boundary
+
+#   include "../Solver/CG.f90"
+
 	MODULE Darcy
 		use Darcy_data_types
 		use Darcy_initialize_pressure
@@ -20,6 +40,9 @@
 		use Darcy_permeability
 		use Darcy_adapt
 
+		use linear_solver
+        use Darcy_pressure_solver
+
 		use Samoa_darcy
 
 		implicit none
@@ -31,11 +54,12 @@
             type(t_darcy_vtk_output_traversal)              :: vtk_output
             type(t_darcy_xml_output_traversal)              :: xml_output
             type(t_darcy_grad_p_traversal)                  :: grad_p
-            type(t_darcy_jacobi_solver)                     :: laplace_jacobi
-            type(t_darcy_cg_solver)                         :: laplace_cg
             type(t_darcy_transport_eq_traversal)            :: transport_eq
             type(t_darcy_permeability_traversal)            :: permeability
             type(t_darcy_adaption_traversal)                :: adaption
+            !type(t_darcy_jacobi_solver)                    :: pressure_solver
+            !type(t_darcy_cg_solver)                        :: pressure_solver
+            class(t_linear_solver), allocatable             :: pressure_solver
 
             contains
 
@@ -61,8 +85,21 @@
 			type (t_transform_data)										:: dummy_transform_data
 			character (len = 64)										:: s_format_string, s_log_name, s_date, s_time
 			real (kind = GRID_SR)										:: r_m
-			real (kind = GRID_SR), dimension(2), target					:: default_offset
+			real (kind = GRID_SR), target					            :: default_offset(2)
 			integer                                                     :: i_error
+            type(t_darcy_pressure_solver)   :: pressure_solver
+            type(t_darcy_cg_solver)         :: cg_solver
+            type(t_darcy_jacobi_solver)     :: jacobi_solver
+
+            !allocate solver
+			grid%r_time = 0.0_GRID_SR
+			grid%r_p0 = 1.0e6_GRID_SR          !initial pressure difference in Pa
+			grid%r_epsilon = 1.0e-5_GRID_SR
+			grid%r_rho = 0.2_GRID_SR
+			grid%r_rel_permeability = 1.5_GRID_SR
+
+            pressure_solver = t_darcy_pressure_solver(grid%r_epsilon * grid%r_p0)
+            allocate(darcy%pressure_solver, source=cg_solver, stat=i_error); assert_eq(i_error, 0)
 
 			!open log file
 			call date_and_time(s_date, s_time)
@@ -201,7 +238,7 @@
 				call darcy%init_saturation%traverse(grid)
 
 				!solve pressure equation
-				i_lse_iterations = darcy%laplace_cg%solve(grid)
+				i_lse_iterations = darcy%pressure_solver%solve(grid)
 
                 grid_info = grid%get_capacity(.false.)
 
@@ -241,7 +278,7 @@
             !$omp master
 			!copy counters
             adaption_stats_initial = darcy%adaption%stats
-            cg_stats_initial = darcy%laplace_cg%cg1%stats + darcy%laplace_cg%cg2%stats + darcy%laplace_cg%cg2_exact%stats
+            cg_stats_initial = darcy%pressure_solver%stats
 			grid_stats_initial = grid%stats
 			r_asagi_time_initial = r_asagi_time
 
@@ -268,7 +305,7 @@
 				!end if
 
 				!solve pressure equation
-				i_lse_iterations = darcy%laplace_cg%solve(grid)
+				i_lse_iterations = darcy%pressure_solver%solve(grid)
 
 				!compute velocity field
 				call darcy%grad_p%traverse(grid)
@@ -300,7 +337,7 @@
 
             !$omp master
             adaption_stats_time_steps = darcy%adaption%stats - adaption_stats_initial
-            cg_stats_time_steps = darcy%laplace_cg%cg1%stats + darcy%laplace_cg%cg2%stats + darcy%laplace_cg%cg2_exact%stats - cg_stats_initial
+            cg_stats_time_steps = darcy%pressure_solver%stats - cg_stats_initial
 			grid_stats_time_steps = grid%stats - grid_stats_initial
 			r_asagi_time = r_asagi_time - r_asagi_time_initial
 

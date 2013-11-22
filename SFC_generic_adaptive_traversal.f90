@@ -16,25 +16,29 @@
 
 #define _GT						_GT_NAME
 
-!if no dedicated inner operators exists, use the default operators
-#if defined(_GT_EDGE_FIRST_TOUCH_OP) .and. .not. defined(_GT_INNER_EDGE_FIRST_TOUCH_OP)
+#if defined(_GT_INNER_EDGE_FIRST_TOUCH_OP) .or. defined(_GT_INNER_NODE_FIRST_TOUCH_OP)
+#	error "No inner first touch operators are allowed for adaptive traversal!"
+#endif
+
+#if defined(_GT_EDGE_FIRST_TOUCH_OP)
 #	define _GT_INNER_EDGE_FIRST_TOUCH_OP	_GT_EDGE_FIRST_TOUCH_OP
 #endif
 
+#if defined(_GT_NODE_FIRST_TOUCH_OP)
+#	define _GT_INNER_NODE_FIRST_TOUCH_OP	_GT_NODE_FIRST_TOUCH_OP
+#endif
+
+!if no dedicated inner operators exists, use the default operators
 #if defined(_GT_EDGE_LAST_TOUCH_OP) .and. .not. defined(_GT_INNER_EDGE_LAST_TOUCH_OP)
 #	define _GT_INNER_EDGE_LAST_TOUCH_OP		_GT_EDGE_LAST_TOUCH_OP
 #endif
 
-#if defined(_GT_EDGE_REDUCE_OP) .and. .not. defined(_GT_INNER_EDGE_REDUCE_OP)
-#	define _GT_INNER_EDGE_REDUCE_OP		    _GT_EDGE_REDUCE_OP
-#endif
-
-#if defined(_GT_NODE_FIRST_TOUCH_OP) .and. .not. defined(_GT_INNER_NODE_FIRST_TOUCH_OP)
-#	define _GT_INNER_NODE_FIRST_TOUCH_OP	_GT_NODE_FIRST_TOUCH_OP
-#endif
-
 #if defined(_GT_NODE_LAST_TOUCH_OP) .and. .not. defined(_GT_INNER_NODE_LAST_TOUCH_OP)
 #	define _GT_INNER_NODE_LAST_TOUCH_OP		_GT_NODE_LAST_TOUCH_OP
+#endif
+
+#if defined(_GT_EDGE_REDUCE_OP) .and. .not. defined(_GT_INNER_EDGE_REDUCE_OP)
+#	define _GT_INNER_EDGE_REDUCE_OP		    _GT_EDGE_REDUCE_OP
 #endif
 
 #if defined(_GT_NODE_REDUCE_OP) .and. .not. defined(_GT_INNER_NODE_REDUCE_OP)

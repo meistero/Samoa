@@ -32,6 +32,7 @@
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
+#		define _GT_INNER_NODE_FIRST_TOUCH_OP    inner_node_first_touch_op
 
 #		define	_GT_ELEMENT_OP					element_op
 
@@ -40,12 +41,6 @@
 		subroutine pre_traversal_grid_op(traversal, grid)
  			type(t_darcy_init_pressure_traversal), intent(inout)      	:: traversal
  			type(t_grid), intent(inout)							        :: grid
-
-			grid%r_time = 0.0_GRID_SR
-			grid%r_p0 = 1.0e6_GRID_SR          !initial pressure difference in HPa
-			grid%r_epsilon = 1.0e-5_GRID_SR
-			grid%r_rho = 0.2_GRID_SR
-			grid%r_rel_permeability = 1.5_GRID_SR
 
 			call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
 			call scatter(grid%r_p0, grid%sections%elements_alloc%r_p0)
@@ -70,6 +65,20 @@
 		end subroutine
 
 		elemental subroutine node_first_touch_op(traversal, section, node)
+ 			type(t_darcy_init_pressure_traversal), intent(in)                       :: traversal
+ 			type(t_grid_section), intent(in)							:: section
+			type(t_node_data), intent(inout)			:: node
+
+			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
+				node%data_temp%is_dirichlet_boundary = .false.
+			else
+				node%data_temp%is_dirichlet_boundary = .true.
+			end if
+
+            call inner_node_first_touch_op(traversal, section, node)
+		end subroutine
+
+		elemental subroutine inner_node_first_touch_op(traversal, section, node)
  			type(t_darcy_init_pressure_traversal), intent(in)                       :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
@@ -109,7 +118,7 @@
                     r_asagi_time = r_asagi_time - omp_get_wtime()
 #               endif
 
-                r_base_permeability = grid_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), lod)
+                r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), lod)
 
 #               if defined(_ASAGI_TIMING)
                     r_asagi_time = r_asagi_time + omp_get_wtime()

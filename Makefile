@@ -260,6 +260,7 @@ SWE/SWE_adapt.f90 \
 geoclaw/c_bind_riemannsolvers.f90 \
 Samoa/Samoa.f90 \
 Samoa/Tools_quadrature_rule_base.f90 \
+Solver/LinearSolver.f90 \
 SFC_node_traversal.f90 \
 SFC_edge_traversal.f90 \
 SFC_data_types.f90 \

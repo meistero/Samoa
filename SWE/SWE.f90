@@ -111,8 +111,8 @@
                     _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/seissol_bathymetry.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
                 end if
 
-                grid%scaling = 1.0e6
-                grid%offset = -0.5e6
+                grid%scaling = 1.0e5
+                grid%offset = -0.5e5
 #			endif
 		end subroutine
 
@@ -198,7 +198,7 @@
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
 				call swe%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + min(0.1, r_output_step)
+				r_time_next_output = r_time_next_output + min(1.0/3.0, r_output_step)
 			end if
 
             !$omp master
@@ -240,7 +240,7 @@
 				!output grid
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                     call swe%xml_output%traverse(grid)
-                    r_time_next_output = r_time_next_output + min(0.1, r_output_step)
+                    r_time_next_output = r_time_next_output + min(1.0/3.0, r_output_step)
                 end if
 			end do
 

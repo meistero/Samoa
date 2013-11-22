@@ -8,42 +8,35 @@
 !> Warning: this a template module body and requires preprocessor commands before inclusion.
 !> Usage: Inside your module definition, insert
 !>
-!> #define _GV_type_NAME		<value>
+!> #define _GV_TYPE_NAME		<value>
 !> #define _GV_NAME				<value>
-!> #define _GV_type				<value>
-!> #define _GV_COUNT			<value>
+!> #define _GV_TYPE				<value>
 !> #define _GV_PERSISTENT		<value>
-!> #define _LFS_type_NAME		<value>
-!> #define _LFS_CELL_SIZE		<value>
-!> #define _LFS_EDGE_SIZE		<value>
-!> #define _LFS_NODE_SIZE		<value>
+!> #define _GV_CELL_SIZE		<value>
+!> #define _GV_EDGE_SIZE		<value>
+!> #define _GV_NODE_SIZE		<value>
 !>
 !> #include <this_file>
 !>
 !> where
 !>
-!> @item _GV_type_NAME		Grid variable type name
+!> @item _GV_TYPE_NAME		Grid variable type name
 !> @item _GV_NAME			Access pattern for the grid variable, for example "dof(:)%x"
-!> @item _GV_type			Grid variable base data type, for example "real".
-!> @item _GV_COUNT			Number of components of the grid variable
-!> @item _GV_PERSISTENT		if 'true' the variable is stored persistently on the grid, otherwise only temporary
-!> @item _LFS_type_NAME		Local function space type name, will be used as prefix for all operations
-!> @item _LFS_CELL_SIZE		Size of the local function space in the cell, may be 0 if the data is not located in the cell
-!> @item _LFS_EDGE_SIZE		Size of the local function space on an edge, may be 0 if the data is not located on the edges
-!> @item _LFS_NODE_SIZE		Size of the local function space on a node, may be 0 if the data is not located on the nodes
+!> @item _GV_TYPE			Grid variable base data type, for example "real".
+!> @item _GV_PERSISTENT		if 'true' the variable is stored persistently on the grid, otherwise only temporarily
+!> @item _GV_CELL_SIZE		Size of the cell data, may be 0 if no data is located in cells
+!> @item _GV_EDGE_SIZE		Size of the edge data, may be 0 if no data is located on edges
+!> @item _GV_NODE_SIZE		Size of the node data, may be 0 if no data is located on nodes
 !>
-!> The resulting grid variable is defined as _GV_type_NAME
+!> The resulting grid variable is defined as _GV_TYPE_NAME
 !> @author Oliver Meister
 
 #define _CONC2(X, Y)							X ## _ ## Y
 #define _PREFIX(P, X)							_CONC2(P, X)
-#define _LFS_(X)								_PREFIX(_LFS_type_NAME, X)
-#define _GV_(X)									_PREFIX(_GV_type_NAME, X)
+#define _GV_(X)									_PREFIX(_GV_TYPE_NAME, X)
+#define _GV										_GV_TYPE_NAME
 
-#define _LFS									_LFS_type_NAME
-#define _LFS_SIZE								(_LFS_CELL_SIZE + 3 * _LFS_EDGE_SIZE + 3 * _LFS_NODE_SIZE)
-
-#define _GV										_GV_type_NAME
+#define _GV_SIZE								(_GV_CELL_SIZE + 3 * _GV_EDGE_SIZE + 3 * _GV_NODE_SIZE)
 
 #if (_GV_PERSISTENT)
 #	define _GV_SUBSET							data_pers
@@ -54,262 +47,257 @@
 #define _GV_ACCESS_E(name, entity, subset)		entity%subset%name
 #define _GV_ACCESS(entity)						_GV_ACCESS_E(_GV_NAME, entity, _GV_SUBSET)
 
-#define _GV_GET(entity, value)					value = _GV_ACCESS(entity)
-#define _GV_SET(entity, value)					_GV_ACCESS(entity) = value
-#define _GV_ADD(entity, value)					_GV_ACCESS(entity) = _GV_ACCESS(entity) + value
-
-PRIVATE
-PUBLIC :: _GV
+private
+public :: _GV
 
 !> dummy type for the grid variable used for polymorphic function calls
 type _GV
-	integer(kind = 1), DIMENSION(0)		:: i_dummy
-
 	contains
 
-	procedure, pass :: read => read_element
-	procedure, pass :: write => write_element
-	procedure, pass :: add => add_element
+	procedure, pass :: read_from_element
+	procedure, pass :: read_from_cell
+	procedure, pass :: read_from_edge
+	procedure, pass :: read_from_node
+	procedure, pass :: write_to_element
+	procedure, pass :: write_to_cell
+	procedure, pass :: write_to_edge
+	procedure, pass :: write_to_node
+	procedure, pass :: add_to_element
+	procedure, pass :: add_to_cell
+	procedure, pass :: add_to_edge
+	procedure, pass :: add_to_node
+
+	generic :: read => read_from_element, read_from_cell, read_from_edge, read_from_node
+	generic :: write => write_to_element, write_to_cell, write_to_edge, write_to_node
+	generic :: add => add_to_element, add_to_cell, add_to_edge, add_to_node
 end type
 
 contains
+
+pure subroutine write_node(xn, xl)
+    _GV_TYPE, intent(out)	:: xn(*)
+    _GV_TYPE, intent(in)	:: xl(*)
+
+    xn(1:_GV_NODE_SIZE) = xl(1:_GV_NODE_SIZE)
+end subroutine
+
+pure subroutine write_edge(xe, xl)
+    _GV_TYPE, intent(out)	:: xe(*)
+    _GV_TYPE, intent(in)	:: xl(*)
+
+    xe(1:_GV_EDGE_SIZE) = xl(1:_GV_EDGE_SIZE)
+end subroutine
+
+pure subroutine write_cell(xc, xl)
+    _GV_TYPE, intent(out)	:: xc(*)
+    _GV_TYPE, intent(in)	:: xl(*)
+
+    xc(1:_GV_CELL_SIZE) = xl(1:_GV_CELL_SIZE)
+end subroutine
+
+pure subroutine add_node(xn, xl)
+    _GV_TYPE, intent(inout)	:: xn(*)
+    _GV_TYPE, intent(in)	:: xl(*)
+
+    xn(1:_GV_NODE_SIZE) = xn(1:_GV_NODE_SIZE) + xl(1:_GV_NODE_SIZE)
+end subroutine
+
+pure subroutine add_edge(xe, xl)
+    _GV_TYPE, intent(inout)	:: xe(*)
+    _GV_TYPE, intent(in)	:: xl(*)
+
+    xe(1:_GV_EDGE_SIZE) = xe(1:_GV_EDGE_SIZE) + xl(1:_GV_EDGE_SIZE)
+end subroutine
+
+pure subroutine add_cell(xc, xl)
+    _GV_TYPE, intent(inout)	:: xc(*)
+    _GV_TYPE, intent(in)	:: xl(*)
+
+    xc(1:_GV_CELL_SIZE) = xc(1:_GV_CELL_SIZE) + xl(1:_GV_CELL_SIZE)
+end subroutine
 
 !********************************
 !LFS implementation
 !********************************
 
 !> Reads the grid variable from the grid into the array xl
-pure subroutine read_element(gv, element, xl)
-	class(_GV), intent(in)										:: gv
-	type(t_element_base), intent(in)							:: element
+pure subroutine read_from_element(gv, element, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_element_base), intent(in)    :: element
+	 _GV_TYPE, intent(out)	            :: xl(*)
 
-	integer (kind = GRID_SI)									:: i, j
+	integer (kind = GRID_SI)		    :: i
 
-#	if defined(_GV_COUNT)
-		_GV_type, dimension(:, :), intent(out)	:: xl
+#   if (_GV_NODE_SIZE > 0)
+        do i = 1, 3
+            call write_node(xl(_GV_NODE_SIZE * i - _GV_NODE_SIZE + 1), _GV_ACCESS(element%nodes(i)%ptr))
+        end do
+#   endif
 
-		forall(i = 1 : 3, j = 1 : _GV_COUNT)
-#			if (_LFS_NODE_SIZE == 1)
-				xl(j, i) = _GV_ACCESS(element%nodes(i)%ptr)(j, 1)
-#			elif (_LFS_NODE_SIZE > 1)
-				xl(j, i * _LFS_NODE_SIZE + 1 - _LFS_NODE_SIZE : i * _LFS_NODE_SIZE) = &
-					_GV_ACCESS(element%nodes(i)%ptr)(j, :)
-#			endif
+#   if (_GV_EDGE_SIZE > 0)
+        do i = 1, 3
+            call write_edge(xl(_GV_EDGE_SIZE * i + 3 * _GV_NODE_SIZE - _GV_EDGE_SIZE + 1), _GV_ACCESS(element%edges(i)%ptr))
+        end do
+#   endif
 
-#			if (_LFS_EDGE_SIZE == 1)
-				xl(j, 3 * _LFS_NODE_SIZE + i) = _GV_ACCESS(element%edges(i)%ptr)(j, 1)
-#			elif (_LFS_EDGE_SIZE > 1)
-				xl(j, 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE + 1 - _LFS_EDGE_SIZE : 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE) = &
-					transform_edge_data(lfs, element%edges(i)%transform_data, &
-					_GV_ACCESS(element%edges(i)%ptr)(j, :))
-#			endif
-		end forall
-
-		forall(j = 1 : _GV_COUNT)
-#			if (_LFS_CELL_SIZE == 1)
-				xl(j, 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1) = _GV_ACCESS(element%cell)(j, 1)
-#			elif (_LFS_CELL_SIZE > 1)
-				xl(j, 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1 : 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + _LFS_CELL_SIZE) = &
-					transform_cell_data(lfs, element%transform_data%plotter_data, &
-					_GV_ACCESS(element%cell)(j, :))
-#			endif
-		end forall
-#	else
-		_GV_type, dimension(:), intent(out)				:: xl
-
-		forall(i = 1 : 3)
-#			if (_LFS_NODE_SIZE == 1)
-				xl(i) = _GV_ACCESS(element%nodes(i)%ptr)(1)
-#			elif (_LFS_NODE_SIZE > 1)
-				xl(i * _LFS_NODE_SIZE + 1 - _LFS_NODE_SIZE : i * _LFS_NODE_SIZE) = &
-					_GV_ACCESS(element%nodes(i)%ptr)
-#			endif
-
-#			if (_LFS_EDGE_SIZE == 1)
-				xl(3 * _LFS_NODE_SIZE + i) = _GV_ACCESS(element%edges(i)%ptr)(1)
-#			elif (_LFS_EDGE_SIZE > 1)
-				xl(3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE + 1 - _LFS_EDGE_SIZE : 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE) = &
-					transform_edge_data(lfs, element%edges(i)%transform_data, &
-					_GV_ACCESS(element%edges(i)%ptr))
-#			endif
-		end forall
-
-#		if (_LFS_CELL_SIZE == 1)
-			xl(3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1) = _GV_ACCESS(element%cell)(1)
-#		elif (_LFS_CELL_SIZE > 1)
-			xl(3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1 : 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + _LFS_CELL_SIZE) = &
-				transform_cell_data(lfs, element%transform_data%plotter_data, &
-				_GV_ACCESS(element%cell))
-#		endif
-#	endif
+#   if (_GV_CELL_SIZE > 0)
+        call write_cell(xl(3 * _GV_NODE_SIZE + 3 * _GV_EDGE_SIZE + 1), _GV_ACCESS(element%cell))
+#   endif
 end subroutine
 
 !> Writes data from the array xl into the grid variable
-pure subroutine write_element(gv, element, xl)
-	class(_GV), intent(in)										:: gv
-	type(t_element_base), intent(inout)							:: element
+pure subroutine write_to_element(gv, element, xl)
+	class(_GV), intent(in)			        :: gv
+	type(t_element_base), intent(inout)     :: element
+	 _GV_TYPE, intent(in)	                :: xl(*)
 
-	integer (kind = GRID_SI)									:: i, j
+	integer (kind = GRID_SI)			    :: i
 
-#	if defined(_GV_COUNT)
-		_GV_type, dimension(:, :), intent(in)	:: xl
+#   if (_GV_NODE_SIZE > 0)
+        do i = 1, 3
+            call write_node(_GV_ACCESS(element%nodes(i)%ptr), xl(_GV_NODE_SIZE * i - _GV_NODE_SIZE + 1))
+        end do
+#   endif
 
-		forall (i = 1 : 3, j = 1 : _GV_COUNT)
-#			if (_LFS_NODE_SIZE == 1)
-					_GV_ACCESS(element%nodes(i)%ptr)(j, 1) = xl(j, i)
-#			elif (_LFS_NODE_SIZE > 1)
-					_GV_ACCESS(element%nodes(i)%ptr)(j, :) = &
-						xl(j, i * _LFS_NODE_SIZE + 1 - _LFS_NODE_SIZE : i * _LFS_NODE_SIZE)
-#			endif
+#   if (_GV_EDGE_SIZE > 0)
+        do i = 1, 3
+            call write_edge(_GV_ACCESS(element%edges(i)%ptr), xl(_GV_EDGE_SIZE * i + 3 * _GV_NODE_SIZE - _GV_EDGE_SIZE + 1))
+        end do
+#   endif
 
-#			if (_LFS_EDGE_SIZE == 1)
-					_GV_ACCESS(element%edges(i)%ptr)(j, 1) = xl(j, 3 * _LFS_NODE_SIZE + i)
-#			elif (_LFS_EDGE_SIZE > 1)
-					_GV_ACCESS(element%edges(i)%ptr)(j, :) = &
-						transform_edge_data(lfs, element%edges(i)%transform_data, &
-						xl(3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE + 1 - _LFS_EDGE_SIZE : 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE))
-#			endif
-		end forall
-
-		forall (j = 1 : _GV_COUNT)
-#			if (_LFS_CELL_SIZE == 1)
-				_GV_ACCESS(element%cell)(j, 1) = xl(j, 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1)
-#			elif (_LFS_CELL_SIZE > 1)
-				_GV_ACCESS(element%cell)(j, :) = &
-					transform_cell_data(lfs, element%transform_data%plotter_data, &
-					xl(j, 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1 : 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + _LFS_CELL_SIZE))
-#			endif
-		end forall
-#	else
-		_GV_type, dimension(:), intent(in)				:: xl
-
-		forall(i = 1 : 3)
-#			if (_LFS_NODE_SIZE == 1)
-					_GV_ACCESS(element%nodes(i)%ptr)(1) = xl(i)
-#			elif (_LFS_NODE_SIZE > 1)
-					_GV_ACCESS(element%nodes(i)%ptr) = &
-						xl(i * _LFS_NODE_SIZE + 1 - _LFS_NODE_SIZE : i * _LFS_NODE_SIZE)
-#			endif
-
-#			if (_LFS_EDGE_SIZE == 1)
-					_GV_ACCESS(element%edges(i)%ptr)(1) = xl(3 * _LFS_NODE_SIZE + i)
-#			elif (_LFS_EDGE_SIZE > 1)
-					_GV_ACCESS(element%edges(i)%ptr) = &
-						transform_edge_data(lfs, element%edges(i)%transform_data, &
-						xl(3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE + 1 - _LFS_EDGE_SIZE : 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE))
-#			endif
-		end forall
-
-#		if (_LFS_CELL_SIZE == 1)
-			_GV_ACCESS(element%cell)(1) = xl(3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1)
-#		elif (_LFS_CELL_SIZE > 1)
-			_GV_ACCESS(element%cell) = &
-				transform_cell_data(lfs, element%transform_data%plotter_data, &
-				xl(3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1 : 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + _LFS_CELL_SIZE))
-#		endif
-#	endif
+#   if (_GV_CELL_SIZE > 0)
+        call write_cell(_GV_ACCESS(element%cell), xl(3 * _GV_NODE_SIZE + 3 * _GV_EDGE_SIZE + 1))
+#   endif
 end subroutine
 
 !> Adds data from the array xl to the grid variable
-pure subroutine add_element(gv, element, xl)
-	class(_GV), intent(in)										:: gv
-	type(t_element_base), intent(inout)							:: element
+pure subroutine add_to_element(gv, element, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_element_base), intent(inout) :: element
+    _GV_TYPE, intent(in)                :: xl(*)
 
-	integer (kind = GRID_SI)									:: i, j
+	integer (kind = GRID_SI)			:: i
 
-#	if defined(_GV_COUNT)
-		_GV_type, dimension(:, :), intent(in)					:: xl
+#   if (_GV_NODE_SIZE > 0)
+        do i = 1, 3
+            call add_node(_GV_ACCESS(element%nodes(i)%ptr), xl(_GV_NODE_SIZE * i - _GV_NODE_SIZE + 1))
+        end do
+#   endif
 
-		forall (i = 1 : 3, j = 1 : _GV_COUNT)
-#			if (_LFS_NODE_SIZE == 1)
-				_GV_ACCESS(element%nodes(i)%ptr)(j, 1) = _GV_ACCESS(element%nodes(i)%ptr)(j, 1) + xl(j, i)
-#			elif (_LFS_NODE_SIZE > 1)
-				_GV_ACCESS(element%nodes(i)%ptr)(j, :) = _GV_ACCESS(element%nodes(i)%ptr)(j, :) + &
-					xl(j, i * _LFS_NODE_SIZE + 1 - _LFS_NODE_SIZE : i * _LFS_NODE_SIZE)
-#			endif
+#   if (_GV_EDGE_SIZE > 0)
+        do i = 1, 3
+            call add_edge(_GV_ACCESS(element%edges(i)%ptr), xl(_GV_EDGE_SIZE * i + 3 * _GV_NODE_SIZE - _GV_EDGE_SIZE + 1))
+        end do
+#   endif
 
-#			if (_LFS_EDGE_SIZE == 1)
-				_GV_ACCESS(element%edges(i)%ptr)(j, 1) = _GV_ACCESS(element%edges(i)%ptr)(j, 1) + xl(j, 3 * _LFS_NODE_SIZE + i)
-#			elif (_LFS_EDGE_SIZE > 1)
-				_GV_ACCESS(element%edges(i)%ptr)(j, :) = _GV_ACCESS(element%edges(i)%ptr)(j, :) + &
-					transform_edge_data(lfs, element%edges(i)%transform_data, &
-					xl(3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE + 1 - _LFS_EDGE_SIZE : 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE))
-#			endif
-		end forall
-
-		forall (j = 1 : _GV_COUNT)
-#			if (_LFS_CELL_SIZE == 1)
-				_GV_ACCESS(element%cell)(j, 1) = _GV_ACCESS(element%cell)(j, 1) + xl(j, 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1)
-#			elif (_LFS_CELL_SIZE > 1)
-				_GV_ACCESS(element%cell)(j, :) = _GV_ACCESS(element%cell)(j, :) + &
-					transform_cell_data(lfs, element%transform_data%plotter_data, &
-					xl(j, 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1 : 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + _LFS_CELL_SIZE))
-#			endif
-		end forall
-#	else
-		_GV_type, dimension(:), intent(in)						:: xl
-
-		forall(i = 1 : 3)
-#			if (_LFS_NODE_SIZE == 1)
-				_GV_ACCESS(element%nodes(i)%ptr)(1) = _GV_ACCESS(element%nodes(i)%ptr)(1) + xl(i)
-#			elif (_LFS_NODE_SIZE > 1)
-				_GV_ACCESS(element%nodes(i)%ptr) = _GV_ACCESS(element%nodes(i)%ptr) + &
-					xl(i * _LFS_NODE_SIZE + 1 - _LFS_NODE_SIZE : i * _LFS_NODE_SIZE)
-#			endif
-
-#			if (_LFS_EDGE_SIZE == 1)
-				_GV_ACCESS(element%edges(i)%ptr)(1) = _GV_ACCESS(element%edges(i)%ptr)(1) + xl(3 * _LFS_NODE_SIZE + i)
-#			elif (_LFS_EDGE_SIZE > 1)
-				_GV_ACCESS(element%edges(i)%ptr) = _GV_ACCESS(element%edges(i)%ptr) + &
-					transform_edge_data(lfs, element%edges(i)%transform_data, &
-					xl(3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE + 1 - _LFS_EDGE_SIZE : 3 * _LFS_NODE_SIZE + i * _LFS_EDGE_SIZE))
-#			endif
-		end forall
-
-#		if (_LFS_CELL_SIZE == 1)
-			_GV_ACCESS(element%cell)(1) = _GV_ACCESS(element%cell)(1) + xl(3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1)
-#		elif (_LFS_CELL_SIZE > 1)
-			_GV_ACCESS(element%cell) = _GV_ACCESS(element%cell) + &
-				transform_cell_data(lfs, element%transform_data%plotter_data, &
-				xl(3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + 1 : 3 * (_LFS_NODE_SIZE + _LFS_EDGE_SIZE) + _LFS_CELL_SIZE))
-#		endif
-#	endif
+#   if (_GV_CELL_SIZE > 0)
+        call add_cell(_GV_ACCESS(element%cell), xl(3 * _GV_NODE_SIZE + 3 * _GV_EDGE_SIZE + 1))
+#   endif
 end subroutine
 
-#if (_LFS_EDGE_SIZE > 1)
-	!> Transforms data from edge order into element order and vice versa (order is swapped if necessary)
-	pure function transform_edge_data(gv, edge, xe) result(xl)
-		type(_GV), intent(in)								:: gv
-		type(t_edge_transform_data), intent(in)				:: edge
+!> Reads the grid variable from the grid into the array xl
+pure subroutine read_from_cell(gv, cell, xl)
+	class(_GV), intent(in)			        :: gv
+	type(t_cell_data_ptr), intent(in)       :: cell
+    _GV_TYPE, intent(inout)	                :: xl(*)
 
-		_GV_type, dimension(_LFS_EDGE_SIZE), intent(in)		:: xe
-		_GV_type, dimension(_LFS_EDGE_SIZE)					:: xl
+#   if (_GV_CELL_SIZE > 0)
+        call write_cell(xl, _GV_ACCESS(cell))
+#   endif
+end subroutine
 
-		xl = xe(: : edge%orientation)
-	end function
-#endif
+!> Writes data from the array xl into the grid variable
+pure subroutine write_to_cell(gv, cell, xl)
+	class(_GV), intent(in)		            :: gv
+	type(t_cell_data_ptr), intent(inout)    :: cell
+    _GV_TYPE, intent(in)	                :: xl(*)
 
-#if (_LFS_CELL_SIZE > 1)
-	!> Transforms data from cell order into element order and vice versa (order is swapped if necessary)
-	pure function transform_cell_data(gv, cell, xc) result(xl)
-		type(_GV), intent(in)								:: gv
-		type(t_cell_transform_data), intent(in)				:: cell
+#   if (_GV_CELL_SIZE > 0)
+        call write_cell(_GV_ACCESS(cell), xl)
+#   endif
+end subroutine
 
-		_GV_type, dimension(_LFS_CELL_SIZE), intent(in)		:: xc
-		_GV_type, dimension(_LFS_CELL_SIZE)					:: xl
+!> Adds data from the array xl to the grid variable
+pure subroutine add_to_cell(gv, cell, xl)
+	class(_GV), intent(in)			        :: gv
+	type(t_cell_data_ptr), intent(inout)    :: cell
+    _GV_TYPE, intent(in)                    :: xl(*)
 
-		xl = xc(: : cell%orientation)
-	end function
-#endif
+#   if (_GV_CELL_SIZE > 0)
+        call add_cell(_GV_ACCESS(cell), xl)
+#   endif
+end subroutine
 
+!> Reads the grid variable from the grid into the array xl
+pure subroutine read_from_edge(gv, edge, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_edge_data), intent(in)       :: edge
+    _GV_TYPE, intent(inout)	            :: xl(*)
 
-#undef _LFS
-#undef _LFS_SIZE
+#   if (_GV_EDGE_SIZE > 0)
+        call write_edge(xl, _GV_ACCESS(edge))
+#   endif
+end subroutine
+
+!> Writes data from the array xl into the grid variable
+pure subroutine write_to_edge(gv, edge, xl)
+	class(_GV), intent(in)			        :: gv
+	type(t_edge_data), intent(inout)        :: edge
+    _GV_TYPE, intent(in)	                :: xl(*)
+
+#   if (_GV_EDGE_SIZE > 0)
+        call write_edge(_GV_ACCESS(edge), xl)
+#   endif
+end subroutine
+
+!> Adds data from the array xl to the grid variable
+pure subroutine add_to_edge(gv, edge, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_edge_data), intent(inout)    :: edge
+    _GV_TYPE, intent(in)                :: xl(*)
+
+#   if (_GV_EDGE_SIZE > 0)
+        call add_edge(_GV_ACCESS(edge), xl)
+#   endif
+end subroutine
+
+!> Reads the grid variable from the grid into the array xl
+pure subroutine read_from_node(gv, node, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_node_data), intent(in)       :: node
+    _GV_TYPE, intent(inout)	            :: xl(*)
+
+#   if (_GV_NODE_SIZE > 0)
+        call write_node(xl, _GV_ACCESS(node))
+#   endif
+end subroutine
+
+!> Writes data from the array xl into the grid variable
+pure subroutine write_to_node(gv, node, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_node_data), intent(inout)    :: node
+    _GV_TYPE, intent(in)	            :: xl(*)
+
+#   if (_GV_NODE_SIZE > 0)
+        call write_node(_GV_ACCESS(node), xl)
+#   endif
+end subroutine
+
+!> Adds data from the array xl to the grid variable
+pure subroutine add_to_node(gv, node, xl)
+	class(_GV), intent(in)			    :: gv
+	type(t_node_data), intent(inout)    :: node
+    _GV_TYPE, intent(in)                :: xl(*)
+
+#   if (_GV_NODE_SIZE > 0)
+        call add_node(_GV_ACCESS(node), xl)
+#   endif
+end subroutine
+
 #undef _GV
 #undef _GV_SUBSET
-#undef _GV_type_NAME
-#undef _GV_type
+#undef _GV_TYPE_NAME
+#undef _GV_TYPE
 #undef _GV_NAME
-#undef _GV_COUNT
 #undef _GV_PERSISTENT
 

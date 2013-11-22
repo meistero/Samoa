@@ -49,7 +49,7 @@
 			type(t_grid), intent(inout)							    :: grid
 
             grid%r_dt = grid%r_rho * get_edge_size(grid%i_max_depth) / (grid%r_rel_permeability * 2.0_GRID_SR * sqrt(grid%u_max))
-			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)		
+			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
@@ -71,7 +71,7 @@
 			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: flux
 			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: volume
 
-			call gv_u%read(element, u)
+			call gv_u%read_from_element(element, u)
 			call gv_saturation%read(element, saturation)
 
 			!call volume operator

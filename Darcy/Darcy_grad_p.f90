@@ -63,7 +63,7 @@
 			!call element operator
 			call alpha_volume_op(traversal, element, p, u, element%cell%data_pers%base_permeability)
 
-			call gv_u%write(element, u)
+			call gv_u%write_to_element(element, u)
 		end subroutine
 
 		!*******************************

@@ -110,16 +110,14 @@
 	MODULE Samoa_darcy
 		use Tools_log
 
-		use Darcy_lfs_pressure_mod
-		use Darcy_lfs_velocity_mod
-		use Darcy_lfs_flow_mod
-
+        use Darcy_gm_A_mod
 		use Darcy_gv_p_mod
 		use Darcy_gv_r_mod
 		use Darcy_gv_d_mod
 		use Darcy_gv_A_d_mod
 		use Darcy_gv_r_temp_mod
 		use Darcy_gv_mat_diagonal_mod
+		use Darcy_gv_is_dirichlet_boundary_mod
 		use Darcy_gv_u_mod
 		use Darcy_gv_saturation_mod
 		use Darcy_gv_flux_mod

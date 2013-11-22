@@ -75,7 +75,7 @@
 
 			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_NODE_SIZE)		:: flux
 			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_NODE_SIZE)		:: volume
-			logical (kind = GRID_SL)									:: is_dirichlet_boundary
+			logical 									                :: is_dirichlet_boundary(1)
 		END type num_node_data_temp
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)

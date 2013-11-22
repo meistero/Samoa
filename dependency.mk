@@ -19,8 +19,8 @@ Tests/Tests_consistency_traversal.o: SFC_generic_traversal_ringbuffer.f90 SFC_no
 Tests/Tests_flops_traversal.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o
 Tests/Tests_memory_traversal.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o
 
-Darcy/Darcy.o: Darcy/Darcy_data_types.o Darcy/Darcy_initialize.o Darcy/Darcy_node_dummy.o Darcy/Darcy_output.o Darcy/Darcy_xml_output.o Darcy/Darcy_grad_p.o Darcy/Darcy_laplace_jacobi.o Darcy/Darcy_laplace_cg.o Darcy/Darcy_transport_eq.o Darcy/Darcy_permeability.o Darcy/Darcy_adapt.o Samoa/Samoa.o
-Darcy/Darcy_local_function_spaces.o: SFC_data_types.o
+Darcy/Darcy.o: Darcy/Darcy_data_types.o Solver/LinearSolver.o Darcy/Darcy_initialize.o Darcy/Darcy_node_dummy.o Darcy/Darcy_output.o Darcy/Darcy_xml_output.o Darcy/Darcy_grad_p.o Darcy/Darcy_laplace_jacobi.o Darcy/Darcy_laplace_cg.o Darcy/Darcy_transport_eq.o Darcy/Darcy_permeability.o Darcy/Darcy_adapt.o Samoa/Samoa.o
+Darcy/Darcy_local_function_spaces.o: SFC_data_types.o Tools_grid_variable.f90 Tools_local_function_space.f90
 Darcy/Darcy_basis.o: SFC_data_types.o Darcy/Darcy_local_function_spaces.o Samoa/Samoa.o
 Darcy/Darcy_adapt.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o Darcy/Darcy_local_function_spaces.o Darcy/Darcy_basis.o Samoa/Samoa.o Darcy/Darcy_initialize.o
 Darcy/Darcy_node_dummy.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o
@@ -71,3 +71,5 @@ Generic/Generic_adapt_template.o: SFC_generic_adaptive_traversal.f90 Conformity/
 
 Samoa/Samoa.o: SFC_data_types.o Samoa/Tools_quadrature_rule_base.o
 Samoa/Tools_quadrature_rule_base.o: SFC_data_types.o
+
+Solver/LinearSolver.o: SFC_edge_traversal.o

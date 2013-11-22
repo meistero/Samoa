@@ -259,7 +259,7 @@
 
 			call gv_p%read(element, p)
 			call gv_r%read(element, r_point_data_indices)
-			call gv_u%read(element, u)
+			call gv_u%read_from_element(element, u)
 			call gv_saturation%read(element, saturation)
 
 			point_data_indices = r_point_data_indices

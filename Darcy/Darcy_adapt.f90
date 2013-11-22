@@ -38,6 +38,7 @@
 
 #		define _GT_NODE_FIRST_TOUCH_OP				node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP				node_last_touch_op
+#		define _GT_INNER_NODE_LAST_TOUCH_OP			inner_node_last_touch_op
 
 #		define _GT_NODE_MERGE_OP				    node_merge_op
 
@@ -119,8 +120,8 @@
 		end subroutine
 
 		subroutine coarsen_op(traversal, grid, src_element, dest_element, refinement_path)
-  			type(t_darcy_adaption_traversal), intent(inout)							:: traversal
-			type(t_grid_section), intent(inout)													:: grid
+  			type(t_darcy_adaption_traversal), intent(inout)							    :: traversal
+			type(t_grid_section), intent(inout)										    :: grid
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
 			integer, dimension(:), intent(in)											:: refinement_path
@@ -184,14 +185,27 @@
 
 		!last touch ops
 
-		elemental subroutine node_last_touch_op(traversal, grid, node)
- 			type(t_darcy_adaption_traversal), intent(in)							:: traversal
- 			type(t_grid_section), intent(in)							:: grid
+		elemental subroutine node_last_touch_op(traversal, section, node)
+ 			type(t_darcy_adaption_traversal), intent(in)	    :: traversal
+ 			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)					:: node
+
+			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
+				node%data_temp%is_dirichlet_boundary = .false.
+			else
+				node%data_temp%is_dirichlet_boundary = .true.
+			end if
+
+			call inner_node_last_touch_op(traversal, section, node)
+		end subroutine
+
+		elemental subroutine inner_node_last_touch_op(traversal, section, node)
+ 			type(t_darcy_adaption_traversal), intent(in)    :: traversal
+ 			type(t_grid_section), intent(in)			    :: section
+			type(t_node_data), intent(inout)			    :: node
 
 			call post_dof_op(node%data_pers%saturation, node%data_temp%volume)
 		end subroutine
-
 		!*******************************
 		!Volume and DoF operators
 		!*******************************

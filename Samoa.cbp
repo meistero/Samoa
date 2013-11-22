@@ -334,6 +334,8 @@
 		<Unit filename="Samoa/dunavant.f90">
 			<Option weight="0" />
 		</Unit>
+		<Unit filename="Solver/CG.f90" />
+		<Unit filename="Solver/Jacobi.f90" />
 		<Unit filename="Tests/Tests.f90">
 			<Option weight="7" />
 		</Unit>
@@ -368,10 +370,22 @@
 			<Option link="0" />
 			<Option weight="2" />
 		</Unit>
+		<Unit filename="Tools_grid_matrix.f90">
+			<Option compile="0" />
+			<Option link="0" />
+		</Unit>
+		<Unit filename="Tools_grid_scalar.f90">
+			<Option compile="0" />
+			<Option link="0" />
+		</Unit>
 		<Unit filename="Tools_grid_variable.f90">
 			<Option compile="0" />
 			<Option link="0" />
 			<Option weight="0" />
+		</Unit>
+		<Unit filename="Tools_grid_vector.f90">
+			<Option compile="0" />
+			<Option link="0" />
 		</Unit>
 		<Unit filename="Tools_list.f90">
 			<Option compile="0" />

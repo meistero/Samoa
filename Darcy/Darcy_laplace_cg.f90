@@ -109,7 +109,7 @@
 
 			integer (kind = 1)					:: i
 
-			if (.not. node%data_temp%is_dirichlet_boundary) then
+			if (.not. any(node%data_temp%is_dirichlet_boundary)) then
 				do i = 1, _DARCY_P_NODE_SIZE
 					call reduce_dof_op(traversal%d_A_d, node%data_pers%d(i), node%data_pers%A_d(i))
 				end do
@@ -275,7 +275,7 @@
 
 			integer (kind = GRID_SI)					:: i, j
 
-			if (.not. node%data_temp%is_dirichlet_boundary) then
+			if (.not. any(node%data_temp%is_dirichlet_boundary)) then
                 call post_dof_op(traversal%alpha, node%data_pers%p, node%data_pers%r, node%data_pers%d, node%data_pers%A_d, node%data_temp%mat_diagonal)
 			end if
 		end subroutine
@@ -295,7 +295,7 @@
 
 			integer											:: i
 
-			if (.not. node%data_temp%is_dirichlet_boundary) then
+			if (.not. any(node%data_temp%is_dirichlet_boundary)) then
 				do i = 1, _DARCY_P_NODE_SIZE
 					call reduce_dof_op(traversal%r_C_r, traversal%r_sq, node%data_pers%r(i), node%data_temp%mat_diagonal(i))
 				end do
@@ -400,6 +400,7 @@
 #		endif
 
 #		define _GT_NODES
+#		define _GT_NO_COORDS
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
@@ -477,12 +478,9 @@
 
 			integer											:: i
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
-				node%data_temp%is_dirichlet_boundary = .false.
-
+			if (.not. any(node%data_temp%is_dirichlet_boundary)) then
                 call post_dof_op(traversal%alpha, node%data_pers%p, node%data_pers%r, node%data_pers%d, node%data_pers%A_d, node%data_temp%mat_diagonal)
 			else
-				node%data_temp%is_dirichlet_boundary = .true.
 				node%data_pers%r = 0.0_GRID_SR
 			end if
 		end subroutine
@@ -502,7 +500,7 @@
 
 			integer											:: i
 
-			if (.not. node%data_temp%is_dirichlet_boundary) then
+			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
 				do i = 1, _DARCY_P_NODE_SIZE
 					call reduce_dof_op(traversal%r_C_r, traversal%r_sq, node%data_pers%r(i), node%data_temp%mat_diagonal(i))
 				end do
@@ -586,6 +584,7 @@
 	END MODULE
 
 	MODULE Darcy_laplace_cg
+		use linear_solver
 		use SFC_edge_traversal
 
 		use Darcy_laplace_cg1
@@ -594,10 +593,10 @@
 
         implicit none
 
-        type t_darcy_cg_solver
-            type(t_cg1_traversal)             :: cg1
-            type(t_cg2_traversal)             :: cg2
-            type(t_cg2_exact_traversal)       :: cg2_exact
+        type, extends(t_linear_solver) :: t_darcy_cg_solver
+            type(t_cg1_traversal)           :: cg1
+            type(t_cg2_traversal)           :: cg2
+            type(t_cg2_exact_traversal)     :: cg2_exact
 
             contains
 
@@ -680,6 +679,7 @@
 
             !$omp master
 			_log_write(2, '(2X, A, T24, I0)') "CG iterations:", i_iteration
+            solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg2_exact%stats
             !$omp end master
 		end function
 	END MODULE
