@@ -336,6 +336,7 @@
 		</Unit>
 		<Unit filename="Solver/CG.f90" />
 		<Unit filename="Solver/Jacobi.f90" />
+		<Unit filename="Solver/LinearSolver.f90" />
 		<Unit filename="Tests/Tests.f90">
 			<Option weight="7" />
 		</Unit>

@@ -617,7 +617,7 @@
 			real (kind = GRID_SR)										:: r_sq, d_A_d, r_C_r, r_C_r_old, alpha, beta
 
             !$omp master
-			_log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", grid%r_epsilon
+			_log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", grid%r_epsilon * grid%r_p0
             !$omp end master
 
 			!set step sizes to 0

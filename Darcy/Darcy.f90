@@ -8,7 +8,7 @@
 
 #if defined(_DARCY)
 
-#   define _CG                  darcy_pressure_solver
+#   define _CG                  darcy_pressure_solver_cg
 #   define _CG_mod_types        Samoa_darcy
 
 #   define _GV_NODE_SIZE        _DARCY_P_NODE_SIZE
@@ -41,7 +41,7 @@
 		use Darcy_adapt
 
 		use linear_solver
-        use Darcy_pressure_solver
+        use Darcy_pressure_solver_cg
 
 		use Samoa_darcy
 
@@ -87,9 +87,9 @@
 			real (kind = GRID_SR)										:: r_m
 			real (kind = GRID_SR), target					            :: default_offset(2)
 			integer                                                     :: i_error
-            type(t_darcy_pressure_solver)   :: pressure_solver
-            type(t_darcy_cg_solver)         :: cg_solver
-            type(t_darcy_jacobi_solver)     :: jacobi_solver
+            type(t_darcy_pressure_solver_cg)    :: pressure_solver_cg
+            type(t_darcy_cg_solver)             :: cg_solver
+            type(t_darcy_jacobi_solver)         :: jacobi_solver
 
             !allocate solver
 			grid%r_time = 0.0_GRID_SR
@@ -98,8 +98,8 @@
 			grid%r_rho = 0.2_GRID_SR
 			grid%r_rel_permeability = 1.5_GRID_SR
 
-            pressure_solver = t_darcy_pressure_solver(grid%r_epsilon * grid%r_p0)
-            allocate(darcy%pressure_solver, source=cg_solver, stat=i_error); assert_eq(i_error, 0)
+            pressure_solver_cg = t_darcy_pressure_solver_cg(grid%r_epsilon * grid%r_p0)
+            allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
 
 			!open log file
 			call date_and_time(s_date, s_time)

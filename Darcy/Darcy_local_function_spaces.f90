@@ -31,7 +31,7 @@
             real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
             [[ 1.0d0/2.0d0, -1.0d0/2.0d0, 0], [-1.0d0/2.0d0, 1, -1.0d0/2.0d0], [0, -1.0d0/2.0d0, 1.0d0/2.0d0]]
 
-            mat = -element%cell%data_pers%permeability * mat_const
+            mat = element%cell%data_pers%permeability * mat_const
         end subroutine
 	END MODULE
 

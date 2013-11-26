@@ -93,6 +93,26 @@ MODULE _CG_(1)
     !Geometry operators
     !*******************************
 
+    !first touches
+
+    elemental subroutine node_first_touch_op(traversal, section, node)
+        type(_T_CG_(1_traversal)), intent(in)							:: traversal
+        type(t_grid_section), intent(in)						:: section
+        type(t_node_data), intent(inout)				:: node
+
+        real(kind = GRID_SR)                        :: r(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: d(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: A_d(_GV_NODE_SIZE)
+
+        call gv_d%read(node, d)
+        call gv_r%read(node, r)
+
+        call pre_dof_op(traversal%beta, r, d, A_d)
+
+        call gv_d%write(node, d)
+        call gv_A_d%write(node, A_d)
+    end subroutine
+
     !element
 
     pure subroutine element_op(traversal, section, element)
@@ -110,26 +130,6 @@ MODULE _CG_(1)
         A_d = matmul(A, d)
 
         call gv_A_d%add(element, A_d)
-    end subroutine
-
-    !first touches
-
-    elemental subroutine node_first_touch_op(traversal, section, node)
-        type(_T_CG_(1_traversal)), intent(in)							:: traversal
-        type(t_grid_section), intent(in)						:: section
-        type(t_node_data), intent(inout)				:: node
-
-        real(kind = GRID_SR)                        :: r(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: d(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: A_d(_GV_NODE_SIZE)
-
-        call gv_trace_A%read(node, d)
-        call gv_trace_A%read(node, r)
-
-        call pre_dof_op(traversal%beta, r, d, A_d)
-
-        call gv_trace_A%write(node, d)
-        call gv_trace_A%write(node, A_d)
     end subroutine
 
     !last touches
@@ -294,6 +294,18 @@ MODULE _CG_(2)
     !Geometry operators
     !*******************************
 
+    elemental subroutine node_first_touch_op(traversal, section, node)
+        type(_T_CG_(2_traversal)), intent(in)							:: traversal
+        type(t_grid_section), intent(in)							:: section
+        type(t_node_data), intent(inout)			:: node
+
+        real(kind = GRID_SR)                        :: trace_A(_GV_NODE_SIZE)
+
+        call pre_dof_op(trace_A)
+
+        call gv_trace_A%write(node, trace_A)
+    end subroutine
+
     pure subroutine element_op(traversal, section, element)
         type(_T_CG_(2_traversal)), intent(in)							:: traversal
         type(t_grid_section), intent(in)							:: section
@@ -314,18 +326,6 @@ MODULE _CG_(2)
         end forall
 
         call gv_trace_A%add(element, trace_A)
-    end subroutine
-
-    elemental subroutine node_first_touch_op(traversal, section, node)
-        type(_T_CG_(2_traversal)), intent(in)							:: traversal
-        type(t_grid_section), intent(in)							:: section
-        type(t_node_data), intent(inout)			:: node
-
-        real(kind = GRID_SR)                        :: trace_A(_GV_NODE_SIZE)
-
-        call pre_dof_op(trace_A)
-
-        call gv_trace_A%write(node, trace_A)
     end subroutine
 
     elemental subroutine node_last_touch_op(traversal, section, node)
@@ -349,7 +349,7 @@ MODULE _CG_(2)
 
         real(kind = GRID_SR)    :: x(_GV_NODE_SIZE), r(_GV_NODE_SIZE), d(_GV_NODE_SIZE), A_d(_GV_NODE_SIZE), trace_A(_GV_NODE_SIZE)
 
-        call gv_x%read(node, d)
+        call gv_d%read(node, d)
         call gv_A_d%read(node, A_d)
         call gv_trace_A%read(node, trace_A)
 
@@ -522,30 +522,6 @@ MODULE _CG_(2_exact)
     !Geometry operators
     !*******************************
 
-    subroutine element_op(traversal, section, element)
-        type(_T_CG_(2_exact_traversal)), intent(inout)		:: traversal
-        type(t_grid_section), intent(inout)				:: section
-        type(t_element_base), intent(inout), target		:: element
-
-        !local variables
-        integer :: i
-        real(kind = GRID_SR)	:: x(_GV_SIZE), r(_GV_SIZE), trace_A(_GV_SIZE)
-        real(kind = GRID_SR)	:: A(_GV_SIZE, _GV_SIZE)
-
-        call gv_x%read(element, x)
-        call gm_A%read(element, A)
-
-        !add up matrix diagonal
-        forall (i = 1 : _GV_SIZE)
-            trace_A(i) = A(i, i)
-        end forall
-
-        r = matmul(A, x)
-
-        call gv_r%add(element, r)
-        call gv_trace_A%add(element, trace_A)
-    end subroutine
-
     elemental subroutine node_first_touch_op(traversal, section, node)
         type(_T_CG_(2_exact_traversal)), intent(in)	    :: traversal
         type(t_grid_section), intent(in)		    :: section
@@ -565,6 +541,30 @@ MODULE _CG_(2_exact)
 
         call gv_r%write(node, r)
         call gv_trace_A%write(node, trace_A)
+    end subroutine
+
+    subroutine element_op(traversal, section, element)
+        type(_T_CG_(2_exact_traversal)), intent(inout)		:: traversal
+        type(t_grid_section), intent(inout)				:: section
+        type(t_element_base), intent(inout), target		:: element
+
+        !local variables
+        integer :: i
+        real(kind = GRID_SR)	:: x(_GV_SIZE), r(_GV_SIZE), trace_A(_GV_SIZE)
+        real(kind = GRID_SR)	:: A(_GV_SIZE, _GV_SIZE)
+
+        call gv_x%read(element, x)
+        call gm_A%read(element, A)
+
+        !add up matrix diagonal
+        forall (i = 1 : _GV_SIZE)
+            trace_A(i) = A(i, i)
+        end forall
+
+        r = -matmul(A, x)
+
+        call gv_r%add(element, r)
+        call gv_trace_A%add(element, trace_A)
     end subroutine
 
     elemental subroutine node_last_touch_op(traversal, section, node)
@@ -734,7 +734,7 @@ MODULE _CG
         real (kind = GRID_SR)										:: r_sq, d_A_d, r_C_r, r_C_r_old, alpha, beta
 
         !$omp master
-        _log_write(1, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
+        _log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
         !$omp end master
 
         !set step sizes to 0
@@ -747,11 +747,11 @@ MODULE _CG
         call solver%cg2_exact%traverse(grid)
         r_sq = solver%cg2_exact%r_sq
         r_C_r = solver%cg2_exact%r_C_r
-        _log_write(1, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
+        _log_write(5, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
         do i_iteration = 0, huge(1_GRID_SI)
             !$omp master
-            _log_write(1, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
+            _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
             !$omp end master
 
             if (sqrt(r_sq) < solver%max_error) then
@@ -762,7 +762,7 @@ MODULE _CG
             solver%cg1%beta = beta
             call solver%cg1%traverse(grid)
             d_A_d = solver%cg1%d_A_d
-            _log_write(1, '(4X, A, ES17.10)') "d A d: ", d_A_d
+            _log_write(5, '(4X, A, ES17.10)') "d A d: ", d_A_d
 
             !compute step size alpha = r^T C r / d^T A d
             alpha = r_C_r / d_A_d
@@ -788,7 +788,7 @@ MODULE _CG
                 r_C_r = solver%cg2%r_C_r
             end if
 
-            _log_write(1, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
+            _log_write(5, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
             !compute beta = r^T C r (new) / r^T C r (old)
             beta = r_C_r / r_C_r_old
