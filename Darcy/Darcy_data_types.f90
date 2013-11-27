@@ -116,8 +116,6 @@
 			real (kind = GRID_SR)						:: r_dt						!< time step
 			real (kind = GRID_SR)						:: u_max			        !< maximum velocity
 
-            real (kind = GRID_SR)               		:: stiffness_matrix(_DARCY_P_SIZE, _DARCY_P_SIZE)		!< element matrix
-
  			integer					 					:: afh_permeability			!< asagi file handle to permeability data
 		END type
 	END MODULE Darcy_data_types

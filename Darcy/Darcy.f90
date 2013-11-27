@@ -5,27 +5,7 @@
 
 #include "Compilation_control.f90"
 
-
 #if defined(_DARCY)
-
-#   define _CG                  darcy_pressure_solver_cg
-#   define _CG_mod_types        Samoa_darcy
-
-#   define _GV_NODE_SIZE        _DARCY_P_NODE_SIZE
-#   define _GV_EDGE_SIZE        _DARCY_P_EDGE_SIZE
-#   define _GV_CELL_SIZE        _DARCY_P_CELL_SIZE
-
-#   define _gm_A                darcy_gm_A
-#   define _gv_x                darcy_gv_p
-
-#   define _gv_r                darcy_gv_r
-#   define _gv_d                darcy_gv_d
-#   define _gv_A_d              darcy_gv_A_d
-#   define _gv_trace_A          darcy_gv_mat_diagonal
-#   define _gv_dirichlet        darcy_gv_is_dirichlet_boundary
-
-#   include "../Solver/CG.f90"
-
 	MODULE Darcy
 		use Darcy_data_types
 		use Darcy_initialize_pressure
@@ -34,14 +14,13 @@
 		use Darcy_vtk_output
 		use Darcy_xml_output
 		use Darcy_grad_p
-		use Darcy_laplace_jacobi
-		use Darcy_laplace_cg
+		use Darcy_pressure_solver_cg
+		use Darcy_pressure_solver_jacobi
 		use Darcy_transport_eq
 		use Darcy_permeability
 		use Darcy_adapt
 
 		use linear_solver
-        use Darcy_pressure_solver_cg
 
 		use Samoa_darcy
 
@@ -57,8 +36,6 @@
             type(t_darcy_transport_eq_traversal)            :: transport_eq
             type(t_darcy_permeability_traversal)            :: permeability
             type(t_darcy_adaption_traversal)                :: adaption
-            !type(t_darcy_jacobi_solver)                    :: pressure_solver
-            !type(t_darcy_cg_solver)                        :: pressure_solver
             class(t_linear_solver), allocatable             :: pressure_solver
 
             contains
@@ -71,7 +48,6 @@
 		private
 		public t_darcy
 
-
 		contains
 
 		!> Creates all required runtime objects for the scenario
@@ -82,14 +58,10 @@
 			integer, intent(in)											:: i_asagi_mode
 
 			!local variables
-			type (t_transform_data)										:: dummy_transform_data
-			character (len = 64)										:: s_format_string, s_log_name, s_date, s_time
-			real (kind = GRID_SR)										:: r_m
-			real (kind = GRID_SR), target					            :: default_offset(2)
+			character (len = 64)										:: s_log_name, s_date, s_time
 			integer                                                     :: i_error
-            type(t_darcy_pressure_solver_cg)    :: pressure_solver_cg
-            type(t_darcy_cg_solver)             :: cg_solver
-            type(t_darcy_jacobi_solver)         :: jacobi_solver
+            type(t_darcy_pressure_solver_cg)                            :: pressure_solver_cg
+            type(t_darcy_pressure_solver_jacobi)                        :: pressure_solver_jacobi
 
             !allocate solver
 			grid%r_time = 0.0_GRID_SR
@@ -99,6 +71,8 @@
 			grid%r_rel_permeability = 1.5_GRID_SR
 
             pressure_solver_cg = t_darcy_pressure_solver_cg(grid%r_epsilon * grid%r_p0)
+            pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(grid%r_epsilon * grid%r_p0)
+
             allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
 
 			!open log file
@@ -110,43 +84,6 @@
 			if (l_log) then
 				_log_open_file(s_log_name)
 			endif
-
-			!create a dunavant quadrature rule for the stiffness matrix (integral over product of 2 derivatives of the basis functions)
-			call t_qr_create_dunavant_rule(qr_p, max(1, 2 * _DARCY_P_ORDER - 2))
-
-			!create a custom quadrature rule for the cell boundary
-			qr_u_boundary%i_qpts = 3
-			allocate(qr_u_boundary%r_qpt_coords(2, 3), stat = i_error); assert_eq(i_error, 0)
-			allocate(qr_u_boundary%r_qpt_weights(3), stat = i_error); assert_eq(i_error, 0)
-			allocate(qr_u_boundary%r_qpt_normals(2, 3), stat = i_error); assert_eq(i_error, 0)
-
-			qr_u_boundary%r_qpt_coords(:, 1) = [ 0.0_GRID_SR, 0.5_GRID_SR ]
-			qr_u_boundary%r_qpt_coords(:, 2) = [ 0.5_GRID_SR, 0.5_GRID_SR ]
-			qr_u_boundary%r_qpt_coords(:, 3) = [ 0.5_GRID_SR, 0.0_GRID_SR ]
-
-			qr_u_boundary%r_qpt_normals(:, 1) = [ -1.0_GRID_SR, 0.0_GRID_SR ]
-			qr_u_boundary%r_qpt_normals(:, 2) = [ sqrt(0.5_GRID_SR), sqrt(0.5_GRID_SR) ]
-			qr_u_boundary%r_qpt_normals(:, 3) = [ 0.0_GRID_SR, -1.0_GRID_SR ]
-
-			qr_u_boundary%r_qpt_weights(1) = 1.0_GRID_SR
-			qr_u_boundary%r_qpt_weights(2) = sqrt(2.0_GRID_SR)
-			qr_u_boundary%r_qpt_weights(3) = 1.0_GRID_SR
-
-			call t_qr_create(qr_u_boundary)
-
-			write (s_format_string, fmt = '(A, I0, A)') "(", _DARCY_P_SIZE, " (F8.5, 2X))"
-
-			!compute stiffness matrices
-			default_offset = [ 0.0_GRID_SR, 0.0_GRID_SR ]
-			dummy_transform_data%plotter_data => ref_plotter_data(1)
-			dummy_transform_data%custom_data%offset => default_offset
-			dummy_transform_data%custom_data%scaling = 1.0_GRID_SR
-
-			call samoa_calc_element_matrix(dummy_transform_data, qr_p%t_qr_base, darcy_stiffness_matrix_op, grid%stiffness_matrix)
-
-			_log_write(2, *) "Stiffness matrix: "
-			_log_write(2, s_format_string) grid%stiffness_matrix
-			_log_write(2, *) "---"
 
 			call load_permeability_data(grid, i_asagi_mode)
 		end subroutine
@@ -189,9 +126,6 @@
  			type(t_grid), intent(inout)							:: grid
 			logical (kind = GRID_SL)		:: l_log
 			integer (kind = 1)				:: i
-
-			call t_qr_destroy(qr_p)
-			call t_qr_destroy(qr_u_boundary)
 
 			if (l_log) then
 				_log_close_file()
@@ -385,24 +319,6 @@
             end if
             !$omp end master
 		end subroutine
-
-		!*********************************
-		! FEM Matrix operands
-		!*********************************
-
-		pure function darcy_stiffness_matrix_op(td, qr, i, j, i_qpt) result(op)
-			type(t_transform_data), intent(in)				:: td
-			type(t_qr_base), intent(in)						:: qr
-			integer (kind = GRID_SI), intent(in)			:: i, j
-			integer (kind = GRID_SI), intent(in)			:: i_qpt
-			real (kind = GRID_SR)							:: op
-
-			!stiffness matrix operator dot(grad psi_i, grad psi_j)
-			op = abs(td%plotter_data%det_jacobian) * DOT_PRODUCT( &
-				samoa_barycentric_to_world_normal(td, t_qr_base_d_psi_d_lambda(qr, i, i_qpt)), &
-				samoa_barycentric_to_world_normal(td, t_qr_base_d_psi_d_lambda(qr, j, i_qpt)) &
-			)
-		end function
 	END MODULE Darcy
 #endif
 

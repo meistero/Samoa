@@ -83,17 +83,6 @@
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
-	MODULE Darcy_gv_r_temp_mod
-		use SFC_data_types
-
-#		define _GV_TYPE_NAME		darcy_gv_r_temp
-#		define _GV_TYPE				real (kind = GRID_SR)
-#		define _GV_NAME				r
-#		define _GV_PERSISTENT		.false.
-
-#		include "Tools_grid_variable.f90"
-	END MODULE
-
 	MODULE Darcy_gv_mat_diagonal_mod
 		use SFC_data_types
 

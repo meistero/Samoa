@@ -2,19 +2,22 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#define _CG							            _solver
+#define _CG_USE								    _solver_use
+
 #define _CONC2(X, Y)							X ## _ ## Y
 #define _PREFIX(P, X)							_CONC2(P, X)
 #define _T_CG								    _PREFIX(t, _CG)
 #define _CG_(X)									_PREFIX(_CG, X)
 #define _T_CG_(X)								_PREFIX(t, _CG_(X))
 
-#define _GV_SIZE								(3 * _GV_NODE_SIZE + 3 * _GV_EDGE_SIZE + _GV_CELL_SIZE)
+#define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
 
 #include "Compilation_control.f90"
 
 MODULE _CG_(1)
     use SFC_edge_traversal
-    use _CG_mod_types
+    use _CG_USE
 
     implicit none
 
@@ -45,11 +48,11 @@ MODULE _CG_(1)
 
 #		define _GT_NAME							_T_CG_(1_traversal)
 
-#		if (_GV_EDGE_SIZE > 0)
+#		if (_gv_edge_size > 0)
 #			define _GT_EDGES
 #		endif
 
-#		if (_GV_NODE_SIZE > 0)
+#		if (_gv_node_size > 0)
 #		    define _GT_NODES
 #		endif
 
@@ -100,9 +103,9 @@ MODULE _CG_(1)
         type(t_grid_section), intent(in)						:: section
         type(t_node_data), intent(inout)				:: node
 
-        real(kind = GRID_SR)                        :: r(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: d(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: A_d(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: r(_gv_node_size)
+        real(kind = GRID_SR)                        :: d(_gv_node_size)
+        real(kind = GRID_SR)                        :: A_d(_gv_node_size)
 
         call gv_d%read(node, d)
         call gv_r%read(node, r)
@@ -120,9 +123,9 @@ MODULE _CG_(1)
         type(t_grid_section), intent(inout)					:: section
         type(t_element_base), intent(inout), target			:: element
 
-        real(kind = GRID_SR)		:: d(_GV_SIZE)
-        real(kind = GRID_SR)		:: A_d(_GV_SIZE)
-        real(kind = GRID_SR)		:: A(_GV_SIZE, _GV_SIZE)
+        real(kind = GRID_SR)		:: d(_gv_size)
+        real(kind = GRID_SR)		:: A_d(_gv_size)
+        real(kind = GRID_SR)		:: A(_gv_size, _gv_size)
 
         call gv_d%read(element, d)
         call gm_A%read(element, A)
@@ -154,13 +157,13 @@ MODULE _CG_(1)
         type(t_node_data), intent(in)				    :: node
 
         integer (kind = 1)					            :: i
-        real(kind = GRID_SR)                            :: d(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                            :: A_d(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                            :: d(_gv_node_size)
+        real(kind = GRID_SR)                            :: A_d(_gv_node_size)
 
         call gv_d%read(node, d)
         call gv_A_d%read(node, A_d)
 
-        do i = 1, _GV_NODE_SIZE
+        do i = 1, _gv_node_size
             call reduce_dof_op(traversal%d_A_d, d(i), A_d(i))
         end do
     end subroutine
@@ -169,7 +172,7 @@ MODULE _CG_(1)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
-        real(kind = GRID_SR)                        :: A_d(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: A_d(_gv_node_size)
 
         call gv_A_d%read(neighbor_node, A_d)
         call gv_A_d%add(local_node, A_d)
@@ -190,9 +193,9 @@ MODULE _CG_(1)
     end subroutine
 
     pure subroutine alpha_volume_op(A, d, A_d, permeability)
-        real (kind = GRID_SR), intent(in) 	:: A(_GV_SIZE, _GV_SIZE)
-        real (kind = GRID_SR), intent(in)	:: d(_GV_SIZE)
-        real (kind = GRID_SR), intent(out)	:: A_d(_GV_SIZE)
+        real (kind = GRID_SR), intent(in) 	:: A(_gv_size, _gv_size)
+        real (kind = GRID_SR), intent(in)	:: d(_gv_size)
+        real (kind = GRID_SR), intent(out)	:: A_d(_gv_size)
         real (kind = GRID_SR), intent(in)	:: permeability
 
         A_d = matmul(A, d)
@@ -209,7 +212,7 @@ END MODULE
 
 MODULE _CG_(2)
     use SFC_edge_traversal
-    use _CG_mod_types
+    use _CG_USE
 
     implicit none
 
@@ -241,11 +244,11 @@ MODULE _CG_(2)
 
 #		define _GT_NAME							_T_CG_(2_traversal)
 
-#		if (_GV_EDGE_SIZE > 0)
+#		if (_gv_edge_size > 0)
 #			define _GT_EDGES
 #		endif
 
-#		if (_GV_NODE_SIZE > 0)
+#		if (_gv_node_size > 0)
 #		    define _GT_NODES
 #		endif
 
@@ -299,7 +302,7 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)							:: section
         type(t_node_data), intent(inout)			:: node
 
-        real(kind = GRID_SR)                        :: trace_A(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
         call pre_dof_op(trace_A)
 
@@ -314,14 +317,14 @@ MODULE _CG_(2)
         !local variables
 
         integer :: i
-        real(kind = GRID_SR)	:: trace_A(_GV_SIZE)
-        real(kind = GRID_SR)	:: A(_GV_SIZE, _GV_SIZE)
+        real(kind = GRID_SR)	:: trace_A(_gv_size)
+        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
         !call element operator
         call gm_A%read(element, A)
 
         !add up matrix diagonal
-        forall (i = 1 : _GV_SIZE)
+        forall (i = 1 : _gv_size)
             trace_A(i) = A(i, i)
         end forall
 
@@ -347,7 +350,7 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)							:: section
         type(t_node_data), intent(inout)			                :: node
 
-        real(kind = GRID_SR)    :: x(_GV_NODE_SIZE), r(_GV_NODE_SIZE), d(_GV_NODE_SIZE), A_d(_GV_NODE_SIZE), trace_A(_GV_NODE_SIZE)
+        real(kind = GRID_SR)    :: x(_gv_node_size), r(_gv_node_size), d(_gv_node_size), A_d(_gv_node_size), trace_A(_gv_node_size)
 
         call gv_d%read(node, d)
         call gv_A_d%read(node, A_d)
@@ -379,12 +382,12 @@ MODULE _CG_(2)
         type(t_node_data), intent(in)				    :: node
 
         integer											:: i
-        real(kind = GRID_SR)                            :: r(_GV_NODE_SIZE), trace_A(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                            :: r(_gv_node_size), trace_A(_gv_node_size)
 
         call gv_r%read(node, r)
         call gv_trace_A%read(node, trace_A)
 
-        do i = 1, _GV_NODE_SIZE
+        do i = 1, _gv_node_size
             call reduce_dof_op(traversal%r_C_r, traversal%r_sq, r(i), trace_A(i))
         end do
     end subroutine
@@ -393,7 +396,7 @@ MODULE _CG_(2)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
-        real(kind = GRID_SR)    :: trace_A(_GV_NODE_SIZE)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
 
         call gv_trace_A%read(neighbor_node, trace_A)
         call gv_trace_A%add(local_node, trace_A)
@@ -436,7 +439,7 @@ END MODULE
 
 MODULE _CG_(2_exact)
     use SFC_edge_traversal
-    use _CG_mod_types
+    use _CG_USE
 
     implicit none
 
@@ -468,11 +471,11 @@ MODULE _CG_(2_exact)
 
 #		define _GT_NAME							_T_CG_(2_exact_traversal)
 
-#		if (_GV_EDGE_SIZE > 0)
+#		if (_gv_edge_size > 0)
 #			define _GT_EDGES
 #		endif
 
-#		if (_GV_NODE_SIZE > 0)
+#		if (_gv_node_size > 0)
 #		    define _GT_NODES
 #		endif
 
@@ -527,9 +530,9 @@ MODULE _CG_(2_exact)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(inout)		    :: node
 
-        real(kind = GRID_SR)                        :: r(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: rhs(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: trace_A(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: r(_gv_node_size)
+        real(kind = GRID_SR)                        :: rhs(_gv_node_size)
+        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
 #       if defined(_gv_rhs)
             call gv_rhs%read(node, rhs)
@@ -550,14 +553,14 @@ MODULE _CG_(2_exact)
 
         !local variables
         integer :: i
-        real(kind = GRID_SR)	:: x(_GV_SIZE), r(_GV_SIZE), trace_A(_GV_SIZE)
-        real(kind = GRID_SR)	:: A(_GV_SIZE, _GV_SIZE)
+        real(kind = GRID_SR)	:: x(_gv_size), r(_gv_size), trace_A(_gv_size)
+        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
         call gv_x%read(element, x)
         call gm_A%read(element, A)
 
         !add up matrix diagonal
-        forall (i = 1 : _GV_SIZE)
+        forall (i = 1 : _gv_size)
             trace_A(i) = A(i, i)
         end forall
 
@@ -579,7 +582,7 @@ MODULE _CG_(2_exact)
         if (.not. any(is_dirichlet)) then
             call inner_node_last_touch_op(traversal, section, node)
         else
-            call gv_r%write(node, spread(0.0_GRID_SR, 1, _GV_NODE_SIZE))
+            call gv_r%write(node, spread(0.0_GRID_SR, 1, _gv_node_size))
         end if
     end subroutine
 
@@ -588,11 +591,11 @@ MODULE _CG_(2_exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        real(kind = GRID_SR)                        :: x(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: r(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: d(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: A_d(_GV_NODE_SIZE)
-        real(kind = GRID_SR)                        :: trace_A(_GV_NODE_SIZE)
+        real(kind = GRID_SR)                        :: x(_gv_node_size)
+        real(kind = GRID_SR)                        :: r(_gv_node_size)
+        real(kind = GRID_SR)                        :: d(_gv_node_size)
+        real(kind = GRID_SR)                        :: A_d(_gv_node_size)
+        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
         call gv_r%read(node, r)
         call gv_d%read(node, d)
@@ -626,13 +629,13 @@ MODULE _CG_(2_exact)
 
         integer											:: i
 
-        real (kind = GRID_SR) :: r(_GV_NODE_SIZE)
-        real (kind = GRID_SR) :: trace_A(_GV_NODE_SIZE)
+        real (kind = GRID_SR) :: r(_gv_node_size)
+        real (kind = GRID_SR) :: trace_A(_gv_node_size)
 
         call gv_r%read(node, r)
         call gv_trace_A%read(node, trace_A)
 
-        do i = 1, _GV_NODE_SIZE
+        do i = 1, _gv_node_size
             call reduce_dof_op(traversal%r_C_r, traversal%r_sq, r(i), trace_A(i))
         end do
     end subroutine
@@ -641,8 +644,8 @@ MODULE _CG_(2_exact)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
-        real (kind = GRID_SR) :: r(_GV_NODE_SIZE)
-        real (kind = GRID_SR) :: trace_A(_GV_NODE_SIZE)
+        real (kind = GRID_SR) :: r(_gv_node_size)
+        real (kind = GRID_SR) :: trace_A(_gv_node_size)
 
         call gv_r%read(neighbor_node, r)
         call gv_trace_A%read(neighbor_node, trace_A)
@@ -800,3 +803,6 @@ MODULE _CG
         !$omp end master
     end function
 END MODULE
+
+#undef _solver
+#undef _solver_use

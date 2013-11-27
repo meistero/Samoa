@@ -2,45 +2,70 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#define _JACOBI								    _solver
+#define _JACOBI_USE								_solver_use
+
+#define _CONC2(X, Y)							X ## _ ## Y
+#define _PREFIX(P, X)							_CONC2(P, X)
+#define _T_JACOBI								_PREFIX(t, _JACOBI)
+#define _JACOBI_(X)								_PREFIX(_JACOBI, X)
+#define _T_JACOBI_(X)							_PREFIX(t, _JACOBI_(X))
+
+#define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
 
 #include "Compilation_control.f90"
 
-#if defined(_DARCY)
-	MODULE Darcy_laplace_jacobi
-		use SFC_edge_traversal
+MODULE _JACOBI_(1)
+    use SFC_edge_traversal
+    use _JACOBI_USE
 
-		use Samoa_darcy
+    implicit none
 
-        implicit none
+    type num_traversal_data
+        real (kind = GRID_SR)				:: r_sq			!< r^T * r
+        real (kind = GRID_SR)				:: alpha        !< update ratio
+    end type
 
-        type num_traversal_data
-            real (kind = GRID_SR)				:: r_sq
-            real (kind = GRID_SR)				:: alpha
-        end type
+    !LSE variables
+    type(_gm_A)				        :: gm_A
+    type(_gv_x)						:: gv_x
 
-		type(darcy_gv_p)						:: gv_p
-		type(darcy_gv_r_temp)					:: gv_r_temp
-		type(darcy_gv_mat_diagonal)				:: gv_mat_diagonal
+    !solver-specific persistent variables
+    type(_gv_r)						:: gv_r
+    type(_gv_trace_A)			    :: gv_trace_A
 
-#		define _GT_NAME							t_darcy_jacobi_solver
+    !if no rhs is defined, we assume rhs = 0
+#   if defined(_gv_rhs)
+        type(_gv_rhs)			    :: gv_rhs
+#   endif
 
-#		if (_DARCY_P_EDGE_SIZE > 0)
+    !if no Dirichlet boundaries are defined, we assume Neumann boundaries everywhere
+#   if defined(_gv_dirichlet)
+        type(_gv_dirichlet)		    :: gv_dirichlet
+#   endif
+
+#		define _GT_NAME							_T_JACOBI_(traversal)
+
+#		if (_gv_edge_size > 0)
 #			define _GT_EDGES
-#			define _GT_EDGES_TEMP
+#		endif
+
+#		if (_gv_node_size > 0)
+#		    define _GT_NODES
 #		endif
 
 #		define _GT_NODES
-#		define _GT_NODES_TEMP
+#		define _GT_NO_COORDS
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
-#		define	_GT_PRE_TRAVERSAL_OP			pre_traversal_op
+#		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
 
 #		define _GT_ELEMENT_OP					element_op
 
-#		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
-#		define _GT_NODE_REDUCE_OP		        node_reduce_op
+#		define _GT_NODE_FIRST_TOUCH_OP			node_first_touch_op
+#		define _GT_NODE_LAST_TOUCH_OP			node_last_touch_op
+#		define _GT_NODE_REDUCE_OP			    node_reduce_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
 #		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
 
@@ -48,221 +73,268 @@
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
-		subroutine pre_traversal_grid_op(traversal, grid)
-  			type(t_darcy_jacobi_solver), intent(inout)					:: traversal
- 			type(t_grid), intent(inout)							        :: grid
+    subroutine pre_traversal_grid_op(traversal, grid)
+        type(_T_JACOBI_(traversal)), intent(inout)					:: traversal
+        type(t_grid), intent(inout)							        :: grid
 
-			call scatter(traversal%alpha, traversal%children%alpha)
-		end subroutine
+        call scatter(traversal%alpha, traversal%children%alpha)
+    end subroutine
 
- 		subroutine post_traversal_grid_op(traversal, grid)
-  			type(t_darcy_jacobi_solver), intent(inout)					:: traversal
- 			type(t_grid), intent(inout)							        :: grid
+    subroutine post_traversal_grid_op(traversal, grid)
+        type(_T_JACOBI_(traversal)), intent(inout)					:: traversal
+        type(t_grid), intent(inout)							        :: grid
 
-			call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
-		end subroutine
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+    end subroutine
 
- 		subroutine pre_traversal_op(traversal, section)
- 			type(t_darcy_jacobi_solver), intent(inout)				:: traversal
-  			type(t_grid_section), intent(inout)				:: section
+    subroutine pre_traversal_op(traversal, section)
+        type(_T_JACOBI_(traversal)), intent(inout)				:: traversal
+        type(t_grid_section), intent(inout)				:: section
 
-			traversal%r_sq = 0.0_GRID_SR
-		end subroutine
+        traversal%r_sq = 0.0_GRID_SR
+    end subroutine
 
-		!*******************************
-		!Geometry operators
-		!*******************************
+    !*******************************
+    !Geometry operators
+    !*******************************
 
-		!element
+    elemental subroutine node_first_touch_op(traversal, section, node)
+        type(_T_JACOBI_(traversal)), intent(in)	    :: traversal
+        type(t_grid_section), intent(in)		    :: section
+        type(t_node_data), intent(inout)		    :: node
 
-		subroutine element_op(traversal, section, element)
- 			type(t_darcy_jacobi_solver), intent(inout)				:: traversal
- 			type(t_grid_section), intent(inout)							:: section
-			type(t_element_base), intent(inout), target		:: element
+        real(kind = GRID_SR)                        :: r(_gv_node_size)
+        real(kind = GRID_SR)                        :: rhs(_gv_node_size)
+        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
-			!local variables
+#       if defined(_gv_rhs)
+            call gv_rhs%read(node, rhs)
+#       else
+            rhs = 0.0_GRID_SR
+#       endif
 
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: p
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: r
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: mat_diagonal
+        call pre_dof_op(r, rhs, trace_A)
 
-			call gv_p%read(element, p)
+        call gv_r%write(node, r)
+        call gv_trace_A%write(node, trace_A)
+    end subroutine
 
-			!call element operator
-			call alpha_volume_op(section, element, p, r, mat_diagonal, element%cell%data_pers%permeability)
+    subroutine element_op(traversal, section, element)
+        type(_T_JACOBI_(traversal)), intent(inout)		:: traversal
+        type(t_grid_section), intent(inout)				:: section
+        type(t_element_base), intent(inout), target		:: element
 
-			call gv_r_temp%add(element, r)
-			call gv_mat_diagonal%add(element, mat_diagonal)
-		end subroutine
+        !local variables
+        integer :: i
+        real(kind = GRID_SR)	:: x(_gv_size), r(_gv_size), trace_A(_gv_size)
+        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
-		! first touches
+        call gv_x%read(element, x)
+        call gm_A%read(element, A)
 
-		elemental subroutine node_first_touch_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(in)				:: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			:: node
+        !add up matrix diagonal
+        forall (i = 1 : _gv_size)
+            trace_A(i) = A(i, i)
+        end forall
 
-			call pre_dof_op(node%data_temp%r, node%data_temp%mat_diagonal)
-		end subroutine
+        r = -matmul(A, x)
 
-		!last touches
+        call gv_r%add(element, r)
+        call gv_trace_A%add(element, trace_A)
+    end subroutine
 
-		elemental subroutine node_last_touch_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(in)				:: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			:: node
+    elemental subroutine node_last_touch_op(traversal, section, node)
+        type(_T_JACOBI_(traversal)), intent(in)			:: traversal
+        type(t_grid_section), intent(in)				:: section
+        type(t_node_data), intent(inout)				:: node
 
+        logical :: is_dirichlet(1)
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
-				call post_dof_op(traversal, node%data_pers%p, node%data_temp%r, node%data_temp%mat_diagonal)
-			end if
-		end subroutine
+        call gv_dirichlet%read(node, is_dirichlet)
 
-		elemental subroutine inner_node_last_touch_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(in)				:: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			:: node
+        if (.not. any(is_dirichlet)) then
+            call inner_node_last_touch_op(traversal, section, node)
+        else
+            call gv_r%write(node, spread(0.0_GRID_SR, 1, _gv_node_size))
+        end if
+    end subroutine
 
-			call post_dof_op(traversal, node%data_pers%p, node%data_temp%r, node%data_temp%mat_diagonal)
-		end subroutine
+    elemental subroutine inner_node_last_touch_op(traversal, section, node)
+        type(_T_JACOBI_(traversal)), intent(in)			:: traversal
+        type(t_grid_section), intent(in)				:: section
+        type(t_node_data), intent(inout)				:: node
 
-		pure subroutine node_reduce_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(inout)				:: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(in)			:: node
+        real(kind = GRID_SR)                        :: x(_gv_node_size)
+        real(kind = GRID_SR)                        :: r(_gv_node_size)
+        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
-			integer (kind = GRID_SI)					:: i
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
-				do i = 1, _DARCY_P_NODE_SIZE
-					call reduce_dof_op(traversal, node%data_temp%r(i))
-				end do
-			end if
-		end subroutine
+        call post_dof_op(traversal%alpha, x, r, trace_A)
 
-		pure subroutine inner_node_reduce_op(traversal, section, node)
- 			type(t_darcy_jacobi_solver), intent(inout)				:: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(in)			:: node
+        call gv_x%add(node, x)
+        call gv_r%write(node, r)
+    end subroutine
 
-			integer (kind = GRID_SI)					:: i
+    pure subroutine node_reduce_op(traversal, section, node)
+        type(_T_JACOBI_(traversal)), intent(inout)  :: traversal
+        type(t_grid_section), intent(in)		    :: section
+        type(t_node_data), intent(in)				:: node
 
-			do i = 1, _DARCY_P_NODE_SIZE
-				call reduce_dof_op(traversal, node%data_temp%r(i))
-			end do
-		end subroutine
+        logical :: is_dirichlet(1)
 
-		elemental subroutine node_merge_op(local_node, neighbor_node)
- 			type(t_node_data), intent(inout)			    :: local_node
-			type(t_node_data), intent(in)				    :: neighbor_node
+        call gv_dirichlet%read(node, is_dirichlet)
 
-            local_node%data_temp%r = local_node%data_temp%r + neighbor_node%data_temp%r
-            local_node%data_temp%mat_diagonal = local_node%data_temp%mat_diagonal + neighbor_node%data_temp%mat_diagonal
-        end subroutine
+        if (.not. any(is_dirichlet)) then
+            call inner_node_reduce_op(traversal, section, node)
+        end if
+    end subroutine
 
-		!*******************************
-		!Volume and DoF operators
-		!*******************************
+    pure subroutine inner_node_reduce_op(traversal, section, node)
+        type(_T_JACOBI_(traversal)), intent(inout)	    :: traversal
+        type(t_grid_section), intent(in)			    :: section
+        type(t_node_data), intent(in)				    :: node
 
-		elemental subroutine pre_dof_op(r, mat_diagonal)
- 			real(kind = GRID_SR), intent(out)			:: r
-			real(kind = GRID_SR), intent(out)			:: mat_diagonal
+        integer											:: i
 
-			!init temp variables to 0
+        real (kind = GRID_SR) :: r(_gv_node_size)
 
-			r = 0.0_GRID_SR
-			mat_diagonal = epsilon(1.0_GRID_SR)
-		end subroutine
+        call gv_r%read(node, r)
 
-		pure subroutine alpha_volume_op(section, element, p, r, mat_diagonal, permeability)
- 			type(t_grid_section), intent(inout)							:: section
-			type(t_element_base), intent(inout)									:: element
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(in)			:: p
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(out)			:: r
-			real(kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(out)			:: mat_diagonal
-			real (kind = GRID_SR), intent(in)									:: permeability
+        do i = 1, _gv_node_size
+            call reduce_dof_op(traversal%r_sq, r(i))
+        end do
+    end subroutine
 
-			integer (kind = GRID_SI)											:: i
+    elemental subroutine node_merge_op(local_node, neighbor_node)
+        type(t_node_data), intent(inout)			    :: local_node
+        type(t_node_data), intent(in)				    :: neighbor_node
 
-			!add up matrix diagonal
-			forall (i = 1 : _DARCY_P_SIZE)
-				mat_diagonal(i) = permeability * section%stiffness_matrix(i, i)
-			end forall
+        real (kind = GRID_SR) :: r(_gv_node_size)
+        real (kind = GRID_SR) :: trace_A(_gv_node_size)
 
-			!add up residual
-			r = -permeability * MATMUL(section%stiffness_matrix, p)
-		end subroutine
+        call gv_r%read(neighbor_node, r)
+        call gv_trace_A%read(neighbor_node, trace_A)
 
-		elemental subroutine post_dof_op(traversal, p, r, mat_diagonal)
- 			type(t_darcy_jacobi_solver), intent(in)	    :: traversal
-			real(kind = GRID_SR), intent(inout)			:: p
-			real(kind = GRID_SR), intent(inout)			:: r
-			real(kind = GRID_SR), intent(in)			:: mat_diagonal
+        call gv_r%add(local_node, r)
+        call gv_trace_A%add(local_node, trace_A)
+    end subroutine
 
-			!Jacobi-step
+    !*******************************
+    !Volume and DoF operators
+    !*******************************
 
-			!add r / diag(A) to the unknown p
-			r = r / mat_diagonal
-			p = p + traversal%alpha * r
-		end subroutine
+    elemental subroutine pre_dof_op(r, rhs, trace_A)
+        real (kind = GRID_SR), intent(out)			:: r
+        real (kind = GRID_SR), intent(in)			:: rhs
+        real (kind = GRID_SR), intent(out)			:: trace_A
 
-		pure subroutine reduce_dof_op(traversal, r)
- 			type(t_darcy_jacobi_solver), intent(inout)				:: traversal
-			real(kind = GRID_SR), intent(in)			:: r
+        r = rhs
+        trace_A = tiny(1.0_GRID_SR)
+    end subroutine
 
-			traversal%r_sq = traversal%r_sq + (r * r)
-		end subroutine
+    elemental subroutine post_dof_op(alpha, x, r, trace_A)
+        real(kind = GRID_SR), intent(in)			:: alpha
+        real(kind = GRID_SR), intent(out)			:: x
+        real(kind = GRID_SR), intent(inout)			:: r
+        real(kind = GRID_SR), intent(in)			:: trace_A
 
-		!*******************************
-		!Module interface
-		!*******************************
+        !Jacobi-step
 
-		!> Solves a poisson equation using a Jacobi solver
-		!> \returns		number of iterations performed
-		function solve(solver, grid) result(i_iteration)
- 			type(t_darcy_jacobi_solver), intent(inout)					:: solver
- 			type(t_grid), intent(inout)							        :: grid
+        !add r / trace(A) to the unknown x
+        r = r / trace_A
+        x = alpha * r
+    end subroutine
 
-			integer (kind = GRID_SI)									:: i_iteration
-			real (kind = GRID_SR)										:: r_t1, r_t2
-			real (kind = GRID_SR)										:: r_sq_old
+    pure subroutine reduce_dof_op(r_sq, r)
+        real(kind = GRID_SR), intent(inout)			:: r_sq
+        real(kind = GRID_SR), intent(in)			:: r
 
-			_log_write(3, '(A, ES14.7)') "  Jacobi solver, max residual error:", grid%r_epsilon
+        r_sq = r_sq + (r * r)
+    end subroutine
+END MODULE
 
-			CALL cpu_time(r_t1)
+MODULE _JACOBI
+    use SFC_edge_traversal
 
-			!set step size to some initial value
-			solver%alpha = 1.0_GRID_SR
-			r_sq_old = 1.0_GRID_SR
+    use linear_solver
+    use _JACOBI_(1)
 
-			do i_iteration = 1, huge(1_GRID_SI)
-				_log_write(3, '(A, I0, A, F7.4, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%alpha, ", res: ", sqrt(solver%r_sq)
+    implicit none
 
-				!do a jacobi step
-				call solver%traverse(grid)
+    type, extends(t_linear_solver)      :: _T_JACOBI
+        real (kind = GRID_SR)           :: max_error
+        type(_T_JACOBI_(traversal))     :: jacobi
 
-				!adjust step size
-				if (solver%r_sq > r_sq_old) then
-					solver%alpha = 0.95_GRID_SR * solver%alpha
-				else
-					solver%alpha = solver%alpha + 0.0001_GRID_SR
-				end if
+        contains
 
-				if (sqrt(solver%r_sq) < grid%r_epsilon * grid%r_p0) then
-					exit
-				end if
+        procedure, pass :: solve
+    end type
 
-				r_sq_old = solver%r_sq
-			end do
+    interface _T_JACOBI
+        module procedure init_solver
+    end interface
 
-			CALL cpu_time(r_t2)
+    private
+    public _T_JACOBI
 
-			_log_write(3, '(A, T30, I0)') "  Jacobi iterations:", i_iteration
+    contains
 
-			if (i_iteration > 0) then
-				_log_write(3, '(A, T30, F0.4, A)') "  Jacobi time (per step):", (r_t2-r_t1) / DBLE(i_iteration), " s"
-				_log_write(3, '(A, T30, F0.4, A)') "  Jacobi time (total):", r_t2-r_t1, " s"
-			end if
-		end function
-	END MODULE
-#endif
+    function init_solver(max_error) result(solver)
+        real (kind = GRID_SR)   :: max_error
+        type(_T_JACOBI) :: solver
+
+        solver%max_error = max_error
+    end function
+
+    !> Solves a poisson equation using a Jacobi solver
+    !> \returns		number of iterations performed
+    function solve(solver, grid) result(i_iteration)
+        class(_T_JACOBI), intent(inout)					:: solver
+        type(t_grid), intent(inout)							        :: grid
+
+        integer (kind = GRID_SI)									:: i_iteration
+        real (kind = GRID_SR)										:: r_t1, r_t2
+        real (kind = GRID_SR)										:: r_sq, r_sq_old
+
+        !$omp master
+        _log_write(3, '(A, ES14.7)') "  Jacobi solver, max residual error:", solver%max_error
+        !$omp end master
+
+        !set step size to some initial value
+        solver%jacobi%alpha = 1.0_GRID_SR
+        r_sq_old = 1.0_GRID_SR
+
+        do i_iteration = 1, huge(1_GRID_SI)
+            !$omp master
+            _log_write(2, '(A, I0, A, F7.4, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
+            !$omp end master
+
+            !do a jacobi step
+            call solver%jacobi%traverse(grid)
+            r_sq = solver%jacobi%r_sq
+
+            !adjust step size
+            if (r_sq > r_sq_old) then
+                solver%jacobi%alpha = 0.95_GRID_SR * solver%jacobi%alpha
+            else
+                solver%jacobi%alpha = solver%jacobi%alpha + 0.0001_GRID_SR
+            end if
+
+            if (sqrt(r_sq) < solver%max_error) then
+                exit
+            end if
+
+            r_sq_old = r_sq
+        end do
+
+        !$omp master
+        _log_write(3, '(A, T30, I0)') "  Jacobi iterations:", i_iteration
+        solver%stats = solver%jacobi%stats
+        !$omp end master
+    end function
+END MODULE
+
+#undef _solver
+#undef _solver_use

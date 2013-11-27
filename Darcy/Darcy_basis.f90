@@ -115,7 +115,6 @@
 		use Darcy_gv_r_mod
 		use Darcy_gv_d_mod
 		use Darcy_gv_A_d_mod
-		use Darcy_gv_r_temp_mod
 		use Darcy_gv_mat_diagonal_mod
 		use Darcy_gv_is_dirichlet_boundary_mod
 		use Darcy_gv_u_mod
@@ -128,14 +127,8 @@
 		use Samoa_darcy_flow_space
 		use Samoa_darcy_perm_space
 
-		use Samoa_darcy_p_quadrature_rule
-		use Samoa_darcy_u_quadrature_rule
-
 		use Samoa
 
-		PUBLIC
-
-		type(samoa_qr_p)					:: qr_p
-		type(samoa_qr_u)					:: qr_u_boundary
+		public
 	END MODULE
 #endif
