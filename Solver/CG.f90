@@ -27,19 +27,20 @@ MODULE _CG_(1)
     end type
 
     !LSE variables
-    type(_gm_A)				        :: gm_A
-    type(_gv_x)						:: gv_x
-
-    !solver-specific persistent variables
-    type(_gv_r)						:: gv_r
-    type(_gv_d)						:: gv_d
-    type(_gv_A_d)					:: gv_A_d
-    type(_gv_trace_A)			    :: gv_trace_A
+    type(_gm_A)				        :: gm_A                 !< temporary/persistent matrix
+    type(_gv_x)						:: gv_x                 !< persistent solution
 
     !if no RHS is defined, we assume RHS = 0
 #   if defined(_gv_rhs)
-        type(_gv_rhs)			    :: gv_rhs
+        type(_gv_rhs)			    :: gv_rhs               !< temporary/persistent right hand side
 #   endif
+
+    !solver-specific variables
+    type(_gv_r)						:: gv_r                 !< persistent residual
+    type(_gv_trace_A)			    :: gv_trace_A           !< persistent trace of matrix
+    type(_gv_d)						:: gv_d                 !< persistent solution update
+    type(_gv_A_d)					:: gv_A_d               !< persistent residual update
+
 
     !if no Dirichlet boundaries are defined, we assume Neumann boundaries everywhere
 #   if defined(_gv_dirichlet)

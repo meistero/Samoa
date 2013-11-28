@@ -46,7 +46,6 @@
 	END MODULE
 
 	MODULE Samoa_swe
-		use SWE_lfs_Q
 		use SWE_lfs_flux
 		use SWE_gv_Q
 

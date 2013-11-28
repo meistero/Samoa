@@ -27,17 +27,17 @@ MODULE _JACOBI_(1)
     end type
 
     !LSE variables
-    type(_gm_A)				        :: gm_A
-    type(_gv_x)						:: gv_x
-
-    !solver-specific persistent variables
-    type(_gv_r)						:: gv_r
-    type(_gv_trace_A)			    :: gv_trace_A
+    type(_gm_A)				        :: gm_A                !< temporary/persistent matrix
+    type(_gv_x)						:: gv_x                !< persistent solution
 
     !if no rhs is defined, we assume rhs = 0
 #   if defined(_gv_rhs)
-        type(_gv_rhs)			    :: gv_rhs
+        type(_gv_rhs)			    :: gv_rhs               !< temporary/persistent right hand side
 #   endif
+
+    !solver-specific variables
+    type(_gv_r)						:: gv_r                 !< temporary/persistent residual
+    type(_gv_trace_A)			    :: gv_trace_A           !< temporary/persistent trace of matrix
 
     !if no Dirichlet boundaries are defined, we assume Neumann boundaries everywhere
 #   if defined(_gv_dirichlet)
