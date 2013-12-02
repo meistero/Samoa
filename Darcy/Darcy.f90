@@ -225,7 +225,7 @@
 			r_t3 = omp_get_wtime()
 
 			do
-				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. darcy%transport_eq%stats%i_traversals >= i_max_time_steps)) then
+				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. darcy%transport_eq%stats%i_traversals >= i_max_time_steps)) then
 					exit
 				end if
 

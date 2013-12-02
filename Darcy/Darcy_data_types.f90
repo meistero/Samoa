@@ -25,44 +25,35 @@
 
 		!> persistent, scenario specific data on a node
 		type num_node_data_pers
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_NODE_SIZE)		:: p
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_NODE_SIZE)		:: A_d
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_NODE_SIZE)		:: d
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_NODE_SIZE)		:: r
+			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE)
+			real (kind = GRID_SR)   :: A_d(_DARCY_P_NODE_SIZE), d(_DARCY_P_NODE_SIZE), r(_DARCY_P_NODE_SIZE)
 
-			real (kind = GRID_SR), dimension(2, _DARCY_U_NODE_SIZE)		:: u									!< Velocity data
-
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_NODE_SIZE)		:: saturation							!< water saturation
-		END type num_node_data_pers
+			real (kind = GRID_SR)   :: u(2, _DARCY_U_NODE_SIZE)
+			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_NODE_SIZE)    !< water saturation
+		END type
 
 		!> persistent, scenario specific data on an edge
 		type num_edge_data_pers
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: p
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: A_d
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: d
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: r
+			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE)
+			real (kind = GRID_SR)   :: A_d(_DARCY_P_EDGE_SIZE), d(_DARCY_P_EDGE_SIZE), r(_DARCY_P_EDGE_SIZE)
 
-			real (kind = GRID_SR), dimension(2, _DARCY_U_EDGE_SIZE)		:: u									!< Velocity data
+			real (kind = GRID_SR)   :: u(2, _DARCY_U_EDGE_SIZE)		        !< velocity
+			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_EDGE_SIZE)    !< water saturation
 
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_EDGE_SIZE)		:: saturation							!< water saturation
-
-			real (kind = GRID_SR), dimension(2)							:: r_dummy
-		END type num_edge_data_pers
+			real (kind = GRID_SR)   :: r_dummy(2)
+		END type
 
 		!> persistent, scenario specific data on a cell
 		type num_cell_data_pers
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: p
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: A_d
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: d
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: r
+			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE)
+			real (kind = GRID_SR)   :: A_d(_DARCY_P_CELL_SIZE), d(_DARCY_P_CELL_SIZE), r(_DARCY_P_CELL_SIZE)
 
-			real (kind = GRID_SR), dimension(2, _DARCY_U_CELL_SIZE)		:: u				!< Velocity data
+			real (kind = GRID_SR)   :: u(2, _DARCY_U_CELL_SIZE)			    !< velocity
+			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_CELL_SIZE)    !< water saturation
 
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_CELL_SIZE)		:: saturation		!< water saturation
-
-			real (kind = GRID_SR)										:: base_permeability
-			real (kind = GRID_SR)										:: permeability
-		END type num_cell_data_pers
+			real (kind = GRID_SR)   :: base_permeability
+			real (kind = GRID_SR)   :: permeability
+		END type
 
 		!*********************************************
 		!Temporary Entity data (geometric association)
