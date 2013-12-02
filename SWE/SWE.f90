@@ -86,12 +86,15 @@
 			!create a quadrature rule
 			call t_qr_create_dunavant_rule(qr_Q, max(1, 2 * _SWE_ORDER))
 
-			call load_external_data(grid, i_asagi_mode)
+			call load_scenario(grid, i_asagi_mode, "data/displ.nc", "data/bath.nc", 2.0d6, [-0.5d6, -1.0d6])
+            !call load_scenario(grid, i_asagi_mode, "data/seissol_displ.nc", "data/seissol_bathymetry.nc", 1.0d5, [-0.5d5, -0.5d5])
 		end subroutine
 
-		subroutine load_external_data(grid, i_asagi_mode)
+		subroutine load_scenario(grid, i_asagi_mode, ncd_displ, ncd_bath, scaling, offset)
 			type(t_grid), target, intent(inout)     :: grid
 			integer, intent(in)						:: i_asagi_mode
+            character(*), intent(in)                :: ncd_displ, ncd_bath
+            double precision, intent(in)            :: scaling, offset(2)
 
 			integer                                 :: i_error, k
 			integer, pointer						:: afh
@@ -100,19 +103,19 @@
 				grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
 				grid%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
 
-                i_error = asagi_open(grid%afh_displacement, "data/seissol_displ.nc", 0); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(grid%afh_bathymetry, "data/seissol_bathymetry.nc", 0); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
 
                 if (rank_MPI == 0) then
                     afh => grid%afh_displacement
-                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/seissol_displ.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]", "time: [", grid_min_z(afh), ", ", grid_max_z(afh), "]"
+                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A, A, F0.2, A, F0.2, A)') " SWE: loaded '", ncd_displ, "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]", ", time: [", grid_min_z(afh), ", ", grid_max_z(afh), "]"
 
                     afh => grid%afh_bathymetry
-                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", "data/seissol_bathymetry.nc", "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
+                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", ncd_bath, "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
                 end if
 
-                grid%scaling = 1.0e5
-                grid%offset = -0.5e5
+                grid%scaling = scaling
+                grid%offset = offset
 #			endif
 		end subroutine
 
@@ -218,7 +221,7 @@
             !non-adaptive time-steps are executed while the earthquake takes place
 
 			do
-                if (grid%r_time >= grid_max_z(grid%afh_displacement)) then
+                if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps) .or. grid%r_time > grid_max_z(grid%afh_displacement)) then
                     exit
                 end if
 
@@ -247,7 +250,7 @@
             !regular time steps begin after the earthquake is over
 
 			do
-				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
+				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
 					exit
 				end if
 
