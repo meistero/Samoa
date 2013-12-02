@@ -225,7 +225,8 @@
                 bathymetry = asagi_get_float(section%afh_bathymetry, xs(1), xs(2), 0)
 
                 if(grid_min_x(section%afh_displacement) <= xs(1) .and. grid_min_y(section%afh_displacement) <= xs(2) &
-                        .and. xs(1) <= grid_max_x(section%afh_displacement) .and. xs(2) <= grid_max_y(section%afh_displacement)) then
+                        .and. xs(1) <= grid_max_x(section%afh_displacement) .and. xs(2) <= grid_max_y(section%afh_displacement) &
+                        .and. grid_min_z(section%afh_displacement) < t) then
 
                     ts = min(t, grid_max_z(section%afh_displacement))
                     bathymetry = bathymetry + asagi_get_float(section%afh_displacement, xs(1), xs(2), ts, 0)

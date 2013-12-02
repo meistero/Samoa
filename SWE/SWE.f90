@@ -225,12 +225,12 @@
                     exit
                 end if
 
-				!displace time-dependent bathymetry
-				call swe%displace%traverse(grid)
-
                 !do an euler time step
                 call swe%adaption%traverse(grid)
 				call swe%euler%traverse(grid)
+
+				!displace time-dependent bathymetry
+				call swe%displace%traverse(grid)
 
                 grid_info = grid%get_capacity(.false.)
 
