@@ -90,11 +90,11 @@
 
 		subroutine load_permeability(grid, i_asagi_mode)
 			type(t_grid), target, intent(inout)		:: grid
-			character (len = 64)					:: s_file_name
 			integer, intent(in)						:: i_asagi_mode
 
-			integer									:: i_error, i, j, k
+			integer									:: i_error, i, j
 			integer, pointer						:: afh
+			character (len = 64)					:: s_file_name
 
 #			if defined(_ASAGI)
 
@@ -106,7 +106,7 @@
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                    !$omp parallel private(i, j, i_error, s_file_name)
+                    !$omp parallel shared(afh) private(i_error, i, j, s_file_name)
 #               endif
                     do i = 0, grid%i_max_depth / 2
                         do j = i, 0, -1
