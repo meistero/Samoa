@@ -229,45 +229,49 @@
 
             r_t3 = omp_get_wtime()
 
-            !non-adaptive time-steps are executed while the earthquake takes place
+#           if defined(_ASAGI)
+                ! during the earthquake, do small time steps that include a displacement
 
-			do
-                if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps) .or. grid%r_time > grid_max_z(grid%afh_displacement)) then
-                    exit
-                end if
+                do
+                    if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
+                        exit
+                    end if
 
-                !do an euler time step
-                call swe%adaption%traverse(grid)
-				call swe%euler%traverse(grid)
+                    if (grid%r_time > grid_max_z(grid%afh_displacement)) then
+                        exit
+                    end if
 
-				!displace time-dependent bathymetry
-				call swe%displace%traverse(grid)
+                    !do an euler time step
+                    call swe%adaption%traverse(grid)
+                    call swe%euler%traverse(grid)
 
-                grid_info = grid%get_capacity(.false.)
+                    !displace time-dependent bathymetry
+                    call swe%displace%traverse(grid)
 
-                !$omp master
-                if (rank_MPI == 0) then
-                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", swe%euler%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
-                end if
-                !$omp end master
+                    grid_info = grid%get_capacity(.false.)
 
-				!output grid
-				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
-                    call swe%xml_output%traverse(grid)
-                    r_time_next_output = r_time_next_output + min(1.0/3.0, r_output_step)
-                end if
-			end do
+                    !$omp master
+                    if (rank_MPI == 0) then
+                        _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", swe%euler%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                    end if
+                    !$omp end master
 
-            !regular time steps begin after the earthquake is over
+                    !output grid
+                    if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+                        call swe%xml_output%traverse(grid)
+                        r_time_next_output = r_time_next_output + min(1.0/3.0, r_output_step)
+                    end if
+                end do
+#           endif
+
+            !regular tsunami time steps begin after the earthquake is over
 
 			do
 				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
 					exit
 				end if
 
-				!if (swe%euler%i_refinements_issued > 0) then
-					call swe%adaption%traverse(grid)
-				!end if
+				call swe%adaption%traverse(grid)
 
 				!do a time step
 				call swe%euler%traverse(grid)

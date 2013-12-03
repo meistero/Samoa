@@ -122,43 +122,46 @@
  				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
             else if (element%cell%geometry%i_depth < section%i_max_depth) then
-                if (_SWE_ORDER == 0) then
-                    do i = 1, 3
-                        Q_test(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)), element%cell%geometry%i_depth / 2_GRID_SI)
-                    end do
-                else
-                    do i = 1, 3
-                        Q_test(i)%h = t_basis_Q_eval(r_test_points(:, i), Q%h)
-                    end do
-                endif
+                do i = 1, 3
+                    Q_test(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)), element%cell%geometry%i_depth / 2_GRID_SI)
+                end do
 
-			    centroid_square = 0.5_GRID_SR * [grid_min_x(section%afh_displacement) + grid_max_x(section%afh_displacement), grid_min_y(section%afh_displacement) + grid_max_y(section%afh_displacement)]
-                centroid_square = 1.0_GRID_SR / section%scaling * (centroid_square - section%offset)
-                centroid_square = samoa_world_to_barycentric_point(element%transform_data, centroid_square)
+#               if defined (_ASAGI)
+                    centroid_square = 0.5_GRID_SR * [grid_min_x(section%afh_displacement) + grid_max_x(section%afh_displacement), grid_min_y(section%afh_displacement) + grid_max_y(section%afh_displacement)]
+                    centroid_square = 1.0_GRID_SR / section%scaling * (centroid_square - section%offset)
+                    centroid_square = samoa_world_to_barycentric_point(element%transform_data, centroid_square)
 
-                centroid_triangle = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
-                centroid_triangle = section%scaling * samoa_barycentric_to_world_point(element%transform_data, centroid_triangle) + section%offset
-                centroid_triangle = [ &
-                    (centroid_triangle(1) - grid_min_x(section%afh_displacement)) / (grid_max_x(section%afh_displacement) - grid_min_x(section%afh_displacement)), &
-                    (centroid_triangle(2) - grid_min_y(section%afh_displacement)) / (grid_max_y(section%afh_displacement) - grid_min_y(section%afh_displacement)) &
-                ]
+                    centroid_triangle = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
+                    centroid_triangle = section%scaling * samoa_barycentric_to_world_point(element%transform_data, centroid_triangle) + section%offset
+                    centroid_triangle = [ &
+                        (centroid_triangle(1) - grid_min_x(section%afh_displacement)) / (grid_max_x(section%afh_displacement) - grid_min_x(section%afh_displacement)), &
+                        (centroid_triangle(2) - grid_min_y(section%afh_displacement)) / (grid_max_y(section%afh_displacement) - grid_min_y(section%afh_displacement)) &
+                    ]
 
-                if (maxval(Q_test%h - Q_test%b) > 0.0_GRID_SR .and. minval(Q_test%h - Q_test%b) <= 0.0_GRID_SR) then
-                    !refine coast lines
+                    if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0) then
+                        !refine coast lines
 
-                    element%cell%geometry%refinement = 1
-                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                elseif (centroid_square(1) >= 0.0 .and. centroid_square(2) >= 0.0 .and. centroid_square(1) + centroid_square(2) <= 1.0) then
-                    !refine the triangle if it contains the centroid of the initial condition
+                        element%cell%geometry%refinement = 1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                    elseif (centroid_square(1) >= 0.0 .and. centroid_square(2) >= 0.0 .and. centroid_square(1) + centroid_square(2) <= 1.0) then
+                        !refine the triangle if it contains the centroid of the initial condition
 
-                    element%cell%geometry%refinement = 1
-                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                elseif (centroid_triangle(1) >= 0.0 .and. centroid_triangle(2) >= 0.0 .and. centroid_triangle(1) <= 1.0 .and. centroid_triangle(2) <= 1.0) then
-                    !refine the triangle if its centroid is contained in the initial condition
+                        element%cell%geometry%refinement = 1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                    elseif (centroid_triangle(1) >= 0.0 .and. centroid_triangle(2) >= 0.0 .and. centroid_triangle(1) <= 1.0 .and. centroid_triangle(2) <= 1.0) then
+                        !refine the triangle if its centroid is contained in the initial condition
 
-                    element%cell%geometry%refinement = 1
-                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                end if
+                        element%cell%geometry%refinement = 1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                    end if
+#               else
+                    if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0 .or. any(Q_test%h .ne. 0.0)) then
+                        !refine coast lines and initial displacement
+
+                        element%cell%geometry%refinement = 1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                    end if
+#               endif
 			end if
 
 			!estimate initial u_max

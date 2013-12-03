@@ -106,7 +106,7 @@
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                    !$omp parallel shared(grid) firstprivate(afh) private(i_error, i, j, s_file_name)
+                    !$omp parallel firstprivate(afh) private(i_error, i, j, s_file_name)
 #               endif
                     do i = 0, grid%i_max_depth / 2
                         do j = i, 0, -1

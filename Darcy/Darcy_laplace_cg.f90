@@ -24,5 +24,3 @@
 
 #   include "../Solver/CG.f90"
 #endif
-
-

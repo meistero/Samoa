@@ -61,9 +61,11 @@
 
             grid%r_dt = 0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
-            if (grid%r_time < grid_max_z(grid%afh_bathymetry)) then
-                grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry))
-			end if
+#           if defined(_ASAGI)
+                if (grid%r_time < grid_max_z(grid%afh_bathymetry)) then
+                    grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry))
+                end if
+#           endif
 
 			grid%u_max = 0.0_GRID_SR
 		end subroutine
