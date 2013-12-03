@@ -23,7 +23,8 @@
 . /etc/profile 2>/dev/null
 . /etc/profile.d/modules.sh 2>/dev/null
 
-export KMP_AFFINITY="granularity=core,compact,1"
+export OMP_NUM_THREADS=$threads
+module load mpi_pinning/hybrid_blocked
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
