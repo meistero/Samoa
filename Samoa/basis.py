@@ -44,6 +44,14 @@ class basis_function:
         domain = intersect(f.domain, g.domain)
         
         return basis_function(f.expr * g.expr, domain)
+    
+    def dx(f):
+        x = symbols('x', real=True)
+        return basis_function(diff(f.expr, x), f.domain)
+    
+    def dy(f):
+        y = symbols('y', real=True)
+        return basis_function(diff(f.expr, y), f.domain)
 
     def diverg(F):
         x, y = symbols('x,y', real=True)
@@ -101,6 +109,12 @@ class dirac_basis_function(basis_function):
 
     def __rmul__(f, g):
         return f * g
+    
+    def dx(f):
+        raise NotImplementedError("Derivative of Dirac function is not available")
+    
+    def dy(f):
+        raise NotImplementedError("Derivative of Dirac function is not available")
 
     def diverg(f):
         raise NotImplementedError("Divergence of Dirac function is not available")
@@ -153,6 +167,18 @@ def diverg(f):
         return f.diverg()
     else:
         return sum([diverg(f_sub) for f_sub in f])
+
+def dx(f):
+    if isinstance(f, basis_function):
+        return f.dx()
+    else:
+        return sum([dx(f_sub) for f_sub in f])
+
+def dy(f):
+    if isinstance(f, basis_function):
+        return f.dy()
+    else:
+        return sum([dy(f_sub) for f_sub in f])
 
 def grad(f):
     if isinstance(f, basis_function):
@@ -332,20 +358,31 @@ def stiffness_matrix(P, Q):
 
     return A
 
+def deriv_matrices(P, Q):
+    Ax = ImmutableMatrix([[volume_integrate(dx(p) * q) for p in P] for q in Q])
+    Ay = ImmutableMatrix([[volume_integrate(dy(p) * q) for p in P] for q in Q])
+
+    return Ax, Ay
+
 def main():
     T1 = Triangle((1, 0), (0, 0), (0, 1))
     T2 = Triangle((1, 0), (Rational(1,2), Rational(1,2)), (0, 0))
 
     p = lagrange_basis(1, T1)
-    q = lagrange_basis(1, T1)
+    q = lagrange_basis(0, T1)
 
     M = mass_matrix(p, q)
-    A = stiffness_matrix(p, q)
-
     pprint(Eq(Symbol('M'), M))
-    pprint(Eq(Symbol('A'), A))
-
     print fcode(M) 
+   
+    Dx, Dy = deriv_matrices(p, q)
+    pprint(Eq(Symbol('Dx'), Dx))
+    pprint(Eq(Symbol('Dy'), Dy))
+    print fcode(Dx) 
+    print fcode(Dy) 
+    
+    A = stiffness_matrix(p, q)
+    pprint(Eq(Symbol('A'), A))
     print fcode(A) 
 main()
 
