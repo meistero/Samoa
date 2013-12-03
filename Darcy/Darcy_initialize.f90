@@ -115,13 +115,13 @@
 
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_TIMING)
-                    r_asagi_time = r_asagi_time - omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
 
                 r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), lod)
 
 #               if defined(_ASAGI_TIMING)
-                    r_asagi_time = r_asagi_time + omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time + omp_get_wtime()
 #               endif
 #			else
 				r_base_permeability = -7.0e-8_GRID_SR * (t_noise_2D((/ 10.0_GRID_SR * x(1) - 2.0_GRID_SR, 10.0_GRID_SR * x(2) /), lod, 0.2_GRID_SR) + 0.7_GRID_SR - 4.0_GRID_SR * x(2) * (1.0_GRID_SR - x(2))) + 0.5e-8_GRID_SR

@@ -265,6 +265,13 @@ subroutine traverse_grid(traversal, grid)
     traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time + omp_get_wtime()
 	call set_stats(traversal%children(i_first_local_section : i_last_local_section), grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
 
+    !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
+
+#   if defined(_ASAGI_TIMING)
+        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_asagi_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
+#   endif
+
     !$omp barrier
 
     !$omp single

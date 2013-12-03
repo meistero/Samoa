@@ -227,7 +227,6 @@
             adaption_stats_initial = darcy%adaption%stats
             cg_stats_initial = darcy%pressure_solver%stats
 			grid_stats_initial = grid%stats
-			r_asagi_time_initial = r_asagi_time
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "Darcy: running time steps.."
@@ -286,7 +285,6 @@
             adaption_stats_time_steps = darcy%adaption%stats - adaption_stats_initial
             cg_stats_time_steps = darcy%pressure_solver%stats - cg_stats_initial
 			grid_stats_time_steps = grid%stats - grid_stats_initial
-			r_asagi_time = r_asagi_time - r_asagi_time_initial
 
             call darcy%init_saturation%stats%reduce()
             call adaption_stats_initial%reduce()
@@ -297,9 +295,6 @@
             call adaption_stats_time_steps%reduce()
             call cg_stats_time_steps%reduce()
             call grid_stats_time_steps%reduce()
-
-            call reduce(r_asagi_time_initial, MPI_MAX)
-            call reduce(r_asagi_time, MPI_MAX)
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "Darcy: done."
@@ -312,7 +307,7 @@
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_initial%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_initial%i_traversed_cells, GRID_SR) / (r_t2 - r_t1), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_initial%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", r_asagi_time_initial, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
                 _log_write(0, *) "Execution:"
@@ -322,7 +317,7 @@
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_time_steps%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_time_steps%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t4 - r_t3)), " GB/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", r_asagi_time, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s", " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Execution time:", r_t4 - r_t3, " s"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"

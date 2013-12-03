@@ -80,8 +80,6 @@ MODULE SFC_data_types
 	integer 				:: size_MPI = 1
 	integer                 :: mpi_ref_count = 0
 
-	real (kind = GRID_SR)   :: r_asagi_time = 0.0_GRID_SR, r_asagi_time_initial = 0.0_GRID_SR
-
 	!********************************
 	!Generic scenario data structures
 	!********************************
@@ -151,6 +149,7 @@ MODULE SFC_data_types
         real (kind = GRID_SR)					        	:: r_computation_time = 0.0_GRID_SR
         real (kind = GRID_SR)					        	:: r_sync_time = 0.0_GRID_SR
         real (kind = GRID_SR)					        	:: r_barrier_time = 0.0_GRID_SR
+        real (kind = GRID_SR)                               :: r_asagi_time = 0.0_GRID_SR
         integer (kind = GRID_SI)					        :: i_traversals = 0
         integer (kind = GRID_DI)					        :: i_traversed_cells = 0
         integer (kind = GRID_DI)					        :: i_traversed_edges = 0
@@ -411,6 +410,7 @@ MODULE SFC_data_types
 		call reduce(s%r_computation_time, v%r_computation_time, MPI_SUM, .false.)
 		call reduce(s%r_sync_time, v%r_sync_time, MPI_SUM, .false.)
 		call reduce(s%r_barrier_time, v%r_barrier_time, MPI_SUM, .false.)
+		call reduce(s%r_asagi_time, v%r_asagi_time, MPI_SUM, .false.)
 		call reduce(s%i_traversals, v%i_traversals, MPI_MAX, .false.)
 
 		call reduce(s%i_traversed_cells, v%i_traversed_cells, MPI_SUM, .false.)
@@ -419,6 +419,7 @@ MODULE SFC_data_types
 		call reduce(s%i_traversed_memory, v%i_traversed_memory, MPI_SUM, .false.)
 
 		s%r_traversal_time = max(0.0, s%r_traversal_time * scaling)
+		s%r_asagi_time = max(0.0, s%r_asagi_time * scaling)
 		s%r_computation_time = max(0.0, s%r_computation_time * scaling)
 		s%r_sync_time = max(0.0, s%r_sync_time * scaling)
 		s%r_barrier_time = max(0.0, s%r_barrier_time * scaling)
@@ -454,6 +455,7 @@ MODULE SFC_data_types
 		call reduce(s%r_computation_time, mpi_op=MPI_SUM)
 		call reduce(s%r_sync_time, mpi_op=MPI_SUM)
 		call reduce(s%r_barrier_time, mpi_op=MPI_SUM)
+		call reduce(s%r_asagi_time, mpi_op=MPI_SUM)
 		call reduce(s%i_traversals, mpi_op=MPI_MAX)
 
 		call reduce(s%i_traversed_cells, mpi_op=MPI_SUM)
@@ -465,6 +467,7 @@ MODULE SFC_data_types
 		s%r_computation_time = max(0.0, s%r_computation_time * scaling)
 		s%r_sync_time = max(0.0, s%r_sync_time * scaling)
 		s%r_barrier_time = max(0.0, s%r_barrier_time * scaling)
+		s%r_asagi_time = max(0.0, s%r_asagi_time * scaling)
 		s%i_traversals = max(1, s%i_traversals)
      end subroutine
 
@@ -497,6 +500,7 @@ MODULE SFC_data_types
 		sr%r_computation_time = s1%r_computation_time + s2%r_computation_time
 		sr%r_sync_time = s1%r_sync_time + s2%r_sync_time
 		sr%r_barrier_time = s1%r_barrier_time + s2%r_barrier_time
+		sr%r_asagi_time = s1%r_asagi_time + s2%r_asagi_time
 		sr%i_traversals = s1%i_traversals + s2%i_traversals
 		sr%i_traversed_cells = s1%i_traversed_cells + s2%i_traversed_cells
 		sr%i_traversed_edges = s1%i_traversed_edges + s2%i_traversed_edges
@@ -525,6 +529,7 @@ MODULE SFC_data_types
 		sr%r_computation_time = -s1%r_computation_time
 		sr%r_sync_time = -s1%r_sync_time
 		sr%r_barrier_time = -s1%r_barrier_time
+		sr%r_asagi_time = -s1%r_asagi_time
 		sr%i_traversals = -s1%i_traversals
 		sr%i_traversed_cells = -s1%i_traversed_cells
 		sr%i_traversed_edges = -s1%i_traversed_edges

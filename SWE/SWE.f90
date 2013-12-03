@@ -219,7 +219,6 @@
 			!copy counters
 			grid_stats_initial = grid%stats
             adaption_stats_initial = swe%adaption%stats
-			r_asagi_time_initial = r_asagi_time
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "SWE: running time steps.."
@@ -298,7 +297,6 @@
             !$omp master
 			grid_stats_time_steps = grid%stats - grid_stats_initial
             adaption_stats_time_steps = swe%adaption%stats - adaption_stats_initial
-			r_asagi_time = r_asagi_time - r_asagi_time_initial
 
             call swe%init%stats%reduce()
             call adaption_stats_initial%reduce()
@@ -307,9 +305,6 @@
             call swe%euler%stats%reduce()
             call adaption_stats_time_steps%reduce()
             call grid_stats_time_steps%reduce()
-
-            call reduce(r_asagi_time_initial, MPI_MAX)
-            call reduce(r_asagi_time, MPI_MAX)
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "SWE: done."
@@ -321,7 +316,7 @@
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_initial%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_initial%i_traversed_cells, GRID_SR) / (r_t2 - r_t1), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_initial%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", r_asagi_time_initial, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
                 _log_write(0, *) "Execution:"
@@ -332,7 +327,7 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_time_steps%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t4 - r_t3)), " GB/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Cell update throughput: ", 1.0e-6 * real(swe%euler%stats%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Flux solver throughput: ", 1.0e-6 * real(swe%euler%stats%i_traversed_edges, GRID_SR) / (r_t4 - r_t3), " M/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", r_asagi_time, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Execution time:", r_t4 - r_t3, " s"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
