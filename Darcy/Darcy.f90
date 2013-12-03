@@ -97,8 +97,8 @@
 			character (len = 64)					:: s_file_name
 
 #			if defined(_ASAGI)
-
 				afh => grid%afh_permeability
+
 #               if defined(_ASAGI_NUMA)
                     afh = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
 #               else
@@ -106,7 +106,7 @@
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                    !$omp parallel shared(afh) private(i_error, i, j, s_file_name)
+                    !$omp parallel firstprivate(afh) private(i_error, i, j, s_file_name)
 #               endif
                     do i = 0, grid%i_max_depth / 2
                         do j = i, 0, -1
