@@ -15,7 +15,7 @@
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
 #  OPENMP=YES|NO
-#  STD=YES|NO
+#  STD_FORTRAN=YES|NO
 #  ASAGI=STANDARD|NUMA|NO
 #  ASAGI_TIMING=YES|NO
 #  DEBUG_LEVEL = (0-7)
@@ -34,7 +34,7 @@ SWE_SOLVER		?= AUG_RIEMANN
 TARGET			?= OPT
 MPI 			?= DEFAULT
 OPENMP			?= YES
-STD 			?= NO
+STD_FORTRAN		?= NO
 ASAGI_TIMING 	?= NO
 VEC_REPORT		?= 0
 
@@ -198,11 +198,11 @@ else
   $(error Invalid value for ASSERT: $(ASSERT))
 endif
 
-ifeq ($(STD), YES)
+ifeq ($(STD_FORTRAN), YES)
   FFLAGS 		+= -std
-else ifeq ($(STD), NO)
+else ifeq ($(STD_FORTRAN), NO)
 else
-  $(error Invalid value for STD: $(STD))
+  $(error Invalid value for STD_FORTRAN: $(STD_FORTRAN))
 endif
 
 ifeq ($(LIB), YES)
