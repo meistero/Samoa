@@ -3,4 +3,6 @@ bin
 data
 scripts
 output
+doxygen
+Samoa.layout
 *~
