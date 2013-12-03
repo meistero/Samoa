@@ -16,7 +16,7 @@
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
 #  OPENMP=YES|NO
 #  STD=YES|NO
-#  ASAGI=YES|NO
+#  ASAGI=STANDARD|NUMA|NO
 #  ASAGI_TIMING=YES|NO
 #  DEBUG_LEVEL = (0-7)
 #  ASSERT = YES|NO
@@ -62,7 +62,7 @@ endif
 ifeq ($(SCENARIO), DARCY)
   EXEC 			:= $(EXEC)_darcy
   FFLAGS		+= -D_DARCY
-  ASAGI 		?= YES
+  ASAGI 		?= STANDARD
   LIB 			?= NO
 else ifeq ($(SCENARIO), GENERIC)
   EXEC 			:= $(EXEC)_generic
@@ -72,7 +72,7 @@ else ifeq ($(SCENARIO), GENERIC)
 else ifeq ($(SCENARIO), SWE)
   EXEC			:= $(EXEC)_swe
   FFLAGS		+= -D_SWE
-  ASAGI			?= YES
+  ASAGI			?= STANDARD
   LIB 			?= NO
 else ifeq ($(SCENARIO), HEAT_EQ)
   EXEC			:= $(EXEC)_heq
@@ -105,7 +105,7 @@ else
   FFLAGS		+= -D_MPI
 endif
 
-ifeq ($(ASAGI), YES)
+ifeq ($(ASAGI), STANDARD)
   FFLAGS 		+= -D_ASAGI -I"ASAGI/include"
   LDFLAGS 		+= "-Wl,-rpath,ASAGI" -L"ASAGI/"
 
@@ -114,17 +114,30 @@ ifeq ($(ASAGI), YES)
   else
     LDFLAGS		+= -lasagi_nomt
   endif
+else ifeq ($(ASAGI), NUMA)
+  FFLAGS 		+= -D_ASAGI -D_ASAGI_NUMA -I"ASAGI/include"
+  LDFLAGS 		+= "-Wl,-rpath,ASAGI" -L"ASAGI/"
+  LDFLAGS		+= -lasagi
 
-  ifeq ($(ASAGI_TIMING), YES)
-    FFLAGS 		+= -D_ASAGI_TIMING
-  else ifeq ($(ASAGI_TIMING), NO)
-  else
-    $(error Invalid value for ASAGI_TIMING: $(ASAGI_TIMING))
+  ifeq ($(OPENMP), NO)
+    $(error ASAGI must not be NUMA if OPENMP is NO)
   endif
 else ifeq ($(ASAGI), NO)
   EXEC			:= $(EXEC)_noasagi
 else
   $(error Invalid value for ASAGI: $(ASAGI))
+endif
+
+ifeq ($(ASAGI_TIMING), YES)
+  FFLAGS 		+= -D_ASAGI_TIMING
+
+  ifeq ($(ASAGI), NO)
+    $(error ASAGI_TIMING must not be YES if ASAGI is NO)
+  endif
+else ifeq ($(ASAGI_TIMING), NO)
+  #nothing to do
+else
+  $(error Invalid value for ASAGI_TIMING: $(ASAGI_TIMING))
 endif
 
 ifeq ($(SWE_SOLVER), LF)

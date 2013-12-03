@@ -85,10 +85,10 @@
 				_log_open_file(s_log_name)
 			endif
 
-			call load_permeability_data(grid, i_asagi_mode)
+			call load_permeability(grid, i_asagi_mode)
 		end subroutine
 
-		subroutine load_permeability_data(grid, i_asagi_mode)
+		subroutine load_permeability(grid, i_asagi_mode)
 			type(t_grid), target, intent(inout)		:: grid
 			character (len = 64)					:: s_file_name
 			integer, intent(in)						:: i_asagi_mode
@@ -97,26 +97,39 @@
 			integer, pointer						:: afh
 
 #			if defined(_ASAGI)
+
 				afh => grid%afh_permeability
-				afh = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
+#               if defined(_ASAGI_NUMA)
+                    afh = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
+#               else
+                    afh = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
+#               endif
 
-				do i = 0, grid%i_max_depth / 2
-					do j = i, 0, -1
-						write (s_file_name, fmt = '(A, I0, A, A)') "data/perm_", 2 ** j, ".nc"
+#               if defined(_ASAGI_NUMA)
+                    !$omp parallel private(i, j, i_error, s_file_name)
+#               endif
+                    do i = 0, grid%i_max_depth / 2
+                        do j = i, 0, -1
+                            write (s_file_name, fmt = '(A, I0, A, A)') "data/perm_", 2 ** j, ".nc"
 
-                     	i_error = asagi_open(afh, trim(s_file_name), i)
+                            i_error = asagi_open(afh, trim(s_file_name), i)
 
-						if (i_error == GRID_SUCCESS) then
-							exit
-						endif
+                            if (i_error == GRID_SUCCESS) then
+                                exit
+                            endif
 
-						assert_gt(j, 0)
-					end do
+                            assert_gt(j, 0)
+                        end do
 
-                    if (rank_MPI == 0) then
-                        _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " Darcy: loaded '", trim(s_file_name), "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
-                    end if
-				end do
+                        if (rank_MPI == 0) then
+                            _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
+                                trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
+                        end if
+                    end do
+
+#               if defined(_ASAGI_NUMA)
+                    !$omp end parallel
+#               endif
 #			endif
 		end subroutine
 

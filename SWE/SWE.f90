@@ -97,21 +97,32 @@
             double precision, intent(in)            :: scaling, offset(2)
 
 			integer                                 :: i_error, k
-			integer, pointer						:: afh
 
 #			if defined(_ASAGI)
-				grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
-				grid%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
+#               if defined(_ASAGI_NUMA)
+                    grid%afh_displacement = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
+                    grid%afh_bathymetry = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
 
-                i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
+                    !$omp parallel private(i_error)
+                        i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
+                        i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
+                    !$omp end parallel
+#               else
+                    grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
+                    grid%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
+
+                    i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
+                    i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
+#               endif
 
                 if (rank_MPI == 0) then
-                    afh => grid%afh_displacement
-                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A, A, F0.2, A, F0.2, A)') " SWE: loaded '", ncd_displ, "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]", ", time: [", grid_min_z(afh), ", ", grid_max_z(afh), "]"
+                    associate(afh_d => grid%afh_displacement, afh_b => grid%afh_bathymetry)
+                        _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
+                            ncd_displ, grid_min_x(afh_d), grid_max_x(afh_d),  grid_min_y(afh_d), grid_max_y(afh_d),  grid_min_z(afh_d), grid_max_z(afh_d)
 
-                    afh => grid%afh_bathymetry
-                    _log_write(1, '(A, A, A, F0.2, A, F0.2, A, F0.2, A, F0.2, A)') " SWE: loaded '", ncd_bath, "', coordinate system: [", grid_min_x(afh), ", ", grid_min_y(afh), "] x [", grid_max_x(afh), ", ", grid_max_y(afh), "]"
+                        _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
+                            ncd_bath, grid_min_x(afh_b), grid_max_x(afh_b),  grid_min_y(afh_b), grid_max_y(afh_b),  grid_min_z(afh_b), grid_max_z(afh_b)
+                    end associate
                 end if
 
                 grid%scaling = scaling
