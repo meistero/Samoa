@@ -29,7 +29,6 @@
 		type t_darcy
             type(t_darcy_init_pressure_traversal)           :: init_pressure
             type(t_darcy_init_saturation_traversal)         :: init_saturation
-            type(t_darcy_edge_dummy_traversal)              :: edge_dummy
             type(t_darcy_vtk_output_traversal)              :: vtk_output
             type(t_darcy_xml_output_traversal)              :: xml_output
             type(t_darcy_grad_p_traversal)                  :: grad_p
@@ -158,7 +157,7 @@
 			real (kind = GRID_SR), intent(in)							:: r_output_step
 
 			type (t_adaptive_statistics)								:: adaption_stats_initial, adaption_stats_time_steps
-			type (t_statistics)									        :: cg_stats_initial, cg_stats_time_steps
+			type (t_statistics)									        :: pressure_solver_stats_initial, pressure_solver_stats_time_steps
 			type (t_statistics)									        :: grid_stats_initial, grid_stats_time_steps
             integer (kind = GRID_SI)									:: i_lse_iterations, i_lse_iterations_initial
 			double precision										    :: r_t1, r_t2, r_t3, r_t4
@@ -224,8 +223,8 @@
 
             !$omp master
 			!copy counters
-            adaption_stats_initial = darcy%adaption%stats
-            cg_stats_initial = darcy%pressure_solver%stats
+			adaption_stats_initial = darcy%adaption%stats
+            pressure_solver_stats_initial = darcy%pressure_solver%stats
 			grid_stats_initial = grid%stats
 
             if (rank_MPI == 0) then
@@ -283,17 +282,19 @@
 
             !$omp master
             adaption_stats_time_steps = darcy%adaption%stats - adaption_stats_initial
-            cg_stats_time_steps = darcy%pressure_solver%stats - cg_stats_initial
+            pressure_solver_stats_time_steps = darcy%pressure_solver%stats - pressure_solver_stats_initial
 			grid_stats_time_steps = grid%stats - grid_stats_initial
 
             call darcy%init_saturation%stats%reduce()
             call adaption_stats_initial%reduce()
-            call cg_stats_initial%reduce()
+            call pressure_solver_stats_initial%reduce()
             call grid_stats_initial%reduce()
 
+            call darcy%grad_p%stats%reduce()
             call darcy%transport_eq%stats%reduce()
+            call darcy%permeability%stats%reduce()
             call adaption_stats_time_steps%reduce()
-            call cg_stats_time_steps%reduce()
+            call pressure_solver_stats_time_steps%reduce()
             call grid_stats_time_steps%reduce()
 
             if (rank_MPI == 0) then
@@ -303,7 +304,7 @@
                 _log_write(0, *) "Initialization:"
                 _log_write(0, '(A, T34, A)') " Init: ", trim(darcy%init_saturation%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_initial%to_string())
-                _log_write(0, '(A, T34, A)') " CG: ", trim(cg_stats_initial%to_string())
+                _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(pressure_solver_stats_initial%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_initial%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_initial%i_traversed_cells, GRID_SR) / (r_t2 - r_t1), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_initial%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
@@ -311,13 +312,15 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
                 _log_write(0, *) "Execution:"
-                _log_write(0, '(A, T34, A)') " Time steps: ", trim(darcy%transport_eq%stats%to_string())
+                _log_write(0, '(A, T34, A)') " Transport: ", trim(darcy%transport_eq%stats%to_string())
+                _log_write(0, '(A, T34, A)') " Gradient: ", trim(darcy%grad_p%stats%to_string())
+                _log_write(0, '(A, T34, A)') " Permeability: ", trim(darcy%permeability%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
-                _log_write(0, '(A, T34, A)') " CG: ", trim(cg_stats_time_steps%to_string())
+                _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(pressure_solver_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_time_steps%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_time_steps%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t4 - r_t3)), " GB/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s", " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Execution time:", r_t4 - r_t3, " s"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
