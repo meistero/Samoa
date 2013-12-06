@@ -76,6 +76,12 @@ MODULE SFC_data_types
     integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * GRID_SR - 4_1
 	real (kind = GRID_SR), parameter									:: PI = 3.14159265358979323846_GRID_SR 		!< PI. Apparently, "_GRID_SR" is necessary to avoid digit truncation
 
+#   if defined(_OMP_TASKS)
+        logical, parameter      :: omp_tasks = .true.
+#   else
+        logical, parameter      :: omp_tasks = .false.
+#   endif
+
 	integer 				:: rank_MPI = 0
 	integer 				:: size_MPI = 1
 	integer                 :: mpi_ref_count = 0

@@ -176,6 +176,7 @@ subroutine traverse_in_place(traversal, grid)
 	type(t_grid), intent(inout)							:: grid
 
 	type(t_grid), save							        :: grid_temp
+    type(t_conformity), save                            :: conformity
 
     !no traversal on empty grids
     !$omp barrier
@@ -184,7 +185,7 @@ subroutine traverse_in_place(traversal, grid)
     traversal%current_stats%r_integrity_time = -omp_get_wtime()
     !$omp end single
 
-    call conformity_check(grid)
+    call conformity%check(grid)
 
     !$omp single
     traversal%current_stats%r_integrity_time = traversal%current_stats%r_integrity_time + omp_get_wtime()
@@ -297,138 +298,151 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     i_thread = 1 + omp_get_thread_num()
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = -omp_get_wtime()
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = -omp_get_wtime()
+    associate(traversals => traversal%children(i_first_local_section : i_last_local_section), dest_sections => dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
+        traversals%current_stats%r_traversal_time = -omp_get_wtime()
 
-    !$omp single
-    call pre_traversal_grid_dest(traversal, dest_grid)
-
-    call prefix_sum(src_grid%sections%elements%last_dest_cell, src_grid%sections%elements%dest_cells)
-    call prefix_sum(dest_grid%sections%elements%last_dest_cell, dest_grid%sections%elements%dest_cells)
-    !$omp end single
-
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time + omp_get_wtime()
-
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = -omp_get_wtime()
-
-    !call pre traversal operator
- 	do i_dest_section = i_first_local_section, i_last_local_section
-        dest_section => dest_grid%sections%elements(i_dest_section)
-
-        call pre_traversal_dest(traversal%children(i_dest_section), dest_section)
-    end do
-
-    !traversal
-
-    if (i_last_local_section .ge. i_first_local_section) then
-        dest_section => dest_grid%sections%elements(i_first_local_section)
-
-        !find the source section that contains the first cell of the first destination section
-        i_src_section = 1 + ((i_first_local_section - 1) * size(src_grid%sections%elements)) / size(dest_grid%sections%elements)
-        i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-
-        do while (src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells .gt. dest_section%last_dest_cell - dest_section%dest_cells)
-            i_src_section = i_src_section - 1
-            assert_le(i_src_section, size(src_grid%sections%elements))
-            i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-        end do
-
-        do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-            i_src_section = i_src_section + 1
-            assert_le(i_src_section, size(src_grid%sections%elements))
-            i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-        end do
-
-        src_section = src_grid%sections%elements(i_src_section)
-
-        !traverse all unnecessary elements of the first source section with an empty traversal
-        do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-            i_src_cell = i_src_cell + empty_leaf(thread_traversal, traversal%children(i_first_local_section), src_grid%threads%elements(i_thread), src_section)
-        end do
-    end if
-
-    !traverse all destination sections
-    do i_dest_section = i_first_local_section, i_last_local_section
-        dest_section => dest_grid%sections%elements(i_dest_section)
-
-#       if _DEBUG_LEVEL > 4
-            _log_write(5, '(2X, A)') "destination section initial state :"
-            call dest_section%print()
+#       if defined(_ASAGI_TIMING)
+            dest_sections%stats%r_asagi_time = 0.0
+            traversals%current_stats%r_asagi_time = 0.0
 #       endif
 
-        !traverse all source sections that overlap with the destination section
-        do while (i_src_cell .le. dest_section%last_dest_cell)
-            assert_le(i_src_section, size(src_grid%sections%elements))
-            assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
+        traversals%current_stats%r_barrier_time = -omp_get_wtime()
 
-            !traverse all elements
-            do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
-                i_src_cell = i_src_cell + leaf(thread_traversal, traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
-            end do
+        !$omp single
+        call pre_traversal_grid_dest(traversal, dest_grid)
 
-            if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < size(src_grid%sections%elements)) then
-                i_src_section = i_src_section + 1
-                src_section = src_grid%sections%elements(i_src_section)
-            end if
+        call prefix_sum(src_grid%sections%elements%last_dest_cell, src_grid%sections%elements%dest_cells)
+        call prefix_sum(dest_grid%sections%elements%last_dest_cell, dest_grid%sections%elements%dest_cells)
+        !$omp end single
+
+        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
+
+        traversals%current_stats%r_computation_time = -omp_get_wtime()
+
+        !call pre traversal operator
+        do i_dest_section = i_first_local_section, i_last_local_section
+            dest_section => dest_grid%sections%elements(i_dest_section)
+
+            call pre_traversal_dest(traversal%children(i_dest_section), dest_section)
         end do
 
-#		if defined(_GT_CELL_TO_EDGE_OP)
-            thread_traversal%p_dest_element%previous%next_edge_data%rep = _GT_CELL_TO_EDGE_OP(thread_traversal%p_dest_element%previous%t_element_base, thread_traversal%p_dest_element%previous%next_edge_data)
-#	    endif
+        !traversal
 
-        thread_traversal%p_dest_element%previous%next_edge_data%remove = .false.
+        if (i_last_local_section .ge. i_first_local_section) then
+            dest_section => dest_grid%sections%elements(i_first_local_section)
 
-        call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, thread_traversal%p_dest_element%previous%next_edge_data)
-    end do
+            !find the source section that contains the first cell of the first destination section
+            i_src_section = 1 + ((i_first_local_section - 1) * size(src_grid%sections%elements)) / size(dest_grid%sections%elements)
+            i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
+            do while (src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells .gt. dest_section%last_dest_cell - dest_section%dest_cells)
+                i_src_section = i_src_section - 1
+                assert_le(i_src_section, size(src_grid%sections%elements))
+                i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
+            end do
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time = -omp_get_wtime()
-    call update_distances(dest_grid)
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time + omp_get_wtime()
+            do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
+                i_src_section = i_src_section + 1
+                assert_le(i_src_section, size(src_grid%sections%elements))
+                i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
+            end do
 
-    !$omp single
-    assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
-    !$omp end single nowait
+            src_section = src_grid%sections%elements(i_src_section)
 
-	!update communication info
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time = -omp_get_wtime()
-	call update_neighbors(src_grid, dest_grid)
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time + omp_get_wtime()
+            !traverse all unnecessary elements of the first source section with an empty traversal
+            do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
+                i_src_cell = i_src_cell + empty_leaf(thread_traversal, traversal%children(i_first_local_section), src_grid%threads%elements(i_thread), src_section)
+            end do
+        end if
 
-    !$omp barrier
+        !traverse all destination sections
+        do i_dest_section = i_first_local_section, i_last_local_section
+            dest_section => dest_grid%sections%elements(i_dest_section)
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = -omp_get_wtime()
+#           if _DEBUG_LEVEL > 4
+                _log_write(5, '(2X, A)') "destination section initial state :"
+                call dest_section%print()
+#           endif
 
-    do i_dest_section = i_first_local_section, i_last_local_section
-        call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
-        call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
-    end do
+            !traverse all source sections that overlap with the destination section
+            do while (i_src_cell .le. dest_section%last_dest_cell)
+                assert_le(i_src_section, size(src_grid%sections%elements))
+                assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
 
-    !sync and call post traversal operator
-	call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time + omp_get_wtime()
+                !traverse all elements
+                do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
+                    i_src_cell = i_src_cell + leaf(thread_traversal, traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
+                end do
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time - omp_get_wtime()
+                if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < size(src_grid%sections%elements)) then
+                    i_src_section = i_src_section + 1
+                    src_section = src_grid%sections%elements(i_src_section)
+                end if
+            end do
 
-    do i_dest_section = i_first_local_section, i_last_local_section
-        call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
-	end do
+#    		if defined(_GT_CELL_TO_EDGE_OP)
+                thread_traversal%p_dest_element%previous%next_edge_data%rep = _GT_CELL_TO_EDGE_OP(thread_traversal%p_dest_element%previous%t_element_base, thread_traversal%p_dest_element%previous%next_edge_data)
+#    	    endif
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
+            thread_traversal%p_dest_element%previous%next_edge_data%remove = .false.
 
-    !$omp barrier
+            call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, thread_traversal%p_dest_element%previous%next_edge_data)
+        end do
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time - omp_get_wtime()
+        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
 
-    !$omp single
-    call post_traversal_grid_dest(traversal, dest_grid)
-    !$omp end single
+        traversals%current_stats%r_update_distances_time = -omp_get_wtime()
+        call update_distances(dest_grid)
+        traversals%current_stats%r_update_distances_time = traversals%current_stats%r_update_distances_time + omp_get_wtime()
 
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time + omp_get_wtime()
-    traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time + omp_get_wtime()
+        !$omp single
+        assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
+        !$omp end single nowait
 
-	call set_stats_dest(traversal%children(i_first_local_section : i_last_local_section), dest_grid%sections%elements(i_first_local_section : i_last_local_section))
+        !update communication info
+        traversals%current_stats%r_update_neighbors_time = -omp_get_wtime()
+        call update_neighbors(src_grid, dest_grid)
+        traversals%current_stats%r_update_neighbors_time = traversals%current_stats%r_update_neighbors_time + omp_get_wtime()
+
+        !$omp barrier
+
+        traversals%current_stats%r_sync_time = -omp_get_wtime()
+
+        do i_dest_section = i_first_local_section, i_last_local_section
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+        end do
+
+        !sync and call post traversal operator
+        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
+        traversals%current_stats%r_sync_time = traversals%current_stats%r_sync_time + omp_get_wtime()
+
+        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time - omp_get_wtime()
+
+        do i_dest_section = i_first_local_section, i_last_local_section
+            call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
+        end do
+
+        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
+
+        !$omp barrier
+
+        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time - omp_get_wtime()
+
+        !$omp single
+        call post_traversal_grid_dest(traversal, dest_grid)
+        !$omp end single
+
+        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
+        traversals%current_stats%r_traversal_time = traversals%current_stats%r_traversal_time + omp_get_wtime()
+
+        !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
+#       if defined(_ASAGI_TIMING)
+            traversals%current_stats%r_asagi_time = dble(i_last_local_section - i_first_local_section + 1) * dest_sections%stats%r_asagi_time
+#       endif
+
+        call set_stats_dest(traversals, dest_sections)
+    end associate
 
     !$omp barrier
 

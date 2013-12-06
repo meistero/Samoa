@@ -86,8 +86,8 @@
 			!create a quadrature rule
 			call t_qr_create_dunavant_rule(qr_Q, max(1, 2 * _SWE_ORDER))
 
-			call load_scenario(grid, i_asagi_mode, "data/displ.nc", "data/bath.nc", 2.0d6, [-0.5d6, -1.0d6])
-            !call load_scenario(grid, i_asagi_mode, "data/seissol_displ.nc", "data/seissol_bathymetry.nc", 1.0d5, [-0.5d5, -0.5d5])
+			!call load_scenario(grid, i_asagi_mode, "data/displ.nc", "data/bath.nc", 2.0d6, [-0.5d6, -1.0d6])
+            call load_scenario(grid, i_asagi_mode, "data/seissol_displ.nc", "data/seissol_bathymetry.nc", 1.0d5, [-0.5d5, -0.5d5])
 		end subroutine
 
 		subroutine load_scenario(grid, i_asagi_mode, ncd_displ, ncd_bath, scaling, offset)
@@ -104,6 +104,7 @@
                     grid%afh_bathymetry = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
 
                     !$omp parallel private(i_error)
+                        i_error = grid_register_thread(); assert_eq(i_error, GRID_SUCCESS)
                         i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
                         i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
                     !$omp end parallel
@@ -212,7 +213,7 @@
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
 				call swe%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + min(1.0/3.0, r_output_step)
+				r_time_next_output = r_time_next_output + r_output_step
 			end if
 
             !$omp master
@@ -258,7 +259,7 @@
                     !output grid
                     if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                         call swe%xml_output%traverse(grid)
-                        r_time_next_output = r_time_next_output + min(1.0/3.0, r_output_step)
+                        r_time_next_output = r_time_next_output + r_output_step
                     end if
                 end do
 #           endif
@@ -310,16 +311,18 @@
                 _log_write(0, *) "SWE: done."
                 _log_write(0, *) ""
 
-                _log_write(0, *) "Initialization:"
+                _log_write(0, *) "Initialization phase:"
+                _log_write(0, *) ""
                 _log_write(0, '(A, T34, A)') " Init: ", trim(swe%init%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_initial%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_initial%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_initial%i_traversed_cells, GRID_SR) / (r_t2 - r_t1), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_initial%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
-                _log_write(0, '(A, T34, F10.4, A)') " Initialization time:", r_t2 - r_t1, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
-                _log_write(0, *) "Execution:"
+                _log_write(0, *) "Time Step phase:"
+                _log_write(0, *) ""
                 _log_write(0, '(A, T34, A)') " Time steps: ", trim(swe%euler%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
@@ -328,7 +331,7 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Cell update throughput: ", 1.0e-6 * real(swe%euler%stats%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Flux solver throughput: ", 1.0e-6 * real(swe%euler%stats%i_traversed_edges, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s"
-                _log_write(0, '(A, T34, F10.4, A)') " Execution time:", r_t4 - r_t3, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Time Step phase time:", r_t4 - r_t3, " s"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
                 _log_write(0, *) "---"
