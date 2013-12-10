@@ -181,7 +181,7 @@ else ifeq ($(TARGET), PROF)
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
-  FFLAGS 		+= -fast -inline-level=2 -funroll-loops -unroll
+  FFLAGS 		+= -fast -align all -inline-level=2 -no-inline-min-size -no-inline-max-size -no-inline-max-total-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -funroll-loops -unroll
   LDFLAGS 		+= -O3 -ip -ipo
 else
   $(error Invalid value for TARGET: $(TARGET))
