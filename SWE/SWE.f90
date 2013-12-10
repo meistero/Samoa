@@ -86,8 +86,8 @@
 			!create a quadrature rule
 			call t_qr_create_dunavant_rule(qr_Q, max(1, 2 * _SWE_ORDER))
 
-			!call load_scenario(grid, i_asagi_mode, "data/displ.nc", "data/bath.nc", 2.0d6, [-0.5d6, -1.0d6])
-            call load_scenario(grid, i_asagi_mode, "data/seissol_displ.nc", "data/seissol_bathymetry.nc", 1.0d5, [-0.5d5, -0.5d5])
+			call load_scenario(grid, i_asagi_mode, "data/displ.nc", "data/bath.nc", 2.0d6, [-0.5d6, -1.0d6])
+            !call load_scenario(grid, i_asagi_mode, "data/seissol_displ.nc", "data/seissol_bathymetry.nc", 1.0d5, [-0.5d5, -0.5d5])
 		end subroutine
 
 		subroutine load_scenario(grid, i_asagi_mode, ncd_displ, ncd_bath, scaling, offset)
@@ -100,11 +100,12 @@
 
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_NUMA)
-                    grid%afh_displacement = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
-                    grid%afh_bathymetry = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
+                    grid%afh_displacement = grid_create_for_numa(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1, tcount=omp_get_max_threads())
+                    grid%afh_bathymetry = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1, tcount=omp_get_max_threads())
 
                     !$omp parallel private(i_error)
-                        i_error = grid_register_thread(); assert_eq(i_error, GRID_SUCCESS)
+						i_error = grid_register_thread(grid%afh_displacement); assert_eq(i_error, GRID_SUCCESS)
+						i_error = grid_register_thread(grid%afh_bathymetry); assert_eq(i_error, GRID_SUCCESS)
                         i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
                         i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
                     !$omp end parallel
@@ -324,6 +325,7 @@
                 _log_write(0, *) "Time Step phase:"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, A)') " Time steps: ", trim(swe%euler%stats%to_string())
+                _log_write(0, '(A, T34, A)') " Displace: ", trim(swe%displace%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_time_steps%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"

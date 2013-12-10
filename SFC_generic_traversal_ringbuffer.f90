@@ -270,7 +270,7 @@ subroutine traverse_grid(traversal, grid)
         traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
         traversals%current_stats%r_traversal_time = traversals%current_stats%r_traversal_time + omp_get_wtime()
 
-        !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
+       	!HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
 #       if defined(_ASAGI_TIMING)
             traversals%current_stats%r_asagi_time = dble(i_last_local_section - i_first_local_section + 1) * sections%stats%r_asagi_time
 #       endif

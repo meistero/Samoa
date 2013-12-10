@@ -14,13 +14,14 @@
 #  SWE_SOLVER=LAX_FRIEDRICHS|LAX_FRIEDRICHS_BATH|FWAVE|SSQ_FWAVE|AUG_JCP
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
-#  OPENMP=YES|NO
+#  OPENMP=YES|TASKS|NO
 #  STD_FORTRAN=YES|NO
 #  ASAGI=STANDARD|NUMA|NO
 #  ASAGI_TIMING=YES|NO
 #  DEBUG_LEVEL = (0-7)
 #  ASSERT = YES|NO
 #  VEC_REPORT = (0-3)
+#  ASAGI_DIR = <path>
 
 #default compiler and compiler-specific flags
 
@@ -33,10 +34,11 @@ SCENARIO		?= DARCY
 SWE_SOLVER		?= AUG_RIEMANN
 TARGET			?= OPT
 MPI 			?= DEFAULT
-OPENMP			?= YES
+OPENMP			?= TASKS
 STD_FORTRAN		?= NO
-ASAGI_TIMING 	?= NO
+ASAGI_TIMING	?= NO
 VEC_REPORT		?= 0
+ASAGI_DIR		?= "./ASAGI"
 
 #check switches, set flags of dependent switches and compiler flags accordingly
 
@@ -49,7 +51,7 @@ else ifeq ($(MPI), OPENMPI)
 else ifeq ($(MPI), MPICH2)
   FC			= MPICH_F90=ifort mpif90.mpich2
   LOADER		= MPICH_F90=ifort mpif90.mpich2
-  else ifeq ($(MPI), INTEL)
+else ifeq ($(MPI), INTEL)
   FC			= I_MPI_F90=ifort mpif90.intel
   LOADER		= I_MPI_F90=ifort mpif90.intel
 else ifeq ($(MPI), NO)
@@ -89,7 +91,10 @@ else
 endif
 
 ifeq ($(OPENMP), YES)
-  FFLAGS		+= -openmp -D_OMP
+  FFLAGS		+= -openmp
+  LDFLAGS		+= -openmp
+else ifeq ($(OPENMP), TASKS)
+  FFLAGS		+= -openmp -D_OPENMP_TASKS
   LDFLAGS		+= -openmp
 else ifeq ($(OPENMP), NO)
   EXEC			:= $(EXEC)_noomp
@@ -106,17 +111,17 @@ else
 endif
 
 ifeq ($(ASAGI), STANDARD)
-  FFLAGS 		+= -D_ASAGI -I"ASAGI/include"
-  LDFLAGS 		+= "-Wl,-rpath,ASAGI" -L"ASAGI/"
+  FFLAGS 		+= -D_ASAGI -I$(ASAGI_DIR)"/include"
+  LDFLAGS 		+= "-Wl,-rpath,"$(ASAGI_DIR) -L$(ASAGI_DIR)
 
-  ifeq ($(OPENMP), YES)
-    LDFLAGS		+= -lasagi
-  else
+  ifeq ($(OPENMP), NO)
     LDFLAGS		+= -lasagi_nomt
+  else
+    LDFLAGS		+= -lasagi
   endif
 else ifeq ($(ASAGI), NUMA)
-  FFLAGS 		+= -D_ASAGI -D_ASAGI_NUMA -I"ASAGI/include"
-  LDFLAGS 		+= "-Wl,-rpath,ASAGI" -L"ASAGI/"
+  FFLAGS 		+= -D_ASAGI -D_ASAGI_NUMA -I$(ASAGI_DIR)"/include"
+  LDFLAGS 		+= "-Wl,-rpath,"$(ASAGI_DIR) -L$(ASAGI_DIR)
   LDFLAGS		+= -lasagi
 
   ifeq ($(OPENMP), NO)

@@ -12,6 +12,11 @@
 #	define _DEBUG_LEVEL				1
 #endif
 
+! if ASAGI with NUMA support is requested, activate ASAGI
+#if defined(_ASAGI_NUMA)
+#	define _ASAGI
+#endif
+
 !> if true, element coordinates are not computed but stored in the nodes instead (which allows for irregular grids)
 !#define _STORE_NODE_COORDS
 
@@ -97,7 +102,9 @@
 #	define assert_vne(x, y)
 #endif
 
+#	define try(x, str_exception)	if (.not. (x)) then; PRINT '(a, "(", i0, "): Exception: ", a, ": ", a)', __FILE__, __LINE__, str_exception, #x; flush(6); PRINT *, 0 / 0; end if
+
 !> Log file macros
-#define _log_open_file			call log_open_file
-#define _log_close_file			call log_close_file
-#define _log_write(dl, f)		if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit,'(A, A, I0, A, I0, A)',advance='no') term_color(omp_get_thread_num() * size_MPI + rank_MPI), "(r", rank_MPI, ",t", omp_get_thread_num(), ") "; if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit, f)
+#define _log_open_file				call log_open_file
+#define _log_close_file				call log_close_file
+#define _log_write(dl, f)			if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit,'(A, A, I0, A, I0, A)',advance='no') term_color(omp_get_thread_num() * size_MPI + rank_MPI), "(r", rank_MPI, ",t", omp_get_thread_num(), ") "; if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit, f)

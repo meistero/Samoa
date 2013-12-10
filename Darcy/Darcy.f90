@@ -92,42 +92,57 @@
 			integer, intent(in)						:: i_asagi_mode
 
 			integer									:: i_error, i, j
-			integer, pointer						:: afh
 			character (len = 64)					:: s_file_name
 
 #			if defined(_ASAGI)
-				afh => grid%afh_permeability
-
 #               if defined(_ASAGI_NUMA)
-                    afh = f90grid_createthreadhandler(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
-#               else
-                    afh = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
-#               endif
+                    grid%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1, tcount=omp_get_max_threads())
+                    
+					!$omp parallel private(i_error, i, j, s_file_name)
+						i_error = grid_register_thread(grid%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
+                       
+						do j = min(10, grid%i_max_depth / 2), 0, -1
+                            write (s_file_name, fmt = '("data/perm_", I0, ".nc")') 2 ** j
 
-#               if defined(_ASAGI_NUMA)
-                    !$omp parallel firstprivate(afh) private(i_error, i, j, s_file_name)
-#               endif
-                    do i = 0, grid%i_max_depth / 2
-                        do j = i, 0, -1
-                            write (s_file_name, fmt = '(A, I0, A, A)') "data/perm_", 2 ** j, ".nc"
-
-                            i_error = asagi_open(afh, trim(s_file_name), i)
+                            i_error = asagi_open(grid%afh_permeability, trim(s_file_name), 0)
 
                             if (i_error == GRID_SUCCESS) then
                                 exit
                             endif
-
-                            assert_gt(j, 0)
                         end do
 
+	                    assert_eq(i_error, GRID_SUCCESS)
+
+	                    if (rank_MPI == 0) then
+	                		associate(afh => grid%afh_permeability)
+	                        	_log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
+	                        	    trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
+	                		end associate
+	                    end if
+					!$omp end parallel
+#               else
+                    grid%afh_permeability = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
+
+                    do i = 0, grid%i_max_depth / 2
+                        do j = i, 0, -1
+                            write (s_file_name, fmt = '("data/perm_", I0, ".nc")') 2 ** j
+
+                            i_error = asagi_open(grid%afh_permeability, trim(s_file_name), i)
+
+                            if (i_error == GRID_SUCCESS) then
+                                exit
+                            endif
+                        end do
+
+                        assert_eq(i_error, GRID_SUCCESS)
+
                         if (rank_MPI == 0) then
-                            _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                                trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
+                    		associate(afh => grid%afh_permeability)
+                            	_log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
+                            	    trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
+                    		end associate
                         end if
                     end do
-
-#               if defined(_ASAGI_NUMA)
-                    !$omp end parallel
 #               endif
 #			endif
 		end subroutine

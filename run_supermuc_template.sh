@@ -17,7 +17,6 @@
 #@ initialdir = $(home)/Desktop/Samoa
 #@ output = $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.$(jobid).out
 #@ error =  $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.$(jobid).err
-#@ max_perf_decrease_allowed = -1
 #@ queue
 
 . /etc/profile 2>/dev/null
@@ -36,6 +35,6 @@ mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -dmin 26 -dmax 40 
 echo "  Done."
 
 echo "  Running SWE..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -dmin 8 -dmax 32 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 

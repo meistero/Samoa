@@ -16,7 +16,7 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-./make_test.sh OPENMP=NO
+./make_tests.sh OPENMP=NO
 
 echo "Running scenarios..."
 
@@ -28,7 +28,7 @@ for asagimode in 2
 do
 	for sections in 8 16 32
 	do
-		for concurrency in 16 32 64 128 256
+		for concurrency in 16 32 64 128 256 512
 		do
 			processes=$concurrency
 			threads=1

@@ -20,7 +20,7 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-./make_test.sh MPI=NO
+./make_tests.sh MPI=NO
 
 echo "Running scenarios..."
 

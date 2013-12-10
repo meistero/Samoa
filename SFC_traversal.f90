@@ -77,8 +77,12 @@ MODULE SFC_traversal
                 _log_write(0, '(" Scenario: GENERIC")')
 #    		endif
 
-#    		if defined(_OMP)
-                _log_write(0, '(" OpenMP: Yes, threads: ", I0, ", procs: ", I0)') omp_get_max_threads(), omp_get_num_procs()
+#    		if defined(_OPENMP)
+#				if defined(_OPENMP_TASKS)
+                	_log_write(0, '(" OpenMP: Yes, with tasks, threads: ", I0, ", procs: ", I0)') omp_get_max_threads(), omp_get_num_procs()
+#				else
+                	_log_write(0, '(" OpenMP: Yes, without tasks, threads: ", I0, ", procs: ", I0)') omp_get_max_threads(), omp_get_num_procs()
+#				endif
 #    		else
                 _log_write(0, '(" OpenMP: No")')
 #    		endif
@@ -90,7 +94,11 @@ MODULE SFC_traversal
 #    		endif
 
 #    		if defined(_ASAGI)
-                _log_write(0, '(" ASAGI: Yes, mode: ", I0)') i_asagi_mode
+#				if defined(_ASAGI_NUMA)
+                	_log_write(0, '(" ASAGI: Yes, with NUMA support, mode: ", I0)') i_asagi_mode
+#				else
+                	_log_write(0, '(" ASAGI: Yes, without NUMA support, mode: ", I0)') i_asagi_mode
+#				endif
 #    		else
                 _log_write(0, '(" ASAGI: No")')
 #    		endif

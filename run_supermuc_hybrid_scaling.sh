@@ -16,7 +16,7 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-./make_test.sh
+./make_tests.sh
 
 echo "Running scenarios..."
 
@@ -26,11 +26,11 @@ postfix=
 
 for asagimode in 2
 do
-	for sections in 8 16
+	for sections in 8 16 32
 	do
-		for concurrency in 1 2 4 8 16 32 64 128 256
+		for concurrency in 1 2 4 8 16 32 64 128 256 512
 		do
-			processes=$(( ($concurrency - 1) / 16 + 1 ))
+			processes=$(( ($concurrency - 1) / 8 + 1 ))
 			threads=$(( $concurrency / $processes )) 
 			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 

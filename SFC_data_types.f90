@@ -76,15 +76,15 @@ MODULE SFC_data_types
     integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * GRID_SR - 4_1
 	real (kind = GRID_SR), parameter									:: PI = 3.14159265358979323846_GRID_SR 		!< PI. Apparently, "_GRID_SR" is necessary to avoid digit truncation
 
-#   if defined(_OMP_TASKS)
+#   if defined(_OPENMP_TASKS)
         logical, parameter      :: omp_tasks = .true.
 #   else
         logical, parameter      :: omp_tasks = .false.
 #   endif
 
-	integer 				:: rank_MPI = 0
-	integer 				:: size_MPI = 1
-	integer                 :: mpi_ref_count = 0
+	integer 					:: rank_MPI = 0
+	integer 					:: size_MPI = 1
+	integer                 	:: mpi_ref_count = 0
 
 	!********************************
 	!Generic scenario data structures
@@ -575,7 +575,7 @@ MODULE SFC_data_types
         class(t_statistics), intent(in)			:: s
 		character (len = 256)					:: str
 
-        write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s)")') s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_sync_time, s%r_barrier_time
+        write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s)")') s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time
 
         if (s%r_traversal_time > 0.0_GRID_SR) then
             write(str, '(A, " ET: ", F0.4, " M/s  MT: ", F0.4, " GB/s")') trim(str), real(s%i_traversed_cells, GRID_SR) / (1.0e6_GRID_SR * s%r_traversal_time), real(s%i_traversed_memory, GRID_SR) / (1024.0_GRID_SR * 1024.0_GRID_SR * 1024.0_GRID_SR * s%r_traversal_time)
@@ -866,9 +866,10 @@ MODULE SFC_data_types
                 call mpi_initialized(mpi_is_initialized, i_error); assert_eq(i_error, 0)
 
                 if (.not. mpi_is_initialized) then
-#                   if defined(_OMP)
+#                   if defined(_OPENMP)
                         call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
-                        assert_ge(mpi_prov_thread_support, MPI_THREAD_MULTIPLE)
+                        
+						try(mpi_prov_thread_support >= MPI_THREAD_MULTIPLE, "MPI version does not support MPI_THREAD_MULTIPLE")
 #                   else
                         call mpi_init(i_error); assert_eq(i_error, 0)
 #                   endif
@@ -877,9 +878,10 @@ MODULE SFC_data_types
                     !This makes sure that it will not finalize MPI either.
                     mpi_ref_count = 1
 
-#                   if defined(_OMP)
+#                   if defined(_OPENMP)
                         call mpi_query_thread(mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
-                        assert_ge(mpi_prov_thread_support, MPI_THREAD_MULTIPLE)
+                        
+						try(mpi_prov_thread_support >= MPI_THREAD_MULTIPLE, "MPI version does not support MPI_THREAD_MULTIPLE")
 #                   endif
                 end if
 
@@ -887,8 +889,8 @@ MODULE SFC_data_types
                 call mpi_comm_rank(MPI_COMM_WORLD, rank_MPI, i_error); assert_eq(i_error, 0)
 
                 call mpi_comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, mpi_tag_upper_bound, mpi_flag, i_error); assert_eq(i_error, 0)
-                assert(mpi_flag)
-                assert_ge(mpi_tag_upper_bound, ishft(1, 30) - 1)
+				try(mpi_flag, "MPI tag support could not be determined")
+				try(mpi_tag_upper_bound >= ishft(1, 30) - 1, "MPI version does not support a sufficient number of tags")
             end if
 
             mpi_ref_count = mpi_ref_count + 1

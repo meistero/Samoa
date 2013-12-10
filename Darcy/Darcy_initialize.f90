@@ -118,7 +118,11 @@
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
 
-                r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), lod)
+#               if defined(_ASAGI_NUMA)
+                	r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), 0)
+#				else
+                	r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), lod)
+#				endif
 
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time + omp_get_wtime()
