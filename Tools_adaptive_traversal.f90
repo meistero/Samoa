@@ -379,7 +379,7 @@
 #       endif
 
         !unroll all cases
-		select case (element%cell%geometry%i_edge_types)
+		select case (element%cell%geometry%i_entity_types)
             case(INNER_OLD)
                 call _OP3(read, o, o, n)(traversal, thread, section, element)
             case(INNER_NEW)
@@ -405,7 +405,7 @@
             case(SINGLE_NEW_BND)
                 call _OP3(read, d, b, b)(traversal, thread, section, element)
 			case default
-				assert_eq(element%cell%geometry%i_edge_types, INNER_OLD)
+				assert_eq(element%cell%geometry%i_entity_types, INNER_OLD)
         end select
 	end subroutine
 
@@ -421,7 +421,7 @@
 #       endif
 
         !unroll all cases
-		select case (element%cell%geometry%i_edge_types)
+		select case (element%cell%geometry%i_entity_types)
             case(INNER_OLD)
                 call _OP3(write, o, o, n)(traversal, thread, section, element)
             case(INNER_NEW)
@@ -447,7 +447,7 @@
             case(SINGLE_NEW_BND)
                 call _OP3(write, d, b, b)(traversal, thread, section, element)
 			case default
-				assert_eq(element%cell%geometry%i_edge_types, INNER_OLD)
+				assert_eq(element%cell%geometry%i_entity_types, INNER_OLD)
         end select
 	end subroutine
 #endif
