@@ -91,6 +91,7 @@ else
 endif
 
 ifeq ($(OPENMP), YES)
+  EXEC			:= $(EXEC)_notasks
   FFLAGS		+= -openmp
   LDFLAGS		+= -openmp
 else ifeq ($(OPENMP), TASKS)
