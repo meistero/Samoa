@@ -86,10 +86,10 @@ MODULE SFC_node_traversal
 		type(t_grid_section), intent(inout)			:: section
 		integer                                     :: start_depth
 
-		type(fine_triangle), parameter				:: first_cell = fine_triangle(i_edge_types = FIRST_OLD_BND, i_depth = 0, &
+		type(fine_triangle), parameter				:: first_cell = fine_triangle(i_entity_types = FIRST_OLD_BND, i_depth = 0, &
             refinement = 0, i_plotter_type = -2, i_turtle_type = K, l_color_edge_color = RED)
 
-		type(fine_triangle)							:: second_cell = fine_triangle(i_edge_types = LAST_NEW_BND, i_depth = 0, &
+		type(fine_triangle)							:: second_cell = fine_triangle(i_entity_types = LAST_NEW_BND, i_depth = 0, &
             refinement = 0, i_plotter_type = -6, i_turtle_type = H, l_color_edge_color = RED)
 
         double precision, parameter                 :: first_coords(2, 3) = reshape([[0, 0], [1, 0], [1, 1]], shape(first_coords))

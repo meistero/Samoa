@@ -250,7 +250,7 @@ module Conformity
             do
                 p_cell_data => section%cells%next()
 
-                select case (p_cell_data%fine_triangle%i_edge_types)
+                select case (p_cell_data%fine_triangle%i_entity_types)
                     case (INNER_OLD)
                         call initial_conformity_traversal_old_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
                     case (INNER_NEW)
@@ -596,7 +596,7 @@ module Conformity
             do
                 p_cell_data => section%cells%next()
 
-                select case (p_cell_data%fine_triangle%i_edge_types)
+                select case (p_cell_data%fine_triangle%i_entity_types)
                     case (INNER_OLD)
                         call update_conformity_traversal_old_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
                     case (INNER_NEW)
@@ -902,7 +902,7 @@ module Conformity
             do
                 p_cell_data => section%cells%next()
 
-                select case (p_cell_data%fine_triangle%i_edge_types)
+                select case (p_cell_data%fine_triangle%i_entity_types)
                     case (INNER_OLD)
                         call empty_traversal_old_leaf(thread, section, p_cell_data%fine_triangle)
                     case (INNER_NEW)

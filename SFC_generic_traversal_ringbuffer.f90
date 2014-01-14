@@ -323,7 +323,7 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
         thread_traversal%p_current_element => p_next_element
 
 		do
-			select case (thread_traversal%p_current_element%cell%geometry%i_edge_types)
+			select case (thread_traversal%p_current_element%cell%geometry%i_entity_types)
 				case (INNER_OLD)
                     !init next element for the skeleton operator
                     p_next_element => thread_traversal%p_current_element%next

@@ -51,18 +51,18 @@ MODULE SFC_data_types
 
     enum, bind(c)
         enumerator ::   OLD = 0, NEW = 1, OLD_BND = 2, NEW_BND = 3
-        enumerator ::   INNER_OLD       = 16 * OLD + 4 * NEW + OLD
-        enumerator ::   INNER_NEW       = 16 * OLD + 4 * NEW + NEW
-        enumerator ::   INNER_OLD_BND   = 16 * OLD + 4 * NEW + OLD_BND
-        enumerator ::   INNER_NEW_BND   = 16 * OLD + 4 * NEW + NEW_BND
-        enumerator ::   FIRST_NEW       = 16 * OLD_BND + 4 * NEW + NEW
-        enumerator ::   FIRST_OLD_BND   = 16 * OLD_BND + 4 * NEW + OLD_BND
-        enumerator ::   FIRST_NEW_BND   = 16 * OLD_BND + 4 * NEW + NEW_BND
-        enumerator ::   LAST_OLD        = 16 * OLD + 4 * NEW_BND + OLD
-        enumerator ::   LAST_OLD_BND    = 16 * OLD + 4 * NEW_BND + OLD_BND
-        enumerator ::   LAST_NEW_BND    = 16 * OLD + 4 * NEW_BND + NEW_BND
-        enumerator ::   SINGLE_OLD_BND  = 16 * OLD_BND + 4 * NEW_BND + OLD_BND
-        enumerator ::   SINGLE_NEW_BND  = 16 * OLD_BND + 4 * NEW_BND + NEW_BND
+        enumerator ::   INNER_OLD       = 8 * 0 + 4 * 0 + 2 * 0 + OLD
+        enumerator ::   INNER_NEW       = 8 * 0 + 4 * 0 + 2 * 0 + NEW
+        enumerator ::   INNER_OLD_BND   = 8 * 0 + 4 * 0 + 2 * 1 + OLD
+        enumerator ::   INNER_NEW_BND   = 8 * 0 + 4 * 0 + 2 * 1 + NEW
+        enumerator ::   FIRST_NEW       = 8 * 1 + 4 * 0 + 2 * 0 + NEW
+        enumerator ::   FIRST_OLD_BND   = 8 * 1 + 4 * 0 + 2 * 1 + OLD
+        enumerator ::   FIRST_NEW_BND   = 8 * 1 + 4 * 0 + 2 * 1 + NEW
+        enumerator ::   LAST_OLD        = 8 * 0 + 4 * 1 + 2 * 0 + OLD
+        enumerator ::   LAST_OLD_BND    = 8 * 0 + 4 * 1 + 2 * 1 + OLD
+        enumerator ::   LAST_NEW_BND    = 8 * 0 + 4 * 1 + 2 * 1 + NEW
+        enumerator ::   SINGLE_OLD_BND  = 8 * 1 + 4 * 1 + 2 * 1 + OLD
+        enumerator ::   SINGLE_NEW_BND  = 8 * 1 + 4 * 1 + 2 * 1 + NEW
     end enum
 
     enum, bind(c)
@@ -90,34 +90,11 @@ MODULE SFC_data_types
 	!Generic scenario data structures
 	!********************************
 
-	!---------- this defines a triangle element
-	type triangle
-		integer (kind = 1)									:: i_triangle			! tree node: -1, tree leaf: -10 (inner cell), -20 (dirichlet boundary), -30 (neumann boundary)
-	end type triangle
-
-	type, extends(triangle)									:: fem_triangle
-		! SFC nodes: coords(:,1) and coords(:,3) are the nodes of the hypotenuse
-		real (kind = GRID_SR), dimension(2,3)				:: r_coords				! 2D coordinates of triangle
-
-		! edge boundary data: boundary_data(:,2) is the hypotenuse
-		logical (kind = GRID_SL), dimension(2,3)			:: l_boundary_data
-		! 00 - internal, 01 - Dirichlet, 10 - Neumann, 11 - Process Boundary
-
-		! temporary storage
-		real (kind = GRID_SR), dimension(2)					:: r_bisection			! = (r_coords(:,1) + r_coords(:3)) / 2	(SFC Nodes)
-
-		integer (kind = 1)							        :: i_plotter_type
-		integer (kind = 1)									:: i_turtle_type
-
-		logical (kind = GRID_SL)							:: l_color				! reference color
-		integer (kind = 1)									:: i_depth				! grid depth
-	end type fem_triangle
-
 	type fine_triangle
-		integer (kind = 1)									:: i_edge_types			! encodes the types of previous, color and next edge (OLD, NEW, DOMAIN_BND, PROCESS_BND)	max. 6 bit
+		integer (kind = 1)									:: i_entity_types		! encodes the types of edges and nodes (old/new, inner/boundary)							max. 8 bit
 		integer (kind = 1)									:: i_depth				! grid depth (0 to MAX_DEPTH)																max. 6? bit
 		integer (kind = 1)									:: refinement			! refinement info (-1: coarsen, 0: keep, 1-4: refine once or multiple times)				max. 3 bit
-		integer (kind = 1)									:: i_plotter_type		! plotter grammar type for cell orientation (1 to 8)										max. 3 bit
+		integer (kind = 1)									:: i_plotter_type		! plotter grammar type for cell orientation (-8 to 8)										max. 3 bit
 		integer (kind = 1)									:: i_turtle_type		! turtle grammar type for edge/node indexing) (K = 1, V = 2, H = 3)							max. 2 bit
 		logical (kind = GRID_SL)							:: l_color_edge_color	! color of the color_edge																	max. 1 bit
 
@@ -648,20 +625,28 @@ MODULE SFC_data_types
 		integer (KIND = 1), intent(out)			:: i_color_edge_type
 		integer (KIND = 1), intent(out)			:: i_next_edge_type
 
-		i_previous_edge_type = 0
+		i_previous_edge_type = OLD
 		i_color_edge_type = 0
-		i_next_edge_type = 0
-		call mvbits(cell%i_edge_types, 4, 2, i_previous_edge_type, 0)
-		call mvbits(cell%i_edge_types, 2, 2, i_next_edge_type, 0)
-		call mvbits(cell%i_edge_types, 0, 2, i_color_edge_type, 0)
+		i_next_edge_type = NEW
+		call mvbits(cell%i_entity_types, 3, 1, i_previous_edge_type, 1)
+		call mvbits(cell%i_entity_types, 2, 1, i_next_edge_type, 1)
+		call mvbits(cell%i_entity_types, 0, 2, i_color_edge_type, 0)
 	end subroutine
 
 	elemental function cell_get_previous_edge_type(cell) result(i_previous_edge_type)
 		class(fine_triangle), intent(in)		:: cell
 		integer (KIND = 1)						:: i_previous_edge_type
 
-		i_previous_edge_type = 0
-		call mvbits(cell%i_edge_types, 4, 2, i_previous_edge_type, 0)
+		i_previous_edge_type = OLD
+		call mvbits(cell%i_entity_types, 3, 1, i_previous_edge_type, 1)
+	end function
+
+	elemental function cell_get_next_edge_type(cell) result(i_next_edge_type)
+		class(fine_triangle), intent(in)		:: cell
+		integer (KIND = 1)						:: i_next_edge_type
+
+		i_next_edge_type = NEW
+		call mvbits(cell%i_entity_types, 2, 1, i_next_edge_type, 1)
 	end function
 
 	elemental function cell_get_color_edge_type(cell) result(i_color_edge_type)
@@ -669,15 +654,7 @@ MODULE SFC_data_types
 		integer (KIND = 1)						:: i_color_edge_type
 
 		i_color_edge_type = 0
-		call mvbits(cell%i_edge_types, 0, 2, i_color_edge_type, 0)
-	end function
-
-	elemental function cell_get_next_edge_type(cell) result(i_next_edge_type)
-		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1)						:: i_next_edge_type
-
-		i_next_edge_type = 0
-		call mvbits(cell%i_edge_types, 2, 2, i_next_edge_type, 0)
+		call mvbits(cell%i_entity_types, 0, 2, i_color_edge_type, 0)
 	end function
 
 	elemental subroutine cell_set_edge_types(cell, i_previous_edge_type, i_color_edge_type, i_next_edge_type)
@@ -686,40 +663,40 @@ MODULE SFC_data_types
 		integer (KIND = 1), intent(in)			:: i_color_edge_type
 		integer (KIND = 1), intent(in)			:: i_next_edge_type
 
-		cell%i_edge_types = 0
-		call mvbits(i_previous_edge_type, 0, 2, cell%i_edge_types, 4)
-		call mvbits(i_next_edge_type, 0, 2, cell%i_edge_types, 2)
-		call mvbits(i_color_edge_type, 0, 2, cell%i_edge_types, 0)
+		cell%i_entity_types = 0
+		call mvbits(i_previous_edge_type, 1, 1, cell%i_entity_types, 3)
+		call mvbits(i_next_edge_type, 1, 1, cell%i_entity_types, 2)
+		call mvbits(i_color_edge_type, 0, 2, cell%i_entity_types, 0)
 	end subroutine
 
 	elemental subroutine cell_set_previous_edge_type(cell, i_previous_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
 		integer (KIND = 1), intent(in)			:: i_previous_edge_type
 
-		call mvbits(i_previous_edge_type, 0, 2, cell%i_edge_types, 4)
-	end subroutine
-
-	elemental subroutine cell_set_color_edge_type(cell, i_color_edge_type)
-		class(fine_triangle), intent(inout)		:: cell
-		integer (KIND = 1), intent(in)			:: i_color_edge_type
-
-		call mvbits(i_color_edge_type, 0, 2, cell%i_edge_types, 0)
+		call mvbits(i_previous_edge_type, 1, 1, cell%i_entity_types, 3)
 	end subroutine
 
 	elemental subroutine cell_set_next_edge_type(cell, i_next_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
 		integer (KIND = 1), intent(in)			:: i_next_edge_type
 
-		call mvbits(i_next_edge_type, 0, 2, cell%i_edge_types, 2)
+		call mvbits(i_next_edge_type, 1, 1, cell%i_entity_types, 2)
+	end subroutine
+
+	elemental subroutine cell_set_color_edge_type(cell, i_color_edge_type)
+		class(fine_triangle), intent(inout)		:: cell
+		integer (KIND = 1), intent(in)			:: i_color_edge_type
+
+		call mvbits(i_color_edge_type, 0, 2, cell%i_entity_types, 0)
 	end subroutine
 
 	elemental subroutine cell_reverse(cell)
 		class(fine_triangle), intent(inout)		:: cell
 
         !invert edge types: swap previous and next edge and invert old/new bits
-        cell%i_edge_types = ishftc(cell%i_edge_types, 2, 6)
-        cell%i_edge_types = ishftc(cell%i_edge_types, 2, 4)
-        cell%i_edge_types = ieor(cell%i_edge_types, B"010101")
+        cell%i_entity_types = ishftc(cell%i_entity_types, 1, 4)
+        cell%i_entity_types = ishftc(cell%i_entity_types, -1, 3)
+        cell%i_entity_types = ieor(cell%i_entity_types, 1)
 
         !invert turtle type: (K, V, H) -> (H, V, K)
         cell%i_turtle_type = 4 - cell%i_turtle_type
@@ -732,7 +709,7 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(inout)		:: cell
 
         !invert edge types: invert old/new color edge bit
-        cell%i_edge_types = ieor(cell%i_edge_types, 1)
+        cell%i_entity_types = ieor(cell%i_entity_types, 1)
 
         !invert turtle type: (K, V, H) -> (H, V, K)
         cell%i_turtle_type = 4 - cell%i_turtle_type

@@ -749,7 +749,7 @@ function empty_leaf(thread_traversal, traversal, src_thread, src_section) result
     integer(kind = GRID_SI)                     :: i_dest_cells
 
 	call init_src_element(src_section, thread_traversal%p_src_element)
-	select case (thread_traversal%p_src_element%cell%geometry%i_edge_types)
+	select case (thread_traversal%p_src_element%cell%geometry%i_entity_types)
 		case (INNER_OLD)
 			call read_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
 			call write_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
@@ -766,7 +766,7 @@ function empty_leaf(thread_traversal, traversal, src_thread, src_section) result
             thread_traversal%p_src_element => thread_traversal%p_src_element%next
 
             call init_src_element(src_section, thread_traversal%p_src_element)
-            select case (thread_traversal%p_src_element%cell%geometry%i_edge_types)
+            select case (thread_traversal%p_src_element%cell%geometry%i_entity_types)
                 case (INNER_OLD)
                     call read_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
                     call write_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
@@ -994,7 +994,7 @@ subroutine write_dest_element(traversal, thread, section, element)
             element%next_edge%ptr%remove = .true.
     end select
 
-    select case (element%cell%geometry%i_edge_types)
+    select case (element%cell%geometry%i_entity_types)
         case (INNER_OLD)
             call write_dest_oon(traversal, thread, section, element)
         case (INNER_NEW)
