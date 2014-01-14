@@ -97,12 +97,12 @@
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_NUMA)
                     grid%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1, tcount=omp_get_max_threads())
-                    
+
 					!$omp parallel private(i_error, i, j, s_file_name)
 						i_error = grid_register_thread(grid%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
-                       
+
 						do j = min(10, grid%i_max_depth / 2), 0, -1
-                            write (s_file_name, fmt = '("data/perm_", I0, ".nc")') 2 ** j
+                            write (s_file_name, fmt = '("data/darcy_benchmark/perm_", I0, ".nc")') 2 ** j
 
                             i_error = asagi_open(grid%afh_permeability, trim(s_file_name), 0)
 
@@ -125,7 +125,7 @@
 
                     do i = 0, grid%i_max_depth / 2
                         do j = i, 0, -1
-                            write (s_file_name, fmt = '("data/perm_", I0, ".nc")') 2 ** j
+                            write (s_file_name, fmt = '("data/darcy_benchmark/perm_", I0, ".nc")') 2 ** j
 
                             i_error = asagi_open(grid%afh_permeability, trim(s_file_name), i)
 

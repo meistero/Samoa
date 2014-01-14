@@ -73,11 +73,7 @@
 			end do
 
             !no coarsening while the earthquake takes place
-			if (element%cell%geometry%i_depth < section%i_max_depth .and. any(Q%h .ne. 0.0)) then
-                element%cell%geometry%refinement = 1
-            else
-                element%cell%geometry%refinement = 0
-            end if
+			element%cell%geometry%refinement = max(0, element%cell%geometry%refinement)
 		end subroutine
 	END MODULE
 #endif

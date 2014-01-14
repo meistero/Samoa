@@ -12,6 +12,7 @@ echo "#Element throughput by sections and threads" > "darcy.plt"
 echo "#Threads ET per (initialization, time steps) per sections" >> "darcy.plt"
 
 for file in darcy*.log; do
+	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
 	sections=$(echo $file | grep -oE "_s[0-9]+" | grep -oE "[0-9]+")
@@ -22,6 +23,7 @@ for file in darcy*.log; do
 
 	echo -n $processes $threads $sections" " >> "darcy.plt"
 	grep -E "r0.*Element throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
+	echo -n $flags >> "darcy.plt"
 	echo "" >> "darcy.plt"
 done
 
@@ -30,6 +32,7 @@ echo "#Cell update throughput and flux solver throughput by sections and threads
 echo "#Threads CUT FST per sections" >> "swe.plt"
 
 for file in swe*.log; do
+	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
 	sections=$(echo $file | grep -oE "_s[0-9]+" | grep -oE "[0-9]+")
@@ -42,6 +45,7 @@ for file in swe*.log; do
 	    
 	grep -E "r0.*Cell update throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Flux solver throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
+	echo -n $flags >> "swe.plt"
 	echo ""  >> "swe.plt"
 done
 
@@ -57,9 +61,10 @@ set key left top
 
 title(n) = sprintf("%d section(s)", n)
 
-set style line 1 lt 2 lw 8 lc rgb "black"
+set style line 999 lt 2 lw 8 lc rgb "black"
 
-set for [n=2:64] style line n lt 1 lw 8
+set for [n=1:64] style line n lt 1 lw 8
+set style line 1 lc rgb "cyan"
 set style line 2 lc rgb "orange"
 set style line 4 lc rgb "magenta"
 set style line 8 lc rgb "red"
@@ -80,7 +85,7 @@ plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoi
 set output '| ps2pdf - darcy_elem_init_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 999 title "reference"
 
 #********
 
@@ -94,7 +99,7 @@ plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls n w linespoi
 set output '| ps2pdf - darcy_elem_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 999 title "reference"
 
 #*****
 # SWE
@@ -105,12 +110,12 @@ unset output
 set xrange [0:*]
 set yrange [0:*]
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls n w linespoints t title(n)
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n? \$5 : 1/0) ls n w linespoints t title(n)
 
 set output '| ps2pdf - swe_flux_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 999 title "reference"
 
 
 #********
@@ -120,12 +125,12 @@ unset output
 set xrange [0:*]
 set yrange [0:*]
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
+plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n? \$4 : 1/0) ls n w linespoints t title(n)
 
 set output '| ps2pdf - swe_cells_lin.pdf'
 set xrange [0:GPVAL_X_MAX]
 
-replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 1 title "reference"
+replot GPVAL_DATA_Y_MIN / GPVAL_DATA_X_MIN * x w lines ls 999 title "reference"
 
 
 EOT

@@ -3,6 +3,7 @@ except: from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
 RenderView1 = CreateRenderView()
+RenderView1.InteractionMode = '3D'
 RenderView1.LightSpecularColor = [1.0, 1.0, 1.0]
 RenderView1.UseOutlineForLODRendering = 0
 RenderView1.KeyLightAzimuth = 10.0

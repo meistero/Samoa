@@ -86,15 +86,17 @@
 			!create a quadrature rule
 			call t_qr_create_dunavant_rule(qr_Q, max(1, 2 * _SWE_ORDER))
 
-			call load_scenario(grid, i_asagi_mode, "data/displ.nc", "data/bath.nc", 2.0d6, [-0.5d6, -1.0d6])
-            !call load_scenario(grid, i_asagi_mode, "data/seissol_displ.nc", "data/seissol_bathymetry.nc", 1.0d5, [-0.5d5, -0.5d5])
+			call load_scenario(grid, i_asagi_mode, "data/alaska/displ.nc", "data/alaska/bath.nc") !, 2.0d6, [-0.5d6, -1.5d6])
+			!call load_scenario(grid, i_asagi_mode, "data/tohoku_static/displ.nc", "data/tohoku_static/bath.nc") !, , 2.0d6, [-0.5d6, -1.0d6])
+			!call load_scenario(grid, i_asagi_mode, "data/tohoku_dynamic/displ.nc", "data/tohoku_dynamic/bath.nc") !, 2.0d6, [-0.5d6, -1.0d6])
+            !call load_scenario(grid, i_asagi_mode, "data/seissol_benchmark/displ.nc", "data/seissol_benchmark/bath.nc") !, 1.0d5, [-0.5d5, -0.5d5])
 		end subroutine
 
 		subroutine load_scenario(grid, i_asagi_mode, ncd_displ, ncd_bath, scaling, offset)
 			type(t_grid), target, intent(inout)     :: grid
 			integer, intent(in)						:: i_asagi_mode
             character(*), intent(in)                :: ncd_displ, ncd_bath
-            double precision, intent(in)            :: scaling, offset(2)
+            double precision, optional,intent(in)   :: scaling, offset(2)
 
 			integer                                 :: i_error, k
 
@@ -117,18 +119,30 @@
                     i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
 #               endif
 
-                if (rank_MPI == 0) then
-                    associate(afh_d => grid%afh_displacement, afh_b => grid%afh_bathymetry)
+                associate(afh_d => grid%afh_displacement, afh_b => grid%afh_bathymetry)
+                    if (present(scaling)) then
+                        grid%scaling = scaling
+                    else
+                        grid%scaling = max(grid_max_x(afh_b) - grid_min_x(afh_b), grid_max_y(afh_b) - grid_min_y(afh_b))
+                    end if
+
+                    if (present(offset)) then
+                        grid%offset = offset
+                    else
+                        grid%offset = [0.5_GRID_SR * (grid_min_x(afh_d) + grid_max_x(afh_d)), 0.5_GRID_SR * (grid_min_y(afh_d) + grid_max_y(afh_d))] - 0.5_GRID_SR * grid%scaling
+                        grid%offset = min(max(grid%offset, [grid_min_x(afh_b), grid_min_y(afh_b)]), [grid_max_x(afh_b), grid_max_y(afh_b)] - grid%scaling)
+                    end if
+
+                    if (rank_MPI == 0) then
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
                             ncd_displ, grid_min_x(afh_d), grid_max_x(afh_d),  grid_min_y(afh_d), grid_max_y(afh_d),  grid_min_z(afh_d), grid_max_z(afh_d)
 
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
                             ncd_bath, grid_min_x(afh_b), grid_max_x(afh_b),  grid_min_y(afh_b), grid_max_y(afh_b),  grid_min_z(afh_b), grid_max_z(afh_b)
-                    end associate
-                end if
 
-                grid%scaling = scaling
-                grid%offset = offset
+                        _log_write(1, '(" SWE: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), grid%offset(1), grid%offset(1) + grid%scaling, grid%offset(2), grid%offset(2) + grid%scaling
+                    end if
+               end associate
 #			endif
 		end subroutine
 
@@ -214,7 +228,7 @@
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
 				call swe%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + r_output_step
+				r_time_next_output = r_time_next_output + min(r_output_step, 0.1/15.0 * grid_max_z(grid%afh_bathymetry))
 			end if
 
             !$omp master
@@ -260,7 +274,7 @@
                     !output grid
                     if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                         call swe%xml_output%traverse(grid)
-                        r_time_next_output = r_time_next_output + r_output_step
+                        r_time_next_output = r_time_next_output + min(r_output_step, 0.1/15.0 * grid_max_z(grid%afh_bathymetry))
                     end if
                 end do
 #           endif

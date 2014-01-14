@@ -90,6 +90,9 @@
 
 			call gv_Q%read( src_element%t_element_base, Q_in)
 
+            !convert momentum to velocity
+			!Q_in(1)%p = 1.0_GRID_SR / (Q_in(1)%h - Q_in(1)%b) * Q_in(1)%p
+
 			do i = 1, size(refinement_path)
 				call t_basis_Q_split(Q_in%h, 	Q_out(:, 1)%h, 		Q_out(:, 2)%h)
 				call t_basis_Q_split(Q_in%p(1),	Q_out(:, 1)%p(1),	Q_out(:, 2)%p(1))
@@ -99,6 +102,9 @@
 			end do
 
 			Q_in%b = get_bathymetry(section, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), section%r_time, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+
+            !convert velocity back to momentum
+			!Q_in(1)%p = (Q_in(1)%h - Q_in(1)%b) * Q_in(1)%p
 
 			call gv_Q%write( dest_element%t_element_base, Q_in)
 		end subroutine
@@ -118,11 +124,17 @@
 			i = refinement_path(1)
 			call gv_Q%read( src_element%t_element_base, traversal%Q_in(:, i))
 
+            !convert momentum to velocity
+			!traversal%Q_in(1, i)%p = 1.0_GRID_SR / (traversal%Q_in(1, i)%h - traversal%Q_in(1, i)%b) * traversal%Q_in(1, i)%p
+
 			if (i > 1) then
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%h,		traversal%Q_in(:, 2)%h,		Q_out%h)
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(1),	    traversal%Q_in(:, 2)%p(1),	Q_out%p(1))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(2),	    traversal%Q_in(:, 2)%p(2),	Q_out%p(2))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%b,		traversal%Q_in(:, 2)%b,		Q_out%b)
+
+                !convert velocity back to momentum
+                !Q_out(1)%p = (Q_out(1)%h - Q_out(1)%b) * Q_out(1)%p
 
 				call gv_Q%write( dest_element%t_element_base, Q_out)
 			end if

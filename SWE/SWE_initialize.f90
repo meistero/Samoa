@@ -198,7 +198,7 @@
 			real (kind = GRID_SR), parameter					:: inner_height = 10.0
 
 #			if defined(_ASAGI)
-				Q%h = 0
+				Q%h = 0.0_GRID_SR
 #			else
 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))
 #			endif
@@ -222,12 +222,15 @@
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
 
-				assert(grid_min_x(section%afh_bathymetry) <= xs(1) .and. grid_min_y(section%afh_bathymetry) <= xs(2) &
-						.and. xs(1) <= grid_max_x(section%afh_bathymetry) .and. xs(2) <= grid_max_y(section%afh_bathymetry))
+				if (grid_min_x(section%afh_bathymetry) <= xs(1) .and. grid_min_y(section%afh_bathymetry) <= xs(2) &
+                        .and. xs(1) <= grid_max_x(section%afh_bathymetry) .and. xs(2) <= grid_max_y(section%afh_bathymetry)) then
 
-                bathymetry = asagi_get_float(section%afh_bathymetry, xs(1), xs(2), 0)
+                    bathymetry = asagi_get_float(section%afh_bathymetry, xs(1), xs(2), 0)
+                else
+                    bathymetry = -5000.0 !we assume that the sea floor is constant here
+                end if
 
-                if(grid_min_x(section%afh_displacement) <= xs(1) .and. grid_min_y(section%afh_displacement) <= xs(2) &
+                if (grid_min_x(section%afh_displacement) <= xs(1) .and. grid_min_y(section%afh_displacement) <= xs(2) &
                         .and. xs(1) <= grid_max_x(section%afh_displacement) .and. xs(2) <= grid_max_y(section%afh_displacement) &
                         .and. grid_min_z(section%afh_displacement) < t) then
 

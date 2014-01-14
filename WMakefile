@@ -25,200 +25,68 @@
 
 #default compiler and compiler-specific flags
 
-FFLAGS			= -implicitnone -nologo -fpp -I"./" -I"Samoa/"
+FFLAGS			= -I"./" -I"Samoa/" -cpp
 EXEC 			= samoa
 
 #default values for compilation switches
 
-SCENARIO		?= DARCY
-SWE_SOLVER		?= AUG_RIEMANN
-TARGET			?= OPT
-MPI 			?= DEFAULT
-OPENMP			?= TASKS
-STD_FORTRAN		?= NO
-ASAGI_TIMING	?= NO
-VEC_REPORT		?= 0
-ASAGI_DIR		?= "./ASAGI"
+SCENARIO		= SWE
+SWE_SOLVER		= AUG_RIEMANN
+TARGET			= OPT
+MPI 			= NO
+OPENMP			= TASKS
+STD_FORTRAN		= NO
+ASAGI_TIMING	= NO
+VEC_REPORT		= 0
+ASAGI_DIR		= "./ASAGI"
 
 #check switches, set flags of dependent switches and compiler flags accordingly
 
-ifeq ($(MPI), DEFAULT)
-  FC			= MPICH_F90=ifort OMPI_FC=ifort I_MPI_F90=ifort mpif90
-  LOADER		= MPICH_F90=ifort OMPI_FC=ifort I_MPI_F90=ifort mpif90
-else ifeq ($(MPI), OPENMPI)
-  FC			= OMPI_FC=ifort mpif90.openmpi
-  LOADER		= OMPI_FC=ifort mpif90.openmpi
-else ifeq ($(MPI), MPICH2)
-  FC			= MPICH_F90=ifort mpif90.mpich2
-  LOADER		= MPICH_F90=ifort mpif90.mpich2
-else ifeq ($(MPI), INTEL)
-  FC			= I_MPI_F90=ifort mpif90.intel
-  LOADER		= I_MPI_F90=ifort mpif90.intel
-else ifeq ($(MPI), NO)
-  FC			= ifort
-  LOADER		= ifort
-else
-  $(error Invalid value for MPI: $(MPI))
-endif
+FC			= ifort
+LOADER		= ifort
 
-ifeq ($(SCENARIO), DARCY)
-  EXEC 			:= $(EXEC)_darcy
-  FFLAGS		+= -D_DARCY
-  ASAGI 		?= STANDARD
-  LIB 			?= NO
-else ifeq ($(SCENARIO), GENERIC)
-  EXEC 			:= $(EXEC)_generic
-  FFLAGS		+= -D_GENERIC
-  ASAGI 		?= NO
-  LIB 			?= YES
-else ifeq ($(SCENARIO), SWE)
-  EXEC			:= $(EXEC)_swe
-  FFLAGS		+= -D_SWE
-  ASAGI			?= STANDARD
-  LIB 			?= NO
-else ifeq ($(SCENARIO), HEAT_EQ)
-  EXEC			:= $(EXEC)_heq
-  FFLAGS		+= -D_HEAT_EQ
-  ASAGI			?= NO
-  LIB 			?= NO
-else ifeq ($(SCENARIO), TESTS)
-  EXEC			:= $(EXEC)_tests
-  FFLAGS		+= -D_TESTS
-  ASAGI			?= NO
-  LIB 			?= NO
-else
-  $(error Invalid value for SCENARIO: $(SCENARIO))
-endif
 
-ifeq ($(OPENMP), YES)
-  FFLAGS		+= -openmp
-  LDFLAGS		+= -openmp
-else ifeq ($(OPENMP), TASKS)
-  FFLAGS		+= -openmp -D_OPENMP_TASKS
-  LDFLAGS		+= -openmp
-else ifeq ($(OPENMP), NO)
-  EXEC			:= $(EXEC)_noomp
-  FFLAGS		+= -openmp-stubs
-  LDFLAGS		+= -openmp-stubs
-else
-  $(error Invalid value for OPENMP: $(OPENMP))
-endif
+EXEC			= $(EXEC)_swe
+FFLAGS			= $(FLAGS) -D_SWE
+ASAGI			= NO
+LIB 			= NO
+EXEC			= $(EXEC)_noasagi
 
-ifeq ($(MPI), NO)
-  EXEC 			:= $(EXEC)_nompi
-else
-  FFLAGS		+= -D_MPI
-endif
 
-ifeq ($(ASAGI), STANDARD)
-  FFLAGS 		+= -D_ASAGI -I$(ASAGI_DIR)"/include"
-  LDFLAGS 		+= "-Wl,-rpath,"$(ASAGI_DIR) -L$(ASAGI_DIR)
 
-  ifeq ($(OPENMP), NO)
-    LDFLAGS		+= -lasagi_nomt
-  else
-    LDFLAGS		+= -lasagi
-  endif
-else ifeq ($(ASAGI), NUMA)
-  FFLAGS 		+= -D_ASAGI -D_ASAGI_NUMA -I$(ASAGI_DIR)"/include"
-  LDFLAGS 		+= "-Wl,-rpath,"$(ASAGI_DIR) -L$(ASAGI_DIR)
-  LDFLAGS		+= -lasagi
+!IF "$(TARGET)" == "DEBUG"
+EXEC		:= $(EXEC)_debug
+DEBUG_LEVEL	= 3
+ASSERT 		= YES
+FFLAGS 		+= -g -O0 -traceback -check all -debug all -fpe0
+LDFLAGS		+= -g -O0 -traceback -check all -debug all -fpe0
+!ELSE IF "$(TARGET)" == "PROF"
+EXEC		:= $(EXEC)_prof
+DEBUG_LEVEL	= 1
+ASSERT 		= NO
+FFLAGS 		+= -g -trace -fast -inline-level=0 -funroll-loops -unroll
+LDFLAGS 	+= -g -trace -O3 -ip -ipo
+!ELSE IF "$(TARGET)" == "OPT"
+DEBUG_LEVEL 	= 1
+ASSERT 		= NO
+FFLAGS 		= $(FLAGS) -fast -align all -inline-level=2 -no-inline-min-size -no-inline-max-size -no-inline-max-total-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -funroll-loops -unroll
+LDFLAGS 	= $(LDFLAGS) -O3 -ip -ipo
+!ELSE
+(error Invalid value for TARGET: $(TARGET))
+!ENDIF
 
-  ifeq ($(OPENMP), NO)
-    $(error ASAGI must not be NUMA if OPENMP is NO)
-  endif
-else ifeq ($(ASAGI), NO)
-  EXEC			:= $(EXEC)_noasagi
-else
-  $(error Invalid value for ASAGI: $(ASAGI))
-endif
 
-ifeq ($(ASAGI_TIMING), YES)
-  FFLAGS 		+= -D_ASAGI_TIMING
+FFLAGS 		= $(FLAGS) -D_DEBUG_LEVEL=$(DEBUG_LEVEL)
 
-  ifeq ($(ASAGI), NO)
-    $(error ASAGI_TIMING must not be YES if ASAGI is NO)
-  endif
-else ifeq ($(ASAGI_TIMING), NO)
-  #nothing to do
-else
-  $(error Invalid value for ASAGI_TIMING: $(ASAGI_TIMING))
-endif
 
-ifeq ($(SWE_SOLVER), LF)
-  FFLAGS 		+= -D_SWE_LF
-  EXEC			:= $(EXEC)_lf
-else ifeq ($(SWE_SOLVER), LF_BATH)
-  FFLAGS 		+= -D_SWE_LF_BATH
-  EXEC			:= $(EXEC)_lfbath
-else ifeq ($(SWE_SOLVER), LLF)
-  FFLAGS 		+= -D_SWE_LLF
-  EXEC			:= $(EXEC)_llf
-else ifeq ($(SWE_SOLVER), LLF_BATH)
-  FFLAGS 		+= -D_SWE_LLF_BATH
-  EXEC			:= $(EXEC)_llfbath
-else ifeq ($(SWE_SOLVER), FWAVE)
-  FFLAGS 		+= -D_SWE_FWAVE
-  EXEC			:= $(EXEC)_fwave
-else ifeq ($(SWE_SOLVER), AUG_RIEMANN)
-  FFLAGS 		+= -D_SWE_AUG_RIEMANN
-else
-  $(error Invalid value for SWE_SOLVER: $(SWE_SOLVER))
-endif
+!IF "$(ASSERT)" == "YES"
+FFLAGS 		= $(FLAGS) -D_ASSERT
+!ELSE IF "$(ASSERT)" == "NO"
 
-ifeq ($(TARGET), DEBUG)
-  EXEC			:= $(EXEC)_debug
-  DEBUG_LEVEL	?= 3
-  ASSERT 		?= YES
-  FFLAGS 		+= -g -O0 -traceback -check all -debug all -fpe0
-  LDFLAGS 		+= -g -O0 -traceback -check all -debug all -fpe0
-else ifeq ($(TARGET), PROF)
-  EXEC 			:= $(EXEC)_prof
-  DEBUG_LEVEL 	?= 1
-  ASSERT 		?= NO
-  FFLAGS 		+= -g -trace -fast -inline-level=0 -funroll-loops -unroll
-  LDFLAGS 		+= -g -trace -O3 -ip -ipo
-else ifeq ($(TARGET), OPT)
-  DEBUG_LEVEL 	?= 1
-  ASSERT 		?= NO
-  FFLAGS 		+= -fast -align all -inline-level=2 -no-inline-min-size -no-inline-max-size -no-inline-max-total-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -funroll-loops -unroll
-  LDFLAGS 		+= -O3 -ip -ipo
-else
-  $(error Invalid value for TARGET: $(TARGET))
-endif
+!ELSE
+(error Invalid value for ASSERT: $(ASSERT))
+!ENDIF
 
-ifdef VEC_REPORT
-  LDFLAGS 		+= -vec-report$(VEC_REPORT)
-endif
-
-ifdef DEBUG_LEVEL
-  FFLAGS 		+= -D_DEBUG_LEVEL=$(DEBUG_LEVEL)
-endif
-
-ifeq ($(ASSERT), YES)
-  FFLAGS 		+= -D_ASSERT
-else ifeq ($(ASSERT), NO)
-
-else
-  $(error Invalid value for ASSERT: $(ASSERT))
-endif
-
-ifeq ($(STD_FORTRAN), YES)
-  FFLAGS 		+= -std
-else ifeq ($(STD_FORTRAN), NO)
-else
-  $(error Invalid value for STD_FORTRAN: $(STD_FORTRAN))
-endif
-
-ifeq ($(LIB), YES)
-  EXEC			:= bin/lib$(EXEC).so
-  FFLAGS		+= -fpic
-  LDFLAGS		+= -fpic -shared
-else ifeq ($(LIB), NO)
-  EXEC			:= bin/$(EXEC)
-else
-  $(error Invalid value for LIB: $(LIB))
-endif
 
 #----------------------------------------------------------------#
 # BUILD RULES                                                    #
@@ -340,4 +208,4 @@ $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
 clean:
 	@del /F bin\* $(F90_OBJS) $(F77_OBJS) *.mod
 
--include wdependency.mk
+!INCLUDE wdependency.mk
