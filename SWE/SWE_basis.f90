@@ -55,8 +55,6 @@
 
 		use Samoa
 
-		type(t_qr_Q)			:: qr_Q
-
 		PUBLIC
 	END MODULE
 #endif

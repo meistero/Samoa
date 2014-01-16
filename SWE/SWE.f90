@@ -45,7 +45,7 @@
 		subroutine swe_create(swe, grid, l_log, i_asagi_mode)
             class(t_swe), intent(inout)                                 :: swe
 			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL), intent(in)						:: l_log
+			logical, intent(in)						                    :: l_log
 			integer, intent(in)											:: i_asagi_mode
 
 			!local variables
@@ -83,40 +83,34 @@
 				_log_open_file(s_log_name)
 			endif
 
-			!create a quadrature rule
-			call t_qr_create_dunavant_rule(qr_Q, max(1, 2 * _SWE_ORDER))
-
-			call load_scenario(grid, i_asagi_mode, "data/alaska/displ.nc", "data/alaska/bath.nc") !, 2.0d6, [-0.5d6, -1.5d6])
-			!call load_scenario(grid, i_asagi_mode, "data/tohoku_static/displ.nc", "data/tohoku_static/bath.nc") !, , 2.0d6, [-0.5d6, -1.0d6])
-			!call load_scenario(grid, i_asagi_mode, "data/tohoku_dynamic/displ.nc", "data/tohoku_dynamic/bath.nc") !, 2.0d6, [-0.5d6, -1.0d6])
-            !call load_scenario(grid, i_asagi_mode, "data/seissol_benchmark/displ.nc", "data/seissol_benchmark/bath.nc") !, 1.0d5, [-0.5d5, -0.5d5])
+			call load_scenario(grid, cfg%i_asagi_mode, cfg%s_bathymetry_file, cfg%s_displacement_file)
 		end subroutine
 
-		subroutine load_scenario(grid, i_asagi_mode, ncd_displ, ncd_bath, scaling, offset)
+		subroutine load_scenario(grid, i_asagi_mode, ncd_bath, ncd_displ, scaling, offset)
 			type(t_grid), target, intent(inout)     :: grid
 			integer, intent(in)						:: i_asagi_mode
-            character(*), intent(in)                :: ncd_displ, ncd_bath
+            character(*), intent(in)                :: ncd_bath, ncd_displ
             double precision, optional,intent(in)   :: scaling, offset(2)
 
 			integer                                 :: i_error, k
 
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_NUMA)
-                    grid%afh_displacement = grid_create_for_numa(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1, tcount=omp_get_max_threads())
                     grid%afh_bathymetry = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1, tcount=omp_get_max_threads())
+                    grid%afh_displacement = grid_create_for_numa(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1, tcount=omp_get_max_threads())
 
                     !$omp parallel private(i_error)
-						i_error = grid_register_thread(grid%afh_displacement); assert_eq(i_error, GRID_SUCCESS)
 						i_error = grid_register_thread(grid%afh_bathymetry); assert_eq(i_error, GRID_SUCCESS)
-                        i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
-                        i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
+						i_error = grid_register_thread(grid%afh_displacement); assert_eq(i_error, GRID_SUCCESS)
+                        i_error = asagi_open(grid%afh_bathymetry, trim(ncd_bath), 0); assert_eq(i_error, GRID_SUCCESS)
+                        i_error = asagi_open(grid%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, GRID_SUCCESS)
                     !$omp end parallel
 #               else
-                    grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
                     grid%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1)
+                    grid%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_mode, GRID_HAS_TIME), levels = 1)
 
-                    i_error = asagi_open(grid%afh_displacement, ncd_displ, 0); assert_eq(i_error, GRID_SUCCESS)
-                    i_error = asagi_open(grid%afh_bathymetry, ncd_bath, 0); assert_eq(i_error, GRID_SUCCESS)
+                    i_error = asagi_open(grid%afh_bathymetry, trim(ncd_bath), 0); assert_eq(i_error, GRID_SUCCESS)
+                    i_error = asagi_open(grid%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, GRID_SUCCESS)
 #               endif
 
                 associate(afh_d => grid%afh_displacement, afh_b => grid%afh_bathymetry)
@@ -135,14 +129,17 @@
 
                     if (rank_MPI == 0) then
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            ncd_displ, grid_min_x(afh_d), grid_max_x(afh_d),  grid_min_y(afh_d), grid_max_y(afh_d),  grid_min_z(afh_d), grid_max_z(afh_d)
+                            trim(ncd_bath), grid_min_x(afh_b), grid_max_x(afh_b),  grid_min_y(afh_b), grid_max_y(afh_b),  grid_min_z(afh_b), grid_max_z(afh_b)
 
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            ncd_bath, grid_min_x(afh_b), grid_max_x(afh_b),  grid_min_y(afh_b), grid_max_y(afh_b),  grid_min_z(afh_b), grid_max_z(afh_b)
+                            trim(ncd_displ), grid_min_x(afh_d), grid_max_x(afh_d),  grid_min_y(afh_d), grid_max_y(afh_d),  grid_min_z(afh_d), grid_max_z(afh_d)
 
                         _log_write(1, '(" SWE: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), grid%offset(1), grid%offset(1) + grid%scaling, grid%offset(2), grid%offset(2) + grid%scaling
                     end if
                end associate
+#           else
+                grid%scaling = 1.0_GRID_SR
+                grid%offset = [0.0_GRID_SR, 0.0_GRID_SR]
 #			endif
 		end subroutine
 
@@ -150,7 +147,7 @@
 		subroutine swe_destroy(swe, grid, l_log)
             class(t_swe), intent(inout)                                  :: swe
 			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL)		:: l_log
+			logical, intent(in)		:: l_log
 
 #			if defined(_ASAGI)
 				call asagi_close(grid%afh_displacement)
@@ -160,8 +157,6 @@
 			if (l_log) then
 				_log_close_file()
 			endif
-
-			call t_qr_destroy(qr_Q)
 		end subroutine
 
 		!*********************************

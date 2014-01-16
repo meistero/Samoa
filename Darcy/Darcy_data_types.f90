@@ -102,6 +102,9 @@
 			real (kind = GRID_SR)						:: r_rel_permeability		!< relative permeability of the entering fluid
 			real (kind = GRID_SR)						:: r_rho					!< fluid density
 			real (kind = GRID_SR)						:: r_p0			            !< initial boundary pressure difference
+            real (kind = GRID_SR)					    :: scaling					!< spacial scaling factor
+            real (kind = GRID_SR)					    :: offset(2)				!< spacial offset
+
 
 			real (kind = GRID_SR)						:: r_time					!< simulation time
 			real (kind = GRID_SR)						:: r_dt						!< time step

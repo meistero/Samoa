@@ -53,7 +53,7 @@
 		subroutine darcy_create(darcy, grid, l_log, i_asagi_mode)
             class(t_darcy)                                              :: darcy
  			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL), intent(in)						:: l_log
+			logical, intent(in)						                    :: l_log
 			integer, intent(in)											:: i_asagi_mode
 
 			!local variables
@@ -84,25 +84,27 @@
 				_log_open_file(s_log_name)
 			endif
 
-			call load_permeability(grid, i_asagi_mode)
+			call load_permeability(grid, cfg%s_permeability_file, cfg%i_asagi_mode)
 		end subroutine
 
-		subroutine load_permeability(grid, i_asagi_mode)
+		subroutine load_permeability(grid, s_template, i_asagi_mode)
 			type(t_grid), target, intent(inout)		:: grid
+			character(256)					        :: s_template
 			integer, intent(in)						:: i_asagi_mode
 
-			integer									:: i_error, i, j
-			character (len = 64)					:: s_file_name
+			integer									:: i_error, i, j, i_ext_pos
+			character(256)					        :: s_file_name
 
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_NUMA)
                     grid%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1, tcount=omp_get_max_threads())
 
-					!$omp parallel private(i_error, i, j, s_file_name)
+					!$omp parallel private(i_error, i, j, i_ext_pos, s_file_name)
 						i_error = grid_register_thread(grid%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
 
 						do j = min(10, grid%i_max_depth / 2), 0, -1
-                            write (s_file_name, fmt = '("data/darcy_benchmark/perm_", I0, ".nc")') 2 ** j
+                            i_ext_pos = index(s_template, ".", .true.)
+                            write (s_file_name, fmt = '(A, "_", I0, A)') s_template(: i_ext_pos - 1), 2 ** j, trim(s_template(i_ext_pos :))
 
                             i_error = asagi_open(grid%afh_permeability, trim(s_file_name), 0)
 
@@ -125,7 +127,8 @@
 
                     do i = 0, grid%i_max_depth / 2
                         do j = i, 0, -1
-                            write (s_file_name, fmt = '("data/darcy_benchmark/perm_", I0, ".nc")') 2 ** j
+                            i_ext_pos = index(s_template, ".", .true.)
+                            write (s_file_name, fmt = '(A, "_", I0, A)') s_template(: i_ext_pos - 1), 2 ** j, trim(s_template(i_ext_pos :))
 
                             i_error = asagi_open(grid%afh_permeability, trim(s_file_name), i)
 
@@ -145,13 +148,16 @@
                     end do
 #               endif
 #			endif
+
+            grid%scaling = 1.0_GRID_SR
+            grid%offset = [0.0_GRID_SR, 0.0_GRID_SR]
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
 		subroutine darcy_destroy(darcy, grid, l_log)
             class(t_darcy)                                               :: darcy
  			type(t_grid), intent(inout)							:: grid
-			logical (kind = GRID_SL)		:: l_log
+			logical		                    :: l_log
 			integer (kind = 1)				:: i
 
 			if (l_log) then
@@ -167,7 +173,7 @@
 		subroutine darcy_run(darcy, grid, i_max_time_steps, r_max_time, r_output_step)
             class(t_darcy)                                              :: darcy
  			type(t_grid), intent(inout)									:: grid
-			integer (kind = GRID_SI), intent(inout)						:: i_max_time_steps
+			integer (kind = GRID_SI), intent(in)						:: i_max_time_steps
 			real (kind = GRID_SR), intent(in)							:: r_max_time
 			real (kind = GRID_SR), intent(in)							:: r_output_step
 

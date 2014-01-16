@@ -196,11 +196,14 @@
 			real (kind = GRID_SR), parameter					:: dam_radius = 0.02
 			real (kind = GRID_SR), parameter					:: outer_height = 0.0
 			real (kind = GRID_SR), parameter					:: inner_height = 10.0
+            real (kind = GRID_SR)                               :: xs(2)
+
+            xs = section%scaling * x + section%offset
 
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
 #			else
-				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))
+				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 #			endif
 
 			Q%p = 0.0_GRID_SR
@@ -211,13 +214,13 @@
 			real (kind = GRID_SR), dimension(:), intent(in)		:: x						!< position in world coordinates
 			real (kind = GRID_SR), intent(in)		            :: t						!< simulation time
 			integer (kind = GRID_SI), intent(in)				:: lod						!< level of detail
-			real (kind = GRID_SR)								:: bathymetry				!< bathymetry
+            real (kind = GRID_SR)								:: bathymetry				!< bathymetry
+
+            real (kind = GRID_SR)                               :: xs(2), ts
+
+            xs = section%scaling * x + section%offset
 
 #			if defined(_ASAGI)
-				real (kind = GRID_SR) :: xs(2), ts
-
-				xs = section%scaling * x + section%offset
-
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
@@ -247,7 +250,7 @@
                 real (kind = GRID_SR), parameter					:: outer_height = -100.0
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
 
-				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))
+				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 #			endif
 		end function
 	END MODULE

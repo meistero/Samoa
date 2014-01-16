@@ -2,14 +2,11 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
-
 #include "Compilation_control.f90"
 
-#if defined(_ASAGI)
-#	include "asagi.f90"
-#endif
-
 MODULE SFC_data_types
+	use Config
+
 #	if defined(_TESTS)
 		use Tests_data_types
 #	elif defined(_HEAT_EQ)
@@ -33,7 +30,6 @@ MODULE SFC_data_types
 #	endif
 
     implicit none
-
 
 	!constants
 
@@ -76,14 +72,6 @@ MODULE SFC_data_types
     integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * GRID_SR - 4_1
 	real (kind = GRID_SR), parameter									:: PI = 3.14159265358979323846_GRID_SR 		!< PI. Apparently, "_GRID_SR" is necessary to avoid digit truncation
 
-#   if defined(_OPENMP_TASKS)
-        logical, parameter      :: omp_tasks = .true.
-#   else
-        logical, parameter      :: omp_tasks = .false.
-#   endif
-
-	integer 					:: rank_MPI = 0
-	integer 					:: size_MPI = 1
 	integer                 	:: mpi_ref_count = 0
 
 	!********************************
@@ -845,7 +833,7 @@ MODULE SFC_data_types
                 if (.not. mpi_is_initialized) then
 #                   if defined(_OPENMP)
                         call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
-                        
+
 						try(mpi_prov_thread_support >= MPI_THREAD_MULTIPLE, "MPI version does not support MPI_THREAD_MULTIPLE")
 #                   else
                         call mpi_init(i_error); assert_eq(i_error, 0)
@@ -857,7 +845,7 @@ MODULE SFC_data_types
 
 #                   if defined(_OPENMP)
                         call mpi_query_thread(mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
-                        
+
 						try(mpi_prov_thread_support >= MPI_THREAD_MULTIPLE, "MPI version does not support MPI_THREAD_MULTIPLE")
 #                   endif
                 end if
@@ -875,6 +863,8 @@ MODULE SFC_data_types
             size_MPI = 1
             rank_MPI = 0
 #       endif
+
+        cfg%i_ranks = size_MPI
     end subroutine
 
     !> finalizes the mpi communicator

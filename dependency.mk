@@ -1,8 +1,9 @@
-SFC_data_types.o: Tools_log.o Heat_Equation/Heat_Eq_data_types.o Darcy/Darcy_data_types.o SWE/SWE_data_types.o Tests/Tests_data_types.o Generic/Generic_data_types.o #NUMA/NUMA_data_types.o
+Config.o: Tools_log.o M_kracken.o
+SFC_data_types.o: Config.o Tools_log.o Heat_Equation/Heat_Eq_data_types.o Darcy/Darcy_data_types.o SWE/SWE_data_types.o Tests/Tests_data_types.o Generic/Generic_data_types.o #NUMA/NUMA_data_types.o
 SFC_edge_traversal.o: SFC_data_types.o
 SFC_node_traversal.o: SFC_edge_traversal.o
 SFC_traversal.o: SFC_node_traversal.o Heat_Equation/Heat_Eq.o Darcy/Darcy.o Tests/Tests.o SWE/SWE.o Generic/Generic.o #NUMA/NUMA.o
-SFC_main.o: M_kracken.o SFC_traversal.o
+SFC_main.o: Config.o SFC_traversal.o
 Tools_local_function_space_base.o: SFC_data_types.o
 Tools_noise.o: SFC_data_types.o
 Tools_stack_base.o: SFC_data_types.o

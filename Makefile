@@ -226,6 +226,7 @@ endif
 #----------------------------------------------------------------#
 
 F90_SOURCES = \
+Config.f90 \
 SFC_main.f90 \
 SFC_traversal.f90 \
 Tests/Tests.f90 \
@@ -287,7 +288,7 @@ LIB_VTK_IO.f90\
 M_kracken.f90\
 Tools_noise.f90 \
 Tools_log.f90 \
-Conformity/Conformity.f90 \
+Conformity/Conformity.f90
 
 F77_SOURCES = \
 geoclaw/riemannsolvers.f

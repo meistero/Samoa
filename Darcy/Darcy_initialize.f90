@@ -48,6 +48,9 @@
 			call scatter(grid%r_rho, grid%sections%elements_alloc%r_rho)
 			call scatter(grid%r_rel_permeability, grid%sections%elements_alloc%r_rel_permeability)
 			call scatter(grid%afh_permeability, grid%sections%elements_alloc%afh_permeability)
+            call scatter(grid%scaling, grid%sections%elements_alloc%scaling)
+            call scatter(grid%offset(1), grid%sections%elements_alloc%offset(1))
+            call scatter(grid%offset(2), grid%sections%elements_alloc%offset(2))
 		end subroutine
 
 		!******************
@@ -110,25 +113,30 @@
 			integer (kind = GRID_SI), intent(in)				:: lod						!< level of detail
 			real (kind = GRID_SR)								:: r_base_permeability		!< heat conductivity
 
+            real (kind = GRID_SR)                               :: xs(2)
+
+            xs = section%scaling * x + section%offset
+
             assert_ge(x(1), 0.0); assert_ge(x(2), 0.0)
             assert_le(x(1), 1.0); assert_le(x(2), 1.0)
 
 #			if defined(_ASAGI)
+
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                	r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), 0)
+                	r_base_permeability = asagi_get_float(section%afh_permeability, xs(1), xs(2), 0)
 #				else
-                	r_base_permeability = asagi_get_float(section%afh_permeability, dble(x(1)), dble(x(2)), lod)
+                	r_base_permeability = asagi_get_float(section%afh_permeability, xs(1), xs(2), lod)
 #				endif
 
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time + omp_get_wtime()
 #               endif
 #			else
-				r_base_permeability = -7.0e-8_GRID_SR * (t_noise_2D((/ 10.0_GRID_SR * x(1) - 2.0_GRID_SR, 10.0_GRID_SR * x(2) /), lod, 0.2_GRID_SR) + 0.7_GRID_SR - 4.0_GRID_SR * x(2) * (1.0_GRID_SR - x(2))) + 0.5e-8_GRID_SR
+				r_base_permeability = -7.0e-8_GRID_SR * (t_noise_2D((/ 10.0_GRID_SR * xs(1) - 2.0_GRID_SR, 10.0_GRID_SR * xs(2) /), lod, 0.2_GRID_SR) + 0.7_GRID_SR - 4.0_GRID_SR * xs(2) * (1.0_GRID_SR - xs(2))) + 0.5e-8_GRID_SR
 				r_base_permeability = max(0.0_GRID_SR, min(1.0e-8_GRID_SR, r_base_permeability))
 #			endif
 		end function
