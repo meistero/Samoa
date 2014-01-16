@@ -166,7 +166,6 @@ MODULE SFC_data_types
 	end type
 
 	type, extends(num_global_data) :: t_global_data
-        integer (kind = GRID_SI)					        :: i_sections_per_thread
         integer (kind = GRID_DI), dimension(RED : GREEN)	:: start_distance, min_distance, end_distance
 
         integer (kind = GRID_SI), dimension(RED : GREEN)	:: start_dest_stack, end_dest_stack, min_dest_stack, max_dest_stack

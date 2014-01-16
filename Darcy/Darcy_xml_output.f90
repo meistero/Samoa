@@ -117,7 +117,7 @@
                     e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
 
                     do i_rank = 0, size_MPI
-                        do i_section = 1, omp_get_max_threads() * grid%i_sections_per_thread * 2
+                        do i_section = 1, omp_get_max_threads() * cfg%i_sections_per_thread * 2
                             write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
                             inquire(file = s_file_name, exist = l_exists)
 

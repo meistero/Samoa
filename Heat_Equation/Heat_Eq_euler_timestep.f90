@@ -202,12 +202,12 @@
 			depth = element%cell%geometry%i_depth
 			T_norm = abs(T(3) - T(2)) + abs(T(1) - T(2))
 
-			if (depth < grid%i_max_depth .and. T_norm > 3.0e-2_GRID_SR) then
+			if (depth < cfg%i_max_depth .and. T_norm > 3.0e-2_GRID_SR) then
 				_log_write(5, "(A, T30, A, I0)") "  refinement issued:", "depth ", depth
 
 				element%cell%geometry%refinement = 1
 				i_refinements_issued = i_refinements_issued + 1
-			else if (depth > grid%i_min_depth .and. T_norm < 1.0e-2_GRID_SR) then
+			else if (depth > cfg%i_min_depth .and. T_norm < 1.0e-2_GRID_SR) then
 				_log_write(5, "(A, T30, A, I0)") "  coarsening issued:", "depth ", depth
 				element%cell%geometry%refinement = -1
 			else
@@ -227,7 +227,7 @@
 					r = r + heat_conductivity * samoa_basis_T_at(laser_dist)
 
 					!also, always refine in the heat source
-					if (depth < grid%i_max_depth) then
+					if (depth < cfg%i_max_depth) then
 						_log_write(5, "(A, T30, A, I0)") "  refinement issued:", "depth ", depth
 
 						element%cell%geometry%refinement = 1

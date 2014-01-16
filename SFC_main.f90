@@ -10,16 +10,18 @@ PROGRAM gridtest
 
 	implicit none
 
+    !init MPI
+    call init_mpi()
+
+    !read config from program arguments and print it out
     call cfg%read_from_arguments()
 
-    !init openmp threads
-    call omp_set_num_threads(cfg%i_threads)
+    if (rank_MPI == 0) then
+        call cfg%print()
+    end if
 
     !init element transformation data
     call init_transform_data()
-
-    !init MPI
-    call init_mpi()
 
     !run scenario selector
     call sfc_generic()

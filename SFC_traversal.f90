@@ -55,75 +55,57 @@ MODULE SFC_traversal
 		!create, run and destroy scenario
 
 #		if defined(_TESTS)
-            grid%i_sections_per_thread = cfg%i_sections_per_thread
-
             !TODO: tests should be able to execute in addition to one of the scenarios!
 
             !create initial grid
             call init_grid(grid)
 			call tests_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
-			!$omp parallel
+			!$omp parallel copyin(cfg)
 			call tests_run(grid, cfg%i_max_time_steps)
 			!$omp end parallel
 
 			call tests_destroy(grid, cfg%l_log)
             call grid%destroy()
 #		elif defined (_HEAT_EQ)
-            grid%i_min_depth = cfg%i_min_depth
-            grid%i_max_depth = cfg%i_max_depth
-            grid%i_sections_per_thread = cfg%i_sections_per_thread
-
             !create initial grid
             call init_grid(grid)
 			call heat_eq_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
-			!$omp parallel
+			!$omp parallel copyin(cfg)
 			call heat_eq_run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
 			!$omp end parallel
 
 			call heat_eq_destroy(grid, cfg%l_log)
             call grid%destroy()
 #		elif defined(_DARCY)
-            grid%i_min_depth = cfg%i_min_depth
-            grid%i_max_depth = cfg%i_max_depth
-            grid%i_sections_per_thread = cfg%i_sections_per_thread
-
             !create initial grid
             call init_grid(grid)
 			call darcy%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
-            !$omp parallel
+            !$omp parallel copyin(cfg)
 			call darcy%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
 			!$omp end parallel
 
 			call darcy%destroy(grid, cfg%l_log)
             call grid%destroy()
 #		elif defined(_SWE)
-            grid%i_min_depth = cfg%i_min_depth
-            grid%i_max_depth = cfg%i_max_depth
-            grid%i_sections_per_thread = cfg%i_sections_per_thread
-
             !create initial grid
             call init_grid(grid)
 			call swe%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
-            !$omp parallel
+            !$omp parallel copyin(cfg)
 			call swe%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
 			!$omp end parallel
 
 			call swe%destroy(grid, cfg%l_log)
             call grid%destroy()
 #		elif defined(_NUMA)
-            grid%i_min_depth = cfg%i_min_depth
-            grid%i_max_depth = cfg%i_max_depth
-            grid%i_sections_per_thread = cfg%i_sections_per_thread
-
             !create initial grid
             call init_grid(grid)
 			call numa%create(grid, cfg%l_log)
 
-            !$omp parallel
+            !$omp parallel copyin(cfg)
 			call numa%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
 			!$omp end parallel
 

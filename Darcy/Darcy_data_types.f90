@@ -97,20 +97,9 @@
 
 		!> Base data type for the scenario configuration
 		type num_global_data
-            integer (kind = 1)					        :: i_min_depth, i_max_depth !< minimum and maximum grid depth
-			real (kind = GRID_SR)						:: r_epsilon				!< error bound
-			real (kind = GRID_SR)						:: r_rel_permeability		!< relative permeability of the entering fluid
-			real (kind = GRID_SR)						:: r_rho					!< fluid density
-			real (kind = GRID_SR)						:: r_p0			            !< initial boundary pressure difference
-            real (kind = GRID_SR)					    :: scaling					!< spacial scaling factor
-            real (kind = GRID_SR)					    :: offset(2)				!< spacial offset
-
-
 			real (kind = GRID_SR)						:: r_time					!< simulation time
 			real (kind = GRID_SR)						:: r_dt						!< time step
 			real (kind = GRID_SR)						:: u_max			        !< maximum velocity
-
- 			integer					 					:: afh_permeability			!< asagi file handle to permeability data
 		END type
 	END MODULE Darcy_data_types
 #endif

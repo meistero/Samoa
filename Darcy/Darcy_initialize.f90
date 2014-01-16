@@ -43,14 +43,6 @@
  			type(t_grid), intent(inout)							        :: grid
 
 			call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
-			call scatter(grid%r_p0, grid%sections%elements_alloc%r_p0)
-			call scatter(grid%r_epsilon, grid%sections%elements_alloc%r_epsilon)
-			call scatter(grid%r_rho, grid%sections%elements_alloc%r_rho)
-			call scatter(grid%r_rel_permeability, grid%sections%elements_alloc%r_rel_permeability)
-			call scatter(grid%afh_permeability, grid%sections%elements_alloc%afh_permeability)
-            call scatter(grid%scaling, grid%sections%elements_alloc%scaling)
-            call scatter(grid%offset(1), grid%sections%elements_alloc%offset(1))
-            call scatter(grid%offset(2), grid%sections%elements_alloc%offset(2))
 		end subroutine
 
 		!******************
@@ -88,7 +80,7 @@
 			integer										:: i
 
 			do i = 1, _DARCY_P_NODE_SIZE
-				call pressure_pre_dof_op(section%r_p0, node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
+				call pressure_pre_dof_op(cfg%r_p0, node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
 			end do
 		end subroutine
 
@@ -115,7 +107,7 @@
 
             real (kind = GRID_SR)                               :: xs(2)
 
-            xs = section%scaling * x + section%offset
+            xs = cfg%scaling * x + cfg%offset
 
             assert_ge(x(1), 0.0); assert_ge(x(2), 0.0)
             assert_le(x(1), 1.0); assert_le(x(2), 1.0)
@@ -127,9 +119,9 @@
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                	r_base_permeability = asagi_get_float(section%afh_permeability, xs(1), xs(2), 0)
+                	r_base_permeability = asagi_get_float(cfg%afh_permeability, xs(1), xs(2), 0)
 #				else
-                	r_base_permeability = asagi_get_float(section%afh_permeability, xs(1), xs(2), lod)
+                	r_base_permeability = asagi_get_float(cfg%afh_permeability, xs(1), xs(2), lod)
 #				endif
 
 #               if defined(_ASAGI_TIMING)
@@ -280,16 +272,16 @@
 			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation))
 			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation)
 
-			permeability = base_permeability * (r_lambda_n + section%r_rel_permeability * r_lambda_w)
+			permeability = base_permeability * (r_lambda_n + cfg%r_rel_permeability * r_lambda_w)
 
 			l_refine_sat = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2))) > 0.1_GRID_SR
-			l_refine_p = max(abs(p(3) - p(2)), abs(p(1) - p(2))) > 0.01_GRID_SR * section%r_p0
+			l_refine_p = max(abs(p(3) - p(2)), abs(p(1) - p(2))) > 0.01_GRID_SR * cfg%r_p0
 
 			!refine the cell if necessary (no coarsening in the initialization!)
 
 			i_depth = element%cell%geometry%i_depth
 
-			if (i_depth < section%i_max_depth .and. base_permeability > 0.0_GRID_SR .and. (i_depth < section%i_min_depth .or. l_refine_p .or. l_refine_sat)) then
+			if (i_depth < cfg%i_max_depth .and. base_permeability > 0.0_GRID_SR .and. (i_depth < cfg%i_min_depth .or. l_refine_p .or. l_refine_sat)) then
 				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
 			else

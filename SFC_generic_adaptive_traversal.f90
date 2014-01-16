@@ -276,7 +276,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
                 deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
             end if
 
-            allocate(traversal%children_alloc(max(omp_get_num_threads() * dest_grid%i_sections_per_thread, size(dest_grid%sections%elements))), stat = i_error); assert_eq(i_error, 0)
+            allocate(traversal%children_alloc(max(omp_get_num_threads() * cfg%i_sections_per_thread, size(dest_grid%sections%elements))), stat = i_error); assert_eq(i_error, 0)
         end if
 
         traversal%children => traversal%children_alloc(1 : size(dest_grid%sections%elements))

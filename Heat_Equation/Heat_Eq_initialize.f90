@@ -82,7 +82,7 @@
 			!refine the cell if any of these conditions hold:
 			! * not yet at min depth and in fluid phase
 
-			if (element%cell%geometry%i_depth < grid%i_min_depth .and. heat_conductivity > 0.0_GRID_SR) then
+			if (element%cell%geometry%i_depth < cfg%i_min_depth .and. heat_conductivity > 0.0_GRID_SR) then
 				element%cell%geometry%refinement = 1
 				i_refinements_issued = i_refinements_issued + 1
 			else

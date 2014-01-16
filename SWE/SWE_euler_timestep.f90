@@ -59,11 +59,11 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            grid%r_dt = 0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+            grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
 #           if defined(_ASAGI)
-                if (grid%r_time < grid_max_z(grid%afh_bathymetry)) then
-                    grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry))
+                if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
+                    grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
                 end if
 #           endif
 
@@ -229,7 +229,7 @@
 			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
 			!refine also on the coasts
-			if (depth < grid%i_max_depth .and. b_norm < 100.0_GRID_SR) then
+			if (depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
 				cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
 			else if (b_norm < 300.0_GRID_SR) then
@@ -256,8 +256,8 @@
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
 
-			volume = section%scaling * section%scaling * element%cell%geometry%get_volume()
-			edge_lengths = section%scaling * element%cell%geometry%get_edge_sizes()
+			volume = cfg%scaling * cfg%scaling * element%cell%geometry%get_volume()
+			edge_lengths = cfg%scaling * element%cell%geometry%get_edge_sizes()
 
 			dQ%h = sum(edge_lengths * fluxes%h)
 			dQ%p(1) = sum(edge_lengths * fluxes%p(1))
@@ -270,10 +270,10 @@
 			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 
 			depth = element%cell%geometry%i_depth
-			if (depth < section%i_max_depth .and. dQ_norm > (section%scaling * 2.0_GRID_SR) ** 2) then
+			if (depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
 				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-			else if (depth > section%i_min_depth .and. dQ_norm < (section%scaling * 1.0_GRID_SR) ** 2) then
+			else if (depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
 				element%cell%geometry%refinement = -1
 			endif
 

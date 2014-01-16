@@ -55,7 +55,7 @@ module SFC_edge_traversal
         _log_write(4, '(3X, A)') "create splitting"
 
         !$omp single
-        i_sections = min(src_grid%i_sections_per_thread * omp_get_num_threads(), src_grid%dest_cells / min_section_size)
+        i_sections = min(cfg%i_sections_per_thread * omp_get_num_threads(), src_grid%dest_cells / min_section_size)
 
         if (src_grid%dest_cells > 0) then
             i_sections = max(1, i_sections)
@@ -308,7 +308,7 @@ module SFC_edge_traversal
 
 #		if defined(_MPI)
             i_sections = size(grid%sections%elements_alloc)
-            i_max_sections = omp_get_max_threads() * grid%i_sections_per_thread
+            i_max_sections = omp_get_max_threads() * cfg%i_sections_per_thread
             i_neighbors = size(rank_list%elements)
             assert_le(i_sections, i_max_sections)
 
@@ -431,7 +431,7 @@ module SFC_edge_traversal
         type(t_grid_section), pointer                   :: section_2
 
         min_distance = section%min_distance(i_color)
-        i_max_sections = omp_get_max_threads() * grid%i_sections_per_thread
+        i_max_sections = omp_get_max_threads() * cfg%i_sections_per_thread
 
         !clear comm list if it is not empty
         assert(.not. associated(section%comms(i_color)%elements) .or. size(section%comms(i_color)%elements) .eq. 0)

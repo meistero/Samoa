@@ -63,14 +63,10 @@
             type(t_darcy_pressure_solver_jacobi)                        :: pressure_solver_jacobi
 
             !allocate solver
-			grid%r_time = 0.0_GRID_SR
-			grid%r_p0 = 1.0e6_GRID_SR          !initial pressure difference in Pa
-			grid%r_epsilon = 1.0e-5_GRID_SR
-			grid%r_rho = 0.2_GRID_SR
-			grid%r_rel_permeability = 1.5_GRID_SR
 
-            pressure_solver_cg = t_darcy_pressure_solver_cg(grid%r_epsilon * grid%r_p0)
-            pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(grid%r_epsilon * grid%r_p0)
+ 			grid%r_time = 0.0_GRID_SR
+            pressure_solver_cg = t_darcy_pressure_solver_cg(cfg%r_epsilon * cfg%r_p0)
+            pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(cfg%r_epsilon * cfg%r_p0)
 
             allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
 
@@ -84,29 +80,46 @@
 				_log_open_file(s_log_name)
 			endif
 
-			call load_permeability(grid, cfg%s_permeability_file, cfg%i_asagi_mode)
+			call load_permeability(grid, cfg%s_permeability_file)
 		end subroutine
 
-		subroutine load_permeability(grid, s_template, i_asagi_mode)
+		subroutine load_permeability(grid, s_template)
 			type(t_grid), target, intent(inout)		:: grid
 			character(256)					        :: s_template
-			integer, intent(in)						:: i_asagi_mode
 
+            integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
 			character(256)					        :: s_file_name
 
 #			if defined(_ASAGI)
+                !convert ASAGI mode to ASAGI hints
+
+                select case(cfg%i_asagi_mode)
+                    case (0)
+                        i_asagi_hints = GRID_NO_HINT
+                    case (1)
+                        i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                    case (2)
+                        i_asagi_hints = GRID_NOMPI
+                    case (3)
+                        i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
+                    case (4)
+                        i_asagi_hints = GRID_LARGE_GRID
+                    case default
+                        try(.false., "Invalid asagi mode, must be in range 0 to 4")
+                end select
+
 #               if defined(_ASAGI_NUMA)
-                    grid%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = 1, tcount=omp_get_max_threads())
+                    cfg%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
 
 					!$omp parallel private(i_error, i, j, i_ext_pos, s_file_name)
-						i_error = grid_register_thread(grid%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
+						i_error = grid_register_thread(cfg%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
 
-						do j = min(10, grid%i_max_depth / 2), 0, -1
+						do j = min(10, cfg%i_max_depth / 2), 0, -1
                             i_ext_pos = index(s_template, ".", .true.)
                             write (s_file_name, fmt = '(A, "_", I0, A)') s_template(: i_ext_pos - 1), 2 ** j, trim(s_template(i_ext_pos :))
 
-                            i_error = asagi_open(grid%afh_permeability, trim(s_file_name), 0)
+                            i_error = asagi_open(cfg%afh_permeability, trim(s_file_name), 0)
 
                             if (i_error == GRID_SUCCESS) then
                                 exit
@@ -116,21 +129,21 @@
 	                    assert_eq(i_error, GRID_SUCCESS)
 
 	                    if (rank_MPI == 0) then
-	                		associate(afh => grid%afh_permeability)
+	                		associate(afh => cfg%afh_permeability)
 	                        	_log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
 	                        	    trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
 	                		end associate
 	                    end if
 					!$omp end parallel
 #               else
-                    grid%afh_permeability = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_mode, levels = grid%i_max_depth / 2 + 1)
+                    cfg%afh_permeability = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = cfg%i_max_depth / 2 + 1)
 
-                    do i = 0, grid%i_max_depth / 2
+                    do i = 0, cfg%i_max_depth / 2
                         do j = i, 0, -1
                             i_ext_pos = index(s_template, ".", .true.)
                             write (s_file_name, fmt = '(A, "_", I0, A)') s_template(: i_ext_pos - 1), 2 ** j, trim(s_template(i_ext_pos :))
 
-                            i_error = asagi_open(grid%afh_permeability, trim(s_file_name), i)
+                            i_error = asagi_open(cfg%afh_permeability, trim(s_file_name), i)
 
                             if (i_error == GRID_SUCCESS) then
                                 exit
@@ -140,7 +153,7 @@
                         assert_eq(i_error, GRID_SUCCESS)
 
                         if (rank_MPI == 0) then
-                    		associate(afh => grid%afh_permeability)
+                    		associate(afh => cfg%afh_permeability)
                             	_log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
                             	    trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
                     		end associate
@@ -149,8 +162,8 @@
 #               endif
 #			endif
 
-            grid%scaling = 1.0_GRID_SR
-            grid%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+            cfg%scaling = 1.0_GRID_SR
+            cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
@@ -165,7 +178,7 @@
 			endif
 
 #			if defined(_ASAGI)
-				call asagi_close(grid%afh_permeability)
+				call asagi_close(cfg%afh_permeability)
 #			endif
 		end subroutine
 

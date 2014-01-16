@@ -45,15 +45,10 @@
 
 			grid%r_time = 0.0_GRID_SR
 			grid%r_dt = 0.0_GRID_SR
-			grid%d_max = grid%i_max_depth
+			grid%d_max = cfg%i_max_depth
 			grid%u_max = sqrt(g)
 
             call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
-            call scatter(grid%afh_displacement, grid%sections%elements_alloc%afh_displacement)
-            call scatter(grid%afh_bathymetry, grid%sections%elements_alloc%afh_bathymetry)
-            call scatter(grid%scaling, grid%sections%elements_alloc%scaling)
-            call scatter(grid%offset(1), grid%sections%elements_alloc%offset(1))
-            call scatter(grid%offset(2), grid%sections%elements_alloc%offset(2))
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
@@ -116,26 +111,26 @@
 
 			element%cell%geometry%refinement = 0
 
-			if (element%cell%geometry%i_depth < section%i_min_depth) then
+			if (element%cell%geometry%i_depth < cfg%i_min_depth) then
                 !refine if the minimum depth is not met
 
  				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-            else if (element%cell%geometry%i_depth < section%i_max_depth) then
+            else if (element%cell%geometry%i_depth < cfg%i_max_depth) then
                 do i = 1, 3
                     Q_test(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)), element%cell%geometry%i_depth / 2_GRID_SI)
                 end do
 
 #               if defined (_ASAGI)
-                    centroid_square = 0.5_GRID_SR * [grid_min_x(section%afh_displacement) + grid_max_x(section%afh_displacement), grid_min_y(section%afh_displacement) + grid_max_y(section%afh_displacement)]
-                    centroid_square = 1.0_GRID_SR / section%scaling * (centroid_square - section%offset)
+                    centroid_square = 0.5_GRID_SR * [grid_min_x(cfg%afh_displacement) + grid_max_x(cfg%afh_displacement), grid_min_y(cfg%afh_displacement) + grid_max_y(cfg%afh_displacement)]
+                    centroid_square = 1.0_GRID_SR / cfg%scaling * (centroid_square - cfg%offset)
                     centroid_square = samoa_world_to_barycentric_point(element%transform_data, centroid_square)
 
                     centroid_triangle = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
-                    centroid_triangle = section%scaling * samoa_barycentric_to_world_point(element%transform_data, centroid_triangle) + section%offset
+                    centroid_triangle = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, centroid_triangle) + cfg%offset
                     centroid_triangle = [ &
-                        (centroid_triangle(1) - grid_min_x(section%afh_displacement)) / (grid_max_x(section%afh_displacement) - grid_min_x(section%afh_displacement)), &
-                        (centroid_triangle(2) - grid_min_y(section%afh_displacement)) / (grid_max_y(section%afh_displacement) - grid_min_y(section%afh_displacement)) &
+                        (centroid_triangle(1) - grid_min_x(cfg%afh_displacement)) / (grid_max_x(cfg%afh_displacement) - grid_min_x(cfg%afh_displacement)), &
+                        (centroid_triangle(2) - grid_min_y(cfg%afh_displacement)) / (grid_max_y(cfg%afh_displacement) - grid_min_y(cfg%afh_displacement)) &
                     ]
 
                     if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0) then
@@ -198,7 +193,7 @@
 			real (kind = GRID_SR), parameter					:: inner_height = 10.0
             real (kind = GRID_SR)                               :: xs(2)
 
-            xs = section%scaling * x + section%offset
+            xs = cfg%scaling * x + cfg%offset
 
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
@@ -218,27 +213,27 @@
 
             real (kind = GRID_SR)                               :: xs(2), ts
 
-            xs = section%scaling * x + section%offset
+            xs = cfg%scaling * x + cfg%offset
 
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
 
-				if (grid_min_x(section%afh_bathymetry) <= xs(1) .and. grid_min_y(section%afh_bathymetry) <= xs(2) &
-                        .and. xs(1) <= grid_max_x(section%afh_bathymetry) .and. xs(2) <= grid_max_y(section%afh_bathymetry)) then
+				if (grid_min_x(cfg%afh_bathymetry) <= xs(1) .and. grid_min_y(cfg%afh_bathymetry) <= xs(2) &
+                        .and. xs(1) <= grid_max_x(cfg%afh_bathymetry) .and. xs(2) <= grid_max_y(cfg%afh_bathymetry)) then
 
-                    bathymetry = asagi_get_float(section%afh_bathymetry, xs(1), xs(2), 0)
+                    bathymetry = asagi_get_float(cfg%afh_bathymetry, xs(1), xs(2), 0)
                 else
                     bathymetry = -5000.0 !we assume that the sea floor is constant here
                 end if
 
-                if (grid_min_x(section%afh_displacement) <= xs(1) .and. grid_min_y(section%afh_displacement) <= xs(2) &
-                        .and. xs(1) <= grid_max_x(section%afh_displacement) .and. xs(2) <= grid_max_y(section%afh_displacement) &
-                        .and. grid_min_z(section%afh_displacement) < t) then
+                if (grid_min_x(cfg%afh_displacement) <= xs(1) .and. grid_min_y(cfg%afh_displacement) <= xs(2) &
+                        .and. xs(1) <= grid_max_x(cfg%afh_displacement) .and. xs(2) <= grid_max_y(cfg%afh_displacement) &
+                        .and. grid_min_z(cfg%afh_displacement) < t) then
 
-                    ts = min(t, grid_max_z(section%afh_displacement))
-                    bathymetry = bathymetry + asagi_get_float(section%afh_displacement, xs(1), xs(2), ts, 0)
+                    ts = min(t, grid_max_z(cfg%afh_displacement))
+                    bathymetry = bathymetry + asagi_get_float(cfg%afh_displacement, xs(1), xs(2), ts, 0)
                 end if
 
 #               if defined(_ASAGI_TIMING)

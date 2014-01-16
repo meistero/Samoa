@@ -114,17 +114,10 @@
 
 		!> Data type for the scenario configuration
 		type num_global_data
-            integer (kind = 1)					            :: i_min_depth, i_max_depth !< minimum and maximum grid depth
-			real (kind = GRID_SR)							:: scaling					!< spacial scaling factor
-			real (kind = GRID_SR)							:: offset(2)				!< spacial offset
-
 			real (kind = GRID_SR)							:: r_time					!< simulation time
 			real (kind = GRID_SR)							:: r_dt						!< time step
 			real (kind = GRID_SR)							:: u_max					!< maximum wave velocity for cfl condition
 			integer (kind = 1)								:: d_max					!< current maximum grid depth
-
- 			integer					 						:: afh_displacement			!< asagi file handle to displacement data
- 			integer					 						:: afh_bathymetry			!< asagi file handle to bathymetry data
 
             contains
 

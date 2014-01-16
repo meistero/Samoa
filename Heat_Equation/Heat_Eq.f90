@@ -171,7 +171,7 @@
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_section_info)           	                            :: grid_info
 
-			_log_write(0, '(A, I0, A, I0)') " Heat_Eq: min depth: ", grid%i_min_depth, ", max depth: ", grid%i_max_depth
+			_log_write(0, '(A, I0, A, I0)') " Heat_Eq: min depth: ", cfg%i_min_depth, ", max depth: ", cfg%i_max_depth
 			_log_write(0, '(A, I0, A, ES9.2, A, ES9.2)') " Heat_Eq: max time steps: ", i_max_time_steps, ", max sim. time: ", r_max_time, ", output step: ", r_output_step
 			_log_write(0, *) ""
 
@@ -182,7 +182,7 @@
 
 			grid%r_time = 0.0_GRID_SR
 			r_time_next_output = 0.0_GRID_SR
-			grid%r_dt = 3.0 * get_cell_volume(grid%i_max_depth)
+			grid%r_dt = 3.0 * get_cell_volume(cfg%i_max_depth)
 
 			!init counters
 			i_grid_traversals = 0

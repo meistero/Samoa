@@ -48,7 +48,7 @@
 			type(t_darcy_transport_eq_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            grid%r_dt = grid%r_rho * get_edge_size(grid%i_max_depth) / (grid%r_rel_permeability * 2.0_GRID_SR * sqrt(grid%u_max))
+            grid%r_dt = cfg%r_rho * get_edge_size(cfg%i_max_depth) / (cfg%r_rel_permeability * 2.0_GRID_SR * sqrt(grid%u_max))
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
 		end subroutine
 
@@ -149,7 +149,7 @@
 			volume(3) = 0.50_GRID_SR * volume(2)
 
 			forall (i = 1 : 3)
-				r_lambda_w(i) = section%r_rel_permeability * (saturation(i) * saturation(i))
+				r_lambda_w(i) = cfg%r_rel_permeability * (saturation(i) * saturation(i))
 			end forall
 
 			r_u = u(:, 1)
@@ -180,7 +180,7 @@
 
 			real (kind = GRID_SR)					:: r_ds_dt
 
-			r_ds_dt = flux / (section%r_rho * volume)
+			r_ds_dt = flux / (cfg%r_rho * volume)
 			saturation = saturation + section%r_dt * r_ds_dt
 		end subroutine
 

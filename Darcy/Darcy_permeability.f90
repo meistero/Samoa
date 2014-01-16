@@ -88,14 +88,14 @@
 			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation))
 			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation)
 
-			permeability = base_permeability * (r_lambda_n + section%r_rel_permeability * r_lambda_w)
+			permeability = base_permeability * (r_lambda_n + cfg%r_rel_permeability * r_lambda_w)
 
 			r_sat_norm = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2)))
 			r_p_norm = max(abs(p(3) - p(2)), abs(p(1) - p(2)))
 
 			l_refine_sat = r_sat_norm > 0.1_GRID_SR
 			l_coarsen_sat = r_sat_norm < 0.02_GRID_SR
-			l_coarsen_p = r_p_norm < 0.003_GRID_SR * section%r_p0
+			l_coarsen_p = r_p_norm < 0.003_GRID_SR * cfg%r_p0
 
 			!* refine the cell if the saturation becomes too steep
 			!* coarsen the cell if pressure and saturation are constant within a cell
@@ -103,12 +103,12 @@
 
 			i_depth = element%cell%geometry%i_depth
 
-			if (i_depth < section%i_max_depth .and. base_permeability > 0.0_GRID_SR .and. (l_refine_sat .or. i_depth < section%i_min_depth)) then
+			if (i_depth < cfg%i_max_depth .and. base_permeability > 0.0_GRID_SR .and. (l_refine_sat .or. i_depth < cfg%i_min_depth)) then
 				_log_write(5, "(A, T30, A, I0, A, L, A, ES9.2)") "  refinement issued:", "depth ", i_depth, ", sat ", l_refine_sat, ", perm ", base_permeability
 
 				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-			else if ((i_depth > section%i_min_depth .and. l_coarsen_p .and. l_coarsen_sat) .or. (base_permeability == 0.0_GRID_SR)) then
+			else if ((i_depth > cfg%i_min_depth .and. l_coarsen_p .and. l_coarsen_sat) .or. (base_permeability == 0.0_GRID_SR)) then
 				_log_write(5, "(A, T30, A, I0, A, L, A, L, A, ES9.2)") "  coarsening issued:", "depth ", i_depth, ", p ", l_coarsen_p, ", sat ", l_coarsen_sat, ", perm ", base_permeability
 
 				element%cell%geometry%refinement = -1
