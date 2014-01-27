@@ -331,15 +331,19 @@ compile: $(EXEC)
 	@rm -f $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
+	@echo ""
 	@$(LOADER) $(LDFLAGS) -o $@ $(F90_OBJS) $(F77_OBJS)
 
 %.o: %.f90
 	@$(FC) $(FFLAGS) -c -o $@ $<
+	@echo -n "."
 
 %.o: %.f
 	@$(FC) $(FFLAGS) -c -o $@ $<
+	@echo -n "."
 
 clean:
 	@rm -f bin/* $(F90_OBJS) $(F77_OBJS) *.mod
 
 -include dependency.mk
+
