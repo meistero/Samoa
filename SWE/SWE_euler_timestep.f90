@@ -15,7 +15,7 @@
 		implicit none
 
         type num_traversal_data
-            integer (kind = GRID_SI)			:: i_refinements_issued
+            integer (kind = GRID_DI)			:: i_refinements_issued
         end type
 
         interface skeleton_op
@@ -86,7 +86,7 @@
 			type(t_grid_section), intent(inout)							:: section
 
 			!this variable will be incremented for each cell with a refinement request
-			traversal%i_refinements_issued = 0
+			traversal%i_refinements_issued = 0_GRID_DI
 			section%u_max = 0.0_GRID_SR
 		end subroutine
 
@@ -231,7 +231,7 @@
 			!refine also on the coasts
 			if (depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
 				cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
 			else if (b_norm < 300.0_GRID_SR) then
 				cell%geometry%refinement = max(cell%geometry%refinement, 0)
 			endif
@@ -272,7 +272,7 @@
 			depth = element%cell%geometry%i_depth
 			if (depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
 				element%cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
 			else if (depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
 				element%cell%geometry%refinement = -1
 			endif

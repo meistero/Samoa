@@ -1623,7 +1623,7 @@ module SFC_edge_traversal
 
         type(t_edge_data), pointer                                  :: p_edge, p_edges(:)
         type(t_node_data), pointer                                  :: p_nodes(:)
-        integer(kind = GRID_SI)							            :: i_color, i_pass, i_cell, i_edges, i_nodes, i
+        integer(kind = GRID_SI)							            :: i_color, i_pass, i_edges, i_nodes, i
 
         _log_write(4, '(2X, A, I0)') "find section boundary elements: ", section%index
 

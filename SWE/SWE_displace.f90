@@ -16,7 +16,7 @@
 		implicit none
 
         type num_traversal_data
-            integer (kind = GRID_SI)			:: i_refinements_issued
+            integer (kind = GRID_DI)			:: i_refinements_issued
         end type
 
 		type(t_gv_Q)							:: gv_Q

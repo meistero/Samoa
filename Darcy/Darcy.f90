@@ -229,7 +229,7 @@
                 !$omp end master
 
                 grid_info = grid%get_capacity(.true.)
-				if (darcy%init_saturation%i_refinements_issued .le. grid_info%i_cells / 100) then
+				if (darcy%init_saturation%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
 					exit
 				endif
 
