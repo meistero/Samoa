@@ -346,7 +346,7 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
-                _log_write(0, *) "Time Step phase:"
+                _log_write(0, *) "Time step phase:"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, A)') " Transport: ", trim(darcy%transport_eq%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Gradient: ", trim(darcy%grad_p%stats%to_string())

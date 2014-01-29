@@ -552,7 +552,7 @@ MODULE SFC_data_types
         class(t_adaptive_statistics), intent(in)	:: s
 		character (len = 256)					    :: str
 
-        write(str, '(A, " update distances: ", F0.4, " update neighbors: ", F0.4, " integrity: ", F0.4, "s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")'), trim(t_statistics_to_string(s)), s%r_update_distances_time, s%r_update_neighbors_time, s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
+        write(str, '(A, " update distances: ", F0.4, " s update neighbors: ", F0.4, " s integrity: ", F0.4, " s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")'), trim(t_statistics_to_string(s)), s%r_update_distances_time, s%r_update_neighbors_time, s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
 	end function
 
     elemental function t_global_data_to_string(gd) result(str)
