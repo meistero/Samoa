@@ -55,7 +55,7 @@ sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 gnuplot &> /dev/null << EOT
 
 set terminal postscript enhanced color font ',30'
-set xlabel "Threads"
+set xlabel "Cores"
 set ylabel "Mio. Elements per sec."
 set key left top
 set logscale xy 2

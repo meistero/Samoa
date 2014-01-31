@@ -185,6 +185,7 @@ module config
     subroutine config_print(config)
         class(t_config)         :: config
 
+
 #	    if defined(_TESTS)
             _log_write(0, '(" Scenario: Tests")')
 #		elif defined (_HEAT_EQ)

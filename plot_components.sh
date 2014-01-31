@@ -19,7 +19,7 @@ for file in darcy*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $(($processes * $threads)) $sections" " >> "darcy.plt"
+	echo -n $(($processes * $threads)) \"$processes-$threads\"" " >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
@@ -44,8 +44,7 @@ for file in swe*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $(($processes * $threads)) $sections" "  >> "swe.plt"
-	    
+	echo -n $(($processes * $threads)) \"$processes-$threads\"" " >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
@@ -56,15 +55,29 @@ for file in swe*.log; do
 	echo ""  >> "swe.plt"
 done
 
-sort -t" " -n -k 1,1 -k 2,2 -k 3,3 darcy.plt -o darcy.plt
-sort -t" " -n -k 1,1 -k 2,2 -k 3,3 swe.plt -o swe.plt
+sort -t" " -n -k 1,1 darcy.plt -o darcy.plt
+sort -t" " -n -k 1,1 swe.plt -o swe.plt
+
+if [ -n "$2" ]; then
+    echo "#Component breakdown filtered using sed -n $2" > darcy.plt.tmp
+    echo "#Component breakdown filtered using sed -n $2" > swe.plt.tmp
+    
+    sed -n $2 darcy.plt >> darcy.plt.tmp 
+    sed -n $2 swe.plt >> swe.plt.tmp 
+
+    mv darcy.plt.tmp darcy.plt
+    mv swe.plt.tmp swe.plt
+fi
+
+sort -t" " -n -k 1,1 darcy.plt -o darcy.plt
+sort -t" " -n -k 1,1 swe.plt -o swe.plt
 
 #gnuplot &> /dev/null << EOT
 gnuplot << EOT
 
-set terminal postscript enhanced color font ',25'
+set terminal postscript enhanced color font ',20'
 set xlabel "Cores"
-set key below font ",20" spacing 0.8 width -3
+set key below font ",20" spacing 1.0 width -2
 set xtics rotate
 set yrange [0:*]
 set auto x
@@ -95,7 +108,7 @@ set ylabel "Sec. per core (wall clock time)"
 set output '| ps2pdf - darcy_components.pdf'
 	
 plot "darcy.plt" u (\$8) ls 2 t "Conformity", \
-    '' u (\$6):xtic(1) ls 1 t "Adaption", \
+    '' u (\$6):xtic(2) ls 1 t "Adaption", \
 	'' u (\$10) ls 3 t "Load Balancing", \
 	'' u (\$14) ls 5 t "Gradient", \
 	'' u (\$12) ls 4 t "Transport", \
@@ -111,7 +124,7 @@ plot "darcy.plt" u (10.0 * \$20/\$19 * \$1/\$23) ls 7 t "Pressure Solver", \
 	'' u (\$12/\$11 * \$1/\$23) ls 4 t "Transport", \
 	'' u (\$16/\$15 * \$1/\$23) ls 6 t "Permeability", \
 	'' u (\$8/\$5 * \$1/\$23) ls 2 t "Conformity", \
-    '' u (\$6/\$5 * \$1/\$23):xtic(1) ls 1 t "Adaption", \
+    '' u (\$6/\$5 * \$1/\$23):xtic(2) ls 1 t "Adaption", \
 	'' u (\$10/\$5 * \$1/\$23) ls 3 t "Load Balancing"
 
 #*****
@@ -125,7 +138,7 @@ set output '| ps2pdf - swe_components.pdf'
 plot    "swe.plt" u (\$12) ls 4 t "Time step", \
 	    '' u (\$14) ls 5 t "Displace", \
 	    '' u (\$8) ls 2 t "Conformity", \
-        '' u (\$6):xtic(1) ls 1 t "Adaption", \
+        '' u (\$6):xtic(2) ls 1 t "Adaption", \
 	    '' u (\$10) ls 3 t "Load Balancing"
 
 set title "SWE component breakdown - normalized"
@@ -134,7 +147,7 @@ set output '| ps2pdf - swe_components_norm.pdf'
 	
 plot "swe.plt" u (\$12/\$11 * \$1/\$17) ls 4 t "Time step", \
     '' u (\$8/\$5 * \$1/\$17) ls 2 t "Conformity", \
-    '' u (\$6/\$5 * \$1/\$17):xtic(1) ls 1 t "Adaption", \
+    '' u (\$6/\$5 * \$1/\$17):xtic(2) ls 1 t "Adaption", \
 	'' u (\$10/\$5 * \$1/\$17) ls 3 t "Load Balancing"
 #	'' u (\$14/\$13 * \$1/\$17) ls 5 t "Displace", \
 
