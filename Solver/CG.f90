@@ -758,7 +758,7 @@ MODULE _CG
             _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
             !$omp end master
 
-            if (sqrt(r_sq) < solver%max_error) then
+            if (r_sq < solver%max_error * solver%max_error) then
                 exit
             end if
 
