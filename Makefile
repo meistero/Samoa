@@ -76,6 +76,11 @@ else ifeq ($(SCENARIO), SWE)
   FFLAGS		+= -D_SWE
   ASAGI			?= STANDARD
   LIB 			?= NO
+else ifeq ($(SCENARIO), FLASH)
+  EXEC			:= $(EXEC)_flash
+  FFLAGS		+= -D_FLASH
+  ASAGI			?= STANDARD
+  LIB 			?= NO
 else ifeq ($(SCENARIO), HEAT_EQ)
   EXEC			:= $(EXEC)_heq
   FFLAGS		+= -D_HEAT_EQ
@@ -290,7 +295,17 @@ LIB_VTK_IO.f90\
 M_kracken.f90\
 Tools_noise.f90 \
 Tools_log.f90 \
-Conformity/Conformity.f90
+Conformity/Conformity.f90 \
+Flash/FLASH.f90 \
+Flash/FLASH_local_function_spaces.f90 \
+Flash/FLASH_data_types.f90 \
+Flash/FLASH_basis.f90 \
+Flash/FLASH_initialize.f90 \
+Flash/FLASH_output.f90 \
+Flash/FLASH_xml_output.f90 \
+Flash/FLASH_euler_timestep.f90 \
+Flash/FLASH_adapt.f90 \
+Flash/FLASH_dg_element.f90 \
 
 F77_SOURCES = \
 geoclaw/riemannsolvers.f
@@ -313,6 +328,9 @@ darcy:
 
 swe:
 	@$(MAKE) SCENARIO=SWE
+
+flash:
+	@$(MAKE) SCENARIO=FLASH
 
 numa:
 	@$(MAKE) SCENARIO=NUMA

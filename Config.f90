@@ -48,6 +48,11 @@ module config
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
+ 			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
+#    	elif defined(_FLASH)
+            character(256)                      :: s_bathymetry_file                                !< bathymetry file
+            character(256)                      :: s_displacement_file                              !< displacement file
+ 			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry data
 #       endif
 
@@ -92,6 +97,8 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
 #    	elif defined(_SWE)
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+#	elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
