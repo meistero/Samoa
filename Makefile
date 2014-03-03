@@ -182,7 +182,8 @@ else ifeq ($(TARGET), PROF)
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
-  FFLAGS 		+= -fast -align all -inline-level=2 -no-inline-min-size -no-inline-max-size -no-inline-max-total-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -funroll-loops -unroll
+  FFLAGS 		+= -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size
+  #   -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size
   LDFLAGS 		+= -O3 -ip -ipo
 else
   $(error Invalid value for TARGET: $(TARGET))
@@ -252,6 +253,7 @@ Darcy/Darcy_output.f90 \
 Darcy/Darcy_xml_output.f90 \
 Darcy/Darcy_laplace_jacobi.f90 \
 Darcy/Darcy_laplace_cg.f90 \
+Darcy/Darcy_laplace_pipecg.f90 \
 Darcy/Darcy_grad_p.f90 \
 Darcy/Darcy_transport_eq.f90 \
 Darcy/Darcy_permeability.f90 \

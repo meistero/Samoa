@@ -23,6 +23,7 @@ for file in darcy*.log; do
 	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
+	grep -E "r0.*Adaptions" $file | grep -oE "update neighbors: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Transport" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Gradient" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Permeability" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
@@ -48,6 +49,7 @@ for file in swe*.log; do
 	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
+	grep -E "r0.*Adaptions" $file | grep -oE "update neighbors: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Time steps" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Displace" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Time Step phase time" $file | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
@@ -108,24 +110,26 @@ set ylabel "Sec. per core (wall clock time)"
 set output '| ps2pdf - darcy_components.pdf'
 	
 plot "darcy.plt" u (\$8) ls 2 t "Conformity", \
-    '' u (\$6):xtic(2) ls 1 t "Adaption", \
+    '' u (\$6 - \$12):xtic(2) ls 1 t "Adaption", \
+	'' u (\$12) ls 8 t "Neighbor search", \
 	'' u (\$10) ls 3 t "Load Balancing", \
-	'' u (\$14) ls 5 t "Gradient", \
-	'' u (\$12) ls 4 t "Transport", \
-	'' u (\$16) ls 6 t "Permeability", \
-	'' u (\$20) ls 7 t "Pressure Solver"
+	'' u (\$16) ls 5 t "Gradient", \
+	'' u (\$14) ls 4 t "Transport", \
+	'' u (\$18) ls 6 t "Permeability", \
+	'' u (\$22) ls 7 t "Pressure Solver"
 
 set title "Darcy component breakdown - normalized"
 set ylabel "Sec. per element (CPU time)"
 set output '| ps2pdf - darcy_components_norm.pdf'
 	
-plot "darcy.plt" u (10.0 * \$20/\$19 * \$1/\$23) ls 7 t "Pressure Solver", \
-	'' u (\$14/\$13 * \$1/\$23) ls 5 t "Gradient", \
-	'' u (\$12/\$11 * \$1/\$23) ls 4 t "Transport", \
-	'' u (\$16/\$15 * \$1/\$23) ls 6 t "Permeability", \
-	'' u (\$8/\$5 * \$1/\$23) ls 2 t "Conformity", \
-    '' u (\$6/\$5 * \$1/\$23):xtic(2) ls 1 t "Adaption", \
-	'' u (\$10/\$5 * \$1/\$23) ls 3 t "Load Balancing"
+plot "darcy.plt" u (10.0 * \$22/\$21 * \$1/\$25) ls 7 t "Pressure Solver", \
+	'' u (\$16/\$15 * \$1/\$25) ls 5 t "Gradient", \
+	'' u (\$14/\$13 * \$1/\$25) ls 4 t "Transport", \
+	'' u (\$18/\$15 * \$1/\$25) ls 6 t "Permeability", \
+	'' u (\$8/\$5 * \$1/\$25) ls 2 t "Conformity", \
+    '' u ((\$6 - \$12)/\$5 * \$1/\$25):xtic(2) ls 1 t "Adaption", \
+	'' u (\$12/\$5 * \$1/\$25) ls 8 t "Neighbor search", \
+	'' u (\$10/\$5 * \$1/\$25) ls 3 t "Load Balancing"
 
 #*****
 # SWE
@@ -135,21 +139,23 @@ set title "SWE component breakdown"
 set ylabel "Sec. per core (wall clock time)"
 set output '| ps2pdf - swe_components.pdf'
 
-plot    "swe.plt" u (\$12) ls 4 t "Time step", \
-	    '' u (\$14) ls 5 t "Displace", \
+plot    "swe.plt" u (\$14) ls 4 t "Time step", \
+	    '' u (\$16) ls 5 t "Displace", \
 	    '' u (\$8) ls 2 t "Conformity", \
-        '' u (\$6):xtic(2) ls 1 t "Adaption", \
+        '' u (\$6 - \$12):xtic(2) ls 1 t "Adaption", \
+	    '' u (\$12) ls 8 t "Neighbor search", \
 	    '' u (\$10) ls 3 t "Load Balancing"
 
 set title "SWE component breakdown - normalized"
 set ylabel "Sec. per element (CPU time)"
 set output '| ps2pdf - swe_components_norm.pdf'
 	
-plot "swe.plt" u (\$12/\$11 * \$1/\$17) ls 4 t "Time step", \
-    '' u (\$8/\$5 * \$1/\$17) ls 2 t "Conformity", \
-    '' u (\$6/\$5 * \$1/\$17):xtic(2) ls 1 t "Adaption", \
-	'' u (\$10/\$5 * \$1/\$17) ls 3 t "Load Balancing"
-#	'' u (\$14/\$13 * \$1/\$17) ls 5 t "Displace", \
+plot "swe.plt" u (\$14/\$13 * \$1/\$19) ls 4 t "Time step", \
+    '' u (\$8/\$5 * \$1/\$19) ls 2 t "Conformity", \
+    '' u ((\$6 - \$12)/\$5 * \$1/\$19):xtic(2) ls 1 t "Adaption", \
+    '' u (\$12/\$5 * \$1/\$19) ls 8 t "Neighbor search", \
+	'' u (\$10/\$5 * \$1/\$19) ls 3 t "Load Balancing"
+#	'' u (\$16/\$15 * \$1/\$19) ls 5 t "Displace", \
 
 
 EOT

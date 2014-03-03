@@ -38,6 +38,7 @@ module config
 #    	if defined(_DARCY)
             character(256)                      :: s_permeability_file                              !< permeability file
  			integer					 		    :: afh_permeability			                        !< asagi file handle to permeability data
+            integer			        	        :: i_lsolver			                		    !< linear solver
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
 			double precision				    :: r_rel_permeability		                        !< relative permeability of the entering fluid
@@ -79,13 +80,15 @@ module config
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
         character(256)                          :: arguments
+        character(64)                           :: lsolver_to_char(0:2) = ["Jacobi", "CG", "Pipelined CG"]
+        character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
         write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -asagihints 2 -noprint .false. -sections 4 -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0e1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0e6 -epsilon 1.0e-5 -rho 0.2 -k_rel 1.5"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0e1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0e6 -epsilon 1.0e-5 -rho 0.2 -k_rel 1.5 -lsolver 2"
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
 #    	elif defined(_SWE)
@@ -122,6 +125,7 @@ module config
 			config%r_rel_permeability = rget('samoa_k_rel')
 			config%r_rho = rget('samoa_rho')
 			config%r_p0 = rget('samoa_p0')
+            config%i_lsolver = iget('samoa_lsolver')
 #    	elif defined(_SWE)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
@@ -140,7 +144,7 @@ module config
                 PRINT '(A)',            " Usage: samoa [--help | -h] | [--version | -v] | [-asagihints <value>] [-dstart <value>] [-dmin <value>] [-dmax <value>] [-tsteps <value>] [-tmax <value>] [-tout <value>] [-threads <value>] [-sections <value>] [-noprint]"
                 PRINT '(A)',            ""
                 PRINT '(A)',            " Arguments:"
-                PRINT '(A, I0, A)',     " 	-asagihints <value>     ASAGI mode (0: default, 1: pass through, 2: no mpi, 3: no mpi + small cache, 4: large grid) (value: ", config%i_asagi_mode, ")"
+                PRINT '(A, I0, ": ", A, A)',  " 	-asagihints <value>     ASAGI mode (0: default, 1: pass through, 2: no mpi, 3: no mpi + small cache, 4: large grid) (value: ", config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode)), ")"
                 PRINT '(A, I0, A)',     " 	-dmin <value>           minimum grid depth (value: ", config%i_min_depth, ")"
                 PRINT '(A, I0, A)',     "	-dmax <value>           maximum grid depth (value: ", config%i_max_depth, ")"
                 PRINT '(A, I0, A)',     "	-tsteps <value>         maximum number of time steps, less than 0: not defined (value: ", config%i_max_time_steps, ")"
@@ -155,6 +159,7 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-k_rel	                relative permeability of the entering fluid (value: ", config%r_rel_permeability, ")"
                     PRINT '(A, ES8.1, A)',  "	-rho				    fluid density (value: ", config%r_rho, ")"
                     PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
+                    PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
 #         	    elif defined(_SWE)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
@@ -183,8 +188,9 @@ module config
     end subroutine
 
     subroutine config_print(config)
-        class(t_config)         :: config
-
+        class(t_config)                         :: config
+        character(64)                           :: lsolver_to_char(0:2) = ["Jacobi", "CG", "Pipelined CG"]
+        character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
 #	    if defined(_TESTS)
             _log_write(0, '(" Scenario: Tests")')
@@ -218,9 +224,9 @@ module config
 
 #		if defined(_ASAGI)
 #		    if defined(_ASAGI_NUMA)
-                _log_write(0, '(" ASAGI: Yes, with NUMA support, mode: ", I0)') config%i_asagi_mode
+                _log_write(0, '(" ASAGI: Yes, with NUMA support, mode: ", I0, ": ", A)') config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode))
 #	        else
-                _log_write(0, '(" ASAGI: Yes, without NUMA support, mode: ", I0)') config%i_asagi_mode
+                _log_write(0, '(" ASAGI: Yes, without NUMA support, mode: ", I0, ": ", A)') config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode))
 #		    endif
 #		else
             _log_write(0, '(" ASAGI: No")')
@@ -246,6 +252,7 @@ module config
             _log_write(0, '(" Scenario: relative permeability of the entering fluid: ", ES8.1)') config%r_rel_permeability
             _log_write(0, '(" Scenario: fluid density: ", ES8.1)') config%r_rho
             _log_write(0, '(" Scenario: initial boundary pressure difference: ", ES8.1)') config%r_p0
+            _log_write(0, '(" Scenario: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
 #		elif defined(_SWE)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 
