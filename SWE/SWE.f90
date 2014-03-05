@@ -195,7 +195,7 @@
                 !$omp end master
 
                 grid_info = grid%get_capacity(.true.)
-				if (swe%init%i_refinements_issued .le. grid_info%i_cells / 100) then
+				if (swe%init%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
 					exit
 				endif
 
@@ -327,7 +327,7 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
-                _log_write(0, *) "Time Step phase:"
+                _log_write(0, *) "Time step phase:"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, A)') " Time steps: ", trim(swe%euler%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Displace: ", trim(swe%displace%stats%to_string())
@@ -338,7 +338,7 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Cell update throughput: ", 1.0e-6 * real(swe%euler%stats%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Flux solver throughput: ", 1.0e-6 * real(swe%euler%stats%i_traversed_edges, GRID_SR) / (r_t4 - r_t3), " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s"
-                _log_write(0, '(A, T34, F10.4, A)') " Time Step phase time:", r_t4 - r_t3, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Time step phase time:", r_t4 - r_t3, " s"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
                 _log_write(0, *) "---"

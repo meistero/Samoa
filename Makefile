@@ -76,6 +76,11 @@ else ifeq ($(SCENARIO), SWE)
   FFLAGS		+= -D_SWE
   ASAGI			?= STANDARD
   LIB 			?= NO
+else ifeq ($(SCENARIO), FLASH)
+  EXEC			:= $(EXEC)_flash
+  FFLAGS		+= -D_FLASH
+  ASAGI			?= STANDARD
+  LIB 			?= NO
 else ifeq ($(SCENARIO), HEAT_EQ)
   EXEC			:= $(EXEC)_heq
   FFLAGS		+= -D_HEAT_EQ
@@ -182,7 +187,8 @@ else ifeq ($(TARGET), PROF)
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
-  FFLAGS 		+= -fast -align all -inline-level=2 -no-inline-min-size -no-inline-max-size -no-inline-max-total-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -funroll-loops -unroll
+  FFLAGS 		+= -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size
+  #   -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size
   LDFLAGS 		+= -O3 -ip -ipo
 else
   $(error Invalid value for TARGET: $(TARGET))
@@ -252,6 +258,7 @@ Darcy/Darcy_output.f90 \
 Darcy/Darcy_xml_output.f90 \
 Darcy/Darcy_laplace_jacobi.f90 \
 Darcy/Darcy_laplace_cg.f90 \
+Darcy/Darcy_laplace_pipecg.f90 \
 Darcy/Darcy_grad_p.f90 \
 Darcy/Darcy_transport_eq.f90 \
 Darcy/Darcy_permeability.f90 \
@@ -288,7 +295,17 @@ LIB_VTK_IO.f90\
 M_kracken.f90\
 Tools_noise.f90 \
 Tools_log.f90 \
-Conformity/Conformity.f90
+Conformity/Conformity.f90 \
+Flash/FLASH.f90 \
+Flash/FLASH_local_function_spaces.f90 \
+Flash/FLASH_data_types.f90 \
+Flash/FLASH_basis.f90 \
+Flash/FLASH_initialize.f90 \
+Flash/FLASH_output.f90 \
+Flash/FLASH_xml_output.f90 \
+Flash/FLASH_euler_timestep.f90 \
+Flash/FLASH_adapt.f90 \
+Flash/FLASH_dg_element.f90 \
 
 F77_SOURCES = \
 geoclaw/riemannsolvers.f
@@ -312,6 +329,9 @@ darcy:
 swe:
 	@$(MAKE) SCENARIO=SWE
 
+flash:
+	@$(MAKE) SCENARIO=FLASH
+
 numa:
 	@$(MAKE) SCENARIO=NUMA
 
@@ -331,15 +351,19 @@ compile: $(EXEC)
 	@rm -f $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
+	@echo ""
 	@$(LOADER) $(LDFLAGS) -o $@ $(F90_OBJS) $(F77_OBJS)
 
 %.o: %.f90
 	@$(FC) $(FFLAGS) -c -o $@ $<
+	@echo -n "."
 
 %.o: %.f
 	@$(FC) $(FFLAGS) -c -o $@ $<
+	@echo -n "."
 
 clean:
 	@rm -f bin/* $(F90_OBJS) $(F77_OBJS) *.mod
 
 -include dependency.mk
+

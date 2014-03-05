@@ -1,8 +1,8 @@
 Config.o: Tools_log.o M_kracken.o
-SFC_data_types.o: Config.o Tools_log.o Heat_Equation/Heat_Eq_data_types.o Darcy/Darcy_data_types.o SWE/SWE_data_types.o Tests/Tests_data_types.o Generic/Generic_data_types.o #NUMA/NUMA_data_types.o
+SFC_data_types.o: Config.o Tools_log.o Heat_Equation/Heat_Eq_data_types.o Darcy/Darcy_data_types.o SWE/SWE_data_types.o Tests/Tests_data_types.o Generic/Generic_data_types.o Flash/FLASH_data_types.o #NUMA/NUMA_data_types.o
 SFC_edge_traversal.o: SFC_data_types.o
 SFC_node_traversal.o: SFC_edge_traversal.o
-SFC_traversal.o: SFC_node_traversal.o Heat_Equation/Heat_Eq.o Darcy/Darcy.o Tests/Tests.o SWE/SWE.o Generic/Generic.o #NUMA/NUMA.o
+SFC_traversal.o: SFC_node_traversal.o Heat_Equation/Heat_Eq.o Darcy/Darcy.o Tests/Tests.o SWE/SWE.o Generic/Generic.o Flash/FLASH.o #NUMA/NUMA.o
 SFC_main.o: Config.o SFC_traversal.o
 Tools_local_function_space_base.o: SFC_data_types.o
 Tools_noise.o: SFC_data_types.o
@@ -20,7 +20,7 @@ Tests/Tests_consistency_traversal.o: SFC_generic_traversal_ringbuffer.f90 SFC_no
 Tests/Tests_flops_traversal.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o
 Tests/Tests_memory_traversal.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o
 
-Darcy/Darcy.o: Darcy/Darcy_data_types.o Solver/LinearSolver.o Darcy/Darcy_initialize.o Darcy/Darcy_node_dummy.o Darcy/Darcy_output.o Darcy/Darcy_xml_output.o Darcy/Darcy_grad_p.o Darcy/Darcy_laplace_jacobi.o Darcy/Darcy_laplace_cg.o Darcy/Darcy_transport_eq.o Darcy/Darcy_permeability.o Darcy/Darcy_adapt.o Samoa/Samoa.o
+Darcy/Darcy.o: Darcy/Darcy_data_types.o Solver/LinearSolver.o Darcy/Darcy_initialize.o Darcy/Darcy_node_dummy.o Darcy/Darcy_output.o Darcy/Darcy_xml_output.o Darcy/Darcy_grad_p.o Darcy/Darcy_laplace_jacobi.o Darcy/Darcy_laplace_cg.o Darcy/Darcy_laplace_pipecg.o Darcy/Darcy_transport_eq.o Darcy/Darcy_permeability.o Darcy/Darcy_adapt.o Samoa/Samoa.o
 Darcy/Darcy_local_function_spaces.o: SFC_data_types.o Tools_grid_variable.f90 Tools_local_function_space.f90
 Darcy/Darcy_basis.o: SFC_data_types.o Darcy/Darcy_local_function_spaces.o Samoa/Samoa.o
 Darcy/Darcy_adapt.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o Darcy/Darcy_local_function_spaces.o Darcy/Darcy_basis.o Samoa/Samoa.o Darcy/Darcy_initialize.o
@@ -28,6 +28,7 @@ Darcy/Darcy_node_dummy.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversa
 Darcy/Darcy_grad_p.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Darcy/Darcy_local_function_spaces.o Darcy/Darcy_basis.o Samoa/Samoa.o
 Darcy/Darcy_initialize.o: SFC_generic_traversal_ringbuffer.f90 Tools_noise.o SFC_node_traversal.o Darcy/Darcy_basis.o Samoa/Samoa.o
 Darcy/Darcy_laplace_cg.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Darcy/Darcy_basis.o Samoa/Samoa.o
+Darcy/Darcy_laplace_pipecg.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Darcy/Darcy_basis.o Samoa/Samoa.o
 Darcy/Darcy_laplace_jacobi.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Darcy/Darcy_basis.o Samoa/Samoa.o
 Darcy/Darcy_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Darcy/Darcy_basis.o Samoa/Samoa.o LIB_VTK_IO.o
 Darcy/Darcy_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Darcy/Darcy_basis.o Samoa/Samoa.o LIB_VTK_IO.o
@@ -64,6 +65,17 @@ SWE/SWE_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o 
 #NUMA/NUMA_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
 #NUMA/NUMA_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o NUMA/NUMA_basis.o NUMA/NUMA_local_function_spaces.o NUMA/NUMA_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
 #NUMA/NUMA_constants.o: NUMA/NUMA_data_types.o
+
+
+Flash/FLASH.o: Flash/FLASH_data_types.o Flash/FLASH_basis.o Flash/FLASH_initialize.o Flash/FLASH_output.o Flash/FLASH_xml_output.o Flash/FLASH_euler_timestep.o Flash/FLASH_adapt.o Samoa/Samoa.o
+Flash/FLASH_local_function_spaces.o: SFC_data_types.o
+Flash/FLASH_basis.o: SFC_data_types.o Flash/FLASH_local_function_spaces.o Samoa/Samoa.o
+Flash/FLASH_adapt.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o Flash/FLASH_basis.o Samoa/Samoa.o Flash/FLASH_euler_timestep.o Flash/FLASH_initialize.o
+Flash/FLASH_euler_timestep.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Flash/FLASH_basis.o Samoa/Samoa.o Flash/FLASH_dg_element.o
+Flash/FLASH_initialize.o: SFC_generic_traversal_ringbuffer.f90 Flash/FLASH_euler_timestep.o Tools_noise.o SFC_node_traversal.o Flash/FLASH_basis.o Samoa/Samoa.o Flash/FLASH_local_function_spaces.o
+Flash/FLASH_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Flash/FLASH_basis.o Flash/FLASH_local_function_spaces.o Flash/FLASH_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
+Flash/FLASH_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Flash/FLASH_basis.o Flash/FLASH_local_function_spaces.o Flash/FLASH_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
+Flash/FLASH_dg_element.o: SFC_data_types.o
 
 Generic/Generic.o: Generic/Generic_data_types.o  SFC_node_traversal.o Generic/Generic_initialize.o Generic/Generic_template.o Generic/Generic_adapt_template.o
 Generic/Generic_initialize.o: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.o Samoa/Samoa.o

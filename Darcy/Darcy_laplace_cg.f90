@@ -18,7 +18,7 @@
 
 #   define _gv_r                darcy_gv_r
 #   define _gv_d                darcy_gv_d
-#   define _gv_A_d              darcy_gv_A_d
+#   define _gv_u                darcy_gv_A_d
 #   define _gv_trace_A          darcy_gv_mat_diagonal
 #   define _gv_dirichlet        darcy_gv_is_dirichlet_boundary
 

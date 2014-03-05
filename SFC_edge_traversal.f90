@@ -1070,7 +1070,9 @@ module SFC_edge_traversal
 			i_sections = size(grid%sections%elements_alloc)
 
             if (i_sections > 0) then
-                rank_imbalance = ((partial_load - (0.5_GRID_SR * grid%sections%elements_alloc(i_sections)%load / grid%load) * load) * size_MPI) / total_load - ((partial_load - load + (0.5_GRID_SR * grid%sections%elements_alloc(1)%load / grid%load) * load) * size_MPI) / total_load
+                rank_imbalance = \
+                    ((partial_load - (0.5_GRID_SR * grid%sections%elements_alloc(i_sections)%load / grid%load) * load) * size_MPI) / total_load - \
+                    ((partial_load - load + (0.5_GRID_SR * grid%sections%elements_alloc(1)%load / grid%load) * load) * size_MPI) / total_load
             else
                 rank_imbalance = 0
             end if
@@ -1623,7 +1625,7 @@ module SFC_edge_traversal
 
         type(t_edge_data), pointer                                  :: p_edge, p_edges(:)
         type(t_node_data), pointer                                  :: p_nodes(:)
-        integer(kind = GRID_SI)							            :: i_color, i_pass, i_cell, i_edges, i_nodes, i
+        integer(kind = GRID_SI)							            :: i_color, i_pass, i_edges, i_nodes, i
 
         _log_write(4, '(2X, A, I0)') "find section boundary elements: ", section%index
 

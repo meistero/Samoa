@@ -22,29 +22,23 @@ MODULE _CG_(1)
     implicit none
 
     type num_traversal_data
-        real (kind = GRID_SR)				:: beta						!< update ratio
-        real (kind = GRID_SR)				:: d_A_d					!< d^T * A * d
+        real (kind = GRID_SR)	    :: beta				    !< update ratio
+        real (kind = GRID_SR)	    :: d_u					!< d^T * A * d
     end type
 
     !LSE variables
     type(_gm_A)				        :: gm_A                 !< temporary/persistent matrix
     type(_gv_x)						:: gv_x                 !< persistent solution
 
-    !if no RHS is defined, we assume RHS = 0
-#   if defined(_gv_rhs)
-        type(_gv_rhs)			    :: gv_rhs               !< temporary/persistent right hand side
-#   endif
-
     !solver-specific variables
     type(_gv_r)						:: gv_r                 !< persistent residual
     type(_gv_trace_A)			    :: gv_trace_A           !< persistent trace of matrix
     type(_gv_d)						:: gv_d                 !< persistent solution update
-    type(_gv_A_d)					:: gv_A_d               !< persistent residual update
-
+    type(_gv_u)					    :: gv_u                 !< persistent residual update
 
     !if no Dirichlet boundaries are defined, we assume Neumann boundaries everywhere
 #   if defined(_gv_dirichlet)
-        type(_gv_dirichlet)		    :: gv_dirichlet
+        type(_gv_dirichlet)		    :: gv_dirichlet         !< persistent boundary indicator
 #   endif
 
 #		define _GT_NAME							_T_CG_(1_traversal)
@@ -62,6 +56,7 @@ MODULE _CG_(1)
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
+
 #		define _GT_ELEMENT_OP					element_op
 
 #		define _GT_NODE_FIRST_TOUCH_OP			node_first_touch_op
@@ -83,14 +78,14 @@ MODULE _CG_(1)
         type(_T_CG_(1_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%d_A_d, traversal%children%d_A_d, MPI_SUM, .true.)
+        call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .true.)
     end subroutine
 
     pure subroutine pre_traversal_op(traversal, section)
         type(_T_CG_(1_traversal)), intent(inout)						:: traversal
         type(t_grid_section), intent(inout)							:: section
 
-        traversal%d_A_d = 0.0_GRID_SR
+        traversal%d_u = 0.0_GRID_SR
     end subroutine
 
     !*******************************
@@ -106,15 +101,15 @@ MODULE _CG_(1)
 
         real(kind = GRID_SR)                        :: r(_gv_node_size)
         real(kind = GRID_SR)                        :: d(_gv_node_size)
-        real(kind = GRID_SR)                        :: A_d(_gv_node_size)
+        real(kind = GRID_SR)                        :: u(_gv_node_size)
 
         call gv_d%read(node, d)
         call gv_r%read(node, r)
 
-        call pre_dof_op(traversal%beta, r, d, A_d)
+        call pre_dof_op(traversal%beta, r, d, u)
 
         call gv_d%write(node, d)
-        call gv_A_d%write(node, A_d)
+        call gv_u%write(node, u)
     end subroutine
 
     !element
@@ -125,15 +120,15 @@ MODULE _CG_(1)
         type(t_element_base), intent(inout), target			:: element
 
         real(kind = GRID_SR)		:: d(_gv_size)
-        real(kind = GRID_SR)		:: A_d(_gv_size)
+        real(kind = GRID_SR)		:: u(_gv_size)
         real(kind = GRID_SR)		:: A(_gv_size, _gv_size)
 
         call gv_d%read(element, d)
         call gm_A%read(element, A)
 
-        A_d = matmul(A, d)
+        u = matmul(A, d)
 
-        call gv_A_d%add(element, A_d)
+        call gv_u%add(element, u)
     end subroutine
 
     !last touches
@@ -159,13 +154,13 @@ MODULE _CG_(1)
 
         integer (kind = 1)					            :: i
         real(kind = GRID_SR)                            :: d(_gv_node_size)
-        real(kind = GRID_SR)                            :: A_d(_gv_node_size)
+        real(kind = GRID_SR)                            :: u(_gv_node_size)
 
         call gv_d%read(node, d)
-        call gv_A_d%read(node, A_d)
+        call gv_u%read(node, u)
 
         do i = 1, _gv_node_size
-            call reduce_dof_op(traversal%d_A_d, d(i), A_d(i))
+            call reduce_dof_op(traversal%d_u, d(i), u(i))
         end do
     end subroutine
 
@@ -173,41 +168,41 @@ MODULE _CG_(1)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
-        real(kind = GRID_SR)                        :: A_d(_gv_node_size)
+        real(kind = GRID_SR)                        :: u(_gv_node_size)
 
-        call gv_A_d%read(neighbor_node, A_d)
-        call gv_A_d%add(local_node, A_d)
+        call gv_u%read(neighbor_node, u)
+        call gv_u%add(local_node, u)
     end subroutine
 
     !*******************************
     !Volume and DoF operators
     !*******************************
 
-    elemental subroutine pre_dof_op(beta, r, d, A_d)
+    elemental subroutine pre_dof_op(beta, r, d, u)
         real (kind = GRID_SR), intent(in)		:: beta
         real (kind = GRID_SR), intent(in)		:: r
         real (kind = GRID_SR), intent(inout)	:: d
-        real (kind = GRID_SR), intent(out)	    :: A_d
+        real (kind = GRID_SR), intent(out)	    :: u
 
         d = r + beta * d
-        A_d = 0.0_GRID_SR
+        u = 0.0_GRID_SR
     end subroutine
 
-    pure subroutine alpha_volume_op(A, d, A_d, permeability)
+    pure subroutine alpha_volume_op(A, d, u, permeability)
         real (kind = GRID_SR), intent(in) 	:: A(_gv_size, _gv_size)
         real (kind = GRID_SR), intent(in)	:: d(_gv_size)
-        real (kind = GRID_SR), intent(out)	:: A_d(_gv_size)
+        real (kind = GRID_SR), intent(out)	:: u(_gv_size)
         real (kind = GRID_SR), intent(in)	:: permeability
 
-        A_d = matmul(A, d)
+        u = matmul(A, d)
     end subroutine
 
-    elemental subroutine reduce_dof_op(d_A_d, d, A_d)
-        real (kind = GRID_SR), intent(inout)	:: d_A_d
+    elemental subroutine reduce_dof_op(d_u, d, u)
+        real (kind = GRID_SR), intent(inout)	:: d_u
         real (kind = GRID_SR), intent(in)		:: d
-        real (kind = GRID_SR), intent(in)	    :: A_d
+        real (kind = GRID_SR), intent(in)	    :: u
 
-        d_A_d = d_A_d + (d * A_d)
+        d_u = d_u + (d * u)
     end subroutine
 END MODULE
 
@@ -230,13 +225,8 @@ MODULE _CG_(2)
     !solver-specific persistent variables
     type(_gv_r)						:: gv_r
     type(_gv_d)						:: gv_d
-    type(_gv_A_d)					:: gv_A_d
+    type(_gv_u)					:: gv_u
     type(_gv_trace_A)			    :: gv_trace_A
-
-    !if no rhs is defined, we assume rhs = 0
-#   if defined(_gv_rhs)
-        type(_gv_rhs)			    :: gv_rhs
-#   endif
 
     !if no Dirichlet boundaries are defined, we assume Neumann boundaries everywhere
 #   if defined(_gv_dirichlet)
@@ -351,13 +341,13 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)							:: section
         type(t_node_data), intent(inout)			                :: node
 
-        real(kind = GRID_SR)    :: x(_gv_node_size), r(_gv_node_size), d(_gv_node_size), A_d(_gv_node_size), trace_A(_gv_node_size)
+        real(kind = GRID_SR)    :: x(_gv_node_size), r(_gv_node_size), d(_gv_node_size), u(_gv_node_size), trace_A(_gv_node_size)
 
         call gv_d%read(node, d)
-        call gv_A_d%read(node, A_d)
+        call gv_u%read(node, u)
         call gv_trace_A%read(node, trace_A)
 
-        call post_dof_op(traversal%alpha, x, r, d, A_d, trace_A)
+        call post_dof_op(traversal%alpha, x, r, d, u, trace_A)
 
         call gv_x%add(node, x)
         call gv_r%add(node, r)
@@ -413,16 +403,16 @@ MODULE _CG_(2)
         trace_A = tiny(1.0_GRID_SR)
     end subroutine
 
-    elemental subroutine post_dof_op(alpha, x, r, d, A_d, trace_A)
+    elemental subroutine post_dof_op(alpha, x, r, d, u, trace_A)
         real (kind = GRID_SR), intent(in)			:: alpha
         real (kind = GRID_SR), intent(out)		    :: x
         real (kind = GRID_SR), intent(out)		    :: r
         real (kind = GRID_SR), intent(in)			:: d
-        real (kind = GRID_SR), intent(in)			:: A_d
+        real (kind = GRID_SR), intent(in)			:: u
         real (kind = GRID_SR), intent(in)			:: trace_A
 
         x = alpha * d
-        r = -alpha * A_d / trace_A
+        r = -alpha * u / trace_A
 
         assert_pure(trace_A > 0)
     end subroutine
@@ -438,16 +428,15 @@ MODULE _CG_(2)
     end subroutine
 END MODULE
 
-MODULE _CG_(2_exact)
+MODULE _CG_(exact)
     use SFC_edge_traversal
     use _CG_USE
 
     implicit none
 
     type num_traversal_data
-        real (kind = GRID_SR)					:: alpha					!< step size
-        real (kind = GRID_SR)					:: r_C_r					!< r^T * C * r
-        real (kind = GRID_SR)					:: r_sq						!< r^2
+        real (kind = GRID_SR)	    :: r_C_r					!< r^T * C * r
+        real (kind = GRID_SR)	    :: r_sq						!< r^2
     end type
 
     !LSE variables
@@ -456,8 +445,6 @@ MODULE _CG_(2_exact)
 
     !solver-specific persistent variables
     type(_gv_r)						:: gv_r
-    type(_gv_d)						:: gv_d
-    type(_gv_A_d)					:: gv_A_d
     type(_gv_trace_A)			    :: gv_trace_A
 
     !if no rhs is defined, we assume rhs = 0
@@ -470,7 +457,7 @@ MODULE _CG_(2_exact)
         type(_gv_dirichlet)		    :: gv_dirichlet
 #   endif
 
-#		define _GT_NAME							_T_CG_(2_exact_traversal)
+#		define _GT_NAME							_T_CG_(exact_traversal)
 
 #		if (_gv_edge_size > 0)
 #			define _GT_EDGES
@@ -500,14 +487,12 @@ MODULE _CG_(2_exact)
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
     subroutine pre_traversal_grid_op(traversal, grid)
-        type(_T_CG_(2_exact_traversal)), intent(inout)					:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
-
-        call scatter(traversal%alpha, traversal%children%alpha)
     end subroutine
 
     subroutine post_traversal_grid_op(traversal, grid)
-        type(_T_CG_(2_exact_traversal)), intent(inout)					:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
         call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .true.)
@@ -515,7 +500,7 @@ MODULE _CG_(2_exact)
     end subroutine
 
     subroutine pre_traversal_op(traversal, section)
-        type(_T_CG_(2_exact_traversal)), intent(inout)					:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
         type(t_grid_section), intent(inout)							:: section
 
         traversal%r_C_r = 0.0_GRID_SR
@@ -527,7 +512,7 @@ MODULE _CG_(2_exact)
     !*******************************
 
     elemental subroutine node_first_touch_op(traversal, section, node)
-        type(_T_CG_(2_exact_traversal)), intent(in)	    :: traversal
+        type(_T_CG_(exact_traversal)), intent(in)	    :: traversal
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(inout)		    :: node
 
@@ -548,7 +533,7 @@ MODULE _CG_(2_exact)
     end subroutine
 
     subroutine element_op(traversal, section, element)
-        type(_T_CG_(2_exact_traversal)), intent(inout)		:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)		:: traversal
         type(t_grid_section), intent(inout)				:: section
         type(t_element_base), intent(inout), target		:: element
 
@@ -572,7 +557,7 @@ MODULE _CG_(2_exact)
     end subroutine
 
     elemental subroutine node_last_touch_op(traversal, section, node)
-        type(_T_CG_(2_exact_traversal)), intent(in)			:: traversal
+        type(_T_CG_(exact_traversal)), intent(in)			:: traversal
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
@@ -588,29 +573,23 @@ MODULE _CG_(2_exact)
     end subroutine
 
     elemental subroutine inner_node_last_touch_op(traversal, section, node)
-        type(_T_CG_(2_exact_traversal)), intent(in)			:: traversal
+        type(_T_CG_(exact_traversal)), intent(in)			:: traversal
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        real(kind = GRID_SR)                        :: x(_gv_node_size)
         real(kind = GRID_SR)                        :: r(_gv_node_size)
-        real(kind = GRID_SR)                        :: d(_gv_node_size)
-        real(kind = GRID_SR)                        :: A_d(_gv_node_size)
         real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
         call gv_r%read(node, r)
-        call gv_d%read(node, d)
-        call gv_A_d%read(node, A_d)
         call gv_trace_A%read(node, trace_A)
 
-        call post_dof_op(traversal%alpha, x, r, d, A_d, trace_A)
+        call post_dof_op(r, trace_A)
 
-        call gv_x%add(node, x)
         call gv_r%write(node, r)
     end subroutine
 
     pure subroutine node_reduce_op(traversal, section, node)
-        type(_T_CG_(2_exact_traversal)), intent(inout)  :: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)  :: traversal
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
@@ -624,7 +603,7 @@ MODULE _CG_(2_exact)
     end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
-        type(_T_CG_(2_exact_traversal)), intent(inout)	    :: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)	    :: traversal
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
@@ -668,16 +647,11 @@ MODULE _CG_(2_exact)
         trace_A = tiny(1.0_GRID_SR)
     end subroutine
 
-    elemental subroutine post_dof_op(alpha, x, r, d, A_d, trace_A)
-        real (kind = GRID_SR), intent(in)		    :: alpha
-        real (kind = GRID_SR), intent(out)		    :: x
+    elemental subroutine post_dof_op(r, trace_A)
         real (kind = GRID_SR), intent(inout)		:: r
-        real (kind = GRID_SR), intent(in)			:: d
-        real (kind = GRID_SR), intent(in)			:: A_d
         real (kind = GRID_SR), intent(in)			:: trace_A
 
-        x = alpha * d
-        r = (r - alpha * A_d) / trace_A
+        r = r / trace_A
     end subroutine
 
     elemental subroutine reduce_dof_op(r_C_r, r_sq, r, trace_A)
@@ -697,7 +671,7 @@ MODULE _CG
     use linear_solver
     use _CG_(1)
     use _CG_(2)
-    use _CG_(2_exact)
+    use _CG_(exact)
 
     implicit none
 
@@ -705,7 +679,7 @@ MODULE _CG
         real (kind = GRID_SR)           :: max_error
         type(_T_CG_(1_traversal))       :: cg1
         type(_T_CG_(2_traversal))       :: cg2
-        type(_T_CG_(2_exact_traversal)) :: cg2_exact
+        type(_T_CG_(exact_traversal))   :: cg_exact
 
         contains
 
@@ -735,7 +709,7 @@ MODULE _CG
         type(t_grid), intent(inout)									:: grid
 
         integer (kind = GRID_SI)									:: i_iteration
-        real (kind = GRID_SR)										:: r_sq, d_A_d, r_C_r, r_C_r_old, alpha, beta
+        real (kind = GRID_SR)										:: r_sq, d_u, r_C_r, r_C_r_old, alpha, beta
 
         !$omp master
         _log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
@@ -747,52 +721,48 @@ MODULE _CG
 
         !compute initial residual
 
-        solver%cg2_exact%alpha = alpha
-        call solver%cg2_exact%traverse(grid)
-        r_sq = solver%cg2_exact%r_sq
-        r_C_r = solver%cg2_exact%r_C_r
-        _log_write(5, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
+        call solver%cg_exact%traverse(grid)
+        r_sq = solver%cg_exact%r_sq
+        r_C_r = solver%cg_exact%r_C_r
+        _log_write(2, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
         do i_iteration = 0, huge(1_GRID_SI)
             !$omp master
             _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
             !$omp end master
 
-            if (sqrt(r_sq) < solver%max_error) then
+            if (r_sq < solver%max_error * solver%max_error) then
                 exit
             end if
 
             !first step: compute search direction d (d_new = r + beta * d_old), the respective residual update A d and the scalar d^T A d
             solver%cg1%beta = beta
             call solver%cg1%traverse(grid)
-            d_A_d = solver%cg1%d_A_d
-            _log_write(5, '(4X, A, ES17.10)') "d A d: ", d_A_d
+            d_u = solver%cg1%d_u
+            _log_write(2, '(4X, A, ES17.10)') "d A d: ", d_u
 
             !compute step size alpha = r^T C r / d^T A d
-            alpha = r_C_r / d_A_d
+            alpha = r_C_r / d_u
             r_C_r_old = r_C_r
 
-            !second step: apply unknowns update (alpha * d) and residual update (alpha * A d)
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
             if (iand(i_iteration, z'ff') == z'ff') then
-                solver%cg2_exact%alpha = alpha
-                call solver%cg2_exact%traverse(grid)
-                r_sq = solver%cg2_exact%r_sq
-                r_C_r = solver%cg2_exact%r_C_r
+                call solver%cg_exact%traverse(grid)
 
                 !$omp master
                 if (iand(i_iteration, z'3ff') == z'3ff') then
                     _log_write(1, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
                 end if
                 !$omp end master
-            else
-                solver%cg2%alpha = alpha
-                call solver%cg2%traverse(grid)
-                r_sq = solver%cg2%r_sq
-                r_C_r = solver%cg2%r_C_r
             end if
 
-            _log_write(5, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
+            !second step: apply unknowns update (alpha * d) and residual update (alpha * A d)
+            solver%cg2%alpha = alpha
+            call solver%cg2%traverse(grid)
+            r_sq = solver%cg2%r_sq
+            r_C_r = solver%cg2%r_C_r
+
+            _log_write(2, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
             !compute beta = r^T C r (new) / r^T C r (old)
             beta = r_C_r / r_C_r_old
@@ -800,7 +770,7 @@ MODULE _CG
 
         !$omp master
         _log_write(2, '(2X, A, T24, I0)') "CG iterations:", i_iteration
-        solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg2_exact%stats
+        solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg_exact%stats
         !$omp end master
     end function
 END MODULE

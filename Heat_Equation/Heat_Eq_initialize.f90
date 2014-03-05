@@ -13,7 +13,7 @@
 
 		use Samoa_heat_eq
 
-		integer (kind = GRID_SI)												:: i_refinements_issued
+		integer (kind = GRID_DI)												:: i_refinements_issued
 
 		type(heat_eq_gv_T)														:: gv_T
 

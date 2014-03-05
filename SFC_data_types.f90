@@ -15,6 +15,8 @@ MODULE SFC_data_types
 		use Darcy_data_types
 #	elif defined(_SWE)
 		use SWE_data_types
+#	elif defined(_FLASH)
+		use FLASH_data_types
 #	elif defined(_NUMA)
 		use NUMA_data_types
 #	elif defined(_GENERIC)
@@ -537,7 +539,7 @@ MODULE SFC_data_types
 
     elemental function t_statistics_to_string(s) result(str)
         class(t_statistics), intent(in)			:: s
-		character (len = 256)					:: str
+		character (len = 512)					:: str
 
         write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s)")') s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time
 
@@ -550,9 +552,9 @@ MODULE SFC_data_types
 
     elemental function t_adaptive_statistics_to_string(s) result(str)
         class(t_adaptive_statistics), intent(in)	:: s
-		character (len = 256)					    :: str
+		character (len = 512)					    :: str
 
-        write(str, '(A, " update distances: ", F0.4, " update neighbors: ", F0.4, " integrity: ", F0.4, "s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")'), trim(t_statistics_to_string(s)), s%r_update_distances_time, s%r_update_neighbors_time, s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
+        write(str, '(A, " update distances: ", F0.4, " s update neighbors: ", F0.4, " s integrity: ", F0.4, " s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")'), trim(t_statistics_to_string(s)), s%r_update_distances_time, s%r_update_neighbors_time, s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
 	end function
 
     elemental function t_global_data_to_string(gd) result(str)

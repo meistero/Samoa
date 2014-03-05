@@ -15,6 +15,7 @@
 		use Darcy_xml_output
 		use Darcy_grad_p
 		use Darcy_pressure_solver_cg
+		use Darcy_pressure_solver_pipecg
 		use Darcy_pressure_solver_jacobi
 		use Darcy_transport_eq
 		use Darcy_permeability
@@ -59,16 +60,28 @@
 			!local variables
 			character (len = 64)										:: s_log_name, s_date, s_time
 			integer                                                     :: i_error
-            type(t_darcy_pressure_solver_cg)                            :: pressure_solver_cg
             type(t_darcy_pressure_solver_jacobi)                        :: pressure_solver_jacobi
+            type(t_darcy_pressure_solver_cg)                            :: pressure_solver_cg
+            type(t_darcy_pressure_solver_pipecg)                        :: pressure_solver_pipecg
 
             !allocate solver
 
  			grid%r_time = 0.0_GRID_SR
-            pressure_solver_cg = t_darcy_pressure_solver_cg(cfg%r_epsilon * cfg%r_p0)
-            pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(cfg%r_epsilon * cfg%r_p0)
 
-            allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
+            pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(cfg%r_epsilon * cfg%r_p0)
+            pressure_solver_cg = t_darcy_pressure_solver_cg(cfg%r_epsilon * cfg%r_p0)
+            pressure_solver_pipecg = t_darcy_pressure_solver_pipecg(cfg%r_epsilon * cfg%r_p0)
+
+ 			select case (cfg%i_lsolver)
+                case (0)
+                    allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
+                case (1)
+                    allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
+                case (2)
+                    allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
+                case default
+                    try(.false., "Invalid linear solver, must be in range 0 to 2")
+            end select
 
 			!open log file
 			call date_and_time(s_date, s_time)
@@ -229,7 +242,7 @@
                 !$omp end master
 
                 grid_info = grid%get_capacity(.true.)
-				if (darcy%init_saturation%i_refinements_issued .le. grid_info%i_cells / 100) then
+				if (darcy%init_saturation%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
 					exit
 				endif
 
@@ -346,7 +359,7 @@
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
-                _log_write(0, *) "Time Step phase:"
+                _log_write(0, *) "Time step phase:"
                 _log_write(0, *) ""
                 _log_write(0, '(A, T34, A)') " Transport: ", trim(darcy%transport_eq%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Gradient: ", trim(darcy%grad_p%stats%to_string())

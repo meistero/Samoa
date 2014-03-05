@@ -19,7 +19,7 @@
 		type(heat_eq_gv_mat_mass_diagonal)		:: gv_mat_mass_diagonal
 
 		real (kind = GRID_SR), dimension(2)		:: laser_pos
-		integer (kind = GRID_SI)				:: i_refinements_issued
+		integer (kind = GRID_DI)				:: i_refinements_issued
 
 #		define _GT_NAME							euler_timestep_traversal
 

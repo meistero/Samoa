@@ -155,7 +155,7 @@
 		implicit none
 
         type num_traversal_data
-            integer (kind = GRID_SI)			:: i_refinements_issued
+            integer (kind = GRID_DI)			:: i_refinements_issued
         end type
 
 		type(darcy_gv_saturation)				:: gv_saturation
@@ -283,7 +283,7 @@
 
 			if (i_depth < cfg%i_max_depth .and. base_permeability > 0.0_GRID_SR .and. (i_depth < cfg%i_min_depth .or. l_refine_p .or. l_refine_sat)) then
 				element%cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
 			else
 				element%cell%geometry%refinement = 0
 			end if

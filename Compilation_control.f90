@@ -29,6 +29,10 @@
 #	define _USE_SKELETON_OP
 #endif
 
+#if defined(_FLASH)
+#	define _USE_SKELETON_OP
+#endif
+
 #define _SWE_ORDER 					0
 #define _SWE_CELL_SIZE				((_SWE_ORDER + 1) * (_SWE_ORDER + 2)) / 2
 #define _SWE_EDGE_SIZE 				(_SWE_ORDER + 1)
@@ -42,6 +46,11 @@
 #define _HEAT_EQ_CELL_SIZE			((_HEAT_EQ_ORDER - 1) * (_HEAT_EQ_ORDER - 2)) / 2
 #define _HEAT_EQ_EDGE_SIZE 			(_HEAT_EQ_ORDER - 1)
 #define _HEAT_EQ_NODE_SIZE			1
+
+#define _FLASH_ORDER 					0
+#define _FLASH_CELL_SIZE			((_FLASH_ORDER + 1) * (_FLASH_ORDER + 2)) / 2
+#define _FLASH_EDGE_SIZE 			_FLASH_CELL_SIZE
+#define _FLASH_EDGE_QUAD_SIZE			_FLASH_CELL_SIZE
 
 #define _DARCY_P_ORDER				1
 #define _DARCY_P_SIZE				((_DARCY_P_ORDER + 1) * (_DARCY_P_ORDER + 2)) / 2
