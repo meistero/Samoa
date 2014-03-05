@@ -705,11 +705,12 @@ MODULE _CG
     !> Solves a linear equation system using a CG solver
     !> \returns		number of iterations performed
     function solve(solver, grid) result(i_iteration)
-        class(_T_CG), intent(inout)					    :: solver
-        type(t_grid), intent(inout)									:: grid
+        class(_T_CG), intent(inout)             :: solver
+        type(t_grid), intent(inout)		        :: grid
 
-        integer (kind = GRID_SI)									:: i_iteration
-        real (kind = GRID_SR)										:: r_sq, d_u, r_C_r, r_C_r_old, alpha, beta
+        integer (kind = GRID_SI)		        :: i_iteration
+        real (kind = GRID_SR)			        :: r_sq, d_u, r_C_r, r_C_r_old, alpha, beta
+        integer (kind = GRID_SI), parameter     :: i_residual_correction_step = 256
 
         !$omp master
         _log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
@@ -746,7 +747,7 @@ MODULE _CG
             r_C_r_old = r_C_r
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-            if (iand(i_iteration, z'ff') == z'ff') then
+            if (imod(i_iteration + 1, i_residual_correction_step) == 0) then
                 call solver%cg_exact%traverse(grid)
 
                 !$omp master

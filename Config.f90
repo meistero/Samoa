@@ -98,7 +98,7 @@ module config
             write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
 #    	elif defined(_SWE)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
-#	elif defined(_FLASH)
+#	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
