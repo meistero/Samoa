@@ -11,7 +11,7 @@
 #
 # make flags:
 #  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|GENERIC
-#  SWE_SOLVER=LAX_FRIEDRICHS|LAX_FRIEDRICHS_BATH|FWAVE|SSQ_FWAVE|AUG_JCP
+#  SWE_SOLVER=LF|LF_BATH|LLF|LLF_BATH|FWAVE|AUG_RIEMANN
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
 #  OPENMP=YES|TASKS|NO
@@ -25,63 +25,85 @@
 
 #default compiler and compiler-specific flags
 
-FFLAGS			= -I"./" -I"Samoa/" -cpp
+FFLAGS			= /I"./" /I"Samoa/" /fpp /nologo
 EXEC 			= samoa
 
 #default values for compilation switches
-
+#---------------------hier IF-DEFs
 SCENARIO		= SWE
-SWE_SOLVER		= AUG_RIEMANN
+SWE_SOLVER		= LLF_BATH
 TARGET			= OPT
 MPI 			= NO
-OPENMP			= TASKS
+OPENMP			= YES			#alt: TASKS
 STD_FORTRAN		= NO
 ASAGI_TIMING	= NO
 VEC_REPORT		= 0
 ASAGI_DIR		= "./ASAGI"
 
 #check switches, set flags of dependent switches and compiler flags accordingly
+#---------------hier IF-EQs fuer MPI
+#---------------dann IF-EQs fuer SCENARIO
+#---------------dann IF-EQs fuer OPENMP
 
-FC			= ifort
-LOADER		= ifort
-
+FC			= ifort -Qlocation,link,"$(VCINSTALLDIR)/bin"			#the flag to find the ifort
+LOADER		= ifort -Qlocation,link,"$(VCINSTALLDIR)/bin"
 
 EXEC			= $(EXEC)_swe
-FFLAGS			= $(FLAGS) -D_SWE
+FFLAGS			= $(FFLAGS) /D_SWE /Qopenmp_stubs
 ASAGI			= NO
 LIB 			= NO
 EXEC			= $(EXEC)_noasagi
 
-
-
+#FFLAGS = $(FFLAGS) /D_SWE_LAX_FRIEDRICHS_BATH 
+LDFLAGS = /Qopenmp_stubs /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
+					
+!IF "$(SWE_SOLVER)" == "LF"
+FFLAGS		= $(FFLAGS) /D_SWE_LF
+EXEC			= $(EXEC)_lf
+!ELSE IF "$(SWE_SOLVER)" == "LF_BATH"
+FFLAGS		= $(FFLAGS) /D_SWE_LF_BATH
+EXEC			= $(EXEC)_lfbath
+!ELSE IF "$(SWE_SOLVER)" == "LLF"
+FFLAGS		= $(FFLAGS) /D_SWE_LLF
+EXEC			= $(EXEC)_llf
+!ELSE IF "$(SWE_SOLVER)" == "LLF_BATH"
+FFLAGS		= $(FFLAGS) /D_SWE_LLF_BATH
+EXEC			= $(EXEC)_llfbath
+!ELSE IF "$(SWE_SOLVER)" == "FWAVE"
+FFLAGS		= $(FFLAGS) /D_SWE_FWAVE
+EXEC			= $(EXEC)_fwave
+!ELSE IF "$(SWE_SOLVER)" == "AUG_RIEMANN"
+FFLAGS		= $(FFLAGS) /D_SWE_AUG_RIEMANN
+!ELSE
+(error Invalid value for SWE_SOLVER: $(SWE_SOLVER))
+!ENDIF					
+					
+																					
 !IF "$(TARGET)" == "DEBUG"
-EXEC		:= $(EXEC)_debug
-DEBUG_LEVEL	= 3
-ASSERT 		= YES
-FFLAGS 		+= -g -O0 -traceback -check all -debug all -fpe0
-LDFLAGS		+= -g -O0 -traceback -check all -debug all -fpe0
-!ELSE IF "$(TARGET)" == "PROF"
-EXEC		:= $(EXEC)_prof
-DEBUG_LEVEL	= 1
-ASSERT 		= NO
-FFLAGS 		+= -g -trace -fast -inline-level=0 -funroll-loops -unroll
-LDFLAGS 	+= -g -trace -O3 -ip -ipo
+EXEC			= $(EXEC)_debug
+DEBUG_LEVEL		= 3
+ASSERT 			= YES
+FFLAGS 			= $(FFLAGS) /Zi /Od /traceback /debug-parameters:all
+!ELSE IF "$(TARGET)" == "PROF"									#possibly incorrect flags here, never tested - e.g. might not like the "/g"
+EXEC 			= $(EXEC)_prof
+DEBUG_LEVEL 	= 1
+ASSERT 			= NO
+FFLAGS 			= $(FFLAGS) /g /trace /O3 /inline-level=0 /funroll-loops /unroll
+LDFLAGS 		= $(LDFLAGS) /g /trace /O3 /ip /ipo
 !ELSE IF "$(TARGET)" == "OPT"
 DEBUG_LEVEL 	= 1
-ASSERT 		= NO
-FFLAGS 		= $(FLAGS) -fast -align all -inline-level=2 -no-inline-min-size -no-inline-max-size -no-inline-max-total-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -funroll-loops -unroll
-LDFLAGS 	= $(LDFLAGS) -O3 -ip -ipo
+ASSERT 			= NO
+#FFLAGS 		= $(FFLAGS) /O3 /align all /inline-level=2 /no-inline-min-size /no-inline-max-size /no-inline-max-total-size /no-inline-max-per-routine /no-inline-max-per-compile /no-inline-factor /funroll-loops /unroll
+#LDFLAGS 		= $(LDFLAGS) /O3 /ip /ipo
 !ELSE
 (error Invalid value for TARGET: $(TARGET))
 !ENDIF
 
-
-FFLAGS 		= $(FLAGS) -D_DEBUG_LEVEL=$(DEBUG_LEVEL)
-
+FFLAGS 		= $(FFLAGS) /D_DEBUG_LEVEL=$(DEBUG_LEVEL)
 
 !IF "$(ASSERT)" == "YES"
-FFLAGS 		= $(FLAGS) -D_ASSERT
-!ELSE IF "$(ASSERT)" == "NO"
+FFLAGS 		= $(FFLAGS) /D_ASSERT
+!ELSE IF "$(ASSERT)" == "NO"																	
 
 !ELSE
 (error Invalid value for ASSERT: $(ASSERT))
@@ -93,60 +115,63 @@ FFLAGS 		= $(FLAGS) -D_ASSERT
 #----------------------------------------------------------------#
 
 F90_SOURCES = \
+Config.f90 \
 SFC_main.f90 \
 SFC_traversal.f90 \
-Tests/Tests.f90 \
-Tests/Tests_data_types.f90 \
-Tests/Tests_initialize.f90 \
-Tests/Tests_node_dummy_traversal.f90 \
-Tests/Tests_consistency_traversal.f90 \
-Tests/Tests_flops_traversal.f90 \
-Tests/Tests_memory_traversal.f90 \
-Tests/Tests_basis_functions.f90 \
-Generic/Generic.f90 \
-Generic/Generic_data_types.f90 \
-Generic/Generic_initialize.f90 \
-Generic/Generic_template.f90 \
-Generic/Generic_adapt_template.f90 \
-Darcy/Darcy.f90 \
-Darcy/Darcy_local_function_spaces.f90 \
-Darcy/Darcy_data_types.f90 \
-Darcy/Darcy_basis.f90 \
-Darcy/Darcy_node_dummy.f90 \
-Darcy/Darcy_initialize.f90 \
-Darcy/Darcy_output.f90 \
-Darcy/Darcy_xml_output.f90 \
-Darcy/Darcy_laplace_jacobi.f90 \
-Darcy/Darcy_laplace_cg.f90 \
-Darcy/Darcy_grad_p.f90 \
-Darcy/Darcy_transport_eq.f90 \
-Darcy/Darcy_permeability.f90 \
-Darcy/Darcy_adapt.f90 \
-Heat_Equation/Heat_Eq.f90 \
-Heat_Equation/Heat_Eq_local_function_spaces.f90 \
-Heat_Equation/Heat_Eq_data_types.f90 \
-Heat_Equation/Heat_Eq_basis.f90 \
-Heat_Equation/Heat_Eq_initialize.f90 \
-Heat_Equation/Heat_Eq_output.f90 \
-Heat_Equation/Heat_Eq_xml_output.f90 \
-Heat_Equation/Heat_Eq_euler_timestep.f90 \
-Heat_Equation/Heat_Eq_midpoint_timestep.f90 \
-Heat_Equation/Heat_Eq_heun_timestep.f90 \
-Heat_Equation/Heat_Eq_adapt.f90 \
-SWE/SWE.f90 \
-SWE/SWE_local_function_spaces.f90 \
-SWE/SWE_data_types.f90 \
-SWE/SWE_basis.f90 \
-SWE/SWE_displace.f90 \
-SWE/SWE_initialize.f90 \
-SWE/SWE_output.f90 \
-SWE/SWE_xml_output.f90 \
-SWE/SWE_euler_timestep.f90 \
-SWE/SWE_adapt.f90 \
-geoclaw/c_bind_riemannsolvers.f90 \
-Samoa/Samoa.f90 \
-Samoa/Tools_quadrature_rule_base.f90 \
-Solver/LinearSolver.f90 \
+Tests\Tests.f90 \
+Tests\Tests_data_types.f90 \
+Tests\Tests_initialize.f90 \
+Tests\Tests_node_dummy_traversal.f90 \
+Tests\Tests_consistency_traversal.f90 \
+Tests\Tests_flops_traversal.f90 \
+Tests\Tests_memory_traversal.f90 \
+Tests\Tests_basis_functions.f90 \
+Generic\Generic.f90 \
+Generic\Generic_data_types.f90 \
+Generic\Generic_initialize.f90 \
+Generic\Generic_template.f90 \
+Generic\Generic_adapt_template.f90 \
+Darcy\Darcy.f90 \
+Darcy\Darcy_local_function_spaces.f90 \
+Darcy\Darcy_data_types.f90 \
+Darcy\Darcy_basis.f90 \
+Darcy\Darcy_node_dummy.f90 \
+Darcy\Darcy_initialize.f90 \
+Darcy\Darcy_output.f90 \
+Darcy\Darcy_xml_output.f90 \
+Darcy\Darcy_laplace_jacobi.f90 \
+Darcy\Darcy_laplace_cg.f90 \
+Darcy\Darcy_grad_p.f90 \
+Darcy\Darcy_transport_eq.f90 \
+Darcy\Darcy_permeability.f90 \
+Darcy\Darcy_adapt.f90 \
+Heat_Equation\Heat_Eq.f90 \
+Heat_Equation\Heat_Eq_local_function_spaces.f90 \
+Heat_Equation\Heat_Eq_data_types.f90 \
+Heat_Equation\Heat_Eq_basis.f90 \
+Heat_Equation\Heat_Eq_initialize.f90 \
+Heat_Equation\Heat_Eq_output.f90 \
+Heat_Equation\Heat_Eq_xml_output.f90 \
+Heat_Equation\Heat_Eq_euler_timestep.f90 \
+Heat_Equation\Heat_Eq_midpoint_timestep.f90 \
+Heat_Equation\Heat_Eq_heun_timestep.f90 \
+Heat_Equation\Heat_Eq_adapt.f90 \
+SWE\SWE.f90 \
+SWE\SWE_local_function_spaces.f90 \
+SWE\SWE_data_types.f90 \
+SWE\SWE_basis.f90 \
+SWE\SWE_displace.f90 \
+SWE\SWE_initialize.f90 \
+SWE\SWE_output.f90 \
+SWE\SWE_xml_output.f90 \
+SWE\SWE_ascii_output.f90 \
+SWE\ascii_output.f90 \
+SWE\SWE_euler_timestep.f90 \
+SWE\SWE_adapt.f90 \
+geoclaw\c_bind_riemannsolvers.f90 \
+Samoa\Samoa.f90 \
+Samoa\Tools_quadrature_rule_base.f90 \
+Solver\LinearSolver.f90 \
 SFC_node_traversal.f90 \
 SFC_edge_traversal.f90 \
 SFC_data_types.f90 \
@@ -154,13 +179,13 @@ LIB_VTK_IO.f90\
 M_kracken.f90\
 Tools_noise.f90 \
 Tools_log.f90 \
-Conformity/Conformity.f90 \
+Conformity\Conformity.f90 \
 
 F77_SOURCES = \
-geoclaw/riemannsolvers.f
+geoclaw\riemannsolvers.f
 
-F90_OBJS = $(F90_SOURCES:.f90=.o)
-F77_OBJS = $(F77_SOURCES:.f=.o)
+F90_OBJS = $(F90_SOURCES:.f90=.obj)
+F77_OBJS = $(F77_SOURCES:.f=.obj)
 
 #----------------------------------------------------------------#
 # Build targets                                                  #
@@ -191,21 +216,24 @@ generic:
 	@$(MAKE) SCENARIO=GENERIC
 
 dirs:
-	@mkdir -p bin output
+	@if not exist bin mkdir bin output
 
 compile: $(EXEC)
 	@del /F $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
-	@$(LOADER) -o $@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS)
+	@echo ""
+	@$(LOADER) /exe:$@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS) 
 
-%.o: %.f90
-	@$(FC) $(FFLAGS) -c -o $@ $<
+.f90.obj:
+	@$(FC) $(FFLAGS) /c /o $@ $<
+	@echo "."
 
-%.o: %.f
-	@$(FC) $(FFLAGS) -c -o $@ $<
+.f.obj:
+	@$(FC) $(FFLAGS) /c /o $@ $<
+	@echo "."
 
 clean:
 	@del /F bin\* $(F90_OBJS) $(F77_OBJS) *.mod
-
+	
 !INCLUDE wdependency.mk
