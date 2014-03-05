@@ -165,6 +165,7 @@
       type(num_cell_update), intent(out)                        :: update1, update2
 
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r
+      REAL (KIND = GRID_SR)					:: max_wave_speed
       REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE)        :: r_h_l, r_hv_l, r_hu_l, &
                                                                    r_h_r, r_hv_r, r_hu_r
@@ -183,7 +184,7 @@
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
 
-      call compute_flash_flux(r_rhs_l, r_rhs_r, edge%transform_data%normal, r_minh_l, r_minh_r, &
+      call compute_flash_flux(r_rhs_l, r_rhs_r,max_wave_speed, edge%transform_data%normal, r_minh_l, r_minh_r, &
                               _FLASH_CELL_SIZE, _FLASH_EDGE_SIZE, gquadwei, gMinvpsi, &
                               r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
 
@@ -224,7 +225,8 @@
       type(t_state)                                             :: bnd_rep
       type(t_update)                                            :: bnd_flux
 
-      REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r,max_wave_speed
+      REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r
+      REAL (KIND = GRID_SR)					:: max_wave_speed
       REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE)        :: r_h_l, r_hv_l, r_hu_l, &
                                                                    r_h_r, r_hv_r, r_hu_r
@@ -348,7 +350,7 @@
 
     IMPLICIT NONE
 
-    REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(out):: r_rhs_l, r_rhs_r, 
+    REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(out):: r_rhs_l, r_rhs_r
     REAL (KIND = GRID_SR), INTENT(out):: max_wave_speed
     REAL (KIND = GRID_SR), INTENT(in)                 :: r_minh_l, r_minh_r
     REAL (KIND = GRID_SR), DIMENSION(2), INTENT(in)   :: r_normal
@@ -399,7 +401,7 @@
 
 !-------------**************_____________****************_______________****************----------------------
 !					YOU WERE HERE!
-	max_wave_speed = 
+	max_wave_speed = 0
 
       END DO edge_dof_loop
     END DO edge_quad_loop
