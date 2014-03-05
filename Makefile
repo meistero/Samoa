@@ -356,11 +356,11 @@ $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
 
 %.o: %.f90
 	@$(FC) $(FFLAGS) -c -o $@ $<
-	@echo -n "."
+	@echo $@
 
 %.o: %.f
 	@$(FC) $(FFLAGS) -c -o $@ $<
-	@echo -n "."
+	@echo $@
 
 clean:
 	@rm -f bin/* $(F90_OBJS) $(F77_OBJS) *.mod

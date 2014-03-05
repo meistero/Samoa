@@ -136,6 +136,9 @@ module config
 #    	elif defined(_SWE)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
+#    	elif defined(_FLASH)
+            config%s_bathymetry_file = sget('samoa_fbath', 256)
+            config%s_displacement_file = sget('samoa_fdispl', 256)
 #       endif
 
         if (rank_MPI == 0) then
@@ -168,6 +171,9 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
 #         	    elif defined(_SWE)
+                    PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
+                    PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
+#         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #               endif
@@ -261,6 +267,8 @@ module config
             _log_write(0, '(" Scenario: initial boundary pressure difference: ", ES8.1)') config%r_p0
             _log_write(0, '(" Scenario: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
 #		elif defined(_SWE)
+            _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+#		elif defined(_FLASH)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 
 #           if defined (_SWE_LF)
