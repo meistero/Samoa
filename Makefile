@@ -350,16 +350,16 @@ compile: $(EXEC)
 	@rm -f $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
-	@echo ""
+	@echo "\nLinking..." $(EXEC)
 	@$(LOADER) $(LDFLAGS) -o $@ $(F90_OBJS) $(F77_OBJS)
 
 %.o: %.f90
+	@echo -n "\rCompiling..." $< "\033[0K"
 	@$(FC) $(FFLAGS) -c -o $@ $<
-	@echo $@
 
 %.o: %.f
+	@echo -n "\rCompiling..." $< "\033[0K"
 	@$(FC) $(FFLAGS) -c -o $@ $<
-	@echo $@
 
 clean:
 	@rm -f bin/* $(F90_OBJS) $(F77_OBJS) *.mod
