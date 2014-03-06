@@ -85,7 +85,7 @@ module config
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
         character(256)                          :: arguments
-        character(64)                           :: lsolver_to_char(0:2) = ["Jacobi", "CG", "Pipelined CG"]
+        character(64)                           :: lsolver_to_char(0:3) = ["Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
@@ -196,7 +196,7 @@ module config
 
     subroutine config_print(config)
         class(t_config)                         :: config
-        character(64)                           :: lsolver_to_char(0:2) = ["Jacobi", "CG", "Pipelined CG"]
+        character(64)                           :: lsolver_to_char(0:3) = ["Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
 #	    if defined(_TESTS)
