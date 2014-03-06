@@ -266,9 +266,9 @@ module config
             _log_write(0, '(" Scenario: fluid density: ", ES8.1)') config%r_rho
             _log_write(0, '(" Scenario: initial boundary pressure difference: ", ES8.1)') config%r_p0
             _log_write(0, '(" Scenario: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
-#		elif defined(_SWE)
-            _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_FLASH)
+            _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+#		elif defined(_SWE)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 
 #           if defined (_SWE_LF)
