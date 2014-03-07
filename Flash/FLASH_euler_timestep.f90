@@ -56,7 +56,7 @@
 			type(t_grid), intent(inout)							    :: grid
 
         grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
-	print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
+	!print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
 	!print *, "calculatzed Dt: ",0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max), grid%r_dt
 
 #           if defined(_ASAGI)
@@ -186,7 +186,7 @@
 
       call compute_flash_flux(r_rhs_l, r_rhs_r,max_wave_speed, edge%transform_data%normal, r_minh_l, r_minh_r, &
                               _FLASH_CELL_SIZE, _FLASH_EDGE_SIZE, gquadwei, gMinvpsi, &
-                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
+                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep2%Q(1)%b)
 
       update1%flux(:)%h    = -r_rhs_l(:,1)
       update1%flux(:)%p(1) = -r_rhs_l(:,2)
@@ -196,7 +196,8 @@
       update2%flux(:)%p(1) =  r_rhs_r(:,2)
       update2%flux(:)%p(2) =  r_rhs_r(:,3)
 
-
+	update1%flux(:)%max_wave_speed = max_wave_speed
+	update2%flux(:)%max_wave_speed = max_wave_speed
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 1 out: ", update1%flux
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 2 out: ", update2%flux
     end subroutine
@@ -245,7 +246,7 @@
 
       call compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed,edge%transform_data%normal, r_minh_l, r_minh_r, &
                               _FLASH_CELL_SIZE, _FLASH_EDGE_SIZE, gquadwei, gMinvpsi, &
-                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
+                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep%Q(1)%b)
 
       update%flux(:)%h    = -r_rhs_l(:,1)
       update%flux(:)%p(1) = -r_rhs_l(:,2)
@@ -346,7 +347,7 @@
 
     subroutine compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed, r_normal, r_minh_l, r_minh_r, &
                       i_faceunknowns, i_gquadpts, r_gqwei, r_gMinvpsi, &
-                      r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
+                      r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,b)
 
     IMPLICIT NONE
 
@@ -365,6 +366,9 @@
     REAL (KIND = GRID_SR), DIMENSION(3)               :: r_intFstar
     REAL (KIND = GRID_SR), DIMENSION(3,2)             :: r_F_l, r_F_r
     REAL (KIND = GRID_SR), DIMENSION(3)               :: r_flux_l, r_flux_r, r_Fstar
+    REAL (KIND = GRID_SR)			      :: b
+
+    real(kind = GRID_SR)								:: vL
 
     r_rhs_l = 0._GRID_SR
     r_rhs_r = 0._GRID_SR
@@ -402,6 +406,8 @@
 !-------------**************_____________****************_______________****************----------------------
 !					YOU WERE HERE!
 	max_wave_speed = 0
+	vL = DOT_PRODUCT(r_normal, r_hu_l / (r_h_l - b))
+	max_wave_speed = sqrt(g * (r_h_l(1) - b)) + sqrt(vL * vL)
 
       END DO edge_dof_loop
     END DO edge_quad_loop
