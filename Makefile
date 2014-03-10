@@ -79,7 +79,7 @@ else ifeq ($(SCENARIO), SWE)
 else ifeq ($(SCENARIO), FLASH)
   EXEC			:= $(EXEC)_flash
   FFLAGS		+= -D_FLASH
-  ASAGI			?= STANDARD
+  ASAGI			?= NO
   LIB 			?= NO
 else ifeq ($(SCENARIO), HEAT_EQ)
   EXEC			:= $(EXEC)_heq

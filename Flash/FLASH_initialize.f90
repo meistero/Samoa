@@ -37,7 +37,7 @@
 		subroutine pre_traversal_grid_op(traversal, grid)
 			type(t_FLASH_init_traversal), intent(inout)		        :: traversal
 			type(t_grid), intent(inout)							    :: grid
-			
+
 			grid%r_dt = 0.0_GRID_SR
 			grid%r_time = 0.0_GRID_SR
 			grid%d_max = cfg%i_max_depth
@@ -120,7 +120,7 @@
 				end do
 			endif
 
-		
+
 #               if defined (_ASAGI)
                     centroid_square = 0.5_GRID_SR * [grid_min_x(cfg%afh_displacement) + grid_max_x(cfg%afh_displacement), grid_min_y(cfg%afh_displacement) + grid_max_y(cfg%afh_displacement)]
                     centroid_square = 1.0_GRID_SR / cfg%scaling * (centroid_square - cfg%offset)
@@ -179,7 +179,7 @@
 			!init height, momentum and bathymetry
 			Q%t_dof_state = get_initial_dof_state(section, x, lod)
 			Q%b = get_bathymetry(section, x, 0.0_GRID_SR, lod)
-			!Q%b = 0.0 !<-------HACK
+			Q%b = 0.0 !<-------HACK
 		end function
 
 		function get_initial_dof_state(section, x, lod) result(Q)
@@ -191,13 +191,14 @@
 			real (kind = GRID_SR), dimension(2), parameter		:: dam_center = [0.5, 0.5]
 			real (kind = GRID_SR), parameter					:: dam_radius = 0.02
 			real (kind = GRID_SR), parameter					:: outer_height = 0.0
-			real (kind = GRID_SR), parameter					:: inner_height = 10.0
+			real (kind = GRID_SR), parameter					:: inner_height = 2.0
 
 #			if defined(_ASAGI)
 				Q%h = 0
 				Q%h_old = Q%h
 #			else
-				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))
+! 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))+10
+        Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - (x(1) - dam_center(1)))+1
 				Q%h_old = Q%h
 #			endif
 
@@ -246,7 +247,8 @@
                 real (kind = GRID_SR), parameter					:: outer_height = -100.0
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
 
-				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))
+! 				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))
+        bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - (x(1) - dam_center(1)))+10
 #			endif
 		end function
 	END MODULE
