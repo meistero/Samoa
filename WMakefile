@@ -32,7 +32,7 @@ EXEC 			= samoa
 #---------------------hier IF-DEFs
 SCENARIO		= SWE
 SWE_SOLVER		= LLF_BATH
-TARGET			= OPT
+TARGET			= DEBUG
 MPI 			= NO
 OPENMP			= YES			#alt: TASKS
 STD_FORTRAN		= NO
@@ -222,17 +222,17 @@ compile: $(EXEC)
 	@del /F $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
-	@echo ""
+	@echo "Linking..." $(EXEC)
 	@$(LOADER) /exe:$@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS) 
 
 .f90.obj:
+	@echo "Compiling..." $<
 	@$(FC) $(FFLAGS) /c /o $@ $<
-	@echo "."
 
 .f.obj:
+	@echo "Compiling..." $<
 	@$(FC) $(FFLAGS) /c /o $@ $<
-	@echo "."
-
+	
 clean:
 	@del /F bin\* $(F90_OBJS) $(F77_OBJS) *.mod
 	

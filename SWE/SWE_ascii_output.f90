@@ -100,14 +100,21 @@
 			!local variables
 
 			type(t_state), dimension(_SWE_CELL_SIZE)			:: Q
-            
+            double precision, dimension(2)                      :: coords1, coords2, coords3
             double precision :: h,b
+            
+            ! height, bathymetry
             h = dble(t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%h))
             b = dble(t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%b))
             
+            !coordinates of the cell corners
+            coords1 = dble(samoa_barycentric_to_world_point(element%transform_data, [1.0_GRID_SR, 0.0_GRID_SR]))
+            coords2 = dble(samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 0.0_GRID_SR]))
+            coords3 = dble(samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR]))
+            
 			call gv_Q%read(element, Q)
 
-            call fill_sao(ascii, dble(samoa_barycentric_to_world_point(element%transform_data, [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR])), h, b, traversal%min_water, traversal%max_water, traversal%avg_water) 
+            call fill_sao(ascii, coords1, coords2, coords3, h, b, traversal%min_water, traversal%max_water, traversal%avg_water) 
             traversal%min_water = min(h, traversal%min_water)
             traversal%max_water = max(h, traversal%max_water)
             traversal%avg_water = traversal%avg_water + h
