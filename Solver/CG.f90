@@ -742,13 +742,10 @@ MODULE _CG
             d_u = solver%cg1%d_u
             _log_write(2, '(4X, A, ES17.10)') "d A d: ", d_u
 
-            !compute step size alpha = r^T C r / d^T A d
-            alpha = r_C_r / d_u
-            r_C_r_old = r_C_r
-
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
             if (imod(i_iteration + 1, i_residual_correction_step) == 0) then
                 call solver%cg_exact%traverse(grid)
+                r_C_r = solver%cg_exact%r_C_r
 
                 !$omp master
                 if (iand(i_iteration, z'3ff') == z'3ff') then
@@ -756,6 +753,10 @@ MODULE _CG
                 end if
                 !$omp end master
             end if
+
+            !compute step size alpha = r^T C r / d^T A d
+            alpha = r_C_r / d_u
+            r_C_r_old = r_C_r
 
             !second step: apply unknowns update (alpha * d) and residual update (alpha * A d)
             solver%cg2%alpha = alpha

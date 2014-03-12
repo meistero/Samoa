@@ -640,7 +640,6 @@ MODULE _CG
 #           endif
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-
             if (imod(i_iteration + 1, i_residual_correction_step) == 0) then
                 call solver%cg_exact%traverse(grid)
                 r_sq = solver%cg_exact%r_sq
@@ -654,14 +653,14 @@ MODULE _CG
             end if
 
             !compute step size alpha = r^T C r / d^T A d
+            alpha = r_C_r / d_u
             r_C_r_old = r_C_r
-            alpha = r_C_r_old / d_u
 
 #           if .not. defined(_solver_unstable)
                 !requires 2 reductions, but can afford residual correction every 256 iterations
                 r_C_r = r_C_r_old - alpha * (2.0_GRID_SR * r_u - alpha * v_u)
 #           else
-                !requires 1 reduction, but requires residual correction every 16 iterations
+                !requires 1 reduction, but also residual correction every 16 iterations
                 r_C_r = alpha * alpha * v_u - r_C_r_old
 #           endif
 
