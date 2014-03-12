@@ -26,6 +26,7 @@
 #default compiler and compiler-specific flags
 
 FFLAGS			= -implicitnone -nologo -fpp -I"./" -I"Samoa/"
+LDFLAGS			=
 EXEC 			= samoa
 
 #default values for compilation switches
@@ -354,11 +355,11 @@ $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
 	@$(LOADER) $(LDFLAGS) -o $@ $(F90_OBJS) $(F77_OBJS)
 
 %.o: %.f90
-	@echo -n "\rCompiling..." $< "\033[0K"
+	@echo -n "\rCompiling..." $< "\033[K"
 	@$(FC) $(FFLAGS) -c -o $@ $<
 
 %.o: %.f
-	@echo -n "\rCompiling..." $< "\033[0K"
+	@echo -n "\rCompiling..." $< "\033[K"
 	@$(FC) $(FFLAGS) -c -o $@ $<
 
 clean:
