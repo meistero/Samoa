@@ -83,7 +83,7 @@ FFLAGS		= $(FFLAGS) /D_SWE_AUG_RIEMANN
 EXEC			= $(EXEC)_debug
 DEBUG_LEVEL		= 3
 ASSERT 			= YES
-FFLAGS 			= $(FFLAGS) /Zi /Od /traceback /debug-parameters:all
+FFLAGS 			= $(FFLAGS) /Zi /Od /traceback /debug-parameters:all /check:all
 !ELSE IF "$(TARGET)" == "PROF"									#possibly incorrect flags here, never tested - e.g. might not like the "/g"
 EXEC 			= $(EXEC)_prof
 DEBUG_LEVEL 	= 1

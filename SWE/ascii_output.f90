@@ -38,7 +38,7 @@ function create_ascy(dim_x, dim_y, eps, s, a) result (ascii)
     ! setting the base values for the whole matrix
     do i=1, size(ascii%mat,dim=2)                                           
         do j=1, size(ascii%mat,dim=1)
-            ascii%mat(j,i)%b = dble(-5.0)
+            ascii%mat(j,i)%b = dble(0.0)
             ascii%mat(j,i)%h_sum = dble(0.0)
             ascii%mat(j,i)%h_summands = 0
         end do                                                  
@@ -65,7 +65,7 @@ subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, a
     integer                             :: sao_value                   ! associated priority of what is happening   
     integer                             :: x_min, x_max, y_min, y_max, x, y
     integer, dimension(2)               :: vs1, vs2, vs3
-    integer                             :: s, t
+    integer                             :: s, t, vz
     
     sao_values_mat%h_min = min
     sao_values_mat%h_max = max
@@ -78,19 +78,15 @@ subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, a
         stop
     endif
     
-    sao_coords1(1) = ceiling(((coords1(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*size(sao_values_mat%mat,dim=1))           
-    sao_coords1(2) = ceiling(((coords1(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*size(sao_values_mat%mat,dim=2))
+    sao_coords1(1) = ceiling(((coords1(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*(size(sao_values_mat%mat,dim=1)-1))+1           
+    sao_coords1(2) = ceiling(((coords1(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*(size(sao_values_mat%mat,dim=2)-1))+1
     !--new version start
-    sao_coords2(1) = ceiling(((coords2(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*size(sao_values_mat%mat,dim=1))           
-    sao_coords2(2) = ceiling(((coords2(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*size(sao_values_mat%mat,dim=2))
-    sao_coords3(1) = ceiling(((coords3(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*size(sao_values_mat%mat,dim=1))           
-    sao_coords3(2) = ceiling(((coords3(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*size(sao_values_mat%mat,dim=2))
+    sao_coords2(1) = ceiling(((coords2(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*(size(sao_values_mat%mat,dim=1)-1))+1           
+    sao_coords2(2) = ceiling(((coords2(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*(size(sao_values_mat%mat,dim=2)-1))+1
+    sao_coords3(1) = ceiling(((coords3(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*(size(sao_values_mat%mat,dim=1)-1))+1           
+    sao_coords3(2) = ceiling(((coords3(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*(size(sao_values_mat%mat,dim=2)-1))+1
     ! Grenzfaelle----------------------
     
-    !x_min = min(sao_coords1(1), min(sao_coords2(1), sao_coords3(1)))
-    !x_max = max(sao_coords1(1), max(sao_coords2(1), sao_coords3(1)))
-    !y_min = min(sao_coords1(2), min(sao_coords2(2), sao_coords3(2)))
-    !y_max = max(sao_coords1(2), max(sao_coords2(2), sao_coords3(2)))
     
     x_min = minval([sao_coords1(1), sao_coords2(1), sao_coords3(1)])
     x_max = maxval([sao_coords1(1), sao_coords2(1), sao_coords3(1)])
@@ -100,33 +96,37 @@ subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, a
     vs1 = [sao_coords2(1) - sao_coords1(1), sao_coords2(2) - sao_coords1(2)]
     vs2 = [sao_coords3(1) - sao_coords1(1), sao_coords3(2) - sao_coords1(2)]
     
+    !if ((vs1(1)*vs2(2)-vs2(1)*vs1(2)) /= 0) then
     do x = x_min, x_max
         do y = y_min, y_max
             vs3 = [x-sao_coords1(1), y-sao_coords1(2)]
-            s = vs3(1)*vs2(2)-vs2(1)*vs3(2)
-            t = vs1(1)*vs3(2)-vs3(1)*vs1(2)
-            if ((vs1(1)*vs2(2)-vs2(1)*vs1(2))>=0) then
-                if (s>=0 .and. t>=0 .and. s+t<=(vs1(1)*vs2(2)-vs2(1)*vs1(2))) then
-                    !collect height & bathymetry
-                    sao_values_mat%mat(x,y)%b = b
-                    sao_values_mat%mat(x,y)%h_sum = sao_values_mat%mat(x,y)%h_sum + h
-                    sao_values_mat%mat(x,y)%h_summands = sao_values_mat%mat(x,y)%h_sum + 1
-                end if
-            else 
-                if (-s>=0 .and. -t>=0 .and. -s-t<=(vs1(1)*vs2(2)-vs2(1)*vs1(2))) then
-                    !collect height & bathymetry
-                    sao_values_mat%mat(x,y)%b = b
-                    sao_values_mat%mat(x,y)%h_sum = sao_values_mat%mat(x,y)%h_sum + h
-                    sao_values_mat%mat(x,y)%h_summands = sao_values_mat%mat(x,y)%h_sum + 1
-                end if
+            vz = sign(1, (vs1(1)*vs2(2)-vs2(1)*vs1(2)))
+            s = (vs3(1)*vs2(2)-vs2(1)*vs3(2))*vz
+            t = (vs1(1)*vs3(2)-vs3(1)*vs1(2))*vz        
+            if (s>=0 .and. t>=0 .and. s+t<=abs(vs1(1)*vs2(2)-vs2(1)*vs1(2))) then
+                !collect height & bathymetry
+                sao_values_mat%mat(x,y)%b = sao_values_mat%mat(x,y)%b + b
+                sao_values_mat%mat(x,y)%h_sum = sao_values_mat%mat(x,y)%h_sum + h
+                sao_values_mat%mat(x,y)%h_summands = sao_values_mat%mat(x,y)%h_summands + 1
+                !write (*,'(A,$)') "Pixel x-coordinate: "
+                !write (*,*)  x
+                !write (*,'(A,$)') "Pixel y-coordinate: "
+                !write (*,*) y
+                !write (*,'(A,$)') "Local b: "
+                !write (*,*) b
+                !write (*,'(A,$)') "Local h: "
+                !write (*,*) h
             end if    
         end do
     end do
+    !else 
+        
     !--new version stop
     !collect height & bathymetry
-    !sao_values_mat%mat(sao_coords(1), sao_coords(2))%b = b
-    !sao_values_mat%mat(sao_coords(1), sao_coords(2))%h_sum = sao_values_mat%mat(sao_coords(1), sao_coords(2))%h_sum + h
-    !sao_values_mat%mat(sao_coords(1), sao_coords(2))%h_summands = sao_values_mat%mat(sao_coords(1), sao_coords(2))%h_sum + 1
+    !sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%b = b
+    !sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_sum = sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_sum + h
+    !sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_summands = sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_summands + 1
+    !endif
     
 end subroutine
 
@@ -183,14 +183,15 @@ function which_ascii(sao_values_mat, j, i)  result(symb)
     
     type(bhshs)      :: basevalues
     character        :: symb
-    double precision :: loc_h_avg
+    double precision :: loc_h_avg, loc_b_avg
     
     basevalues = sao_values_mat%mat(j,i)
     
     if (basevalues%h_summands > 0) then
         !compute local average water height
         loc_h_avg = basevalues%h_sum / dble(basevalues%h_summands)
-        if (basevalues%b<0) then
+        loc_b_avg = basevalues%b / dble(basevalues%h_summands)
+        if (loc_b_avg<0) then
             if (loc_h_avg>sao_values_mat%eps) then
                 if (loc_h_avg>((sao_values_mat%h_max) / dble(2.0))) then
                     symb = '^'                ! Major wave
@@ -205,7 +206,7 @@ function which_ascii(sao_values_mat, j, i)  result(symb)
                 end if
             end if        
         else
-            if (basevalues%b < dble(0.25) .and. basevalues%b > -dble(0.25)) then   
+            if (loc_b_avg < dble(0.25) .and. loc_b_avg > -dble(0.25)) then   
                 if (loc_h_avg>sao_values_mat%eps) then
                     symb = 'X'                ! Wave hits land = highest priority
                 else

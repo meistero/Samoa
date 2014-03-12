@@ -103,6 +103,8 @@
             double precision, dimension(2)                      :: coords1, coords2, coords3
             double precision :: h,b
             
+			call gv_Q%read(element, Q)
+
             ! height, bathymetry
             h = dble(t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%h))
             b = dble(t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%b))
@@ -112,8 +114,15 @@
             coords2 = dble(samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 0.0_GRID_SR]))
             coords3 = dble(samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR]))
             
-			call gv_Q%read(element, Q)
-
+            
+            write (*,'(A,$)') "World coordinates: "
+            write (*,*) samoa_barycentric_to_world_point(element%transform_data, [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR])
+            write (*,'(A,$)') "height: "
+            write (*,*) h
+            write (*,'(A,$)') "bathymetry: "
+            write (*,*) b
+            
+            
             call fill_sao(ascii, coords1, coords2, coords3, h, b, traversal%min_water, traversal%max_water, traversal%avg_water) 
             traversal%min_water = min(h, traversal%min_water)
             traversal%max_water = max(h, traversal%max_water)
