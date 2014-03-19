@@ -24,12 +24,12 @@ module M_kracken_dictionary
 !         being used as a command line parser. In particular, some might
 !         want to change:
 !          ic=30          ! number of entries in language dictionary
-!          IPvalue=255    ! ilength of verb value
+!          IPvalue=1024   ! ilength of verb value
 
       implicit none
 
       integer, parameter,public :: IPverb=20                          ! ilength of verb
-      integer, parameter,public :: IPvalue=255                        ! ilength of verb value
+      integer, parameter,public :: IPvalue=1024                        ! ilength of verb value
       integer, parameter,public :: ic=30                              ! number of entries in language dictionary
       integer, parameter,public :: k_int = SELECTED_INT_kind(9)       ! integer*4
       integer, parameter,public :: k_dbl = SELECTED_real_kind(15,300) ! real*8
@@ -50,7 +50,7 @@ module M_kracken
    public :: string_to_real    ! returns real value from numeric character string NOT USING CALCULATOR
    public :: kracken           ! define command and default parameter values
    public :: delim             ! parse a string and store tokens into an array
-   
+
    private :: parse_two        ! convenient call to parse() -- define defaults, then process user input
    private :: parse            ! parse user command and store tokens into Language Dictionary
    private :: store            ! replace dictionary name's value (if allow=add add name if necessary)
@@ -64,7 +64,7 @@ module M_kracken
    public :: iget    ! fetch integer value of name VERB_NAME from the language dictionary
    public :: lget    ! fetch logical value of name VERB_NAME from the language dictionary
    public :: sget    ! fetch string  value of name VERB_NAME from the language dictionary.
-   
+
    private :: igets  ! return the subscript value of a string when given it's name
    private :: uppers ! uppers: return copy of string converted to uppercase
 
@@ -144,7 +144,7 @@ end subroutine string_to_real
 !=======================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()(
 !=======================================================================
-function rget(keyword) 
+function rget(keyword)
 ! @(#) given keyword, fetch single real value from the language dictionary (zero on error)
 
    real                ::  rget
@@ -168,7 +168,7 @@ end function rget
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()(
 !=======================================================================
 
-function iget(keyword) 
+function iget(keyword)
 ! @(#) given keyword, fetch single integer value from the language dictionary (zero on error)
 
    integer                      ::  iget
@@ -190,13 +190,13 @@ end function iget
 !=======================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()(
 !=======================================================================
-function lget (keyword) 
+function lget (keyword)
 ! @(#) given keyword, fetch single logical value from the language dictionary (zero on error)
 
    logical                      ::  lget
-   
+
    character(len=*),intent(in)  ::  keyword
-   
+
    character(len=255)           ::  value
    integer                      ::  len
    integer                      ::  ier
@@ -302,7 +302,7 @@ subroutine parse(verb,string,allow)
 !     values may be in double quotes if they contain -alphameric, a #
 !     signifies rest of line is a comment, adjacent double quotes put
 !     one double quote into value, processing ends when an unquoted
-!     semi-colon or end of string is encountered. 
+!     semi-colon or end of string is encountered.
 !     the variable name for the first value is verb_init (often verb_oo)
 !     call it once to give defaults
 !     call it again and vars without values are set to null strings
@@ -886,7 +886,7 @@ subroutine get_command_arguments(string,istring_len,istatus)
       istring_len=len_trim(string)
    endif
 
-   return 
+   return
 
 end subroutine get_command_arguments
 !=======================================================================--------
@@ -905,8 +905,8 @@ function uppers(linei,ilen) result (string)
 
       character(len=1) :: let
       integer ::  ilet
-      integer ::  iout 
-      integer ::  i10 
+      integer ::  iout
+      integer ::  i10
 
       iout=1
       string=" "

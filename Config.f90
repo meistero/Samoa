@@ -34,7 +34,7 @@ module config
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
         integer                                 :: i_ascii_width                                    !< width of the ascii output
         logical                                 :: l_ascii_out                                      !< ascii output on/off
-        
+
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
 
 #    	if defined(_DARCY)
@@ -126,7 +126,7 @@ module config
         config%l_log = lget('samoa_noprint')
         config%i_threads = iget('samoa_threads')
         config%i_sections_per_thread = iget('samoa_sections')
-        config%i_asagi_mode = iget('samoa_asagihints')       
+        config%i_asagi_mode = iget('samoa_asagihints')
         config%l_ascii_out = lget('samoa_asciiout')
         config%i_ascii_width = iget('samoa_asciiout_width')
 
@@ -155,7 +155,7 @@ module config
             !if the help option was set, display the list of arguments
             if (l_help) then
                 _log_write(0, "")
-                PRINT '(A)',            " Usage: samoa [--help | -h] | [--version | -v] | [-asagihints <value>] [-dstart <value>] [-dmin <value>] [-dmax <value>] [-tsteps <value>] [-tmax <value>] [-tout <value>] [-threads <value>] [-sections <value>] [-noprint]"
+                PRINT '(A)',            " Usage: samoa [--help | -h] | [--version | -v] | [OPTION...]"
                 PRINT '(A)',            ""
                 PRINT '(A)',            " Arguments:"
                 PRINT '(A, I0, ": ", A, A)',  " 	-asagihints <value>     ASAGI mode (0: default, 1: pass through, 2: no mpi, 3: no mpi + small cache, 4: large grid) (value: ", config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode)), ")"
@@ -188,8 +188,6 @@ module config
                 PRINT '(A)',            "	--help, -h              display this help and exit"
                 PRINT '(A)',            "	--version, -v           output version information and exit"
             end if
-            
-            _log_write(0, "")
         end if
 
         !stop if the version or help command were called
@@ -276,6 +274,7 @@ module config
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+
             if (config%l_ascii_out) then
                 _log_write(0, '(" Ascii Output: Yes, width: ", I0)') config%i_ascii_width
             else
