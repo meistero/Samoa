@@ -64,7 +64,7 @@
 		!******************
 
 		subroutine transfer_op(traversal, section, src_element, dest_element)
- 			type(t_swe_adaption_traversal), intent(inout)	                :: traversal
+ 			type(t_swe_adaption_traversal), intent(inout)	                            :: traversal
 			type(t_grid_section), intent(inout)											:: section
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
@@ -76,8 +76,8 @@
 		end subroutine
 
 		subroutine refine_op(traversal, section, src_element, dest_element, refinement_path)
- 			type(t_swe_adaption_traversal), intent(inout)	                :: traversal
-			type(t_grid_section), intent(inout)													:: section
+ 			type(t_swe_adaption_traversal), intent(inout)	                            :: traversal
+			type(t_grid_section), intent(inout)										    :: section
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
 			integer, dimension(:), intent(in)											:: refinement_path

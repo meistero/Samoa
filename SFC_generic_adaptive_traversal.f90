@@ -207,7 +207,7 @@ subroutine traverse_in_place(traversal, grid)
 
     !$omp barrier
 
-    call rebalance_grid(grid, grid_temp)
+    call create_destination_grid(grid, grid_temp)
 
     !if necessary, reverse order to match source and destination grid
     if (.not. grid%sections%is_forward()) then
@@ -258,14 +258,15 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	class(_GT), intent(inout)	                            :: traversal
 	type(t_grid), intent(inout)								:: src_grid, dest_grid
 
-	type(t_grid_section), target							:: src_section
 	type(t_grid_section), pointer							:: dest_section
-    integer (kind = GRID_SI)			                    :: i_thread, i_src_section, i_dest_section, i_first_local_section, i_last_local_section
-    integer (kind = GRID_SI)			                    :: i_src_cell
+    integer (kind = GRID_SI)			                    :: i_dest_section, i_first_local_section, i_last_local_section
 	integer                                                 :: i_error
 	integer (kind = 1)										:: i_color
+
+    integer (kind = GRID_SI), save			                :: i_thread, i_src_section, i_src_cell
+	type(t_grid_section), target, save					    :: src_section
 	type(t_thread_data), target, save						:: thread_traversal
-	!$omp threadprivate(thread_traversal)
+	!$omp threadprivate(i_thread, src_section, i_src_section, i_src_cell, thread_traversal)
 
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(dest_grid%sections%elements)) then
 		!$omp barrier
@@ -328,66 +329,76 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
         !traversal
 
-        if (i_last_local_section .ge. i_first_local_section) then
-            dest_section => dest_grid%sections%elements(i_first_local_section)
-
-            !find the source section that contains the first cell of the first destination section
-            i_src_section = 1 + ((i_first_local_section - 1) * size(src_grid%sections%elements)) / size(dest_grid%sections%elements)
-            i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-
-            do while (src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells .gt. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_section = i_src_section - 1
-                assert_le(i_src_section, size(src_grid%sections%elements))
-                i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-            end do
-
-            do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_section = i_src_section + 1
-                assert_le(i_src_section, size(src_grid%sections%elements))
-                i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-            end do
-
-            src_section = src_grid%sections%elements(i_src_section)
-
-            !traverse all unnecessary elements of the first source section with an empty traversal
-            do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_cell = i_src_cell + empty_leaf(thread_traversal, traversal%children(i_first_local_section), src_grid%threads%elements(i_thread), src_section)
-            end do
+        if (size(src_grid%sections%elements) > 0) then
+            !make an initial guess for the first source section and the first source cell
+            i_src_section = max(1, min(size(src_grid%sections%elements), &
+                1 + ((i_first_local_section - 1) * size(src_grid%sections%elements)) / size(dest_grid%sections%elements)))
+            i_src_cell = 0
         end if
 
         !traverse all destination sections
         do i_dest_section = i_first_local_section, i_last_local_section
-            dest_section => dest_grid%sections%elements(i_dest_section)
+            !$omp task if(.false.) default(shared) firstprivate(i_dest_section) private(dest_section) mergeable
+                dest_section => dest_grid%sections%elements(i_dest_section)
 
-#           if _DEBUG_LEVEL > 4
-                _log_write(5, '(2X, A)') "destination section initial state :"
-                call dest_section%print()
-#           endif
+                if (i_src_cell .ne. dest_section%last_dest_cell - dest_section%dest_cells + 1) then
+                    !find the source section that contains the first cell of the first destination section
+                    if (i_src_cell .eq. 0 .or. &
+                        i_src_cell .ge. dest_section%last_dest_cell - dest_section%dest_cells + 5 .or. &
+                        src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells) then
 
-            !traverse all source sections that overlap with the destination section
-            do while (i_src_cell .le. dest_section%last_dest_cell)
-                assert_le(i_src_section, size(src_grid%sections%elements))
-                assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
+                        do while (src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells .gt. dest_section%last_dest_cell - dest_section%dest_cells)
+                            i_src_section = i_src_section - 1
+                            assert_ge(i_src_section, 1)
+                        end do
 
-                !traverse all elements
-                do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
-                    i_src_cell = i_src_cell + leaf(thread_traversal, traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
+                        do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
+                            i_src_section = i_src_section + 1
+                            assert_le(i_src_section, size(src_grid%sections%elements))
+                        end do
+
+                        src_section = src_grid%sections%elements(i_src_section)
+                        i_src_cell = src_section%last_dest_cell - src_section%dest_cells + 1
+                    end if
+
+                    !traverse all unnecessary elements of the source section with an empty traversal
+                    do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
+                        i_src_cell = i_src_cell + empty_leaf(thread_traversal, traversal%children(i_src_section), src_grid%threads%elements(i_thread), src_section)
+                    end do
+                end if
+
+#               if _DEBUG_LEVEL > 4
+                    _log_write(5, '(2X, A)') "destination section initial state :"
+                    call dest_section%print()
+#               endif
+
+                !traverse all source sections that overlap with the destination section
+                do while (i_src_cell .le. dest_section%last_dest_cell)
+                    assert_le(i_src_section, size(src_grid%sections%elements))
+                    assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
+
+                    !traverse all elements
+                    do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
+                        i_src_cell = i_src_cell + leaf(thread_traversal, traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
+                    end do
+
+                    if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < size(src_grid%sections%elements)) then
+                        i_src_section = i_src_section + 1
+                        src_section = src_grid%sections%elements(i_src_section)
+                    end if
                 end do
 
-                if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < size(src_grid%sections%elements)) then
-                    i_src_section = i_src_section + 1
-                    src_section = src_grid%sections%elements(i_src_section)
-                end if
-            end do
+#    		    if defined(_GT_CELL_TO_EDGE_OP)
+                    thread_traversal%p_dest_element%previous%next_edge_data%rep = _GT_CELL_TO_EDGE_OP(thread_traversal%p_dest_element%previous%t_element_base, thread_traversal%p_dest_element%previous%next_edge_data)
+#    	        endif
 
-#    		if defined(_GT_CELL_TO_EDGE_OP)
-                thread_traversal%p_dest_element%previous%next_edge_data%rep = _GT_CELL_TO_EDGE_OP(thread_traversal%p_dest_element%previous%t_element_base, thread_traversal%p_dest_element%previous%next_edge_data)
-#    	    endif
+                thread_traversal%p_dest_element%previous%next_edge_data%remove = .false.
 
-            thread_traversal%p_dest_element%previous%next_edge_data%remove = .false.
-
-            call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, thread_traversal%p_dest_element%previous%next_edge_data)
+                call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, thread_traversal%p_dest_element%previous%next_edge_data)
+            !$omp end task
         end do
+
+        !$omp taskwait
 
         traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
 
