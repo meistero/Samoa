@@ -175,6 +175,8 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
 #         	    elif defined(_SWE)
+                    PRINT '(A)',            "	-asciiout               turns on ascii output"
+                    PRINT '(A, I0, A)',     "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #         	    elif defined(_FLASH)
@@ -187,10 +189,6 @@ module config
                 PRINT '(A)',            "	--version, -v           output version information and exit"
             end if
             
-
-                PRINT '(A)',            "	-asciiout               turns on ascii output"
-                PRINT '(A, I0, A)',     "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
-                PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
             _log_write(0, "")
         end if
 
