@@ -46,7 +46,7 @@ Heat_Equation/Heat_Eq_midpoint_timestep.o: SFC_generic_traversal_ringbuffer.f90 
 Heat_Equation/Heat_Eq_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Heat_Equation/Heat_Eq_basis.o Heat_Equation/Heat_Eq_local_function_spaces.o Samoa/Samoa.o LIB_VTK_IO.o
 Heat_Equation/Heat_Eq_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o Heat_Equation/Heat_Eq_basis.o Heat_Equation/Heat_Eq_local_function_spaces.o Samoa/Samoa.o LIB_VTK_IO.o
 
-SWE/SWE.o: SWE/SWE_data_types.o SWE/SWE_displace.o SWE/SWE_basis.o SWE/SWE_initialize.o SWE/SWE_output.o SWE/SWE_xml_output.o SWE/SWE_euler_timestep.o SWE/SWE_adapt.o Samoa/Samoa.o
+SWE/SWE.o: SWE/SWE_data_types.o SWE/SWE_displace.o SWE/SWE_basis.o SWE/SWE_initialize.o SWE/SWE_output.o SWE/SWE_xml_output.o SWE/SWE_euler_timestep.o SWE/SWE_adapt.o Samoa/Samoa.o SWE/SWE_ascii_output.o
 SWE/SWE_local_function_spaces.o: SFC_data_types.o
 SWE/SWE_basis.o: SFC_data_types.o SWE/SWE_local_function_spaces.o Samoa/Samoa.o
 SWE/SWE_adapt.o: SFC_generic_adaptive_traversal.f90 Conformity/Conformity.o SWE/SWE_basis.o Samoa/Samoa.o SWE/SWE_euler_timestep.o SWE/SWE_initialize.o
@@ -55,6 +55,7 @@ SWE/SWE_initialize.o: SFC_generic_traversal_ringbuffer.f90 SWE/SWE_euler_timeste
 SWE/SWE_displace.o: SWE/SWE_initialize.o SFC_generic_traversal_ringbuffer.f90 SWE/SWE_euler_timestep.o Tools_noise.o SFC_node_traversal.o SWE/SWE_basis.o Samoa/Samoa.o SWE/SWE_local_function_spaces.o
 SWE/SWE_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o SWE/SWE_basis.o SWE/SWE_local_function_spaces.o SWE/SWE_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
 SWE/SWE_xml_output.o: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.o SWE/SWE_basis.o SWE/SWE_local_function_spaces.o SWE/SWE_euler_timestep.o Samoa/Samoa.o LIB_VTK_IO.o
+SWE/SWE_ascii_output.o: SWE/ascii_output.o SFC_edge_traversal.o LIB_VTK_IO.o SFC_edge_traversal.f90 Samoa/Samoa.o SWE/SWE_euler_timestep.o
 
 #NUMA/NUMA.o: NUMA/NUMA_data_types.o NUMA/NUMA_basis.o NUMA/NUMA_initialize.o NUMA/NUMA_output.o NUMA/NUMA_xml_output.o NUMA/NUMA_euler_timestep.o NUMA/NUMA_adapt.o Samoa/Samoa.o
 #NUMA/NUMA_local_function_spaces.o: SFC_data_types.o

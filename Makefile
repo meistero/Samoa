@@ -282,6 +282,8 @@ SWE/SWE_displace.f90 \
 SWE/SWE_initialize.f90 \
 SWE/SWE_output.f90 \
 SWE/SWE_xml_output.f90 \
+SWE/SWE_ascii_output.f90 \
+SWE/ascii_output.f90 \
 SWE/SWE_euler_timestep.f90 \
 SWE/SWE_adapt.f90 \
 geoclaw/c_bind_riemannsolvers.f90 \
