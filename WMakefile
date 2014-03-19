@@ -10,7 +10,7 @@
 # Usage: call "make [<scenario>] [<FLAG=VALUE>]*"
 #
 # make flags:
-#  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|GENERIC
+#  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|GENERIC|FLASH
 #  SWE_SOLVER=LF|LF_BATH|LLF|LLF_BATH|FWAVE|AUG_RIEMANN
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
@@ -25,53 +25,194 @@
 
 #default compiler and compiler-specific flags
 
-FFLAGS			= /I"./" /I"Samoa/" /fpp /nologo
+FFLAGS			= /I"./" /I"Samoa/" /fpp /nologo		#implicitnone-flag?
 EXEC 			= samoa
 
 #default values for compilation switches
-#---------------------hier IF-DEFs
+!IF !DEFINED(ASAGI)
+ASAGI			= NO
+!ENDIF
+!IF !DEFINED(SCENARIO)
 SCENARIO		= SWE
+!ENDIF
+!IF !DEFINED(SWE_SOLVER)
 SWE_SOLVER		= LLF_BATH
-TARGET			= DEBUG
+!ENDIF
+!IF !DEFINED(TARGET)
+TARGET			= OPT
+!ENDIF
+!IF !DEFINED(MPI)
 MPI 			= NO
+!ENDIF
+!IF !DEFINED(OPENMP)
 OPENMP			= YES			#alt: TASKS
+!ENDIF
+!IF !DEFINED(STD_FORTRAN)
 STD_FORTRAN		= NO
+!ENDIF
+!IF !DEFINED(ASAGI_TIMING)
 ASAGI_TIMING	= NO
+!ENDIF
+!IF !DEFINED(VEC_REPORT)
 VEC_REPORT		= 0
+!ENDIF
+!IF !DEFINED(ASAGI_DIR)
 ASAGI_DIR		= "./ASAGI"
+!ENDIF
+
 
 #check switches, set flags of dependent switches and compiler flags accordingly
-#---------------hier IF-EQs fuer MPI
-#---------------dann IF-EQs fuer SCENARIO
-#---------------dann IF-EQs fuer OPENMP
 
+!IF "$(MPI)" == "DEFAULT"
+FC			= MPICH_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" OMPI_FC=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" I_MPI_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90
+LOADER		= MPICH_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" OMPI_FC=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" I_MPI_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90
+!ELSE IF "$(MPI)" == "OPENMPI"
+FC			= OMPI_FC=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90.openmpi
+LOADER		= OMPI_FC=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90.openmpi
+!ELSE IF "$(MPI)" == "MPICH2"
+FC			= MPICH_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90.mpich2
+LOADER		= MPICH_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90.mpich2
+!ELSE IF "$(MPI)" == "INTEL"
+FC			= I_MPI_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90.intel
+LOADER		= I_MPI_F90=ifort -Qlocation,link,"$(VCINSTALLDIR)/bin" mpif90.intel
+!ELSE IF "$(MPI)" == "NO"
 FC			= ifort -Qlocation,link,"$(VCINSTALLDIR)/bin"			#the flag to find the ifort
 LOADER		= ifort -Qlocation,link,"$(VCINSTALLDIR)/bin"
+!ELSE
+(error Invalid value for MPI: $(MPI))
+!ENDIF
 
-EXEC			= $(EXEC)_swe
-FFLAGS			= $(FFLAGS) /D_SWE /Qopenmp_stubs
-ASAGI			= NO
-LIB 			= NO
-EXEC			= $(EXEC)_noasagi
 
-#FFLAGS = $(FFLAGS) /D_SWE_LAX_FRIEDRICHS_BATH 
-LDFLAGS = /Qopenmp_stubs /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
+!IF "$(SCENARIO)" == "DARCY"
+EXEC		= $(EXEC)_darcy			
+FFLAGS		= $(FFLAGS) /D_DARCY
+!IF !DEFINED(ASAGI)
+ASAGI		= STANDARD
+!ENDIF
+!IF !DEFINED(CREATE_LIB)
+CREATE_LIB			= NO
+!ENDIF  
+!ELSE IF "$(SCENARIO)" == "GENERIC"  
+EXEC 		= $(EXEC)_generic
+FFLAGS		= $(FFLAGS) /D_GENERIC
+!IF !DEFINED(ASAGI)
+ASAGI		= NO
+!ENDIF
+!IF !DEFINED(CREATE_LIB)
+CREATE_LIB			= YES
+!ENDIF
+!ELSE IF "$(SCENARIO)" == "SWE"
+EXEC		= $(EXEC)_swe
+FFLAGS		= $(FFLAGS) /D_SWE
+!IF !DEFINED(ASAGI)
+ASAGI		= STANDARD
+!ENDIF
+!IF !DEFINED(CREATE_LIB)
+CREATE_LIB			= NO
+!ENDIF
+!ELSE IF "$(SCENARIO)" == "FLASH"			
+EXEC		= $(EXEC)_flash
+FFLAGS		= $(FFLAGS) /D_FLASH
+!IF !DEFINED(ASAGI)
+ASAGI		= STANDARD
+!ENDIF
+!IF !DEFINED(CREATE_LIB)
+CREATE_LIB			= NO
+!ENDIF
+!ELSE IF "$(SCENARIO)" == "HEAT_EQ"
+EXEC		= $(EXEC)_heq
+FFLAGS		= $(FFLAGS) /D_HEAT_EQ
+!IF !DEFINED(ASAGI)
+ASAGI		= NO
+!ENDIF
+!IF !DEFINED(CREATE_LIB)
+CREATE_LIB			= NO
+!ENDIF
+!ELSE IF "$(SCENARIO)" == "TESTS"
+EXEC		= $(EXEC)_tests
+FFLAGS		= $(FFLAGS) /D_TESTS
+!IF !DEFINED(ASAGI)
+ASAGI		= NO
+!ENDIF
+!IF !DEFINED(CREATE_LIB)
+CREATE_LIB			= NO
+!ENDIF
+!ELSE
+(error Invalid value for SCENARIO: $(SCENARIO))
+!ENDIF
+
+!IF "$(OPENMP)" == "YES"
+EXEC		= $(EXEC)_notasks
+FFLAGS		= $(FFLAGS) /Qopenmp
+LDFLAGS		= $(LDFLAGS) /Qopenmp /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
+!ELSE IF "$(OPENMP)" == "TASKS"
+FFLAGS		= $(FFLAGS) /Qopenmp /D_OPENMP_TASKS
+LDFLAGS		= $(LDFLAGS) /Qopenmp /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
+!ELSE IF "$(OPENMP)" == "NO"
+EXEC		= $(EXEC)_noomp
+FFLAGS		= $(FFLAGS) /Qopenmp_stubs
+LDFLAGS		= $(LDFLAGS) /Qopenmp-stubs /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
+!ELSE
+(error Invalid value for OPENMP: $(OPENMP))
+!ENDIF
+
+#--------------im open mp bereich an ldflags angeklebt--------------- 
+#LDFLAGS = /Qopenmp_stubs /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
+
+!IF "$(MPI)" == "NO"
+EXEC 		= $(EXEC)_nompi
+!ELSE
+FFLAGS		= $(FFLAGS) /D_MPI
+!ENDIF
+
+!IF "$(ASAGI)" == "STANDARD"
+FFLAGS 		= $(FFLAGS) /D_ASAGI /I$(ASAGI_DIR)"/include"
+LDFLAGS 	= $(LDFLAGS) "-Wl,-rpath,"$(ASAGI_DIR) /L$(ASAGI_DIR)
+!IF "$(OPENMP)" == "NO"
+LDFLAGS		= $(LDFLAGS) /lasagi_nomt
+!ELSE
+LDFLAGS		= $(LDFLAGS) /lasagi
+!ENDIF
+!ELSE IF "$(ASAGI)" == "NUMA"
+FFLAGS 		= $(FFLAGS) /D_ASAGI /D_ASAGI_NUMA /I$(ASAGI_DIR)"/include"
+LDFLAGS 	= $(LDFLAGS) "-Wl,-rpath,"$(ASAGI_DIR) /L$(ASAGI_DIR)
+LDFLAGS		= $(LDFLAGS) /lasagi
+!IF "$(OPENMP)" == "NO"
+(error ASAGI must not be NUMA if OPENMP is NO)
+!ENDIF
+!ELSE IF "$(ASAGI)" == "NO"
+EXEC		= $(EXEC)_noasagi
+!ELSE
+(error Invalid value for ASAGI: $(ASAGI))
+!ENDIF
+
+!IF "$(ASAGI_TIMING)" == "YES"
+FFLAGS 		= $(FFLAGS) /D_ASAGI_TIMING
+!IF "$(ASAGI)" == "NO"
+(error ASAGI_TIMING must not be YES if ASAGI is NO)
+!ENDIF
+!ELSE IF "$(ASAGI_TIMING)" == "NO"
+#nothing to do
+!ELSE
+(error Invalid value for ASAGI_TIMING: $(ASAGI_TIMING))
+!ENDIF
+
 					
 !IF "$(SWE_SOLVER)" == "LF"
 FFLAGS		= $(FFLAGS) /D_SWE_LF
-EXEC			= $(EXEC)_lf
+EXEC		= $(EXEC)_lf
 !ELSE IF "$(SWE_SOLVER)" == "LF_BATH"
 FFLAGS		= $(FFLAGS) /D_SWE_LF_BATH
-EXEC			= $(EXEC)_lfbath
+EXEC		= $(EXEC)_lfbath
 !ELSE IF "$(SWE_SOLVER)" == "LLF"
 FFLAGS		= $(FFLAGS) /D_SWE_LLF
-EXEC			= $(EXEC)_llf
+EXEC		= $(EXEC)_llf
 !ELSE IF "$(SWE_SOLVER)" == "LLF_BATH"
 FFLAGS		= $(FFLAGS) /D_SWE_LLF_BATH
-EXEC			= $(EXEC)_llfbath
+EXEC		= $(EXEC)_llfbath
 !ELSE IF "$(SWE_SOLVER)" == "FWAVE"
 FFLAGS		= $(FFLAGS) /D_SWE_FWAVE
-EXEC			= $(EXEC)_fwave
+EXEC		= $(EXEC)_fwave
 !ELSE IF "$(SWE_SOLVER)" == "AUG_RIEMANN"
 FFLAGS		= $(FFLAGS) /D_SWE_AUG_RIEMANN
 !ELSE
@@ -80,26 +221,44 @@ FFLAGS		= $(FFLAGS) /D_SWE_AUG_RIEMANN
 					
 																					
 !IF "$(TARGET)" == "DEBUG"
-EXEC			= $(EXEC)_debug
-DEBUG_LEVEL		= 3
-ASSERT 			= YES
-FFLAGS 			= $(FFLAGS) /Zi /Od /traceback /debug-parameters:all /check:all
+EXEC		= $(EXEC)_debug
+!IF !DEFINED(DEBUG_LEVEL)
+DEBUG_LEVEL	= 3
+!ENDIF
+!IF !DEFINED(ASSERT)
+ASSERT 		= YES
+!ENDIF
+FFLAGS 		= $(FFLAGS) /Zi /Od /traceback /debug-parameters:all /check:all
 !ELSE IF "$(TARGET)" == "PROF"									#possibly incorrect flags here, never tested - e.g. might not like the "/g"
-EXEC 			= $(EXEC)_prof
-DEBUG_LEVEL 	= 1
-ASSERT 			= NO
-FFLAGS 			= $(FFLAGS) /g /trace /O3 /inline-level=0 /funroll-loops /unroll
-LDFLAGS 		= $(LDFLAGS) /g /trace /O3 /ip /ipo
+EXEC 		= $(EXEC)_prof
+!IF !DEFINED(DEBUG_LEVEL)
+DEBUG_LEVEL = 1
+!ENDIF
+!IF !DEFINED(ASSERT)
+ASSERT 		= NO
+!ENDIF
+FFLAGS		= $(FFLAGS) /g /trace /O3 /Ob0 /Qunroll
+LDFLAGS		= $(LDFLAGS) /g /trace #/O3 /ip /ipo
 !ELSE IF "$(TARGET)" == "OPT"
-DEBUG_LEVEL 	= 1
-ASSERT 			= NO
-#FFLAGS 		= $(FFLAGS) /O3 /align all /inline-level=2 /no-inline-min-size /no-inline-max-size /no-inline-max-total-size /no-inline-max-per-routine /no-inline-max-per-compile /no-inline-factor /funroll-loops /unroll
-#LDFLAGS 		= $(LDFLAGS) /O3 /ip /ipo
+!IF !DEFINED(DEBUG_LEVEL)
+DEBUG_LEVEL	= 1
+!ENDIF
+!IF !DEFINED(ASSERT)
+ASSERT 		= NO
+!ENDIF										#inline-flags auskommentiert zum schnelleren compilieren:
+FFLAGS 		= $(FFLAGS) /O3 /align:all /Ob2 #/Qinline-min-size- /Qinline-max-size- /Qinline-max-total-size- /Qinline-max-per-routine- /Qinline-max-per-compile- /Qinline-factor- /Qunroll
+#LDFLAGS 	= $(LDFLAGS) /O3 /ip /ipo
 !ELSE
 (error Invalid value for TARGET: $(TARGET))
 !ENDIF
 
+!IF !DEFINED(VEC_REPORT)
+LDFLAGS 	= $(LDFLAGS) /vec-report$(VEC_REPORT)
+!ENDIF
+
+!IF !DEFINED(DEBUG_LEVEL)
 FFLAGS 		= $(FFLAGS) /D_DEBUG_LEVEL=$(DEBUG_LEVEL)
+!ENDIF
 
 !IF "$(ASSERT)" == "YES"
 FFLAGS 		= $(FFLAGS) /D_ASSERT
@@ -109,6 +268,23 @@ FFLAGS 		= $(FFLAGS) /D_ASSERT
 (error Invalid value for ASSERT: $(ASSERT))
 !ENDIF
 
+!IF "$(STD_FORTRAN)" == "YES"
+FFLAGS		= $(FFLAGS) /std
+!ELSE IF "$(STD_FORTRAN)" == "NO"
+
+!ELSE
+(error Invalid value for STD_FORTRAN: $(STD_FORTRAN))
+!ENDIF
+
+!IF "$(CREATE_LIB)" == "YES"
+EXEC		= $(EXEC).dll
+FFLAGS		= $(FFLAGS) /fpic
+LDFLAGS		= $(LDFLAGS) /fpic /shared
+!ELSE IF "$(CREATE_LIB)" == "NO"
+EXEC		= bin/$(EXEC).exe
+!ELSE
+(error Invalid value for CREATE_LIB: $(CREATE_LIB))
+!ENDIF
 
 #----------------------------------------------------------------#
 # BUILD RULES                                                    #
@@ -203,6 +379,9 @@ darcy:
 swe:
 	@$(MAKE) SCENARIO=SWE
 
+#flash:
+#	@$(MAKE) SCENARIO=FLASH
+#
 numa:
 	@$(MAKE) SCENARIO=NUMA
 

@@ -80,13 +80,10 @@ subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, a
     
     sao_coords1(1) = ceiling(((coords1(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*(size(sao_values_mat%mat,dim=1)-1))+1           
     sao_coords1(2) = ceiling(((coords1(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*(size(sao_values_mat%mat,dim=2)-1))+1
-    !--new version start
     sao_coords2(1) = ceiling(((coords2(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*(size(sao_values_mat%mat,dim=1)-1))+1           
     sao_coords2(2) = ceiling(((coords2(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*(size(sao_values_mat%mat,dim=2)-1))+1
     sao_coords3(1) = ceiling(((coords3(1)-sao_values_mat%a(1))/sao_values_mat%s(1))*(size(sao_values_mat%mat,dim=1)-1))+1           
     sao_coords3(2) = ceiling(((coords3(2)-sao_values_mat%a(2))/sao_values_mat%s(2))*(size(sao_values_mat%mat,dim=2)-1))+1
-    ! Grenzfaelle----------------------
-    
     
     x_min = minval([sao_coords1(1), sao_coords2(1), sao_coords3(1)])
     x_max = maxval([sao_coords1(1), sao_coords2(1), sao_coords3(1)])
@@ -96,7 +93,6 @@ subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, a
     vs1 = [sao_coords2(1) - sao_coords1(1), sao_coords2(2) - sao_coords1(2)]
     vs2 = [sao_coords3(1) - sao_coords1(1), sao_coords3(2) - sao_coords1(2)]
     
-    !if ((vs1(1)*vs2(2)-vs2(1)*vs1(2)) /= 0) then
     do x = x_min, x_max
         do y = y_min, y_max
             vs3 = [x-sao_coords1(1), y-sao_coords1(2)]
@@ -108,25 +104,9 @@ subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, a
                 sao_values_mat%mat(x,y)%b = sao_values_mat%mat(x,y)%b + b
                 sao_values_mat%mat(x,y)%h_sum = sao_values_mat%mat(x,y)%h_sum + h
                 sao_values_mat%mat(x,y)%h_summands = sao_values_mat%mat(x,y)%h_summands + 1
-                !write (*,'(A,$)') "Pixel x-coordinate: "
-                !write (*,*)  x
-                !write (*,'(A,$)') "Pixel y-coordinate: "
-                !write (*,*) y
-                !write (*,'(A,$)') "Local b: "
-                !write (*,*) b
-                !write (*,'(A,$)') "Local h: "
-                !write (*,*) h
             end if    
         end do
     end do
-    !else 
-        
-    !--new version stop
-    !collect height & bathymetry
-    !sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%b = b
-    !sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_sum = sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_sum + h
-    !sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_summands = sao_values_mat%mat(sao_coords2(1), sao_coords2(2))%h_summands + 1
-    !endif
     
 end subroutine
 
@@ -221,7 +201,6 @@ function which_ascii(sao_values_mat, j, i)  result(symb)
             end if
         end if
     else
-        !write (*, '(A)') "INVALID: NO CELLS COUNTED FOR THIS CELL"
         symb = '#'
     end if      
 end function
