@@ -37,10 +37,10 @@ module SFC_edge_traversal
 	contains
 
 	!*******************
-	!create splitting
+	!create a new grid and cut it into sections of uniform load
 	!*******************
+	subroutine create_destination_grid(src_grid, dest_grid)
 
-	subroutine rebalance_grid(src_grid, dest_grid)
 		type(t_grid), intent(inout)                             :: src_grid
 		type(t_grid), intent(inout)           	                :: dest_grid
 

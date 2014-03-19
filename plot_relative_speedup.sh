@@ -55,9 +55,9 @@ sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 gnuplot &> /dev/null << EOT
 
 set terminal postscript enhanced color font ',30'
-set xlabel "Threads"
-set ylabel "Mio. Elements per sec. per thread"
-set key left top
+set xlabel "Cores"
+set ylabel "Mio. Elements per sec. per core"
+unset key
 set log x 2
 
 title(n) = sprintf("%d section(s)", n)
@@ -82,7 +82,7 @@ set yrange [0:*]
 
 plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 / (\$1*\$2) : 1/0) ls n w linespoints t title(n)
 
-set output '| ps2pdf - darcy_elem_init_lin.pdf'
+set output '| ps2pdf - darcy_elem_init_rel.pdf'
 
 replot GPVAL_DATA_Y_MAX w lines ls 999 title "reference"
 
@@ -95,7 +95,7 @@ set yrange [0:*]
 
 plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5/ (\$1*\$2) : 1/0) ls n w linespoints t title(n)
 		
-set output '| ps2pdf - darcy_elem_lin.pdf'
+set output '| ps2pdf - darcy_elem_rel.pdf'
 
 replot GPVAL_DATA_Y_MAX w lines ls 999 title "reference"
 
@@ -110,7 +110,7 @@ set yrange [0:*]
 
 plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n? \$5 / (\$1*\$2) : 1/0) ls n w linespoints t title(n)
 
-set output '| ps2pdf - swe_flux_lin.pdf'
+set output '| ps2pdf - swe_flux_rel.pdf'
 
 replot GPVAL_DATA_Y_MAX w lines ls 999 title "reference"
 
@@ -124,7 +124,7 @@ set yrange [0:*]
 
 plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n? \$4 / (\$1*\$2) : 1/0) ls n w linespoints t title(n)
 
-set output '| ps2pdf - swe_cells_lin.pdf'
+set output '| ps2pdf - swe_cells_rel.pdf'
 
 replot GPVAL_DATA_Y_MAX w lines ls 999 title "reference"
 

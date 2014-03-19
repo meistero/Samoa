@@ -56,11 +56,11 @@
 			type(t_grid), intent(inout)							    :: grid
 
         grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+	!print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
 	!print *, "calculatzed Dt: ",0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max), grid%r_dt
-	print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max
 
 #           if defined(_ASAGI)
-                if (grid%r_time < grid_max_z(grid%afh_bathymetry)) then
+                if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
                     grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
 	!	print *, "calculatzed Dt in if: ",min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry)), grid%r_dt
                 end if
@@ -165,6 +165,7 @@
       type(num_cell_update), intent(out)                        :: update1, update2
 
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r
+      REAL (KIND = GRID_SR)					:: max_wave_speed
       REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE)        :: r_h_l, r_hv_l, r_hu_l, &
                                                                    r_h_r, r_hv_r, r_hu_r
@@ -183,9 +184,9 @@
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
 
-      call compute_flash_flux(r_rhs_l, r_rhs_r, edge%transform_data%normal, r_minh_l, r_minh_r, &
+      call compute_flash_flux(r_rhs_l, r_rhs_r,max_wave_speed, edge%transform_data%normal, r_minh_l, r_minh_r, &
                               _FLASH_CELL_SIZE, _FLASH_EDGE_SIZE, gquadwei, gMinvpsi, &
-                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
+                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep2%Q(1)%b)
 
       update1%flux(:)%h    = -r_rhs_l(:,1)
       update1%flux(:)%p(1) = -r_rhs_l(:,2)
@@ -195,7 +196,8 @@
       update2%flux(:)%p(1) =  r_rhs_r(:,2)
       update2%flux(:)%p(2) =  r_rhs_r(:,3)
 
-
+	update1%flux(:)%max_wave_speed = max_wave_speed
+	update2%flux(:)%max_wave_speed = max_wave_speed
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 1 out: ", update1%flux
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 2 out: ", update2%flux
     end subroutine
@@ -225,6 +227,7 @@
       type(t_update)                                            :: bnd_flux
 
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r
+      REAL (KIND = GRID_SR)					:: max_wave_speed
       REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE)        :: r_h_l, r_hv_l, r_hu_l, &
                                                                    r_h_r, r_hv_r, r_hu_r
@@ -241,13 +244,15 @@
 
       !_log_write(0, *) "BOUNDARY normal: ", edge%transform_data%normal
 
-      call compute_flash_flux(r_rhs_l, r_rhs_r, edge%transform_data%normal, r_minh_l, r_minh_r, &
+      call compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed,edge%transform_data%normal, r_minh_l, r_minh_r, &
                               _FLASH_CELL_SIZE, _FLASH_EDGE_SIZE, gquadwei, gMinvpsi, &
-                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
+                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep%Q(1)%b)
 
       update%flux(:)%h    = -r_rhs_l(:,1)
       update%flux(:)%p(1) = -r_rhs_l(:,2)
       update%flux(:)%p(2) = -r_rhs_l(:,3)
+
+      update%flux(:)%max_wave_speed = max_wave_speed
 
     end subroutine
 
@@ -266,24 +271,24 @@
       call gv_Q%add(element, dQ)
     end subroutine
 
-    subroutine cell_last_touch_op(traversal, grid, cell)
-      type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
-      type(t_grid_section), intent(inout)                       :: grid
-      type(t_cell_data_ptr), intent(inout)                      :: cell
-      integer (kind = 1)                                        :: depth
-      real(kind = GRID_SR)                                      :: b_norm
+		subroutine cell_last_touch_op(traversal, grid, cell)
+			type(t_FLASH_euler_timestep_traversal), intent(inout)				:: traversal
+			type(t_grid_section), intent(inout)							:: grid
+			type(t_cell_data_ptr), intent(inout)				:: cell
+			integer (kind = 1)								:: depth
+			real(kind = GRID_SR)							:: b_norm
 
-      depth = cell%geometry%i_depth
-      b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
+			depth = cell%geometry%i_depth
+			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
-      !refine also on the coasts
-      if (depth < grid%i_max_depth .and. b_norm < 100.0_GRID_SR) then
-        cell%geometry%refinement = 1
-        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-      else if (b_norm < 300.0_GRID_SR) then
-        cell%geometry%refinement = max(cell%geometry%refinement, 0)
-      endif
-    end subroutine
+			!refine also on the coasts
+			if (depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
+				cell%geometry%refinement = 1
+				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+			else if (b_norm < 300.0_GRID_SR) then
+				cell%geometry%refinement = max(cell%geometry%refinement, 0)
+			endif
+		end subroutine
 
     !*******************************
     !Volume and DoF operators
@@ -322,10 +327,10 @@
       dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 
       depth = element%cell%geometry%i_depth
-      if (depth < section%i_max_depth .and. dQ_norm > (1.5_GRID_SR ** 2)) then
+      if (depth < cfg%i_max_depth .and. dQ_norm > (1.5_GRID_SR ** 2)) then
         element%cell%geometry%refinement = 1
         traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-      else if (depth > section%i_min_depth .and. dQ_norm < (1.45_GRID_SR ** 2)) then
+      else if (depth > cfg%i_min_depth .and. dQ_norm < (1.45_GRID_SR ** 2)) then
         element%cell%geometry%refinement = -1
       endif
 
@@ -340,13 +345,14 @@
 
 !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine compute_flash_flux(r_rhs_l, r_rhs_r, r_normal, r_minh_l, r_minh_r, &
+    subroutine compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed, r_normal, r_minh_l, r_minh_r, &
                       i_faceunknowns, i_gquadpts, r_gqwei, r_gMinvpsi, &
-                      r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r)
+                      r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,b)
 
     IMPLICIT NONE
 
     REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(out):: r_rhs_l, r_rhs_r
+    REAL (KIND = GRID_SR), INTENT(out):: max_wave_speed
     REAL (KIND = GRID_SR), INTENT(in)                 :: r_minh_l, r_minh_r
     REAL (KIND = GRID_SR), DIMENSION(2), INTENT(in)   :: r_normal
     INTEGER (KIND = GRID_SI), INTENT(in)              :: i_faceunknowns, i_gquadpts
@@ -360,6 +366,9 @@
     REAL (KIND = GRID_SR), DIMENSION(3)               :: r_intFstar
     REAL (KIND = GRID_SR), DIMENSION(3,2)             :: r_F_l, r_F_r
     REAL (KIND = GRID_SR), DIMENSION(3)               :: r_flux_l, r_flux_r, r_Fstar
+    REAL (KIND = GRID_SR)			      :: b
+
+    real(kind = GRID_SR)								:: vL
 
     r_rhs_l = 0._GRID_SR
     r_rhs_r = 0._GRID_SR
@@ -393,6 +402,12 @@
   ! _log_write(0, *) "h: ",r_h_l,r_h_r
 
   !endif
+
+!-------------**************_____________****************_______________****************----------------------
+!					YOU WERE HERE!
+	max_wave_speed = 0
+	vL = DOT_PRODUCT(r_normal, r_hu_l / (r_h_l - b))
+	max_wave_speed = sqrt(g * (r_h_l(1) - b)) + sqrt(vL * vL)
 
       END DO edge_dof_loop
     END DO edge_quad_loop

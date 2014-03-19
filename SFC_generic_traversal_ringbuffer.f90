@@ -163,10 +163,12 @@ subroutine traverse_grid(traversal, grid)
 	class(_GT), intent(inout)	                        :: traversal
 	class(t_grid), intent(inout)					    :: grid
 
-	integer (kind = GRID_SI)                            :: i_section, i_thread, i_first_local_section, i_last_local_section
+	integer (kind = GRID_SI)                            :: i_section, i_first_local_section, i_last_local_section
 	integer (kind = GRID_SI)                            :: i_error
+
+	integer (kind = GRID_SI), save                      :: i_thread
 	type(t_thread_data), target, save					:: thread_traversal
-	!$omp threadprivate(thread_traversal)
+	!$omp threadprivate(i_thread, thread_traversal)
 
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(grid%sections%elements_alloc)) then
         !$omp barrier
@@ -189,6 +191,7 @@ subroutine traverse_grid(traversal, grid)
         thread_traversal%p_current_element => thread_traversal%elements(1)
     end if
 
+    i_thread = 1 + omp_get_thread_num()
     call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
     associate(traversals => traversal%children(i_first_local_section : i_last_local_section), sections => grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
@@ -230,8 +233,7 @@ subroutine traverse_grid(traversal, grid)
         end do
 
         do i_section = i_first_local_section, i_last_local_section
-            !$omp task if(omp_tasks) default(shared) firstprivate(i_section) private(i_thread) mergeable
-                i_thread = 1 + omp_get_thread_num()
+            !$omp task if(omp_tasks) default(shared) firstprivate(i_section) mergeable
                 call pre_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
                 call traverse_section(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
                 call send_mpi_boundary(grid%sections%elements_alloc(i_section))

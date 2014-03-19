@@ -14,9 +14,10 @@
 		use Darcy_vtk_output
 		use Darcy_xml_output
 		use Darcy_grad_p
+		use Darcy_pressure_solver_jacobi
 		use Darcy_pressure_solver_cg
 		use Darcy_pressure_solver_pipecg
-		use Darcy_pressure_solver_jacobi
+		use Darcy_pressure_solver_pipecg_unstable
 		use Darcy_transport_eq
 		use Darcy_permeability
 		use Darcy_adapt
@@ -63,24 +64,27 @@
             type(t_darcy_pressure_solver_jacobi)                        :: pressure_solver_jacobi
             type(t_darcy_pressure_solver_cg)                            :: pressure_solver_cg
             type(t_darcy_pressure_solver_pipecg)                        :: pressure_solver_pipecg
+            type(t_darcy_pressure_solver_pipecg_unstable)               :: pressure_solver_pipecg_unstable
 
             !allocate solver
 
  			grid%r_time = 0.0_GRID_SR
 
-            pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(cfg%r_epsilon * cfg%r_p0)
-            pressure_solver_cg = t_darcy_pressure_solver_cg(cfg%r_epsilon * cfg%r_p0)
-            pressure_solver_pipecg = t_darcy_pressure_solver_pipecg(cfg%r_epsilon * cfg%r_p0)
-
  			select case (cfg%i_lsolver)
                 case (0)
+                    pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(cfg%r_epsilon * cfg%r_p0)
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
+                    pressure_solver_cg = t_darcy_pressure_solver_cg(cfg%r_epsilon * cfg%r_p0)
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
+                    pressure_solver_pipecg = t_darcy_pressure_solver_pipecg(cfg%r_epsilon * cfg%r_p0)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
+                case (3)
+                    pressure_solver_pipecg_unstable = t_darcy_pressure_solver_pipecg_unstable(cfg%r_epsilon * cfg%r_p0)
+                    allocate(darcy%pressure_solver, source=pressure_solver_pipecg_unstable, stat=i_error); assert_eq(i_error, 0)
                 case default
-                    try(.false., "Invalid linear solver, must be in range 0 to 2")
+                    try(.false., "Invalid linear solver, must be in range 0 to 3")
             end select
 
 			!open log file

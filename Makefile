@@ -11,10 +11,10 @@
 #
 # make flags:
 #  SCENARIO=DARCY|HEAT_EQ|SWE|TESTS|GENERIC
-#  SWE_SOLVER=LAX_FRIEDRICHS|LAX_FRIEDRICHS_BATH|FWAVE|SSQ_FWAVE|AUG_RIEMANN
+#  SWE_SOLVER=LF|LF_BATH|LLF|LLF_BATH|FWAVE|AUG_RIEMANN
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
-#  OPENMP=YES|TASKS|NO
+#  OPENMP=TASKS|NO_TASKS|NO
 #  STD_FORTRAN=YES|NO
 #  ASAGI=STANDARD|NUMA|NO
 #  ASAGI_TIMING=YES|NO
@@ -26,6 +26,7 @@
 #default compiler and compiler-specific flags
 
 FFLAGS			= -implicitnone -nologo -fpp -I"./" -I"Samoa/"
+LDFLAGS			=
 EXEC 			= samoa
 
 #default values for compilation switches
@@ -95,7 +96,7 @@ else
   $(error Invalid value for SCENARIO: $(SCENARIO))
 endif
 
-ifeq ($(OPENMP), YES)
+ifeq ($(OPENMP), NO_TASKS)
   EXEC			:= $(EXEC)_notasks
   FFLAGS		+= -openmp
   LDFLAGS		+= -openmp
@@ -187,8 +188,7 @@ else ifeq ($(TARGET), PROF)
 else ifeq ($(TARGET), OPT)
   DEBUG_LEVEL 	?= 1
   ASSERT 		?= NO
-  FFLAGS 		+= -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size
-  #   -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size
+  FFLAGS 		+= -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size
   LDFLAGS 		+= -O3 -ip -ipo
 else
   $(error Invalid value for TARGET: $(TARGET))
@@ -351,16 +351,16 @@ compile: $(EXEC)
 	@rm -f $(F90_OBJS) $(F77_OBJS) *.mod
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
-	@echo ""
+	@echo "\nLinking..." $(EXEC)
 	@$(LOADER) $(LDFLAGS) -o $@ $(F90_OBJS) $(F77_OBJS)
 
 %.o: %.f90
+	@echo -n "\rCompiling..." $< "\033[K"
 	@$(FC) $(FFLAGS) -c -o $@ $<
-	@echo -n "."
 
 %.o: %.f
+	@echo -n "\rCompiling..." $< "\033[K"
 	@$(FC) $(FFLAGS) -c -o $@ $<
-	@echo -n "."
 
 clean:
 	@rm -f bin/* $(F90_OBJS) $(F77_OBJS) *.mod

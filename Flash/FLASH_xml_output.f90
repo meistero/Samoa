@@ -1,3 +1,8 @@
+! Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications
+! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
+! This program is licensed under the GPL, for details see the file LICENSE
+
+
 #include "Compilation_control.f90"
 
 #if defined(_FLASH)
@@ -43,6 +48,7 @@
 #		define _GT_NAME								t_FLASH_xml_output_traversal
 
 #		define _GT_EDGES
+#		define _GT_EDGES_TEMP
 
 #		define _GT_PRE_TRAVERSAL_OP					pre_traversal_op
 #		define _GT_POST_TRAVERSAL_OP				post_traversal_op
@@ -70,12 +76,13 @@
 			type(t_grid), intent(inout)							        :: grid
 
             character (len = 64)							:: s_file_name
+            integer                                         :: i_error
 			integer(4)										:: i_rank, i_section, e_io
 			logical                                         :: l_exists
             type(t_vtk_writer)                              :: vtk
 
 #           if defined(_MPI)
-                call mpi_barrier(MPI_COMM_WORLD)
+                call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
             if (rank_MPI == 0) then
@@ -114,6 +121,8 @@
                         if (l_exists) then
                             write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
                             e_io = vtk%VTK_GEO_XML(s_file_name)
+                        else
+                            exit
                         end if
                     end do
                 end do
