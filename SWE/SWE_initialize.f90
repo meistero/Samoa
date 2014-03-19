@@ -213,9 +213,11 @@
 
             real (kind = GRID_SR)                               :: xs(2), ts
 
-            xs = cfg%scaling * x + cfg%offset
+            
 
 #			if defined(_ASAGI)
+                xs = cfg%scaling * x + cfg%offset
+                
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
@@ -244,7 +246,8 @@
                 real (kind = GRID_SR), parameter					:: dam_radius = 0.1
                 real (kind = GRID_SR), parameter					:: outer_height = -100.0
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
-
+                
+                xs = cfg%scaling * x + cfg%offset
 				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 #			endif
 		end function

@@ -15,6 +15,7 @@
 		use SWE_displace
 		use SWE_output
 		use SWE_xml_output
+        use SWE_ascii_output
 		use SWE_euler_timestep
 
 		use Samoa_swe
@@ -29,6 +30,7 @@
             type(t_swe_displace_traversal)          :: displace
             type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
+            type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
@@ -214,7 +216,8 @@
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
 				call swe%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + min(r_output_step, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
+                call swe%ascii_output%traverse(grid)                        !------------------------------------
+				r_time_next_output = r_time_next_output + r_output_step
 			end if
 
             !$omp master
@@ -260,7 +263,8 @@
                     !output grid
                     if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                         call swe%xml_output%traverse(grid)
-                        r_time_next_output = r_time_next_output + min(r_output_step, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
+                        call swe%ascii_output%traverse(grid)                                    !--------------------------------------
+                        r_time_next_output = r_time_next_output + r_output_step
                     end if
                 end do
 #           endif
@@ -288,6 +292,7 @@
 				!output grid
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
 					call swe%xml_output%traverse(grid)
+                    call swe%ascii_output%traverse(grid)                        !--------------------------------------------------
 					r_time_next_output = r_time_next_output + r_output_step
 				end if
 			end do

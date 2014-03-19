@@ -32,7 +32,9 @@ module config
         logical			                        :: l_log                                            !< if true, a log file is used
         integer (kind = 1)                      :: i_min_depth, i_max_depth			                !< minimum and maximum scenario depth
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
-
+        integer                                 :: i_ascii_width                                    !< width of the ascii output
+        logical                                 :: l_ascii_out                                      !< ascii output on/off
+        
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
 
 #    	if defined(_DARCY)
@@ -84,12 +86,12 @@ module config
 
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
-        character(256)                          :: arguments
+        character(512)                          :: arguments
         character(64)                           :: lsolver_to_char(0:3) = ["Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
-        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -asagihints 2 -noprint .false. -sections 4 -threads ", omp_get_max_threads()
+        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
@@ -124,7 +126,9 @@ module config
         config%l_log = lget('samoa_noprint')
         config%i_threads = iget('samoa_threads')
         config%i_sections_per_thread = iget('samoa_sections')
-        config%i_asagi_mode = iget('samoa_asagihints')
+        config%i_asagi_mode = iget('samoa_asagihints')       
+        config%l_ascii_out = lget('samoa_asciiout')
+        config%i_ascii_width = iget('samoa_asciiout_width')
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
@@ -171,6 +175,8 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
 #         	    elif defined(_SWE)
+                    PRINT '(A)',            "	-asciiout               turns on ascii output"
+                    PRINT '(A, I0, A)',     "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #         	    elif defined(_FLASH)
@@ -182,7 +188,7 @@ module config
                 PRINT '(A)',            "	--help, -h              display this help and exit"
                 PRINT '(A)',            "	--version, -v           output version information and exit"
             end if
-
+            
             _log_write(0, "")
         end if
 
@@ -270,6 +276,11 @@ module config
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+            if (config%l_ascii_out) then
+                _log_write(0, '(" Ascii Output: Yes, width: ", I0)') config%i_ascii_width
+            else
+                _log_write(0, '(" Ascii Output: No")')
+            end if
 
 #           if defined (_SWE_LF)
                _log_write(0, '(" Flux solver: ", A)') "Lax Friedrichs"
