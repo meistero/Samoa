@@ -14,7 +14,7 @@
 #  SWE_SOLVER=LF|LF_BATH|LLF|LLF_BATH|FWAVE|AUG_RIEMANN
 #  TARGET=DEBUG|PROF|OPT
 #  MPI=DEFAULT|MPICH2|OPENMPI|INTEL|NO
-#  OPENMP=YES|TASKS|NO
+#  OPENMP=NO_TASKS|TASKS|NO
 #  STD_FORTRAN=YES|NO
 #  ASAGI=STANDARD|NUMA|NO
 #  ASAGI_TIMING=YES|NO
@@ -22,6 +22,7 @@
 #  ASSERT = YES|NO
 #  VEC_REPORT = (0-3)
 #  ASAGI_DIR = <path>
+#  PRECISION = SINGLE|DOUBLE|QUAD
 
 #default compiler and compiler-specific flags
 
@@ -45,7 +46,7 @@ TARGET			= OPT
 MPI 			= NO
 !ENDIF
 !IF !DEFINED(OPENMP)
-OPENMP			= YES			#alt: TASKS
+OPENMP			= TASKS
 !ENDIF
 !IF !DEFINED(STD_FORTRAN)
 STD_FORTRAN		= NO
@@ -59,7 +60,9 @@ VEC_REPORT		= 0
 !IF !DEFINED(ASAGI_DIR)
 ASAGI_DIR		= "./ASAGI"
 !ENDIF
-
+!IF !DEFINED(PRECISION)
+PRECISION		= DOUBLE
+!ENDIF
 
 #check switches, set flags of dependent switches and compiler flags accordingly
 
@@ -141,7 +144,7 @@ CREATE_LIB			= NO
 (error Invalid value for SCENARIO: $(SCENARIO))
 !ENDIF
 
-!IF "$(OPENMP)" == "YES"
+!IF "$(OPENMP)" == "NO_TASKS"
 EXEC		= $(EXEC)_notasks
 FFLAGS		= $(FFLAGS) /Qopenmp
 LDFLAGS		= $(LDFLAGS) /Qopenmp /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
@@ -219,6 +222,17 @@ FFLAGS		= $(FFLAGS) /D_SWE_AUG_RIEMANN
 (error Invalid value for SWE_SOLVER: $(SWE_SOLVER))
 !ENDIF
 
+!IF "$(PRECISION)" == "SINGLE"
+  EXEC			= $(EXEC)_sp
+  FFLAGS		= $(FFLAGS) /D_SINGLE_PRECISION
+!ELSE IF "$(PRECISION)" == "DOUBLE"
+  FFLAGS		= $(FFLAGS) /D_DOUBLE_PRECISION
+!ELSE IF "$(PRECISION)" == "QUAD"
+  EXEC			= $(EXEC)_qp
+  FFLAGS		= $(FFLAGS) /D_QUAD_PRECISION
+!ELSE
+(error Invalid value for PRECISION: $(PRECISION))
+!ENDIF
 
 !IF "$(TARGET)" == "DEBUG"
 EXEC		= $(EXEC)_debug

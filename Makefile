@@ -22,6 +22,7 @@
 #  ASSERT = YES|NO
 #  VEC_REPORT = (0-3)
 #  ASAGI_DIR = <path>
+#  PRECISION = SINGLE|DOUBLE|QUAD
 
 #default compiler and compiler-specific flags
 
@@ -40,6 +41,7 @@ STD_FORTRAN		?= NO
 ASAGI_TIMING	?= NO
 VEC_REPORT		?= 0
 ASAGI_DIR		?= "./ASAGI"
+PRECISION		?= DOUBLE
 
 #check switches, set flags of dependent switches and compiler flags accordingly
 
@@ -171,6 +173,18 @@ else ifeq ($(SWE_SOLVER), AUG_RIEMANN)
   FFLAGS 		+= -D_SWE_AUG_RIEMANN
 else
   $(error Invalid value for SWE_SOLVER: $(SWE_SOLVER))
+endif
+
+ifeq ($(PRECISION), SINGLE)
+  EXEC			:= $(EXEC)_sp
+  FFLAGS		+= -D_SINGLE_PRECISION
+else ifeq ($(PRECISION), DOUBLE)
+  FFLAGS		+= -D_DOUBLE_PRECISION
+else ifeq ($(PRECISION), QUAD)
+  EXEC			:= $(EXEC)_qp
+  FFLAGS		+= -D_QUAD_PRECISION
+else
+  $(error Invalid value for PRECISION: $(PRECISION))
 endif
 
 ifeq ($(TARGET), DEBUG)

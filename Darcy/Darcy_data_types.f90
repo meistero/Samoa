@@ -7,11 +7,20 @@
 
 #if defined(_DARCY)
 	MODULE Darcy_data_types
+		implicit none
+
 		PUBLIC
 
 		!data precision
-
-		integer, PARAMETER :: GRID_SR = selected_real_kind(14,40)
+#       if defined(_SINGLE_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0e0)
+#       elif defined(_DOUBLE_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0d0)
+#       elif defined(_QUAD_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0q0)
+#       else
+#           error "No floating point precision is chosen!"
+#       endif
 
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)

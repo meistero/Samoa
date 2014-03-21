@@ -20,16 +20,9 @@
 !> if true, element coordinates are not computed but stored in the nodes instead (which allows for irregular grids)
 !#define _STORE_NODE_COORDS
 
+
 !for the SWE scenario, a skeleton operator is required
-#if defined(_SWE)
-#	define _USE_SKELETON_OP
-#endif
-
-#if defined(_NUMA)
-#	define _USE_SKELETON_OP
-#endif
-
-#if defined(_FLASH)
+#if defined(_SWE) .or. defined(_NUMA) .or. defined(_FLASH)
 #	define _USE_SKELETON_OP
 #endif
 
