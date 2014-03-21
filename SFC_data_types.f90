@@ -118,11 +118,11 @@ MODULE SFC_data_types
 	!stack & stream data types
 
 	type t_statistics
-        real (kind = GRID_SR)					        	:: r_traversal_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_computation_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_sync_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_barrier_time = 0.0_GRID_SR
-        real (kind = GRID_SR)                               :: r_asagi_time = 0.0_GRID_SR
+        double precision					        	    :: r_traversal_time = 0.0d0
+        double precision					        	    :: r_computation_time = 0.0d0
+        double precision					        	    :: r_sync_time = 0.0d0
+        double precision					        	    :: r_barrier_time = 0.0d0
+        double precision                                    :: r_asagi_time = 0.0d0
         integer (kind = GRID_SI)					        :: i_traversals = 0
         integer (kind = GRID_DI)					        :: i_traversed_cells = 0
         integer (kind = GRID_DI)					        :: i_traversed_edges = 0
@@ -146,11 +146,11 @@ MODULE SFC_data_types
 
 
 	type, extends(t_statistics) ::  t_adaptive_statistics
-        real (kind = GRID_SR)					        	:: r_allocation_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_update_distances_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_update_neighbors_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_integrity_time = 0.0_GRID_SR
-        real (kind = GRID_SR)					        	:: r_load_balancing_time = 0.0_GRID_SR
+        double precision					        	:: r_allocation_time = 0.0d0
+        double precision					        	:: r_update_distances_time = 0.0d0
+        double precision					        	:: r_update_neighbors_time = 0.0d0
+        double precision					        	:: r_integrity_time = 0.0d0
+        double precision					        	:: r_load_balancing_time = 0.0d0
 
 		contains
 
@@ -374,9 +374,9 @@ MODULE SFC_data_types
     subroutine t_statistics_reduce_local(s, v)
         class(t_statistics), intent(inout)	:: s
         type(t_statistics), intent(in)		:: v(:)
-        real (kind = GRID_SR)               :: scaling
+        double precision                    :: scaling
 
-        scaling = 1.0 / real(max(1, size(v)), GRID_SR)
+        scaling = 1.0d0 / dble(max(1, size(v)))
 
 		call reduce(s%r_traversal_time, v%r_traversal_time, MPI_SUM, .false.)
 		call reduce(s%r_computation_time, v%r_computation_time, MPI_SUM, .false.)
@@ -390,11 +390,11 @@ MODULE SFC_data_types
 		call reduce(s%i_traversed_nodes, v%i_traversed_nodes, MPI_SUM, .false.)
 		call reduce(s%i_traversed_memory, v%i_traversed_memory, MPI_SUM, .false.)
 
-		s%r_traversal_time = max(0.0, s%r_traversal_time * scaling)
-		s%r_asagi_time = max(0.0, s%r_asagi_time * scaling)
-		s%r_computation_time = max(0.0, s%r_computation_time * scaling)
-		s%r_sync_time = max(0.0, s%r_sync_time * scaling)
-		s%r_barrier_time = max(0.0, s%r_barrier_time * scaling)
+		s%r_traversal_time = max(0.0d0, s%r_traversal_time * scaling)
+		s%r_asagi_time = max(0.0d0, s%r_asagi_time * scaling)
+		s%r_computation_time = max(0.0d0, s%r_computation_time * scaling)
+		s%r_sync_time = max(0.0d0, s%r_sync_time * scaling)
+		s%r_barrier_time = max(0.0d0, s%r_barrier_time * scaling)
 		s%i_traversals = max(1, s%i_traversals)
      end subroutine
 
@@ -543,10 +543,10 @@ MODULE SFC_data_types
 
         write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s)")') s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time
 
-        if (s%r_traversal_time > 0.0_GRID_SR) then
-            write(str, '(A, " ET: ", F0.4, " M/s  MT: ", F0.4, " GB/s")') trim(str), real(s%i_traversed_cells, GRID_SR) / (1.0e6_GRID_SR * s%r_traversal_time), real(s%i_traversed_memory, GRID_SR) / (1024.0_GRID_SR * 1024.0_GRID_SR * 1024.0_GRID_SR * s%r_traversal_time)
+        if (s%r_traversal_time > 0.0d0) then
+            write(str, '(A, " ET: ", F0.4, " M/s  MT: ", F0.4, " GB/s")') trim(str), dble(s%i_traversed_cells) / (1.0d6 * s%r_traversal_time), dble(s%i_traversed_memory) / (1024.0d0 * 1024.0d0 * 1024.0d0 * s%r_traversal_time)
         else
-            write(str, '(A, " ET: ", F0.4, " M/s  MT: ", F0.4, " GB/s")') trim(str), -1.0_GRID_SR, -1.0_GRID_SR
+            write(str, '(A, " ET: ", F0.4, " M/s  MT: ", F0.4, " GB/s")') trim(str), -1.0d0, -1.0d0
         end if
 	end function
 

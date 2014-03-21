@@ -84,15 +84,15 @@ LOADER		= ifort -Qlocation,link,"$(VCINSTALLDIR)/bin"
 
 
 !IF "$(SCENARIO)" == "DARCY"
-EXEC		= $(EXEC)_darcy			
+EXEC		= $(EXEC)_darcy
 FFLAGS		= $(FFLAGS) /D_DARCY
 !IF !DEFINED(ASAGI)
 ASAGI		= STANDARD
 !ENDIF
 !IF !DEFINED(CREATE_LIB)
 CREATE_LIB			= NO
-!ENDIF  
-!ELSE IF "$(SCENARIO)" == "GENERIC"  
+!ENDIF
+!ELSE IF "$(SCENARIO)" == "GENERIC"
 EXEC 		= $(EXEC)_generic
 FFLAGS		= $(FFLAGS) /D_GENERIC
 !IF !DEFINED(ASAGI)
@@ -110,7 +110,7 @@ ASAGI		= STANDARD
 !IF !DEFINED(CREATE_LIB)
 CREATE_LIB			= NO
 !ENDIF
-!ELSE IF "$(SCENARIO)" == "FLASH"			
+!ELSE IF "$(SCENARIO)" == "FLASH"
 EXEC		= $(EXEC)_flash
 FFLAGS		= $(FFLAGS) /D_FLASH
 !IF !DEFINED(ASAGI)
@@ -156,7 +156,7 @@ LDFLAGS		= $(LDFLAGS) /Qopenmp-stubs /link /libpath:"C:\Program Files (x86)\Inte
 (error Invalid value for OPENMP: $(OPENMP))
 !ENDIF
 
-#--------------im open mp bereich an ldflags angeklebt--------------- 
+#--------------im open mp bereich an ldflags angeklebt---------------
 #LDFLAGS = /Qopenmp_stubs /link /libpath:"C:\Program Files (x86)\Intel\Composer XE 2013\compiler\lib\intel64" /libpath:"C:\Program Files (x86)\Microsoft Visual Studio 11.0\VC\lib\amd64" /libpath:"C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib\x64"
 
 !IF "$(MPI)" == "NO"
@@ -197,7 +197,7 @@ FFLAGS 		= $(FFLAGS) /D_ASAGI_TIMING
 (error Invalid value for ASAGI_TIMING: $(ASAGI_TIMING))
 !ENDIF
 
-					
+
 !IF "$(SWE_SOLVER)" == "LF"
 FFLAGS		= $(FFLAGS) /D_SWE_LF
 EXEC		= $(EXEC)_lf
@@ -217,9 +217,9 @@ EXEC		= $(EXEC)_fwave
 FFLAGS		= $(FFLAGS) /D_SWE_AUG_RIEMANN
 !ELSE
 (error Invalid value for SWE_SOLVER: $(SWE_SOLVER))
-!ENDIF					
-					
-																					
+!ENDIF
+
+
 !IF "$(TARGET)" == "DEBUG"
 EXEC		= $(EXEC)_debug
 !IF !DEFINED(DEBUG_LEVEL)
@@ -262,7 +262,7 @@ FFLAGS 		= $(FFLAGS) /D_DEBUG_LEVEL=$(DEBUG_LEVEL)
 
 !IF "$(ASSERT)" == "YES"
 FFLAGS 		= $(FFLAGS) /D_ASSERT
-!ELSE IF "$(ASSERT)" == "NO"																	
+!ELSE IF "$(ASSERT)" == "NO"
 
 !ELSE
 (error Invalid value for ASSERT: $(ASSERT))
@@ -359,6 +359,7 @@ Conformity\Conformity.f90 \
 
 F77_SOURCES = \
 geoclaw\riemannsolvers.f
+geoclaw\riemannsolvers_sp.f
 
 F90_OBJS = $(F90_SOURCES:.f90=.obj)
 F77_OBJS = $(F77_SOURCES:.f=.obj)
@@ -402,7 +403,7 @@ compile: $(EXEC)
 
 $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
 	@echo "Linking..." $(EXEC)
-	@$(LOADER) /exe:$@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS) 
+	@$(LOADER) /exe:$@ $(F90_OBJS) $(F77_OBJS) $(LDFLAGS)
 
 .f90.obj:
 	@echo "Compiling..." $<
@@ -411,8 +412,8 @@ $(EXEC): $(F90_OBJS) $(F77_OBJS) dirs
 .f.obj:
 	@echo "Compiling..." $<
 	@$(FC) $(FFLAGS) /c /o $@ $<
-	
+
 clean:
 	@del /F bin\* $(F90_OBJS) $(F77_OBJS) *.mod
-	
+
 !INCLUDE wdependency.mk

@@ -40,7 +40,6 @@ module SFC_edge_traversal
 	!create a new grid and cut it into sections of uniform load
 	!*******************
 	subroutine create_destination_grid(src_grid, dest_grid)
-
 		type(t_grid), intent(inout)                             :: src_grid
 		type(t_grid), intent(inout)           	                :: dest_grid
 
@@ -1044,11 +1043,12 @@ module SFC_edge_traversal
 
 		    call prefix_sum(grid%sections%elements_alloc%partial_load, grid%sections%elements_alloc%load)
 		    call reduce(grid%load, grid%sections%elements_alloc%load, MPI_SUM, .false.)
-			call mpi_allreduce(grid%load, r_total_load, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+		    r_total_load = grid%load
+		    call reduce(r_total_load, MPI_SUM)
 
 			!check imbalance
             r_imbalance = grid%load / r_total_load * size_MPI - 1.0_GRID_SR
-			call mpi_allreduce(MPI_IN_PLACE, r_imbalance, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+		    call reduce(r_imbalance, MPI_SUM)
 	        !$omp end single copyprivate(r_total_load, r_imbalance)
 
 			!exit early if the imbalance is small enough

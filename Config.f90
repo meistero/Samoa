@@ -33,7 +33,7 @@ module config
         integer (kind = 1)                      :: i_min_depth, i_max_depth			                !< minimum and maximum scenario depth
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
         integer                                 :: i_ascii_width                                    !< width of the ascii output
-        logical                                 :: l_ascii_out                                      !< ascii output on/off
+        logical                                 :: l_ascii_output                                   !< ascii output on/off
 
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
 
@@ -41,6 +41,7 @@ module config
             character(256)                      :: s_permeability_file                              !< permeability file
  			integer					 		    :: afh_permeability			                        !< asagi file handle to permeability data
             integer			        	        :: i_lsolver			                		    !< linear solver
+            integer			        	        :: i_CG_restart			                            !< CG restart interval
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
 			double precision				    :: r_rel_permeability		                        !< relative permeability of the entering fluid
@@ -95,7 +96,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0e1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0e6 -epsilon 1.0e-5 -rho 0.2 -k_rel 1.5 -lsolver 2"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0e1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0e6 -epsilon 1.0e-5 -rho 0.2 -k_rel 1.5 -lsolver 2 -cg_restart 256"
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
 #    	elif defined(_SWE)
@@ -127,7 +128,7 @@ module config
         config%i_threads = iget('samoa_threads')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
-        config%l_ascii_out = lget('samoa_asciiout')
+        config%l_ascii_output = lget('samoa_asciiout')
         config%i_ascii_width = iget('samoa_asciiout_width')
 
 #    	if defined(_DARCY)
@@ -137,6 +138,7 @@ module config
 			config%r_rho = rget('samoa_rho')
 			config%r_p0 = rget('samoa_p0')
             config%i_lsolver = iget('samoa_lsolver')
+            config%i_CG_restart = iget('samoa_cg_restart')
 #    	elif defined(_SWE)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
@@ -174,6 +176,7 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-rho				    fluid density (value: ", config%r_rho, ")"
                     PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
+                    PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
 #         	    elif defined(_SWE)
                     PRINT '(A)',            "	-asciiout               turns on ascii output"
                     PRINT '(A, I0, A)',     "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
@@ -270,12 +273,13 @@ module config
             _log_write(0, '(" Scenario: fluid density: ", ES8.1)') config%r_rho
             _log_write(0, '(" Scenario: initial boundary pressure difference: ", ES8.1)') config%r_p0
             _log_write(0, '(" Scenario: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
+            _log_write(0, '(" Scenario: CG restart interval: ", I0)') config%i_CG_restart
 #		elif defined(_FLASH)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)
             _log_write(0, '(" Scenario: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 
-            if (config%l_ascii_out) then
+            if (config%l_ascii_output) then
                 _log_write(0, '(" Ascii Output: Yes, width: ", I0)') config%i_ascii_width
             else
                 _log_write(0, '(" Ascii Output: No")')

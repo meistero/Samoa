@@ -72,16 +72,16 @@
 
  			select case (cfg%i_lsolver)
                 case (0)
-                    pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(cfg%r_epsilon * cfg%r_p0)
+                    pressure_solver_jacobi = t_darcy_pressure_solver_jacobi(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
-                    pressure_solver_cg = t_darcy_pressure_solver_cg(cfg%r_epsilon * cfg%r_p0)
+                    pressure_solver_cg = t_darcy_pressure_solver_cg(real(cfg%r_epsilon * cfg%r_p0, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
-                    pressure_solver_pipecg = t_darcy_pressure_solver_pipecg(cfg%r_epsilon * cfg%r_p0)
+                    pressure_solver_pipecg = t_darcy_pressure_solver_pipecg(real(cfg%r_epsilon * cfg%r_p0, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
                 case (3)
-                    pressure_solver_pipecg_unstable = t_darcy_pressure_solver_pipecg_unstable(cfg%r_epsilon * cfg%r_p0)
+                    pressure_solver_pipecg_unstable = t_darcy_pressure_solver_pipecg_unstable(real(cfg%r_epsilon * cfg%r_p0, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg_unstable, stat=i_error); assert_eq(i_error, 0)
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 3")
@@ -358,8 +358,8 @@
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_initial%to_string())
                 _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(pressure_solver_stats_initial%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_initial%to_string())
-                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_initial%i_traversed_cells, GRID_SR) / (r_t2 - r_t1), " M/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_initial%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid_stats_initial%i_traversed_cells) / (r_t2 - r_t1), " M/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid_stats_initial%i_traversed_memory) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", r_t2 - r_t1, " s"
                 _log_write(0, *) ""
@@ -371,8 +371,8 @@
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(pressure_solver_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
-                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0e-6 * real(grid_stats_time_steps%i_traversed_cells, GRID_SR) / (r_t4 - r_t3), " M/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", real(grid_stats_time_steps%i_traversed_memory, GRID_SR) / ((1024 * 1024 * 1024) * (r_t4 - r_t3)), " GB/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid_stats_time_steps%i_traversed_cells) / (r_t4 - r_t3), " M/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid_stats_time_steps%i_traversed_memory) / ((1024 * 1024 * 1024) * (r_t4 - r_t3)), " GB/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s"
                 _log_write(0, '(A, T34, F10.4, A)') " Time step phase time:", r_t4 - r_t3, " s"
                 _log_write(0, *) ""

@@ -11,7 +11,7 @@ Tools_stack_base.obj: SFC_data_types.obj
 
 Conformity/Conformity.obj: SFC_edge_traversal.obj
 
-geoclaw/c_bind_riemannsolvers.obj: geoclaw/riemannsolvers.obj
+geoclaw/c_bind_riemannsolvers.obj: geoclaw/riemannsolvers.obj geoclaw/riemannsolvers_sp.obj
 
 Tests/Tests.obj: Tests/Tests_data_types.obj Tests/Tests_basis_functions.obj Tests/Tests_initialize.obj Tests/Tests_node_dummy_traversal.obj Tests/Tests_flops_traversal.obj Tests/Tests_memory_traversal.obj Tests/Tests_consistency_traversal.obj Samoa/Samoa.obj
 Tests/Tests_basis_functions.obj: SFC_data_types.obj
@@ -65,7 +65,7 @@ SWE/SWE_ascii_output.obj: SWE/ascii_output.obj SFC_edge_traversal.obj LIB_VTK_IO
 #NUMA/NUMA_initialize.obj: SFC_generic_traversal_ringbuffer.f90 NUMA/NUMA_euler_timestep.obj Tools_noise.obj SFC_node_traversal.obj NUMA/NUMA_basis.obj Samoa/Samoa.obj NUMA/NUMA_local_function_spaces.obj
 #NUMA/NUMA_output.obj: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.obj NUMA/NUMA_basis.obj NUMA/NUMA_local_function_spaces.obj NUMA/NUMA_euler_timestep.obj Samoa/Samoa.obj LIB_VTK_IO.obj
 #NUMA/NUMA_xml_output.obj: SFC_generic_traversal_ringbuffer.f90 SFC_node_traversal.obj NUMA/NUMA_basis.obj NUMA/NUMA_local_function_spaces.obj NUMA/NUMA_euler_timestep.obj Samoa/Samoa.obj LIB_VTK_IO.obj
-#NUMA/NUMA_constants.obj: NUMA/NUMA_data_types.obj 
+#NUMA/NUMA_constants.obj: NUMA/NUMA_data_types.obj
 
 Generic/Generic.obj: Generic/Generic_data_types.obj  SFC_node_traversal.obj Generic/Generic_initialize.obj Generic/Generic_template.obj Generic/Generic_adapt_template.obj
 Generic/Generic_initialize.obj: SFC_generic_traversal_ringbuffer.f90 SFC_edge_traversal.obj Samoa/Samoa.obj

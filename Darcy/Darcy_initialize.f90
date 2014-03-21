@@ -80,7 +80,7 @@
 			integer										:: i
 
 			do i = 1, _DARCY_P_NODE_SIZE
-				call pressure_pre_dof_op(cfg%r_p0, node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
+				call pressure_pre_dof_op(real(cfg%r_p0, GRID_SR), node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
 			end do
 		end subroutine
 
@@ -119,9 +119,9 @@
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                	r_base_permeability = asagi_get_float(cfg%afh_permeability, xs(1), xs(2), 0)
+                	r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), 0)
 #				else
-                	r_base_permeability = asagi_get_float(cfg%afh_permeability, xs(1), xs(2), lod)
+                	r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), lod)
 #				endif
 
 #               if defined(_ASAGI_TIMING)

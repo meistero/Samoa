@@ -213,11 +213,11 @@
 
             real (kind = GRID_SR)                               :: xs(2), ts
 
-            
+
 
 #			if defined(_ASAGI)
                 xs = cfg%scaling * x + cfg%offset
-                
+
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
 #               endif
@@ -225,7 +225,7 @@
 				if (grid_min_x(cfg%afh_bathymetry) <= xs(1) .and. grid_min_y(cfg%afh_bathymetry) <= xs(2) &
                         .and. xs(1) <= grid_max_x(cfg%afh_bathymetry) .and. xs(2) <= grid_max_y(cfg%afh_bathymetry)) then
 
-                    bathymetry = asagi_get_float(cfg%afh_bathymetry, xs(1), xs(2), 0)
+                    bathymetry = asagi_get_float(cfg%afh_bathymetry, dble(xs(1)), dble(xs(2)), 0)
                 else
                     bathymetry = -5000.0 !we assume that the sea floor is constant here
                 end if
@@ -235,7 +235,7 @@
                         .and. grid_min_z(cfg%afh_displacement) < t) then
 
                     ts = min(t, grid_max_z(cfg%afh_displacement))
-                    bathymetry = bathymetry + asagi_get_float(cfg%afh_displacement, xs(1), xs(2), ts, 0)
+                    bathymetry = bathymetry + asagi_get_float(cfg%afh_displacement, dble(xs(1)), dble(xs(2)), dble(ts), 0)
                 end if
 
 #               if defined(_ASAGI_TIMING)
@@ -246,7 +246,7 @@
                 real (kind = GRID_SR), parameter					:: dam_radius = 0.1
                 real (kind = GRID_SR), parameter					:: outer_height = -100.0
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
-                
+
                 xs = cfg%scaling * x + cfg%offset
 				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 #			endif

@@ -563,6 +563,7 @@ MODULE _CG
 
     type, extends(t_linear_solver)      :: _T_CG
         real (kind = GRID_SR)           :: max_error
+        integer (kind = GRID_SI)        :: i_restart_interval
         type(_T_CG_(step_traversal))    :: cg_step
         type(_T_CG_(exact_traversal))   :: cg_exact
 
@@ -580,11 +581,13 @@ MODULE _CG
 
     contains
 
-    function init_solver(max_error) result(solver)
-        real (kind = GRID_SR)   :: max_error
+    function init_solver(max_error, i_restart_interval) result(solver)
+        real (kind = GRID_SR), intent(in)       :: max_error
+        integer (kind = GRID_SI), intent(in)    :: i_restart_interval
         type(_T_CG) :: solver
 
         solver%max_error = max_error
+        solver%i_restart_interval = i_restart_interval
     end function
 
     !> Solves a linear equation system using a CG solver
@@ -595,12 +598,6 @@ MODULE _CG
 
         integer (kind = GRID_SI)			    :: i_iteration
         real (kind = GRID_SR)				    :: r_sq, d_u, r_u, v_u, r_C_r, r_C_r_old, alpha, beta
-
-#       if .not. defined(_solver_unstable)
-            integer (kind = GRID_SI), parameter :: i_residual_correction_step = 256
-#       else
-            integer (kind = GRID_SI), parameter :: i_residual_correction_step = 16
-#       endif
 
         !$omp master
         _log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
@@ -640,7 +637,7 @@ MODULE _CG
 #           endif
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-            if (imod(i_iteration + 1, i_residual_correction_step) == 0) then
+            if (imod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
                 r_sq = solver%cg_exact%r_sq
                 r_C_r = solver%cg_exact%r_C_r

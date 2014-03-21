@@ -77,7 +77,7 @@ MODULE SFC_traversal
 			call heat_eq_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
 			!$omp parallel copyin(cfg)
-			call heat_eq_run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call heat_eq_run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
 			!$omp end parallel
 
 			call heat_eq_destroy(grid, cfg%l_log)
@@ -88,7 +88,7 @@ MODULE SFC_traversal
 			call darcy%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call darcy%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call darcy%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
 			!$omp end parallel
 
 			call darcy%destroy(grid, cfg%l_log)
@@ -99,7 +99,7 @@ MODULE SFC_traversal
 			call swe%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call swe%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call swe%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
 			!$omp end parallel
 
 			call swe%destroy(grid, cfg%l_log)
@@ -110,7 +110,7 @@ MODULE SFC_traversal
 			call flash%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call flash%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call flash%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
 			!$omp end parallel
 
 			call flash%destroy(grid, cfg%l_log)
@@ -121,7 +121,7 @@ MODULE SFC_traversal
 			call numa%create(grid, cfg%l_log)
 
             !$omp parallel copyin(cfg)
-			call numa%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call numa%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
 			!$omp end parallel
 
 			call numa%destroy(grid, cfg%l_log)

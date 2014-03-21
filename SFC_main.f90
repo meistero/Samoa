@@ -5,7 +5,7 @@
 
 #include "Compilation_control.f90"
 
-PROGRAM gridtest
+PROGRAM samoa
 	USE SFC_traversal
 
 	implicit none
@@ -30,4 +30,4 @@ PROGRAM gridtest
     call finalize_mpi()
 
 	stop
-end PROGRAM gridtest
+end PROGRAM samoa

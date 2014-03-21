@@ -12,7 +12,6 @@
 		!data precision
 
 		integer, PARAMETER :: GRID_SR = selected_real_kind(14,40)
-		integer, PARAMETER :: GRID_DR = selected_real_kind(28,80)
 
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)

@@ -307,9 +307,16 @@ MODULE _JACOBI
         r_sq_old = 1.0_GRID_SR
 
         do i_iteration = 1, huge(1_GRID_SI)
-            !$omp master
-            _log_write(2, '(A, I0, A, F7.4, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
-            !$omp end master
+                        !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
+            if (iand(i_iteration, z'3ff') == z'3ff') then
+                !$omp master
+                _log_write(1, '(A, I0, A, F7.4, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
+                !$omp end master
+            else
+                !$omp master
+                _log_write(2, '(A, I0, A, F7.4, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
+                !$omp end master
+            end if
 
             !do a jacobi step
             call solver%jacobi%traverse(grid)

@@ -10,7 +10,7 @@ Tools_stack_base.o: SFC_data_types.o
 
 Conformity/Conformity.o: SFC_edge_traversal.o
 
-geoclaw/c_bind_riemannsolvers.o: geoclaw/riemannsolvers.o
+geoclaw/c_bind_riemannsolvers.o: geoclaw/riemannsolvers.o geoclaw/riemannsolvers_sp.o
 
 Tests/Tests.o: Tests/Tests_data_types.o Tests/Tests_basis_functions.o Tests/Tests_initialize.o Tests/Tests_node_dummy_traversal.o Tests/Tests_flops_traversal.o Tests/Tests_memory_traversal.o Tests/Tests_consistency_traversal.o Samoa/Samoa.o
 Tests/Tests_basis_functions.o: SFC_data_types.o
