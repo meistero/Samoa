@@ -142,21 +142,25 @@
 
 			write (s_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".vtk"
 
-			e_io = vtk%VTK_INI('ASCII', s_file_name, 'Darcy', 'UNSTRUCTURED_GRID')
-				e_io = vtk%VTK_GEO(i_points, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                e_io = vtk%VTK_INI('ASCII', s_file_name, 'Darcy', 'UNSTRUCTURED_GRID')
+                    e_io = vtk%VTK_GEO(i_points, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-				e_io = vtk%VTK_CON(i_cells, traversal%i_connectivity, i_types)
+                    e_io = vtk%VTK_CON(i_cells, traversal%i_connectivity, i_types)
 
-				e_io = vtk%VTK_DAT(i_points, 'node')
-				e_io = vtk%VTK_VAR(i_points, 'pressure', traversal%point_data%p)
-				e_io = vtk%VTK_VAR(i_points, 'saturation', traversal%point_data%S)
+                    e_io = vtk%VTK_DAT(i_points, 'node')
+                    e_io = vtk%VTK_VAR(i_points, 'pressure', traversal%point_data%p)
+                    e_io = vtk%VTK_VAR(i_points, 'saturation', traversal%point_data%S)
 
-				e_io = vtk%VTK_DAT(i_cells, 'cell')
-				e_io = vtk%VTK_VAR(i_cells, 'permeability', traversal%cell_data%permeability)
-				e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
-				e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
-				e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
-			e_io = vtk%VTK_END()
+                    e_io = vtk%VTK_DAT(i_cells, 'cell')
+                    e_io = vtk%VTK_VAR(i_cells, 'permeability', traversal%cell_data%permeability)
+                    e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
+                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
+                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
+                e_io = vtk%VTK_END()
+#           endif
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)

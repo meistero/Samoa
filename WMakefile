@@ -372,8 +372,9 @@ Tools_log.f90 \
 Conformity\Conformity.f90 \
 
 F77_SOURCES = \
-geoclaw\riemannsolvers.f
-geoclaw\riemannsolvers_sp.f
+geoclaw\riemannsolvers.f \
+geoclaw\riemannsolvers_sp.f \
+geoclaw\riemannsolvers_qp.f
 
 F90_OBJS = $(F90_SOURCES:.f90=.obj)
 F77_OBJS = $(F77_SOURCES:.f=.obj)

@@ -28,7 +28,7 @@ module config
         integer			                        :: i_ranks			                                !< number of MPI ranks
         integer (kind = 1)			            :: i_sections_per_thread						    !< number of sections per thread
         integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
-        double precision                        :: r_max_time, r_output_time_step					!< maximum simulation time, outpout time step
+        double precision                        :: r_max_time, r_output_time_step					!< maximum simulation time, output time step
         logical			                        :: l_log                                            !< if true, a log file is used
         integer (kind = 1)                      :: i_min_depth, i_max_depth			                !< minimum and maximum scenario depth
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
@@ -267,8 +267,7 @@ module config
 #       elif defined(_DOUBLE_PRECISION)
             _log_write(0, '(" Precision: Double")')
 #       elif defined(_QUAD_PRECISION)
-#           error "Quad precision is currently not supported!"
-!            _log_write(0, '(" Precision: Quad")')
+            _log_write(0, '(" Precision: Quad")')
 #       else
 #           error "Invalid floating point precision!"
 #       endif

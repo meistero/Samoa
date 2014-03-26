@@ -11,7 +11,7 @@ Tools_stack_base.obj: SFC_data_types.obj
 
 Conformity/Conformity.obj: SFC_edge_traversal.obj
 
-geoclaw/c_bind_riemannsolvers.obj: geoclaw/riemannsolvers.obj geoclaw/riemannsolvers_sp.obj
+geoclaw/c_bind_riemannsolvers.obj: geoclaw/riemannsolvers.obj geoclaw/riemannsolvers_sp.obj geoclaw/riemannsolvers_qp.obj
 
 Tests/Tests.obj: Tests/Tests_data_types.obj Tests/Tests_basis_functions.obj Tests/Tests_initialize.obj Tests/Tests_node_dummy_traversal.obj Tests/Tests_flops_traversal.obj Tests/Tests_memory_traversal.obj Tests/Tests_consistency_traversal.obj Samoa/Samoa.obj
 Tests/Tests_basis_functions.obj: SFC_data_types.obj

@@ -325,7 +325,8 @@ Flash/FLASH_dg_element.f90 \
 
 F77_SOURCES = \
 geoclaw/riemannsolvers.f \
-geoclaw/riemannsolvers_sp.f
+geoclaw/riemannsolvers_sp.f \
+geoclaw/riemannsolvers_qp.f
 
 F90_OBJS = $(F90_SOURCES:.f90=.o)
 F77_OBJS = $(F77_SOURCES:.f=.o)

@@ -135,36 +135,40 @@
 
 			write (s_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".vtk"
 
-			e_io = vtk%VTK_INI('ASCII', s_file_name, 'SWE', 'UNSTRUCTURED_GRID')
-				e_io = vtk%VTK_GEO(i_points, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                e_io = vtk%VTK_INI('ASCII', s_file_name, 'SWE', 'UNSTRUCTURED_GRID')
+                    e_io = vtk%VTK_GEO(i_points, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-				e_io = vtk%VTK_CON(i_cells, i_connectivity, i_types)
+                    e_io = vtk%VTK_CON(i_cells, i_connectivity, i_types)
 
-				e_io = vtk%VTK_DAT(i_points, 'node')
+                    e_io = vtk%VTK_DAT(i_points, 'node')
 
-				if (i_element_order > 0) then
-					e_io = vtk%VTK_VAR(i_points, 'water_height', traversal%point_data%Q%h)
-					e_io = vtk%VTK_VAR(i_points, 'bathymetry', traversal%point_data%Q%b)
+                    if (i_element_order > 0) then
+                        e_io = vtk%VTK_VAR(i_points, 'water_height', traversal%point_data%Q%h)
+                        e_io = vtk%VTK_VAR(i_points, 'bathymetry', traversal%point_data%Q%b)
 
-					r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-					r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-					e_io = vtk%VTK_VAR('vect', i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
-				endif
+                        r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+                        r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+                        e_io = vtk%VTK_VAR('vect', i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+                    endif
 
-				e_io = vtk%VTK_DAT(i_cells, 'cell')
+                    e_io = vtk%VTK_DAT(i_cells, 'cell')
 
-				if (i_element_order == 0) then
-					e_io = vtk%VTK_VAR(i_cells, 'water_height', traversal%cell_data%Q%h)
-					e_io = vtk%VTK_VAR(i_cells, 'bathymetry', traversal%cell_data%Q%b)
+                    if (i_element_order == 0) then
+                        e_io = vtk%VTK_VAR(i_cells, 'water_height', traversal%cell_data%Q%h)
+                        e_io = vtk%VTK_VAR(i_cells, 'bathymetry', traversal%cell_data%Q%b)
 
-					r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
-					r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
-					e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
-				endif
+                        r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+                        r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+                        e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
+                    endif
 
-				e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
-				e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
-			e_io = vtk%VTK_END()
+                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
+                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
+                e_io = vtk%VTK_END()
+#           endif
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)

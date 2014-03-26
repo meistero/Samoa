@@ -133,17 +133,10 @@ MODULE _CG_(step)
         real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
 #       if defined(_DARCY)
-            !HACK: unfortunately the optimizer produces wrong code if r and d are managed by the grid variable classes,
+            !HACK: unfortunately the optimizer produces wrong code if some variables are managed by the grid variable classes,
             !so we have to use direct access here
 
-            call gv_x%read(node, x)
-            call gv_v%read(node, v)
-
-            call pre_dof_op(traversal%alpha, traversal%beta, x, node%data_pers%r, node%data_pers%d, v, trace_A)
-
-            call gv_x%write(node, x)
-            call gv_v%write(node, v)
-            call gv_trace_A%write(node, trace_A)
+            call pre_dof_op(traversal%alpha, traversal%beta, node%data_pers%p, node%data_pers%r, node%data_pers%d, node%data_pers%A_d, node%data_temp%mat_diagonal)
 #       else
             call gv_x%read(node, x)
             call gv_r%read(node, r)
@@ -655,7 +648,7 @@ MODULE _CG
 
 #           if .not. defined(_solver_unstable)
                 !requires 2 reductions, but can afford residual correction every 256 iterations
-                r_C_r = r_C_r_old - alpha * (2.0_GRID_SR * r_u - alpha * v_u)
+                r_C_r = r_C_r_old + alpha * (alpha * v_u - 2.0_GRID_SR * r_u)
 #           else
                 !requires 1 reduction, but also residual correction every 16 iterations
                 r_C_r = alpha * alpha * v_u - r_C_r_old

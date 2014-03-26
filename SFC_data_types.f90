@@ -172,7 +172,7 @@ MODULE SFC_data_types
 
         integer (kind = GRID_SI), dimension(RED : GREEN)	:: start_dest_stack, end_dest_stack, min_dest_stack, max_dest_stack
         integer (kind = GRID_DI)	                        :: dest_cells, last_dest_cell
-        real (kind = GRID_SR)                               :: load, partial_load
+        double precision                                    :: load, partial_load
         logical	                                            :: l_conform
 
         contains

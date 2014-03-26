@@ -93,7 +93,7 @@ module SFC_edge_traversal
 
             section%t_global_data = src_grid%t_global_data
             section%dest_cells = size(section%cells%elements) - 4
-            section%load = 0.0_GRID_SR
+            section%load = 0.0d0
         end do
 
         !$omp barrier
@@ -1023,7 +1023,7 @@ module SFC_edge_traversal
 		real, intent(in)               					:: r_max_imbalance		!< maximum allowed global imbalance (i.e. 0.1 = 10%)
 
         integer*8										:: load, partial_load, total_load
-		real (kind = GRID_SR)							:: r_total_load, r_imbalance
+		double precision							    :: r_total_load, r_imbalance
 		integer                                         :: rank_imbalance
         integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_rank, i_section, i_comm
 		integer									        :: i_first_rank_out, i_last_rank_out, i_first_rank_in, i_last_rank_in
@@ -1047,7 +1047,7 @@ module SFC_edge_traversal
 		    call reduce(r_total_load, MPI_SUM)
 
 			!check imbalance
-            r_imbalance = grid%load / r_total_load * size_MPI - 1.0_GRID_SR
+            r_imbalance = grid%load / r_total_load * size_MPI - 1.0d0
 		    call reduce(r_imbalance, MPI_SUM)
 	        !$omp end single copyprivate(r_total_load, r_imbalance)
 
@@ -1061,7 +1061,7 @@ module SFC_edge_traversal
 			!switch to integer arithmetics from now on, we need exact arithmetics
 			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0_GRID_SR * size_MPI, GRID_DI))
+			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0d0 * size_MPI, GRID_DI))
 			call mpi_scan(load, partial_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 			call mpi_allreduce(load, total_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
@@ -1071,8 +1071,8 @@ module SFC_edge_traversal
 
             if (i_sections > 0) then
                 rank_imbalance = \
-                    ((partial_load - (0.5_GRID_SR * grid%sections%elements_alloc(i_sections)%load / grid%load) * load) * size_MPI) / total_load - \
-                    ((partial_load - load + (0.5_GRID_SR * grid%sections%elements_alloc(1)%load / grid%load) * load) * size_MPI) / total_load
+                    ((partial_load - (0.5d0 * grid%sections%elements_alloc(i_sections)%load / grid%load) * load) * size_MPI) / total_load - \
+                    ((partial_load - load + (0.5d0 * grid%sections%elements_alloc(1)%load / grid%load) * load) * size_MPI) / total_load
             else
                 rank_imbalance = 0
             end if
@@ -1120,7 +1120,7 @@ module SFC_edge_traversal
 	            assert_eq(section%index, i_section)
 
 	            !assign this section to its respective ideal rank
-	            i_rank = ((partial_load - load + (section%partial_load - 0.5_GRID_SR * section%load) / grid%load * load) * size_MPI) / total_load
+	            i_rank = ((partial_load - load + (section%partial_load - 0.5d0 * section%load) / grid%load * load) * size_MPI) / total_load
 	        	assert_ge(i_rank, i_first_rank_out)
 	        	assert_le(i_rank, i_last_rank_out)
 

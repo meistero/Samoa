@@ -96,39 +96,42 @@
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-            if (rank_MPI == 0) then
-                write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                if (rank_MPI == 0) then
+                    write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+                    e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
+                        e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
+                            e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
+                        e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
-                e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
-                    e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
-                        e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
-                    e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
+                        e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
+                            e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+                            e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
+                            e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
+                            e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
+                            e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
+                        e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
 
-                    e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 1)
-                        e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
-                        e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
-                        e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
-                        e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
-                        e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
-                    e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
+                        e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
 
-                    e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
+                        do i_rank = 0, size_MPI
+                            do i_section = 1, omp_get_max_threads() * cfg%i_sections_per_thread * 2
+                                write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
+                                inquire(file = s_file_name, exist = l_exists)
 
-                    do i_rank = 0, size_MPI
-                        do i_section = 1, omp_get_max_threads() * cfg%i_sections_per_thread * 2
-                            write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
-                            inquire(file = s_file_name, exist = l_exists)
-
-                            if (l_exists) then
-                                write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
-                                e_io = vtk%VTK_GEO_XML(s_file_name)
-                            end if
+                                if (l_exists) then
+                                    write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
+                                    e_io = vtk%VTK_GEO_XML(s_file_name)
+                                end if
+                            end do
                         end do
-                    end do
-                e_io = vtk%VTK_END_XML()
-            end if
+                    e_io = vtk%VTK_END_XML()
+                end if
+#           endif
 
             traversal%i_output_iteration = traversal%i_output_iteration + 1
 		end subroutine
@@ -202,27 +205,31 @@
 
 			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
-			e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
-				e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
+                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-				e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
+                    e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
 
-				e_io = vtk%VTK_DAT_XML('node', 'OPEN')
-					e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
-					e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
-				e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
+                    e_io = vtk%VTK_DAT_XML('node', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
+                        e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
+                    e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
-				e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
-					e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
-					e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', traversal%cell_data%refinement)
-				e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
+                    e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', traversal%cell_data%refinement)
+                    e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
 
-				e_io = vtk%VTK_GEO_XML()
-			e_io = vtk%VTK_END_XML()
+                    e_io = vtk%VTK_GEO_XML()
+                e_io = vtk%VTK_END_XML()
+#           endif
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
