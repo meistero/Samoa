@@ -71,8 +71,8 @@ MODULE SFC_data_types
 	character (LEN = 1), dimension(K : H), parameter 					:: turtle_type_to_char = [ 'K', 'V', 'H' ]
 	character (LEN = 7), dimension(OLD : NEW_BND), parameter		    :: edge_type_to_char = [ '    OLD', '    NEW', 'OLD_BND', 'NEW_BND']
 
-    integer (kind = 1), parameter                                 		:: MAX_DEPTH = 8_1 * GRID_SR - 4_1
-	real (kind = GRID_SR), parameter									:: PI = 3.14159265358979323846_GRID_SR 		!< PI. Apparently, "_GRID_SR" is necessary to avoid digit truncation
+    integer, parameter                                 		            :: MAX_DEPTH = bit_size(1_GRID_DI) - 4
+	real (kind = GRID_SR), parameter									:: PI = 4.0_GRID_SR * atan(1.0_GRID_SR) !< PI
 
 	integer                 	:: mpi_ref_count = 0
 
@@ -807,7 +807,7 @@ MODULE SFC_data_types
 		integer (kind = GRID_DI)				:: code
 
         integer (kind = 1)                      :: i
-        integer (kind = GRID_DI), parameter, dimension(0 : MAX_DEPTH + 1_1)  :: codes = [(ishft(1_GRID_DI, MAX_DEPTH / 2_1 - i), ishft(1_GRID_DI, MAX_DEPTH / 2_1 - i), i = 0_1, MAX_DEPTH / 2_1)]
+        integer (kind = GRID_DI), parameter, dimension(0 : MAX_DEPTH + 1)  :: codes = [(ishft(1_GRID_DI, MAX_DEPTH / 2 - i), ishft(1_GRID_DI, MAX_DEPTH / 2 - i), i = 0, MAX_DEPTH / 2)]
 
         code = codes(depth)
     end function
@@ -816,7 +816,7 @@ MODULE SFC_data_types
         integer (kind = GRID_DI), intent(in)    :: code
         real (kind = GRID_SR)                   :: distance
 
-        real (kind = GRID_SR), parameter		:: scaling = 1.0_GRID_SR / (dble(ishft(1_GRID_DI, MAX_DEPTH / 2_GRID_DI))) !< square root of 2
+        real (kind = GRID_SR), parameter		:: scaling = 1.0_GRID_SR / real(ishft(1_GRID_DI, MAX_DEPTH / 2), GRID_SR) !< square root of 2
 
         distance = real(code, GRID_SR) * scaling
     end function
@@ -908,7 +908,7 @@ MODULE SFC_data_types
                 !p_cell_data%plotter_type = i_plotter_type
 
                 !set rotation angle
-                r_angle = PI / 4.0_GRID_SR * dble(abs(i_plotter_type))
+                r_angle = PI / 4.0_GRID_SR * real(abs(i_plotter_type), GRID_SR)
 
                 if (i_plotter_type > 0) then
                     p_cell_data%orientation = 1
@@ -961,7 +961,7 @@ MODULE SFC_data_types
                         assert(.false.)
                     end if
 
-                    edge_vectors(:, i) = dble(p_edge_data%orientation) * edge_vectors(:, i)
+                    edge_vectors(:, i) = real(p_edge_data%orientation, GRID_SR) * edge_vectors(:, i)
                     edge_normals(:, i) = 1.0_GRID_SR / sqrt(dot_product(edge_normals(:, i), edge_normals(:, i))) * edge_normals(:, i)
 
 #	    			if defined(_USE_SKELETON_OP)

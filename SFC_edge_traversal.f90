@@ -696,6 +696,10 @@ module SFC_edge_traversal
 
         !find the correct comm index
 
+        _log_write(1, '(" looking for rank: ", I0, ", section: ", I0)') i_rank, i_section
+        _log_write(1, '(" ranks: ", (I0))') comms%neighbor_rank
+        _log_write(1, '(" sections: ", (I0))') comms%neighbor_section
+
         i_comm = minloc(abs(comms%neighbor_rank - i_rank) + abs(comms%neighbor_section - i_section), 1)
         comm => comms(i_comm)
 
