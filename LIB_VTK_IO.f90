@@ -409,7 +409,6 @@ character(8), parameter:: FI_P  = '(I0)'                 ! I\_P output format
 !! private variables:
 !!
 integer(I4P), parameter:: maxlen       = 500         ! max number of characters os static string
-character(1), parameter:: end_rec      = char(10)    ! end-character for binary-record finalize
 integer(I4P), parameter:: f_out_ascii  = 0           ! ascii-output-format parameter identifier
 integer(I4P), parameter:: f_out_binary = 1           ! binary-output-format parameter identifier
 real(R8P), parameter::               tipo_R8=0                    ! prototype of R8P real
@@ -699,7 +698,6 @@ contains
          form     = 'FORMATTED',    &
          access   = 'SEQUENTIAL',   &
          action   = 'WRITE',        &
-         !buffered = 'YES',          &
          iostat   = E_IO)
 
     ! writing header of file
@@ -714,18 +712,16 @@ contains
     open(unit       = vtk_writer%Unit_VTK,       &
          file       = trim(filename), &
          form       = 'UNFORMATTED',  &
-         access     = 'SEQUENTIAL',   &
+         access     = 'STREAM',   &
          action     = 'WRITE',        &
-         !convert    = 'BIG_ENDIAN',   &
-         !recordtype = 'STREAM',       &
-         !buffered   = 'YES',          &
+         convert    = 'BIG_ENDIAN',   &
          iostat     = E_IO)
 
    ! writing header of file
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'# vtk DataFile Version 3.0'//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)trim(title)//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)trim(Upper_Case(output_format))//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'DATASET '//trim(vtk_writer%topology)//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'# vtk DataFile Version 3.0'//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)trim(title)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)trim(Upper_Case(output_format))//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'DATASET '//trim(vtk_writer%topology)//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -986,11 +982,11 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A,3'//FR8P//')', iostat=E_IO)'SPACING ',Dx,Dy,Dz
   case(f_out_binary)
     write(s_buffer,     fmt='(A,3(I0, X))', iostat=E_IO)'DIMENSIONS ',Nx,Ny,Nz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,3'//FR8P//')', iostat=E_IO)'ORIGIN ',X0,Y0,Z0
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,3'//FR8P//')', iostat=E_IO)'SPACING ',Dx,Dy,Dz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1026,11 +1022,11 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A,3'//FR4P//')', iostat=E_IO)'SPACING ',Dx,Dy,Dz
   case(f_out_binary)
     write(s_buffer,     fmt='(A,3(I0, X))', iostat=E_IO)'DIMENSIONS ',Nx,Ny,Nz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,3'//FR4P//')', iostat=E_IO)'ORIGIN ',X0,Y0,Z0
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,3'//FR4P//')', iostat=E_IO)'SPACING ',Dx,Dy,Dz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1065,11 +1061,11 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(3'//FR8P//')',   iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
   case(f_out_binary)
     write(s_buffer,     fmt='(A,3(I0, X))', iostat=E_IO)'DIMENSIONS ',Nx,Ny,Nz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'POINTS ',NN,' double'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1104,11 +1100,11 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(3'//FR4P//')',   iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
   case(f_out_binary)
     write(s_buffer,     fmt='(A,3(I0, X))', iostat=E_IO)'DIMENSIONS ',Nx,Ny,Nz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'POINTS ',NN,' float'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1146,19 +1142,19 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt=FR8P,              iostat=E_IO)(Z(n1),n1=1,Nz)
   case(f_out_binary)
     write(s_buffer,     fmt='(A,3(I0, X))', iostat=E_IO)'DIMENSIONS ',Nx,Ny,Nz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'X_COORDINATES ',Nx,' double'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(X(n1),n1=1,Nx)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'Y_COORDINATES ',Ny,' double'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(Y(n1),n1=1,Ny)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'Z_COORDINATES ',Nz,' double'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(Z(n1),n1=1,Nz)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1196,19 +1192,19 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt=FR4P,              iostat=E_IO)(Z(n1),n1=1,Nz)
   case(f_out_binary)
     write(s_buffer,     fmt='(A,3(I0, X))', iostat=E_IO)'DIMENSIONS ',Nx,Ny,Nz
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'X_COORDINATES ',Nx,' float'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(X(n1),n1=1,Nx)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'Y_COORDINATES ',Ny,' float'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(Y(n1),n1=1,Ny)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
     write(s_buffer,     fmt='(A,(I0),A)',iostat=E_IO)'Z_COORDINATES ',Nz,' float'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(Z(n1),n1=1,Nz)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1239,9 +1235,9 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(3'//FR8P//')',   iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
   case(f_out_binary)
     write(s_buffer,     fmt='(A, I0, A)',iostat=E_IO)'POINTS ',NN,' double'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1272,9 +1268,9 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(3'//FR4P//')',   iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
   case(f_out_binary)
     write(s_buffer,     fmt='(A, I0, A)',iostat=E_IO)'POINTS ',NN,' float'
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                       iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1387,13 +1383,13 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt=FI4P,             iostat=E_IO)cell_type
   case(f_out_binary)
     write(s_buffer,     fmt='(A,2(I0,X))',iostat=E_IO)'CELLS ',NC,ncon
-    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)connect
-    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)new_line('x')
     write(s_buffer,     fmt='(A,(I0))', iostat=E_IO)'CELL_typeS ',NC
-    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)cell_type
-    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                      iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1451,10 +1447,10 @@ contains
     select case(trim(Upper_Case(var_location)))
     case('CELL')
       write(s_buffer,     fmt='(A,(I0))',iostat=E_IO)'CELL_DATA ',NC_NN
-      write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)trim(s_buffer)//end_rec
+      write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)trim(s_buffer)//new_line('x')
     case('NODE')
       write(s_buffer,     fmt='(A,(I0))',iostat=E_IO)'POINT_DATA ',NC_NN
-      write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)trim(s_buffer)//end_rec
+      write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)trim(s_buffer)//new_line('x')
     endselect
   endselect
   return
@@ -1697,10 +1693,10 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)'LOOKUP_TABLE default'
     write(unit=vtk_writer%Unit_VTK,fmt=FR8P, iostat=E_IO)var
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'SCALARS '//trim(varname)//' double 1'//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'LOOKUP_TABLE default'//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'SCALARS '//trim(varname)//' double 1'//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'LOOKUP_TABLE default'//new_line('x')
     write(unit=vtk_writer%Unit_VTK,iostat=E_IO)var
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1728,10 +1724,10 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)'LOOKUP_TABLE default'
     write(unit=vtk_writer%Unit_VTK,fmt=FR4P, iostat=E_IO)var
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'SCALARS '//trim(varname)//' float 1'//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'LOOKUP_TABLE default'//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'SCALARS '//trim(varname)//' float 1'//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'LOOKUP_TABLE default'//new_line('x')
     write(unit=vtk_writer%Unit_VTK,iostat=E_IO)var
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1759,10 +1755,10 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)'LOOKUP_TABLE default'
     write(unit=vtk_writer%Unit_VTK,fmt=FI4P, iostat=E_IO)var
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'SCALARS '//trim(varname)//' int 1'//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'LOOKUP_TABLE default'//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'SCALARS '//trim(varname)//' int 1'//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'LOOKUP_TABLE default'//new_line('x')
     write(unit=vtk_writer%Unit_VTK,iostat=E_IO)var
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1800,12 +1796,12 @@ contains
   case(f_out_binary)
     select case(Upper_Case(trim(vec_type)))
     case('VECT')
-      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'VECTORS '//trim(varname)//' double'//end_rec
+      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'VECTORS '//trim(varname)//' double'//new_line('x')
     case('NORM')
-      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'NORMALS '//trim(varname)//' double'//end_rec
+      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'NORMALS '//trim(varname)//' double'//new_line('x')
     endselect
     write(unit=vtk_writer%Unit_VTK,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1843,12 +1839,12 @@ contains
   case(f_out_binary)
     select case(Upper_Case(trim(vec_type)))
     case('vect')
-      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'VECTORS '//trim(varname)//' float'//end_rec
+      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'VECTORS '//trim(varname)//' float'//new_line('x')
     case('norm')
-      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'NORMALS '//trim(varname)//' float'//end_rec
+      write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'NORMALS '//trim(varname)//' float'//new_line('x')
     endselect
     write(unit=vtk_writer%Unit_VTK,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1878,9 +1874,9 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)'VECTORS '//trim(varname)//' int'
     write(unit=vtk_writer%Unit_VTK,fmt='(3(I0, X))',iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'VECTORS '//trim(varname)//' int'//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'VECTORS '//trim(varname)//' int'//new_line('x')
     write(unit=vtk_writer%Unit_VTK,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1913,9 +1909,9 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt=trim(s_buffer),         iostat=E_IO)((textCoo(n1,n2),n2=1,dimm),n1=1,NC_NN)
   case(f_out_binary)
     write(s_buffer,     fmt='(A,1X,(I0)1X,A)',iostat=E_IO)'TEXTURE_COORDINATES '//trim(varname),dimm,' double'
-    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)((textCoo(n1,n2),n2=1,dimm),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -1948,9 +1944,9 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt=trim(s_buffer),         iostat=E_IO)((textCoo(n1,n2),n2=1,dimm),n1=1,NC_NN)
   case(f_out_binary)
     write(s_buffer,     fmt='(A,1X,(I0)1X,A)',iostat=E_IO)'TEXTURE_COORDINATES '//trim(varname),dimm,' float'
-    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)trim(s_buffer)//new_line('x')
     write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)((textCoo(n1,n2),n2=1,dimm),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)end_rec
+    write(unit=vtk_writer%Unit_VTK,                            iostat=E_IO)new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2089,7 +2085,6 @@ contains
          form   = 'FORMATTED',    &
          access = 'SEQUENTIAL',   &
          action = 'WRITE',        &
-         !buffered   = 'YES',      &
          iostat = E_IO)
 
     ! writing header of file
@@ -2112,16 +2107,14 @@ contains
     open(unit       = vtk_writer%Unit_VTK,       &
          file       = trim(filename), &
          form       = 'UNFORMATTED',  &
-         access     = 'SEQUENTIAL',   &
+         access     = 'STREAM',   &
          action     = 'WRITE',        &
-         !convert    = 'BIG_endIAN',   &
-         !recordtype = 'STREAM',       &
-         !buffered   = 'YES',          &
+         convert    = 'BIG_ENDIAN',   &
          iostat     = E_IO)
 
     ! writing header of file
-    write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)'<?xml version="1.0"?>'//end_rec
-    write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)'<VTKFile type="'//trim(vtk_writer%topology)//'" version="0.1" byte_order="BigEndian">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)'<?xml version="1.0"?>'//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)'<VTKFile type="'//trim(vtk_writer%topology)//'" version="0.1" byte_order="BigEndian">'//new_line('x')
     vtk_writer%indent = 2
     select case(trim(vtk_writer%topology))
     case('RectilinearGrid','StructuredGrid')
@@ -2131,18 +2124,16 @@ contains
     case('PUnstructuredGrid')
       write(s_buffer,fmt='(A, I0, A)',       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<'//trim(vtk_writer%topology)//' GhostLevel="', 0,'">'
     endselect
-    write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK,                     iostat=E_IO)trim(s_buffer)//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
 
     ! opening the SCRATCH file used for appending raw binary data
     vtk_writer%Unit_VTK_Append = reserve_unit()
     open(unit       = vtk_writer%Unit_VTK_Append, &
          form       = 'UNFORMATTED',   &
-         access     = 'SEQUENTIAL',    &
+         access     = 'STREAM',    &
          action     = 'WRITE',         &
-         !convert    = 'BIG_ENDIAN',    &
-         !recordtype = 'STREAM',        &
-         !buffered   = 'YES',           &
+         convert    = 'BIG_ENDIAN',    &
          status     = 'SCRATCH',       &
          iostat     = E_IO)
 
@@ -2400,18 +2391,18 @@ contains
   case(f_out_binary)
     write(s_buffer,fmt='(A,6(I0, X),A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece Extent="',nx1,nx2,ny1,ny2,nz1,nz2,'">'
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//end_rec
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NN*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R8',3*NN
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2453,18 +2444,18 @@ contains
   case(f_out_binary)
     write(s_buffer,fmt='(A,6(I0, X),A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece Extent="',nx1,nx2,ny1,ny2,nz1,nz2,'">'
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//end_rec
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NN*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R4',3*NN
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2511,32 +2502,32 @@ contains
   case(f_out_binary)
     write(s_buffer,fmt='(A,6(I0, X),A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece Extent="',nx1,nx2,ny1,ny2,nz1,nz2,'">'
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//end_rec
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Coordinates>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Coordinates>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="X" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="X" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = (nx2-nx1+1)*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R8',nx2-nx1+1
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(X(n1),n1=nx1,nx2)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="Y" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="Y" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = (ny2-ny1+1)*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R8',ny2-ny1+1
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(Y(n1),n1=ny1,ny2)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="Z" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="Z" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = (nz2-nz1+1)*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R8',nz2-nz1+1
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(Z(n1),n1=nz1,nz2)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Coordinates>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Coordinates>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2583,32 +2574,32 @@ contains
   case(f_out_binary)
     write(s_buffer,fmt='(A,6(I0, X),A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece Extent="',nx1,nx2,ny1,ny2,nz1,nz2,'">'
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//end_rec
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Coordinates>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)trim(s_buffer)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Coordinates>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="X" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="X" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = (nx2-nx1+1)*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R4',nx2-nx1+1
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(X(n1),n1=nx1,nx2)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="Y" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="Y" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = (ny2-ny1+1)*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R4',ny2-ny1+1
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(Y(n1),n1=ny1,ny2)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     write(s_buffer,fmt='(I0)',             iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="Z" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="Z" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = (nz2-nz1+1)*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)vtk_writer%N_Byte,'R4',nz2-nz1+1
     write(unit=vtk_writer%Unit_VTK_Append,            iostat=E_IO)(Z(n1),n1=nz1,nz2)
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Coordinates>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                   iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Coordinates>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2648,18 +2639,18 @@ contains
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A, I0, A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece NumberOfPoints="',NN,'" NumberOfCells="',NC,'">'
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)trim(s_buffer)//end_rec
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)trim(s_buffer)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)',                         iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NN*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,                        iostat=E_IO)vtk_writer%N_Byte,'R8',3*NN
     write(unit=vtk_writer%Unit_VTK_Append,                        iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2699,18 +2690,18 @@ contains
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A, I0, A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece NumberOfPoints="',NN,'" NumberOfCells="',NC,'">'
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)trim(s_buffer)//end_rec
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)trim(s_buffer)//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Points>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)',                         iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" NumberOfComponents="3" Name="Point" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NN*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,                        iostat=E_IO)vtk_writer%N_Byte,'R4',3*NN
     write(unit=vtk_writer%Unit_VTK_Append,                        iostat=E_IO)(X(n1),Y(n1),Z(n1),n1=1,NN)
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                               iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Points>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2739,11 +2730,11 @@ contains
     vtk_writer%indent = vtk_writer%indent - 2
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPoints>'
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PPoints>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PPoints>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float64" Name="Point" NumberOfComponents="3" />'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float64" Name="Point" NumberOfComponents="3" />'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPoints>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPoints>'//new_line('x')
   endselect
   !--------------------------------------------------------------------------------------------------------------------------------
   endfunction VTK_GEO_XML_P_R8
@@ -2771,11 +2762,11 @@ contains
     vtk_writer%indent = vtk_writer%indent - 2
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPoints>'
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PPoints>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PPoints>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
-    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float32" Name="Point" NumberOfComponents="3" />'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float32" Name="Point" NumberOfComponents="3" />'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPoints>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,                          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPoints>'//new_line('x')
   endselect
   !--------------------------------------------------------------------------------------------------------------------------------
   endfunction VTK_GEO_XML_P_R4
@@ -2800,7 +2791,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, A, A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece Source="', trim(source),'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, A, A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Piece Source="', trim(source),'" />'
-     write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+     write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   !--------------------------------------------------------------------------------------------------------------------------------
   endfunction VTK_GEO_XML_PPIECE
@@ -2823,7 +2814,7 @@ contains
   case(f_out_ascii)
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Piece>'
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Piece>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Piece>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2966,31 +2957,31 @@ contains
     vtk_writer%indent = vtk_writer%indent - 2
     write(unit=vtk_writer%Unit_VTK,fmt='(A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Cells>'
   case(f_out_binary)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Cells>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<Cells>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent + 2
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="connectivity" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="connectivity" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = size(connect)*sizeof(Tipo_I4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I4',size(connect)
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(connect(n1),n1=1,size(connect))
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="offsets" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="offsets" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC*sizeof(Tipo_I4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I4',NC
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(offset(n1),n1=1,NC)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int8" Name="types" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int8" Name="types" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC*sizeof(Tipo_I1)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I1',NC
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(cell_type(n1),n1=1,NC)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Cells>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</Cells>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3092,38 +3083,38 @@ contains
     case('CELL')
       select case(trim(Upper_Case(var_block_action)))
       case('OPEN')
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<CellData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<CellData>'//new_line('x')
         vtk_writer%indent = vtk_writer%indent + 2
       case('CLOSE')
         vtk_writer%indent = vtk_writer%indent - 2
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</CellData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</CellData>'//new_line('x')
       endselect
     case('NODE')
       select case(trim(Upper_Case(var_block_action)))
       case('OPEN')
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PointData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PointData>'//new_line('x')
         vtk_writer%indent = vtk_writer%indent + 2
       case('CLOSE')
         vtk_writer%indent = vtk_writer%indent - 2
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PointData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PointData>'//new_line('x')
       endselect
     case('PCELL')
       select case(trim(Upper_Case(var_block_action)))
       case('OPEN')
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PCellData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PCellData>'//new_line('x')
         vtk_writer%indent = vtk_writer%indent + 2
       case('CLOSE')
         vtk_writer%indent = vtk_writer%indent - 2
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PCellData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PCellData>'//new_line('x')
       endselect
     case('PNODE')
       select case(trim(Upper_Case(var_block_action)))
       case('OPEN')
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PPointData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PPointData>'//new_line('x')
         vtk_writer%indent = vtk_writer%indent + 2
       case('CLOSE')
         vtk_writer%indent = vtk_writer%indent - 2
-        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPointData>'//end_rec
+        write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</PPointData>'//new_line('x')
       endselect
     endselect
   endselect
@@ -3272,12 +3263,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC_NN*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'R8',NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(var(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3308,12 +3299,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC_NN*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'R4',NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(var(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3344,12 +3335,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int64" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int64" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC_NN*sizeof(Tipo_I8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I0',NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(var(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3380,12 +3371,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC_NN*sizeof(Tipo_I4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I4',NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(var(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3416,12 +3407,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int16" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int16" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC_NN*sizeof(Tipo_I2)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I2',NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(var(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3452,12 +3443,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int8" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int8" Name="'//trim(varname)//'" NumberOfComponents="1" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = NC_NN*sizeof(Tipo_I1)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I1',NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(var(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3490,12 +3481,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float64" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NC_NN*sizeof(Tipo_R8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'R8',3*NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3528,12 +3519,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Float32" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NC_NN*sizeof(Tipo_R4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'R4',3*NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3566,12 +3557,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int64" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int64" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NC_NN*sizeof(Tipo_I8)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I0',3*NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3604,12 +3595,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int32" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NC_NN*sizeof(Tipo_I4)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I4',3*NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3642,12 +3633,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int16" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int16" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NC_NN*sizeof(Tipo_I2)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I2',3*NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3680,12 +3671,12 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',          iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'
   case(f_out_binary)
     write(s_buffer,fmt='(I0)', iostat=E_IO)vtk_writer%ioffset
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int8" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<DataArray type="Int8" Name="'//trim(varname)//'" NumberOfComponents="3" format="appended" offset="',trim(s_buffer),'">'//new_line('x')
     vtk_writer%N_Byte  = 3*NC_NN*sizeof(Tipo_I1)
     vtk_writer%ioffset = vtk_writer%ioffset + sizeof(Tipo_I4) + vtk_writer%N_Byte
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)vtk_writer%N_Byte,'I1',3*NC_NN
     write(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)(varX(n1),varY(n1),varZ(n1),n1=1,NC_NN)
-    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</DataArray>'//new_line('x')
   endselect
   return
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -3710,7 +3701,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float64" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float64" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
-    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   endfunction VTK_VAR_XML_P_R8
 
@@ -3733,7 +3724,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float32" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Float32" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
-    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   endfunction VTK_VAR_XML_P_R4
 
@@ -3756,7 +3747,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int64" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int64" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
-    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   endfunction VTK_VAR_XML_P_I8
 
@@ -3779,7 +3770,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int32" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int32" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
-    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   endfunction VTK_VAR_XML_P_I4
 
@@ -3802,7 +3793,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int16" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int16" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
-    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   endfunction VTK_VAR_XML_P_I2
 
@@ -3825,7 +3816,7 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int8" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
   case(f_out_binary)
     write(s_buffer,fmt='(A, I0, A)', iostat=E_IO)repeat(' ',vtk_writer%indent)//'<PDataArray type="Int8" Name="'//trim(varname)//'" NumberOfComponents="',dim,'" />'
-    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//end_rec
+    write(unit=vtk_writer%Unit_VTK, iostat=E_IO)trim(s_buffer)//new_line('x')
   endselect
   endfunction VTK_VAR_XML_P_I1
 
@@ -3869,8 +3860,8 @@ contains
     write(unit=vtk_writer%Unit_VTK,fmt='(A)',iostat=E_IO)'</VTKFile>'
   case(f_out_binary)
     vtk_writer%indent = vtk_writer%indent - 2
-    write(unit  =vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</'//trim(vtk_writer%topology)//'>'//end_rec
-    write(unit  =vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<AppendedData encoding="raw">'//end_rec
+    write(unit  =vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'</'//trim(vtk_writer%topology)//'>'//new_line('x')
+    write(unit  =vtk_writer%Unit_VTK,       iostat=E_IO)repeat(' ',vtk_writer%indent)//'<AppendedData encoding="raw">'//new_line('x')
     write(unit  =vtk_writer%Unit_VTK,       iostat=E_IO)'_'
     endfile(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)
     rewind(unit =vtk_writer%Unit_VTK_Append,iostat=E_IO)
@@ -3910,9 +3901,9 @@ contains
       endselect
     enddo
     100 continue
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</AppendedData>'//end_rec
-    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'</VTKFile>'//end_rec
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)repeat(' ',vtk_writer%indent)//'</AppendedData>'//new_line('x')
+    write(unit=vtk_writer%Unit_VTK,iostat=E_IO)'</VTKFile>'//new_line('x')
     ! closing AppendData file
     close(unit=vtk_writer%Unit_VTK_Append,iostat=E_IO)
     call free_unit(vtk_writer%Unit_VTK_Append)
