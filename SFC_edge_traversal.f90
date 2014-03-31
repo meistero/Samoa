@@ -1048,7 +1048,7 @@ module SFC_edge_traversal
 
 			!check imbalance
             r_imbalance = grid%load / r_total_load * size_MPI - 1.0d0
-		    call reduce(r_imbalance, MPI_SUM)
+		    call reduce(r_imbalance, MPI_MAX)
 	        !$omp end single copyprivate(r_total_load, r_imbalance)
 
 			!exit early if the imbalance is small enough
