@@ -5,8 +5,18 @@
 
 #include "Compilation_control.f90"
 
+#if .false.
+    module darcy_pressure_solver_pipecg
+        !this is a dummy module for automated dependency analysis
+        use SFC_edge_traversal
+        use Samoa_darcy
+        use linear_solver
+    end module
+#endif
+
 #if defined(_DARCY)
     !stable version
+
 #   define _solver              darcy_pressure_solver_pipecg
 #   define _solver_use          Samoa_darcy
 

@@ -6,8 +6,6 @@
 #include "Compilation_control.f90"
 
 #if defined(_HEAT_EQ)
-#	include "dunavant.f90"
-
 	!*****
 	!Bases
 	!*****

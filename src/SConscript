@@ -1,0 +1,102 @@
+#! /usr/bin/python
+
+# @file
+
+#
+#
+# @section DESCRIPTION
+
+import os
+
+Import('env')
+
+# set the source files
+f90_sources = [
+"Config.f90",
+"SFC_main.f90",
+"SFC_traversal.f90",
+"Tests/Tests.f90",
+"Tests/Tests_data_types.f90",
+"Tests/Tests_initialize.f90",
+"Tests/Tests_node_dummy_traversal.f90",
+"Tests/Tests_consistency_traversal.f90",
+"Tests/Tests_flops_traversal.f90",
+"Tests/Tests_memory_traversal.f90",
+"Tests/Tests_basis_functions.f90",
+"Generic/Generic.f90",
+"Generic/Generic_data_types.f90",
+"Generic/Generic_initialize.f90",
+"Generic/Generic_template.f90",
+"Generic/Generic_adapt_template.f90",
+"Darcy/Darcy.f90",
+"Darcy/Darcy_local_function_spaces.f90",
+"Darcy/Darcy_data_types.f90",
+"Darcy/Darcy_basis.f90",
+"Darcy/Darcy_node_dummy.f90",
+"Darcy/Darcy_initialize.f90",
+"Darcy/Darcy_output.f90",
+"Darcy/Darcy_xml_output.f90",
+"Darcy/Darcy_laplace_jacobi.f90",
+"Darcy/Darcy_laplace_cg.f90",
+"Darcy/Darcy_laplace_pipecg.f90",
+"Darcy/Darcy_grad_p.f90",
+"Darcy/Darcy_transport_eq.f90",
+"Darcy/Darcy_permeability.f90",
+"Darcy/Darcy_adapt.f90",
+"Heat_Equation/Heat_Eq.f90",
+"Heat_Equation/Heat_Eq_local_function_spaces.f90",
+"Heat_Equation/Heat_Eq_data_types.f90",
+"Heat_Equation/Heat_Eq_basis.f90",
+"Heat_Equation/Heat_Eq_initialize.f90",
+"Heat_Equation/Heat_Eq_output.f90",
+"Heat_Equation/Heat_Eq_xml_output.f90",
+"Heat_Equation/Heat_Eq_euler_timestep.f90",
+"Heat_Equation/Heat_Eq_midpoint_timestep.f90",
+"Heat_Equation/Heat_Eq_heun_timestep.f90",
+"Heat_Equation/Heat_Eq_adapt.f90",
+"SWE/SWE.f90",
+"SWE/SWE_local_function_spaces.f90",
+"SWE/SWE_data_types.f90",
+"SWE/SWE_basis.f90",
+"SWE/SWE_displace.f90",
+"SWE/SWE_initialize.f90",
+"SWE/SWE_output.f90",
+"SWE/SWE_xml_output.f90",
+"SWE/SWE_ascii_output.f90",
+"SWE/ascii_output.f90",
+"SWE/SWE_euler_timestep.f90",
+"SWE/SWE_adapt.f90",
+"geoclaw/c_bind_riemannsolvers.f90",
+"Samoa/Samoa.f90",
+"Samoa/Tools_quadrature_rule_base.f90",
+"Solver/LinearSolver.f90",
+"SFC_node_traversal.f90",
+"SFC_edge_traversal.f90",
+"SFC_data_types.f90",
+"LIB_VTK_IO.f90",
+"M_kracken.f90",
+"Tools_noise.f90",
+"Tools_log.f90",
+"Conformity/Conformity.f90",
+"Flash/FLASH.f90",
+"Flash/FLASH_local_function_spaces.f90",
+"Flash/FLASH_data_types.f90",
+"Flash/FLASH_basis.f90",
+"Flash/FLASH_initialize.f90",
+"Flash/FLASH_output.f90",
+"Flash/FLASH_xml_output.f90",
+"Flash/FLASH_euler_timestep.f90",
+"Flash/FLASH_adapt.f90",
+"Flash/FLASH_dg_element.f90",
+]
+
+f77_sources = [
+"geoclaw/riemannsolvers.f",
+"geoclaw/riemannsolvers_sp.f",
+"geoclaw/riemannsolvers_qp.f",
+]
+
+objs = env.Object(f90_sources) + env.Object(f77_sources)
+env.obj_files += [obj for obj in objs if obj.get_suffix() == ".o"]
+
+Export('env')
