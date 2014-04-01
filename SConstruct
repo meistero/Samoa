@@ -52,7 +52,7 @@ vars.AddVariables(
               ),
   BoolVariable( 'asagi_timing', 'switch on timing of all ASAGI calls', False),
 
-  PathVariable( 'asagi_dir', 'ASAGI directory', './ASAGI'),
+  PathVariable( 'asagi_dir', 'ASAGI directory', '../ASAGI'),
 
   EnumVariable( 'precision', 'floating point precision', 'double',
                 allowed_values=('single', 'double', 'quad')
@@ -66,6 +66,7 @@ vars.AddVariables(
                 allowed_values=('0', '1', '2', '3', '4', '5', '6', '7')
               ),
 
+  BoolVariable( 'library', 'build samoa as a library', False),
 )
 
 default_env = DefaultEnvironment(variables=vars)
@@ -113,28 +114,28 @@ elif env['mpi'] == 'nompi':
 
 if env['scenario'] == 'darcy':
   env['F90FLAGS'] += ' -D_DARCY'
-  env['asagi'] = 'standard'
-  env['lib'] = False
+  env.SetDefault(asagi = 'standard')
+  env.SetDefault(library = False)
 elif env['scenario'] == 'swe':
   env['F90FLAGS'] += ' -D_SWE'
-  env['asagi'] = 'standard'
-  env['lib'] = False
+  env.SetDefault(asagi = 'standard')
+  env.SetDefault(library = False)
 elif env['scenario'] == 'generic':
   env['F90FLAGS'] += ' -D_GENERIC'
-  env['asagi'] = 'noasagi'
-  env['lib'] = True
+  env.SetDefault(asagi = 'noasagi')
+  env.SetDefault(library = True)
 elif env['scenario'] == 'flash':
   env['F90FLAGS'] += ' -D_FLASH'
-  env['asagi'] = 'standard'
-  env['lib'] = False
+  env.SetDefault(asagi = 'standard')
+  env.SetDefault(library = False)
 elif env['scenario'] == 'heateq':
   env['F90FLAGS'] += ' -D_HEAT_EQ'
-  env['asagi'] = 'standard'
-  env['lib'] = False
+  env.SetDefault(asagi = 'standard')
+  env.SetDefault(library= False)
 elif env['scenario'] == 'tests':
   env['F90FLAGS'] += ' -D_TESTS'
-  env['asagi'] = 'noasagi'
-  env['lib'] = False
+  env.SetDefault(asagi = 'noasagi')
+  env.SetDefault(library = False)
 
 if env['openmp'] == 'tasks':
   env['F90FLAGS'] += ' -openmp -D_OPENMP_TASKS'
@@ -186,20 +187,20 @@ elif env['precision'] == 'quad':
   env['F90FLAGS'] += ' -D_QUAD_PRECISION'
 
 if env['target'] == 'debug':
+  env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
+  env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
   env.SetDefault(debug_level = '3')
   env.SetDefault(assertions = True)
-  env.Append(F90FLAGS = ' -g -O0 -traceback -check all -debug all -fpe0')
-  env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
 elif env['target'] == 'profile':
-  env.SetDefault(debug_level = '1')
-  env.SetDefault(assertions = False)
-  env(F90FLAGS = ' -g -trace -fast -inline-level=0 -funroll-loops -unroll')
+  env['F90FLAGS'] += ' -g -trace -fast -inline-level=0 -funroll-loops -unroll'
   env['LINKFLAGS'] += ' -g -trace -O3 -ip -ipo'
-elif env['target'] == 'release':
   env.SetDefault(debug_level = '1')
   env.SetDefault(assertions = False)
-  env.Append(F90FLAGS = ' -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size')
+elif env['target'] == 'release':
+  env['F90FLAGS'] += ' -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
   env['LINKFLAGS'] += ' -O3 -ip -ipo'
+  env.SetDefault(debug_level = '1')
+  env.SetDefault(assertions = False)
 
 env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
 env['F90FLAGS'] += ' -D_DEBUG_LEVEL=' + env['debug_level']
@@ -210,7 +211,7 @@ if env['assertions']:
 if env['standard']:
   env['F90FLAGS'] += ' -std'
 
-if env['lib']:
+if env['library']:
   env['F90FLAGS'] += ' -fpic'
   env['LINKFLAGS'] += ' -fpic -shared'
 
@@ -243,10 +244,15 @@ if env['precision'] != default_env['precision']:
 if env['target'] != default_env['target']:
   program_name += '_' + env['target']
 
+if env['library']:
+  program_name = 'lib' + program_name + '.so'
+
 # set build directory
 build_dir = env['build_dir']
 object_dir = build_dir + 'build_'+ program_name + '/'
 env.Append(F90FLAGS = ' -module ' + object_dir)
+
+#No idea why, but this is necessary in order to get a correct dependency
 env['F90PATH'] = '.'
 
 #copy F77 compiler settings from F90 compiler
@@ -254,7 +260,7 @@ env['FORTRAN'] = env['F90']
 env['FORTRANFLAGS'] = env['F90FLAGS']
 env['FORTRANPATH'] = env['F90PATH']
 
-# get the source files
+# get the object files
 env.obj_files = []
 
 Export('env')
