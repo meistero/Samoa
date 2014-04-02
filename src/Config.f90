@@ -88,8 +88,8 @@ module config
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
         character(512)                          :: arguments
-        character(64)                           :: lsolver_to_char(0:3) = ["Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
-        character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
+        character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
+        character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
         write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
@@ -156,7 +156,7 @@ module config
 
             !if the help option was set, display the list of arguments
             if (l_help) then
-                _log_write(0, "")
+                _log_write(0, *)
                 PRINT '(A)',            " Usage: samoa [--help | -h] | [--version | -v] | [OPTION...]"
                 PRINT '(A)',            ""
                 PRINT '(A)',            " Arguments:"
@@ -209,8 +209,8 @@ module config
 
     subroutine config_print(config)
         class(t_config)                         :: config
-        character(64)                           :: lsolver_to_char(0:3) = ["Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
-        character(64)                           :: asagi_mode_to_char(0:4) = ["default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
+        character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
+        character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
 #	    if defined(_TESTS)
             _log_write(0, '(" Scenario: Tests")')
@@ -312,6 +312,6 @@ module config
 #           endif
 #		endif
 
-        _log_write(0, "")
+        _log_write(0, "()")
     end subroutine
 end module
