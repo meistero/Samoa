@@ -79,7 +79,7 @@
 
  			_log_write(1, '(A, I0)') " Darcy: output step ", traversal%i_output_iteration
 
-            grid_info = section%get_capacity()
+            grid_info = section%get_info()
 			i_cells = grid_info%i_cells
 
 			if (l_second_order) then
@@ -111,7 +111,7 @@
 			character (len = 64)										:: s_file_name
 			integer(4)													:: e_io, i
 
-            grid_info = section%get_capacity()
+            grid_info = section%get_info()
 			i_cells = grid_info%i_cells
 
 			if (l_second_order) then

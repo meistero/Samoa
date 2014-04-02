@@ -67,9 +67,10 @@ MODULE SFC_data_types
         enumerator ::   RED = -1, GREEN = 0
     end enum
 
-	character (LEN = 5), dimension(RED : GREEN), parameter 				:: color_to_char = [ '  RED', 'GREEN']
-	character (LEN = 1), dimension(K : H), parameter 					:: turtle_type_to_char = [ 'K', 'V', 'H' ]
-	character (LEN = 7), dimension(OLD : NEW_BND), parameter		    :: edge_type_to_char = [ '    OLD', '    NEW', 'OLD_BND', 'NEW_BND']
+
+	character (len = 5), dimension(RED : GREEN), parameter 				:: color_to_char = [ '  RED', 'GREEN']
+	character (len = 1), dimension(K : H), parameter 					:: turtle_type_to_char = [ 'K', 'V', 'H' ]
+	character (len = 7), dimension(OLD : NEW_BND), parameter		    :: edge_type_to_char = [ '    OLD', '    NEW', 'OLD_BND', 'NEW_BND']
 
     integer, parameter                                 		            :: MAX_DEPTH = bit_size(1_GRID_DI) - 4
 	real (kind = GRID_SR), parameter									:: PI = 4.0_GRID_SR * atan(1.0_GRID_SR) !< PI
@@ -86,7 +87,8 @@ MODULE SFC_data_types
 		integer (kind = 1)									:: refinement			! refinement info (-1: coarsen, 0: keep, 1-4: refine once or multiple times)				max. 3 bit
 		integer (kind = 1)									:: i_plotter_type		! plotter grammar type for cell orientation (-8 to 8)										max. 3 bit
 		integer (kind = 1)									:: i_turtle_type		! turtle grammar type for edge/node indexing) (K = 1, V = 2, H = 3)							max. 2 bit
-		logical (kind = GRID_SL)							:: l_color_edge_color	! color of the color_edge																	max. 1 bit
+
+        integer (kind = 1)							        :: i_color_edge_color	! color of the color_edge (in -1:0)																	max. 1 bit
 
 		contains
 
@@ -546,7 +548,7 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(in)		:: cell
 		character (len = 64)					:: str
 
-		write(str, '(A, 1X, A, 1X, A, 1X, A, 1X, A, 1X, I0)') turtle_type_to_char(cell%i_turtle_type), color_to_char(cell%l_color_edge_color), edge_type_to_char(cell%get_previous_edge_type()), edge_type_to_char(cell%get_color_edge_type()), edge_type_to_char(cell%get_next_edge_type()), cell%i_depth
+		write(str, '(A, 1X, A, 1X, A, 1X, A, 1X, A, 1X, I0)') turtle_type_to_char(cell%i_turtle_type), color_to_char(cell%i_color_edge_color), edge_type_to_char(cell%get_previous_edge_type()), edge_type_to_char(cell%get_color_edge_type()), edge_type_to_char(cell%get_next_edge_type()), cell%i_depth
 	end function
 
     elemental function get_edge_size(depth) result(edge_size)

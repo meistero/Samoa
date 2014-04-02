@@ -213,17 +213,17 @@
             integer (kind = GRID_SI)									:: i_lse_iterations, i_lse_iterations_initial
 			double precision										    :: r_t1, r_t2, r_t3, r_t4
 			real (kind = GRID_SR)										:: r_time_next_output
-			type(t_section_info)           	                            :: grid_info
+			type(t_grid_info)           	                            :: grid_info
 
 			!init parameters
 			r_time_next_output = 0.0_GRID_SR
 
-            !$omp master
             if (rank_MPI == 0) then
+                !$omp master
                 _log_write(0, *) "Darcy: setting initial values and solving initial system.."
                 _log_write(0, *) ""
+                !$omp end master
             end if
-            !$omp end master
 
 			r_t1 = omp_get_wtime()
 
@@ -237,15 +237,15 @@
 				!solve pressure equation
 				i_lse_iterations = darcy%pressure_solver%solve(grid)
 
-                grid_info = grid%get_capacity(.false.)
-
-                !$omp master
                 if (rank_MPI == 0) then
-                    _log_write(1, "(A, I0, A, I0, A, I0, A)") " Darcy: ", darcy%adaption%stats%i_traversals, " adaptions, ", i_lse_iterations, " iterations, ", grid_info%i_cells, " cells"
-                end if
-                !$omp end master
+                    grid_info%i_cells = grid%get_cells(.false.)
 
-                grid_info = grid%get_capacity(.true.)
+                    !$omp master
+                    _log_write(1, "(A, I0, A, I0, A, I0, A)") " Darcy: ", darcy%adaption%stats%i_traversals, " adaptions, ", i_lse_iterations, " iterations, ", grid_info%i_cells, " cells"
+                    !$omp end master
+                end if
+
+                grid_info%i_cells = grid%get_cells(.true.)
 				if (darcy%init_saturation%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
 					exit
 				endif
@@ -256,14 +256,16 @@
 
 			r_t2 = omp_get_wtime()
 
-            !$omp master
+            grid_info = grid%get_info(.true.)
+
             if (rank_MPI == 0) then
+                !$omp master
                 _log_write(0, *) "Darcy: done."
                 _log_write(0, *) ""
 
                 call grid_info%print()
+                !$omp end master
             end if
-			!$omp end master
 
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
@@ -312,13 +314,13 @@
 				!compute permeability field + refinement flag
 				call darcy%permeability%traverse(grid)
 
-                grid_info = grid%get_capacity(.false.)
-
-                !$omp master
                 if (rank_MPI == 0) then
+                    grid_info%i_cells = grid%get_cells(.false.)
+
+                    !$omp master
                     _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0, A, I0)') " Darcy: time step: ", darcy%transport_eq%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", LSE iterations: ", i_lse_iterations
+                    !$omp end master
                 end if
-                !$omp end master
 
 				!output grid
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
@@ -329,7 +331,7 @@
 
 			r_t4 = omp_get_wtime()
 
-            grid_info = grid%get_capacity(.true.)
+            grid_info = grid%get_info(.true.)
 
             !$omp master
             adaption_stats_time_steps = darcy%adaption%stats - adaption_stats_initial

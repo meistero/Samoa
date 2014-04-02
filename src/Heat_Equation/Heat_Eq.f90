@@ -194,7 +194,7 @@
 				!set numerics and check for refinement
 				call heat_eq_init_traversal(grid)
 
-                grid_info = grid%get_capacity()
+                grid_info = grid%get_info()
                 !$omp master
 				_log_write(1, "(A, I0, A, I0, A)") " Heat_Eq: ", i_adaptions_initial, " adaptions, ", grid_info%i_cells, " cells"
                 !$omp end master
@@ -214,7 +214,7 @@
 			_log_write(0, *) "Heat_Eq: done."
 			_log_write(0, *) ""
 
-            grid_info = grid%get_capacity()
+            grid_info = grid%get_info()
 			call grid_info%print()
 
 			!output initial grid
@@ -256,7 +256,7 @@
 				call heun_timestep_traversal(grid)
 				grid%r_time = grid%r_time + grid%r_dt
 
-                grid_info = grid%get_capacity()
+                grid_info = grid%get_info()
 				_log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " Heat_Eq: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
 
 				!output grid
@@ -291,7 +291,7 @@
 			_log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
 			_log_write(0, *) "---"
 
-            grid_info = grid%get_capacity()
+            grid_info = grid%get_info()
 			call grid_info%print()
 		end subroutine
 	END MODULE Heat_Eq

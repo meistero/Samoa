@@ -1460,7 +1460,7 @@ module SFC_edge_traversal
 		    do i_section = i_first_src_section, i_last_src_section
                 if (i_rank_out(i_section) .ne. rank_MPI) then
                     section => src_grid%sections%elements_alloc(i_section)
-                    src_infos(i_section) = section%get_capacity()
+                    src_infos(i_section) = section%get_info()
 
                     _log_write(4, '("sending:   from: ", I0, " to: ", I0, " tag: ", I0)') rank_MPI, i_rank_out(i_section), section%index
                     call mpi_isend(src_infos(i_section), sizeof(src_infos(i_section)), MPI_BYTE, i_rank_out(i_section), section%index, MPI_COMM_WORLD, src_requests(i_section), i_error); assert_eq(i_error, 0)
@@ -1632,7 +1632,7 @@ module SFC_edge_traversal
         !set the last cell of the current section to a new boundary cell
         assert_ge(last_cell_index, 1)
         assert_le(last_cell_index, size(section%cells%elements))
-        call section%cells%elements(last_cell_index)%set_previous_edge_type(OLD_BND)
+        call section%cells%elements(last_cell_index)%set_previous_edge_type(int(OLD_BND, 1))
 
         !and move the last crossed edge to the red stack
         p_edge => thread%edges_stack(RED)%push()
@@ -1641,7 +1641,9 @@ module SFC_edge_traversal
         !find additional process edges and nodes
         do i_color = RED, GREEN
             !all cell indices that remain on the index stack are of new boundary cells
-            call section%cells%elements(thread%indices_stack(i_color)%elements(1 : thread%indices_stack(i_color)%i_current_element))%set_color_edge_type(OLD_BND)
+            do i = 1, thread%indices_stack(i_color)%i_current_element
+                call section%cells%elements(thread%indices_stack(i_color)%elements(i))%set_color_edge_type(int(OLD_BND, 1))
+            end do
 
             section%min_distance(i_color) = 0
 
@@ -1726,8 +1728,10 @@ module SFC_edge_traversal
         call section%color_edges_out%trim()
         section%color_edges_in = section%color_edges_out
 
-        call section%boundary_nodes%trim()
-        call section%boundary_edges%trim()
+        call section%boundary_nodes(RED)%trim()
+        call section%boundary_nodes(GREEN)%trim()
+        call section%boundary_edges(RED)%trim()
+        call section%boundary_edges(GREEN)%trim()
 
 #	    if (_DEBUG_LEVEL > 3)
             do i_color = RED, GREEN

@@ -466,7 +466,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     !$omp single
         call traversal%current_stats%reduce(traversal%children%current_stats)
         traversal%stats = traversal%stats + traversal%current_stats
-        dest_grid%stats = dest_grid%stats + traversal%current_stats
+        dest_grid%stats = dest_grid%stats + to_statistics(traversal%current_stats)
     !$omp end single
 end subroutine
 
@@ -835,10 +835,10 @@ subroutine create_parent_cell(first_child_cell, second_child_cell, parent_cell)
 
 	select case (parent_cell%i_turtle_type)
 		case (K)
-			parent_cell%l_color_edge_color = second_child_cell%l_color_edge_color
+			parent_cell%i_color_edge_color = second_child_cell%i_color_edge_color
 			i_color_edge_type = iand(1, second_child_cell%get_color_edge_type())
 		case (V, H)
-			parent_cell%l_color_edge_color = first_child_cell%l_color_edge_color
+			parent_cell%i_color_edge_color = first_child_cell%i_color_edge_color
 			i_color_edge_type = iand(1, first_child_cell%get_color_edge_type())
 	end select
 
@@ -878,18 +878,18 @@ subroutine create_child_cells(parent_cell, first_child_cell, second_child_cell)
 		case (K)
 			call first_child_cell%set_edge_types(OLD, NEW, NEW)
 			call second_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
-			first_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
-			second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+			first_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
+			second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
 	 	case (V)
 			call first_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
 			call second_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
-			first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
-			second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+			first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
+			second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
 	 	case (H)
 			call first_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
 			call second_child_cell%set_edge_types(OLD, OLD, NEW)
-			first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
-			second_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
+			first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
+			second_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
 	end select
 
 #	if (_DEBUG_LEVEL > 5)
@@ -977,13 +977,13 @@ subroutine read_dest_element(traversal, thread, section, element)
 
     select case (element%cell%geometry%get_color_edge_type())
         case (OLD)
-            if(thread%indices_stack(element%cell%geometry%l_color_edge_color)%is_empty()) then
+            if(thread%indices_stack(element%cell%geometry%i_color_edge_color)%is_empty()) then
                 call element%cell%geometry%set_color_edge_type(OLD_BND)
             else
-                call thread%indices_stack(element%cell%geometry%l_color_edge_color)%pop(i_empty)
+                call thread%indices_stack(element%cell%geometry%i_color_edge_color)%pop_data(i_empty)
             end if
         case (NEW)
-            call thread%indices_stack(element%cell%geometry%l_color_edge_color)%push(element%i_cell)
+            call thread%indices_stack(element%cell%geometry%i_color_edge_color)%push_data(element%i_cell)
     end select
 
 	call read_dest(traversal, thread, section, element)

@@ -94,7 +94,7 @@ if env['compiler'] == 'intel':
   env['F90FLAGS'] = '-implicitnone -nologo -fpp -Isrc/Samoa/ -allow nofpp-comments'
 elif  env['compiler'] == 'gnu':
   fc = 'gfortran'
-  env['F90FLAGS'] = '-cpp -ffree-line-length-none -Isrc/Samoa/'
+  env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none -Isrc/Samoa/'
 
 if env['mpi'] == 'default':
   env['F90'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
@@ -195,7 +195,7 @@ if env['target'] == 'debug':
     env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
     env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -g -O0'
+    env['F90FLAGS'] += ' -g -O0 -fbounds-check'
     env['LINKFLAGS'] += ' -g -O0'
 
   env.SetDefault(debug_level = '3')

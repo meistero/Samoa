@@ -46,19 +46,16 @@ type _CNT
 	procedure, pass :: is_empty
 	procedure, pass :: reset
 
-	procedure, private, pass :: push_element
-	!procedure, private, pass :: push_elements
-	procedure, private, pass :: pop_element
-	!procedure, private, pass :: pop_elements
-	procedure, private, pass :: push_pointer
-	procedure, private, pass :: current_pointer
-	procedure, private, pass :: pop_pointer
+	procedure, pass :: push_data => push_element
+	procedure, pass :: pop_data => pop_element
+	!procedure, pass :: push_elements
+	!procedure, pass :: pop_elements
+
+	procedure, pass :: push => push_pointer
+	procedure, pass :: current => current_pointer
+	procedure, pass :: pop => pop_pointer
 
 	procedure, pass :: to_string
-
-	generic :: push => push_element, push_pointer!, push_elements
-	generic :: current => current_pointer
-	generic :: pop => pop_element, pop_pointer!, pop_elements
 end type _CNT
 
 contains

@@ -294,7 +294,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
 		next_edge%refine = .false.
 		next_edge%coarsen = .true.
@@ -317,7 +317,7 @@ module Conformity
             .and. (color_edge_geometry%refine .eqv. color_edge%t_edge_geometry%refine) &
             .and. (color_edge_geometry%coarsen .eqv. color_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 
 		call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
@@ -340,7 +340,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 		call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
 		next_edge%refine = .false.
@@ -364,7 +364,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(section%max_dest_stack, i_dest_stack)
 
 		call cell%reverse_inner()
@@ -385,7 +385,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-        color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+        color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		next_edge%refine = .false.
 		next_edge%coarsen = .true.
@@ -408,7 +408,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 
 		call cell%reverse_inner()
@@ -429,7 +429,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+		color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		next_edge%refine = .false.
 		next_edge%coarsen = .true.
@@ -452,7 +452,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-		i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+		i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(section%max_dest_stack, i_dest_stack)
 
 		call cell%reverse_inner()
@@ -488,22 +488,22 @@ module Conformity
 
 		select case(i_color_edge_type)
 			case (OLD)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
 				color_edge_geometry = color_edge%t_edge_geometry
 			case (NEW)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 				call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
 				color_edge%refine = .false.
 				color_edge%coarsen = .true.
 			case (OLD_BND)
-				color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 				color_edge%refine = .false.
 				color_edge%coarsen = .true.
 			case (NEW_BND)
-				color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 				color_edge%refine = .false.
 				color_edge%coarsen = .true.
@@ -545,15 +545,15 @@ module Conformity
                     .and. (color_edge_geometry%refine .eqv. color_edge%refine) &
                     .and. (color_edge_geometry%coarsen .eqv. color_edge%coarsen)
 
-				i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+				i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
             case (OLD_BND)
-				i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+				i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 			case (NEW, NEW_BND)
-                i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+                i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
                 section%max_dest_stack = max(section%max_dest_stack, i_dest_stack)
 		end select
 
@@ -640,7 +640,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
 		color_edge_geometry = color_edge%t_edge_geometry
@@ -661,7 +661,7 @@ module Conformity
             .and. (color_edge_geometry%refine .eqv. color_edge%t_edge_geometry%refine) &
             .and. (color_edge_geometry%coarsen .eqv. color_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 
 		call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
@@ -684,7 +684,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 		call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
@@ -703,7 +703,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 
 		call cell%reverse_inner()
@@ -724,7 +724,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-        color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+        color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
 
@@ -742,7 +742,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 
 		call cell%reverse_inner()
@@ -763,7 +763,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+		color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
 
@@ -781,7 +781,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 
 		call cell%reverse_inner()
@@ -814,14 +814,14 @@ module Conformity
 
 		select case(i_color_edge_type)
 			case (OLD)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
                 color_edge_geometry = color_edge%t_edge_geometry
  			case (NEW)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 				call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 			case (OLD_BND, NEW_BND)
-				color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 		end select
 
 		select case(i_next_edge_type)
@@ -858,15 +858,15 @@ module Conformity
                     .and. (color_edge_geometry%refine .eqv. color_edge%t_edge_geometry%refine) &
                     .and. (color_edge_geometry%coarsen .eqv. color_edge%t_edge_geometry%coarsen)
 
-                i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+                i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
             case (OLD_BND)
-                i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+                i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 			case (NEW, NEW_BND)
-				i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+				i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
                 section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 		end select
 
@@ -936,7 +936,7 @@ module Conformity
 		type(t_edge_data), pointer					:: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 		call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
 
         call cell%reverse_refinement()
@@ -953,7 +953,7 @@ module Conformity
 		type(t_edge_data), pointer					                        :: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 		call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
         call cell%reverse_refinement()
@@ -970,7 +970,7 @@ module Conformity
 		type(t_edge_data), pointer					:: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-        color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+        color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
         call cell%reverse_refinement()
 		call cell%reverse_inner()
@@ -986,7 +986,7 @@ module Conformity
 		type(t_edge_data), pointer					                        :: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-		color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+		color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
         call cell%reverse_refinement()
 		call cell%reverse_inner()
@@ -1011,13 +1011,13 @@ module Conformity
 
 		select case(i_color_edge_type)
 			case (OLD)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
  			case (NEW)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 				call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 			case (OLD_BND, NEW_BND)
-				p_boundary_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				p_boundary_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 		end select
 
 		select case(i_next_edge_type)

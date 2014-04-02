@@ -285,7 +285,7 @@ subroutine traverse_grid(traversal, grid)
     !$omp single
         call traversal%current_stats%reduce(traversal%children%current_stats)
         traversal%stats = traversal%stats + traversal%current_stats
-        grid%stats = grid%stats + traversal%current_stats
+        grid%stats = grid%stats + to_statistics(traversal%current_stats)
     !$omp end single
 end subroutine
 

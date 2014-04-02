@@ -70,7 +70,7 @@ MODULE SFC_node_traversal
             do i_section = 1, size(grid%sections%elements)
                 call init_section(grid%threads%elements(i_thread), grid%sections%elements(i_section), start_depth)
 
-                call grid%threads%elements(i_thread)%edges_stack(RED)%pop(last_crossed_edge_data)
+                call grid%threads%elements(i_thread)%edges_stack(RED)%pop_data(last_crossed_edge_data)
                 call find_section_boundary_elements(grid%threads%elements(i_thread), grid%sections%elements(i_section), grid%sections%elements(i_section)%cells%i_current_element, last_crossed_edge_data)
             end do
 
@@ -87,10 +87,10 @@ MODULE SFC_node_traversal
 		integer                                     :: start_depth
 
 		type(fine_triangle), parameter				:: first_cell = fine_triangle(i_entity_types = FIRST_OLD_BND, i_depth = 0, &
-            refinement = 0, i_plotter_type = -2, i_turtle_type = K, l_color_edge_color = RED)
+            refinement = 0, i_plotter_type = -2, i_turtle_type = K, i_color_edge_color = RED)
 
 		type(fine_triangle)							:: second_cell = fine_triangle(i_entity_types = LAST_NEW_BND, i_depth = 0, &
-            refinement = 0, i_plotter_type = -6, i_turtle_type = H, l_color_edge_color = RED)
+            refinement = 0, i_plotter_type = -6, i_turtle_type = H, i_color_edge_color = RED)
 
         double precision, parameter                 :: first_coords(2, 3) = reshape([[0, 0], [1, 0], [1, 1]], shape(first_coords))
         double precision, parameter                 :: second_coords(2, 3) = reshape([[1, 1], [0, 1], [0, 0]], shape(second_coords))
@@ -158,9 +158,9 @@ MODULE SFC_node_traversal
 		integer (KIND = 1)												:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		integer (KIND = 1)												:: i_previous_edge_index, i_color_edge_index, i_next_edge_index
 		integer (KIND = 1)												:: i_color_node_in_index, i_transfer_node_index, i_color_node_out_index
-		logical (KIND = GRID_SL)										:: l_color
+		integer (KIND = 1)										        :: i_color_edge_color
 
-		l_color = cell_data%l_color_edge_color
+		i_color_edge_color = cell_data%i_color_edge_color
 
 		call cell_data%get_edge_types(i_previous_edge_type, i_color_edge_type, i_next_edge_type)
 		call cell_data%get_edge_indices(i_previous_edge_index, i_color_edge_index, i_next_edge_index)
@@ -170,44 +170,44 @@ MODULE SFC_node_traversal
 		select case (i_previous_edge_type)
 			case (OLD)
 				previous_edge => section%crossed_edges_out%current()
-				transfer_node => thread%nodes_stack(.not. l_color)%current()
+				transfer_node => thread%nodes_stack(RED + GREEN - i_color_edge_color)%current()
 			case (OLD_BND)
 				boundary_edge => section%boundary_edges(RED)%next()
                 boundary_edge%depth = edge_depths(i_previous_edge_index)
 				previous_edge => boundary_edge%t_crossed_edge_stream_data
 
-                color_node_out => thread%nodes_stack(l_color)%push()
-                call section%boundary_nodes(l_color)%read(color_node_out)
+                color_node_out => thread%nodes_stack(i_color_edge_color)%push()
+                call section%boundary_nodes(i_color_edge_color)%read(color_node_out)
 
-                transfer_node => thread%nodes_stack(.not. l_color)%push()
-                call section%boundary_nodes(.not. l_color)%read(transfer_node)
+                transfer_node => thread%nodes_stack(RED + GREEN - i_color_edge_color)%push()
+                call section%boundary_nodes(RED + GREEN - i_color_edge_color)%read(transfer_node)
 		end select
 
 		select case (i_color_edge_type)
 			case (OLD)
-				call thread%edges_stack(l_color)%pop(color_edge)
+				call thread%edges_stack(i_color_edge_color)%pop_data(color_edge)
 
-				color_node_out => thread%nodes_stack(l_color)%pop()
-				color_node_in => thread%nodes_stack(l_color)%current()
+				color_node_out => thread%nodes_stack(i_color_edge_color)%pop()
+				color_node_in => thread%nodes_stack(i_color_edge_color)%current()
 			case (NEW)
-				call thread%edges_stack(l_color)%push(color_edge)
+				call thread%edges_stack(i_color_edge_color)%push_data(color_edge)
 
-				color_node_out => thread%nodes_stack(l_color)%current()
-				color_node_in => thread%nodes_stack(l_color)%push()
+				color_node_out => thread%nodes_stack(i_color_edge_color)%current()
+				color_node_in => thread%nodes_stack(i_color_edge_color)%push()
 			case (OLD_BND)
                 color_edge%depth = edge_depths(i_color_edge_index)
 
-				color_node_out => section%boundary_nodes(l_color)%current()
-				call thread%nodes_stack(l_color)%pop(color_node_out)
+				color_node_out => section%boundary_nodes(i_color_edge_color)%current()
+				call thread%nodes_stack(i_color_edge_color)%pop_data(color_node_out)
 
-				color_node_in => thread%nodes_stack(l_color)%push()
-				call section%boundary_nodes(l_color)%read(color_node_in)
+				color_node_in => thread%nodes_stack(i_color_edge_color)%push()
+				call section%boundary_nodes(i_color_edge_color)%read(color_node_in)
 			case (NEW_BND)
                 color_edge%depth = edge_depths(i_color_edge_index)
-				call thread%edges_stack(l_color)%push(color_edge)
+				call thread%edges_stack(i_color_edge_color)%push_data(color_edge)
 
-				color_node_out => thread%nodes_stack(l_color)%current()
-				color_node_in => thread%nodes_stack(l_color)%push()
+				color_node_out => thread%nodes_stack(i_color_edge_color)%current()
+				color_node_in => thread%nodes_stack(i_color_edge_color)%push()
 		end select
 
 		select case (i_next_edge_type)
@@ -228,7 +228,7 @@ MODULE SFC_node_traversal
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
 				call section%nodes_out%write(color_node_out%t_node_stream_data)
 			case (OLD_BND)
-				call section%boundary_edges(l_color)%write(color_edge)
+				call section%boundary_edges(i_color_edge_color)%write(color_edge)
 		end select
 
 		call cell_data%reverse()
@@ -261,18 +261,18 @@ MODULE SFC_node_traversal
             case (K)
                 call first_child_cell%set_edge_types(i_previous_edge_type, i_next_edge_type, NEW)
                 call second_child_cell%set_edge_types(OLD, i_color_edge_type, i_next_edge_type)
-                first_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
-                second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+                first_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
+                second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
             case (V)
                 call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, NEW)
                 call second_child_cell%set_edge_types(OLD, i_color_edge_type, i_next_edge_type)
-                first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
-                second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+                first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
+                second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
             case (H)
                 call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, NEW)
                 call second_child_cell%set_edge_types(OLD, i_previous_edge_type, i_next_edge_type)
-                first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
-                second_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
+                first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
+                second_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
         end select
     end subroutine
 end MODULE

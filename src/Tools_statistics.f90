@@ -1,10 +1,12 @@
+#include "Compilation_control.f90"
+
 module Tools_statistics
     use Config
     use Tools_mpi
     use Tools_log
 
     private
-    public t_statistics, t_adaptive_statistics
+    public t_statistics, t_adaptive_statistics, to_statistics
 
 	type t_statistics
         double precision					        	    :: r_traversal_time = 0.0d0
@@ -30,9 +32,8 @@ module Tools_statistics
 
 		generic :: reduce => reduce_local, reduce_global
 		generic :: operator(+) => add
-		generic :: operator(-) => inv, sub
+		generic :: operator(-) => sub
 	end type
-
 
 	type, extends(t_statistics) ::  t_adaptive_statistics
         double precision					        	:: r_allocation_time = 0.0d0
@@ -44,20 +45,33 @@ module Tools_statistics
 		contains
 
 		procedure, private, pass :: reduce_local_adaptive => t_adaptive_statistics_reduce_local
-		procedure, private, pass :: reduce_global_adaptive => t_adaptive_statistics_reduce_global
+		procedure, private, pass :: reduce_global => t_adaptive_statistics_reduce_global
 		procedure, private, pass :: add_adaptive => t_adaptive_statistics_add
 		procedure, private, pass :: inv_adaptive => t_adaptive_statistics_inv
 		procedure, private, pass :: sub_adaptive => t_adaptive_statistics_sub
 
         procedure, pass :: to_string => t_adaptive_statistics_to_string
 
-		generic :: reduce => reduce_local_adaptive, reduce_global_adaptive
+		generic :: reduce => reduce_local_adaptive
 		generic :: operator(+) => add_adaptive
-		generic :: operator(-) => inv_adaptive, sub_adaptive
+		generic :: operator(-) => sub_adaptive
 	end type
 
 	contains
 
+	pure function to_statistics(s1) result(sr)
+        class(t_statistics), intent(in) :: s1
+        type(t_statistics) :: sr
+
+        select type(s1)
+            type is (t_statistics)
+                sr = s1
+            type is (t_adaptive_statistics)
+                sr = s1%t_statistics
+            class default
+                assert(.false.) !Object s1 is not of any known type
+        end select
+    end function
 
     subroutine t_statistics_reduce_local(s, v)
         class(t_statistics), intent(inout)	:: s
@@ -154,7 +168,7 @@ module Tools_statistics
 
     elemental function t_statistics_add(s1, s2) result(sr)
         class(t_statistics), intent(in)			:: s1
-        class(t_statistics), intent(in)			:: s2
+        type(t_statistics), intent(in)			:: s2
         type(t_statistics)						:: sr
 
 		sr%r_traversal_time = s1%r_traversal_time + s2%r_traversal_time
@@ -171,7 +185,7 @@ module Tools_statistics
 
     elemental function t_adaptive_statistics_add(s1, s2) result(sr)
         class(t_adaptive_statistics), intent(in)		:: s1
-        class(t_adaptive_statistics), intent(in)		    :: s2
+        type(t_adaptive_statistics), intent(in)		    :: s2
         type(t_adaptive_statistics)						:: sr
 
         sr%t_statistics = t_statistics_add(s1%t_statistics, s2%t_statistics)
@@ -203,7 +217,7 @@ module Tools_statistics
         class(t_adaptive_statistics), intent(in)		:: s1
         type(t_adaptive_statistics)						:: sr
 
-        sr%t_statistics = -s1%t_statistics
+        sr%t_statistics = s1%t_statistics%inv()
 
 		sr%r_allocation_time = -s1%r_allocation_time
 		sr%r_integrity_time = -s1%r_integrity_time
@@ -214,18 +228,18 @@ module Tools_statistics
 
     elemental function t_statistics_sub(s1, s2) result(sr)
         class(t_statistics), intent(in)			:: s1
-        class(t_statistics), intent(in)			:: s2
+        type(t_statistics), intent(in)			:: s2
         type(t_statistics)						:: sr
 
-		sr = s1 + (-s2)
+		sr = s1 + s2%inv()
     end function
 
     elemental function t_adaptive_statistics_sub(s1, s2) result(sr)
         class(t_adaptive_statistics), intent(in)		:: s1
-        class(t_adaptive_statistics), intent(in)	    :: s2
+        type(t_adaptive_statistics), intent(in)	        :: s2
         type(t_adaptive_statistics)						:: sr
 
-		sr = s1 + (-s2)
+		sr = s1 + s2%inv_adaptive()
     end function
 
     elemental function t_statistics_to_string(s) result(str)

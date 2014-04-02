@@ -74,7 +74,7 @@
 
 #if defined(__GFORTRAN__)
 #	define str(x)	"x"
-#	define raise()	PRINT *, null()
+#	define raise()	call abort
 #else
 #	define str(x)	#x
 #	define raise() 	PRINT *, 0 / 0

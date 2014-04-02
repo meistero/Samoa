@@ -74,7 +74,7 @@
 
             type(t_section_info)                                        :: info
 
-            info = section%get_capacity()
+            info = section%get_info()
 
             traversal%min_water = huge(1.0_GRID_SR)
             traversal%max_water = -huge(1.0_GRID_SR)

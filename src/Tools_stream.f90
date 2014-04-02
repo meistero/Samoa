@@ -28,7 +28,7 @@
 #define _CNT					_CNT_TYPE_NAME
 #define _T						_CNT_DATA_TYPE
 
-#if .not. defined _CHUNK_SIZE
+#if !defined(_CHUNK_SIZE)
 #   define _CHUNK_SIZE 1_8
 #endif
 

@@ -282,7 +282,7 @@
 
         type(t_section_info)               	        :: info
 
-        info = section%get_capacity()
+        info = section%get_info()
 
         traversal%current_stats%i_traversals = 1
         traversal%current_stats%i_traversed_cells = info%i_cells
@@ -300,7 +300,7 @@
 #   	endif
 
         traversal%stats = traversal%stats + traversal%current_stats
-        section%stats = section%stats + traversal%current_stats
+        section%stats = section%stats + to_statistics(traversal%current_stats)
         call section%estimate_load()
     end subroutine
 
@@ -465,52 +465,52 @@
             type(t_traversal_element), intent(inout)	        :: element
 #       endif
 
-		logical(kind = GRID_SL)								    :: l_color_edge_color
+		integer(kind = 1)								        :: i_color_edge_color
 		real (kind = GRID_SI), dimension(2, 3), parameter	    :: node_offset = reshape([0.0, 1.0, -1.0, 1.0, -1.0, 0.0], [2, 3])
 
 #		if defined(_GT_SKELETON_OP) .or. defined(_GT_CELL_UPDATE_OP)
             type(num_cell_update)                               :: color_edge_local_update, next_edge_local_update
 #       endif
 
-	 	l_color_edge_color = element%cell%geometry%l_color_edge_color
+	 	i_color_edge_color = element%cell%geometry%i_color_edge_color
 
 		!read previous crossed edge
 #		if (_GT_PREVIOUS_EDGE_TYPE == _OLD)
 			!read transfer node from stack
-			_GT_N(element%transfer_node%ptr => thread%nodes_stack(.not. l_color_edge_color)%current())
+			_GT_N(element%transfer_node%ptr => thread%nodes_stack(RED + GREEN - i_color_edge_color)%current())
 #		elif (_GT_PREVIOUS_EDGE_TYPE == _OLD_BND)
 			!access previous edge on the process edge stream
 			_GT_E(element%previous_edge%ptr => section%boundary_edges(RED)%next())
 
 			!read transfer nodes from the process node stream and push them on the stacks
-			_GT_N(element%color_node_out%ptr => thread%nodes_stack(l_color_edge_color)%push())
-			_GT_N(call section%boundary_nodes(l_color_edge_color)%read(element%color_node_out%ptr))
+			_GT_N(element%color_node_out%ptr => thread%nodes_stack(i_color_edge_color)%push())
+			_GT_N(call section%boundary_nodes(i_color_edge_color)%read(element%color_node_out%ptr))
 
-			_GT_N(element%transfer_node%ptr => thread%nodes_stack(.not. l_color_edge_color)%push())
-			_GT_N(call section%boundary_nodes(.not. l_color_edge_color)%read(element%transfer_node%ptr))
+			_GT_N(element%transfer_node%ptr => thread%nodes_stack(RED + GREEN - i_color_edge_color)%push())
+			_GT_N(call section%boundary_nodes(RED + GREEN - i_color_edge_color)%read(element%transfer_node%ptr))
 #		endif
 
 		!read color edge and color node
 #		if (_GT_COLOR_EDGE_TYPE == _OLD)
-			_GT_E(element%color_edge%ptr => thread%edges_stack(l_color_edge_color)%pop())
+			_GT_E(element%color_edge%ptr => thread%edges_stack(i_color_edge_color)%pop())
 
-			_GT_N(element%color_node_out%ptr => thread%nodes_stack(l_color_edge_color)%pop())
-			_GT_N(element%color_node_in%ptr => thread%nodes_stack(l_color_edge_color)%current())
+			_GT_N(element%color_node_out%ptr => thread%nodes_stack(i_color_edge_color)%pop())
+			_GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%current())
 #		elif (_GT_COLOR_EDGE_TYPE == _NEW)
-			_GT_E(element%color_edge%ptr => thread%edges_stack(l_color_edge_color)%push())
+			_GT_E(element%color_edge%ptr => thread%edges_stack(i_color_edge_color)%push())
 			_GT_ER(call section%color_edges_in%read(element%color_edge%ptr%t_color_edge_stream_data))
 
-			_GT_N(element%color_node_out%ptr => thread%nodes_stack(l_color_edge_color)%current())
-			_GT_N(element%color_node_in%ptr => thread%nodes_stack(l_color_edge_color)%push())
+			_GT_N(element%color_node_out%ptr => thread%nodes_stack(i_color_edge_color)%current())
+			_GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%push())
 			_GT_NR(call section%nodes_in%read(element%color_node_in%ptr%t_node_stream_data))
 #		elif (_GT_COLOR_EDGE_TYPE == _OLD_BND) .or. (_GT_COLOR_EDGE_TYPE == _NEW_BND)
-			_GT_E(element%color_edge%ptr => section%boundary_edges(l_color_edge_color)%next())
+			_GT_E(element%color_edge%ptr => section%boundary_edges(i_color_edge_color)%next())
 
-			_GT_N(element%color_node_out%ptr => section%boundary_nodes(l_color_edge_color)%current())
-			_GT_N(call thread%nodes_stack(l_color_edge_color)%pop(element%color_node_out%ptr))
+			_GT_N(element%color_node_out%ptr => section%boundary_nodes(i_color_edge_color)%current())
+			_GT_N(call thread%nodes_stack(i_color_edge_color)%pop_data(element%color_node_out%ptr))
 
-			_GT_N(element%color_node_in%ptr => thread%nodes_stack(l_color_edge_color)%push())
-			_GT_N(call section%boundary_nodes(l_color_edge_color)%read(element%color_node_in%ptr))
+			_GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%push())
+			_GT_N(call section%boundary_nodes(i_color_edge_color)%read(element%color_node_in%ptr))
 #		endif
 
 		!read next crossed edge
@@ -520,11 +520,11 @@
 			_GT_E(element%next_edge%ptr => section%boundary_edges(RED)%next())
 
 			!pop transfer nodes from the stacks and write them to the process node streams
-			_GT_N(element%color_node_in%ptr => section%boundary_nodes(l_color_edge_color)%current())
-			_GT_N(call thread%nodes_stack(l_color_edge_color)%pop(element%color_node_in%ptr))
+			_GT_N(element%color_node_in%ptr => section%boundary_nodes(i_color_edge_color)%current())
+			_GT_N(call thread%nodes_stack(i_color_edge_color)%pop_data(element%color_node_in%ptr))
 
-			_GT_N(element%transfer_node%ptr => section%boundary_nodes(.not. l_color_edge_color)%current())
-			_GT_N(call thread%nodes_stack(.not. l_color_edge_color)%pop(element%transfer_node%ptr))
+			_GT_N(element%transfer_node%ptr => section%boundary_nodes(RED + GREEN - i_color_edge_color)%current())
+			_GT_N(call thread%nodes_stack(RED + GREEN - i_color_edge_color)%pop_data(element%transfer_node%ptr))
 #		endif
 
 		!set element tranformation data (must be defined)
@@ -613,9 +613,9 @@
             type(t_traversal_element), intent(inout)	        :: element
 #       endif
 
-		logical(kind = GRID_SL)							        :: l_color_edge_color
+		integer (kind = 1)							            :: i_color_edge_color
 
-		l_color_edge_color = element%cell%geometry%l_color_edge_color
+		i_color_edge_color = element%cell%geometry%i_color_edge_color
 
 #		if defined(_GT_CELL_TO_EDGE_OP)
 			!Copy cell representations to edges

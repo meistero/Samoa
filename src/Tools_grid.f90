@@ -208,11 +208,12 @@ module Section_info_list
 		contains
 
 		procedure, private, pass :: add => grid_info_add
-		procedure, pass :: reduce => grid_info_reduce
+		procedure, pass :: reduce_grid_info => grid_info_reduce
 		procedure, pass :: estimate_bounds => grid_info_estimate_bounds
 		procedure, pass :: print => grid_info_print
 
         generic :: operator(+) => add
+        generic :: reduce => reduce_grid_info
 	end type
 
  	type, extends(t_grid_info) :: t_section_info
@@ -220,9 +221,8 @@ module Section_info_list
 
 		contains
 
-		!procedure, private, pass :: eq => section_info_eq
-
-        !generic :: operator(.eq.) => eq
+		procedure, pass :: reduce_section_info => section_info_reduce
+        generic :: reduce => reduce_section_info
 	end type
 
 #	define _CNT_DATA_TYPE    		type(t_section_info)
@@ -254,7 +254,7 @@ module Section_info_list
 
     subroutine grid_info_reduce(s, v, global)
         class(t_grid_info), intent(inout)	:: s
-        class(t_grid_info), intent(in)		:: v(:)
+        type(t_grid_info), intent(in)		:: v(:)
         logical, intent(in)                 :: global
 
         integer                             :: i_color
@@ -322,12 +322,13 @@ module Section_info_list
 		_log_write(0, *) ""
 	end subroutine
 
-	elemental function section_info_eq(si1, si2)
-		class(t_section_info), intent(in)		    :: si1, si2
-		logical										:: section_info_eq
+    subroutine section_info_reduce(s, v, global)
+        class(t_section_info), intent(inout)	:: s
+        type(t_section_info), intent(in)	    :: v(:)
+        logical, intent(in)                     :: global
 
-		section_info_eq = (si1%index .eq. si2%index)
-	end function
+        call s%reduce(v%t_grid_info, global)
+    end subroutine
 end module
 
 module Grid_thread
@@ -441,7 +442,8 @@ module Grid_section
 		procedure, pass :: traverse_empty => grid_section_traverse_empty
 		procedure, pass :: estimate_load => grid_section_estimate_load
 		procedure, pass :: print => grid_section_print
-		procedure, pass :: get_capacity => grid_section_get_capacity
+		procedure, pass :: get_cells => grid_section_get_cells
+		procedure, pass :: get_info => grid_section_get_info
 		procedure, pass :: eq => grid_section_eq
 
         generic :: operator(.eq.) => eq
@@ -535,15 +537,20 @@ module Grid_section
 		!reverse color edge streams
 		call section%color_edges_in%reset()
 		call section%color_edges_out%reset()
-		call section%color_edges_out%reset()
-		call section%boundary_edges%reset()
-		call section%boundary_type_edges%reset()
 
 		!reverse node streams
 		call section%nodes_in%reset()
 		call section%nodes_out%reset()
-		call section%boundary_nodes%reset()
-		call section%boundary_type_nodes%reset()
+
+		do i_color = RED, GREEN
+            call section%boundary_edges(i_color)%reset()
+            call section%boundary_type_edges(OLD, i_color)%reset()
+            call section%boundary_type_edges(NEW, i_color)%reset()
+
+            call section%boundary_nodes(i_color)%reset()
+            call section%boundary_type_nodes(OLD, i_color)%reset()
+            call section%boundary_type_nodes(NEW, i_color)%reset()
+		end do
 	end subroutine
 
 	subroutine grid_section_reverse(section)
@@ -580,17 +587,24 @@ module Grid_section
 		!reverse color edge streams
 		call section%color_edges_in%reverse()
 		call section%color_edges_out%reverse()
-		call section%boundary_edges%reverse()
-		call section%boundary_type_edges%reverse()
 
 		!reverse node streams
 		call section%nodes_in%reverse()
 		call section%nodes_out%reverse()
-		call section%boundary_nodes%reverse()
-		call section%boundary_type_nodes%reverse()
 
-		call section%comms%reverse()
-		call section%comms_type%reverse()
+		do i_color = RED, GREEN
+            call section%boundary_edges(i_color)%reverse()
+            call section%boundary_type_edges(OLD, i_color)%reverse()
+            call section%boundary_type_edges(NEW, i_color)%reverse()
+
+            call section%boundary_nodes(i_color)%reverse()
+            call section%boundary_type_nodes(OLD, i_color)%reverse()
+            call section%boundary_type_nodes(NEW, i_color)%reverse()
+
+            call section%comms(i_color)%reverse()
+            call section%comms_type(OLD, i_color)%reverse()
+            call section%comms_type(NEW, i_color)%reverse()
+		end do
 	end subroutine
 
 	elemental subroutine grid_section_estimate_load(section)
@@ -603,23 +617,35 @@ module Grid_section
 	subroutine grid_section_traverse_empty(section)
 		class(t_grid_section), intent(inout)		        :: section
 
+		integer (kind = GRID_DI)    :: i
+
 		!reverse cell data
-		call section%cells%elements%reverse()
+		do i = 1, size(section%cells%elements, kind=GRID_DI)
+            call section%cells%elements(i)%reverse()
+        end do
 
 		!reverse section
         call section%reverse()
 	end subroutine
 
-	elemental function grid_section_get_capacity(section) result(info)
+    elemental function grid_section_get_cells(section) result(i_cells)
+		class(t_grid_section), intent(in)	    :: section
+		integer (kind = GRID_DI)           	    :: i_cells
+
+        i_cells = size(section%cells%elements, kind=GRID_DI)
+	end function
+
+	elemental function grid_section_get_info(section) result(info)
 		class(t_grid_section), intent(in)	    :: section
 		type(t_section_info)           	        :: info
 
         info%index = section%index
-        info%i_cells = size(section%cells%elements, kind=GRID_DI)
-        info%i_crossed_edges = size(section%crossed_edges_in%elements)
 
-		info%i_color_edges = size(section%color_edges_in%elements)
-		info%i_nodes = size(section%nodes_in%elements)
+        info%i_cells = size(section%cells%elements, kind=GRID_DI)
+        info%i_crossed_edges = size(section%crossed_edges_in%elements, kind=GRID_DI)
+		info%i_color_edges = size(section%color_edges_in%elements, kind=GRID_DI)
+		info%i_nodes = size(section%nodes_in%elements, kind=GRID_DI)
+
 		info%i_boundary_edges = [size(section%boundary_edges(RED)%elements), size(section%boundary_edges(GREEN)%elements)]
 		info%i_boundary_nodes = [size(section%boundary_nodes(RED)%elements), size(section%boundary_nodes(GREEN)%elements)]
 
@@ -644,8 +670,8 @@ module Grid_section
 		_log_write(0, '(4X, A, A, A)')		    "Crossed Edges    ", section%crossed_edges_in%to_string(), section%crossed_edges_out%to_string()
 		_log_write(0, '(4X, A, A, A)')	        "Color Edges      ", section%color_edges_in%to_string(), section%color_edges_out%to_string()
 		_log_write(0, '(4X, A, A, A)')	        "Nodes            ", section%nodes_in%to_string(), section%nodes_out%to_string()
-		_log_write(0, '(4X, A, 2(A))')	        "Boundary Edges   ", section%boundary_edges%to_string()
-		_log_write(0, '(4X, A, 2(A))')	        "Boundary Nodes   ", section%boundary_nodes%to_string()
+		_log_write(0, '(4X, A, 2(A))')	        "Boundary Edges   ", section%boundary_edges(RED)%to_string(), section%boundary_edges(GREEN)%to_string()
+		_log_write(0, '(4X, A, 2(A))')	        "Boundary Nodes   ", section%boundary_nodes(RED)%to_string(), section%boundary_edges(GREEN)%to_string()
 
         _log_write(0, '(3X, A)')	"Neighbors:"
 		do i_color = RED, GREEN
@@ -678,7 +704,8 @@ module Grid
 		procedure, pass :: destroy => grid_destroy
 		procedure, pass :: print => grid_print
 
-		procedure, pass :: get_capacity => grid_get_capacity
+		procedure, pass :: get_cells => grid_get_cells
+		procedure, pass :: get_info => grid_get_info
 		procedure, pass :: get_local_sections => grid_get_local_sections
 		procedure, pass :: get_local_sections_in_traversal_order => grid_get_local_sections_in_traversal_order
 		procedure, pass :: reset => grid_reset
@@ -748,7 +775,12 @@ module Grid
 		class(t_grid), intent(inout)    :: src_grid
 		type(t_grid), intent(inout)     :: dest_grid
 
-        dest_grid = src_grid
+        select type(src_grid)
+            type is (t_grid)
+                dest_grid = src_grid
+            class default
+                assert(.false.) !Object src_grid is not of any known type
+        end select
 
         src_grid%sections%elements => null()
         src_grid%threads%elements => null()
@@ -761,23 +793,91 @@ module Grid
 		_log_write(0, '(4X, A)')		                trim(grid%t_global_data%to_string())
 	end subroutine
 
-	function grid_get_capacity(grid, global) result(grid_info)
-        class(t_grid), intent(in)						    :: grid
-        logical, intent(in)                                 :: global
-		type(t_section_info)           	                    :: grid_info
+	function grid_get_cells(grid, global) result(i_grid_cells)
+        class(t_grid), intent(in)			        :: grid
+        logical, intent(in)                         :: global
+        integer (kind = GRID_SI)                    :: i_section, i_first_local_section, i_last_local_section
+		integer                                     :: i_error
+
+		integer(kind = GRID_DI), save, allocatable  :: i_section_cells(:)
+		integer(kind = GRID_DI)          	        :: i_grid_cells
+
+        if (.not. allocated(i_section_cells) .or. size(i_section_cells) .ne. size(grid%sections%elements_alloc)) then
+            !$omp barrier
+
+            !$omp single
+            if (allocated(i_section_cells)) then
+                deallocate(i_section_cells, stat = i_error); assert_eq(i_error, 0)
+            end if
+
+            allocate(i_section_cells(size(grid%sections%elements_alloc)), stat = i_error); assert_eq(i_error, 0)
+            !$omp end single
+        end if
+
+        call grid%get_local_sections(i_first_local_section, i_last_local_section)
+
+		do i_section = i_first_local_section, i_last_local_section
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+            i_section_cells(i_section) = grid%sections%elements_alloc(i_section)%get_cells()
+		end do
+
+        !$omp barrier
 
         !$omp single
-        call grid_info%reduce(grid%sections%elements_alloc%get_capacity(), global)
+        call reduce(i_grid_cells, i_section_cells, MPI_SUM, global)
+        !$omp end single copyprivate(i_grid_cells)
+	end function
+
+	function grid_get_info(grid, global) result(grid_info)
+        class(t_grid), intent(in)			    :: grid
+        logical, intent(in)                     :: global
+        integer (kind = GRID_SI)                :: i_section, i_first_local_section, i_last_local_section
+		integer                                 :: i_error
+
+		type(t_grid_info), save, allocatable    :: section_infos(:)
+		type(t_grid_info)         	            :: grid_info
+		type(t_section_info)         	        :: section_info
+
+        if (.not. allocated(section_infos) .or. size(section_infos) .ne. size(grid%sections%elements_alloc)) then
+            !$omp barrier
+
+            !$omp single
+            if (allocated(section_infos)) then
+                deallocate(section_infos, stat = i_error); assert_eq(i_error, 0)
+            end if
+
+            allocate(section_infos(size(grid%sections%elements_alloc)), stat = i_error); assert_eq(i_error, 0)
+            !$omp end single
+        end if
+
+        call grid%get_local_sections(i_first_local_section, i_last_local_section)
+
+		do i_section = i_first_local_section, i_last_local_section
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+            section_info = grid%sections%elements_alloc(i_section)%get_info()
+            section_infos(i_section) = section_info%t_grid_info
+		end do
+
+        !$omp barrier
+
+        !$omp single
+        call grid_info%reduce(section_infos, global)
         !$omp end single copyprivate(grid_info)
 	end function
 
 	!t_grid_section
 
 	!> Resets a grid
-	elemental subroutine grid_reset(grid)
+	subroutine grid_reset(grid)
 		class(t_grid), intent(inout)				    :: grid
+		integer (kind = GRID_SI)                        :: i_section, i_first_local_section, i_last_local_section
 
-		call grid%sections%elements%reset()
+        call grid%get_local_sections(i_first_local_section, i_last_local_section)
+
+		do i_section = i_first_local_section, i_last_local_section
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+            call grid%sections%elements_alloc(i_section)%reset()
+		end do
 	end subroutine
 
 	!> Distributes the grid sections among threads **in allocation order** and returns a subset for the local thread
@@ -818,7 +918,7 @@ module Grid
         end if
 	end subroutine
 
-	!> Attaches a section to a grid
+	!> Reverses the grid
 	subroutine grid_reverse(grid)
 		class(t_grid), intent(inout)				        :: grid
 		integer (kind = GRID_DI), dimension(RED : GREEN)    :: temp_distance

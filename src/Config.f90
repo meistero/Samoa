@@ -156,7 +156,7 @@ module config
 
             !if the help option was set, display the list of arguments
             if (l_help) then
-                _log_write(0, *)
+                PRINT '()'
                 PRINT '(A)',            " Usage: samoa [--help | -h] | [--version | -v] | [OPTION...]"
                 PRINT '(A)',            ""
                 PRINT '(A)',            " Arguments:"
