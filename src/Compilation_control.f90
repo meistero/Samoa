@@ -22,7 +22,7 @@
 
 
 !for the SWE scenario, a skeleton operator is required
-#if defined(_SWE) .or. defined(_NUMA) .or. defined(_FLASH)
+#if defined(_SWE) || defined(_NUMA) || defined(_FLASH)
 #	define _USE_SKELETON_OP
 #endif
 
@@ -72,21 +72,29 @@
 
 !> Assertion macros:
 
+#if defined(__GFORTRAN__)
+#	define str(x)	"x"
+#	define raise()	PRINT *, null()
+#else
+#	define str(x)	#x
+#	define raise() 	PRINT *, 0 / 0
+#endif
+
 !> Checks for a condition to be true and raises an artificial divide-by-zero exception for error handling
 #if defined(_ASSERT)
-#	define assert(x)				if (.not. (x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x; flush(6); PRINT *, 0 / 0; end if
+#	define assert(x)				if (.not. (x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x); flush(6); raise(); end if
 #	define assert_pure(x)			if (.not. (x)) then; call raise_error(); end if
 
-#	define assert_eq(x, y)			if (.not. (x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " == ", #y, ": ", x, " == ", y; flush(6); PRINT *, 0 / 0; end if
-#	define assert_lt(x, y)			if (.not. (x .lt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " < ", #y, ": ", x, " < ", y; flush(6); PRINT *, 0 / 0; end if
-#	define assert_le(x, y)			if (.not. (x .le. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " <= ", #y, ": ", x, " <= ", y; flush(6); PRINT *, 0 / 0; end if
-#	define assert_gt(x, y)			if (.not. (x .gt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " > ", #y, ": ", x, " > ", y; flush(6); PRINT *, 0 / 0; end if
-#	define assert_ge(x, y)			if (.not. (x .ge. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " >= ", #y, ": ", x, " >= ", y; flush(6); PRINT *, 0 / 0; end if
-#	define assert_ne(x, y)			if (.not. (x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " /= ", #y, ": ", x, " /= ", y; flush(6); PRINT *, 0 / 0; end if
+#	define assert_eq(x, y)			if (.not. (x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " == ", str(y), ": ", x, " == ", y; flush(6); raise(); end if
+#	define assert_lt(x, y)			if (.not. (x .lt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " < ", str(y), ": ", x, " < ", y; flush(6); raise(); end if
+#	define assert_le(x, y)			if (.not. (x .le. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " <= ", str(y), ": ", x, " <= ", y; flush(6); raise(); end if
+#	define assert_gt(x, y)			if (.not. (x .gt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " > ", str(y), ": ", x, " > ", y; flush(6); raise(); end if
+#	define assert_ge(x, y)			if (.not. (x .ge. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " >= ", str(y), ": ", x, " >= ", y; flush(6); raise(); end if
+#	define assert_ne(x, y)			if (.not. (x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " /= ", str(y), ": ", x, " /= ", y; flush(6); raise(); end if
 
-#	define assert_v(x)				if (.not. all(x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", #x; flush(6); PRINT *, 0 / 0; end if
-#	define assert_veq(x, y)			if (.not. all(x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " == ", #y, ": ", x, y; flush(6); PRINT *, 0 / 0; end if
-#	define assert_vne(x, y)			if (.not. any(x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", #x, " != ", #y, ": ", x, y; flush(6); PRINT *, 0 / 0; end if
+#	define assert_v(x)				if (.not. all(x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x); flush(6); raise(); end if
+#	define assert_veq(x, y)			if (.not. all(x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " == ", str(y), ": ", x, y; flush(6); raise(); end if
+#	define assert_vne(x, y)			if (.not. any(x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " != ", str(y), ": ", x, y; flush(6); raise(); end if
 #	define mpi_isend				mpi_issend
 #else
 #	define assert(x)
@@ -104,9 +112,10 @@
 #	define assert_vne(x, y)
 #endif
 
-#	define try(x, str_exception)	if (.not. (x)) then; PRINT '(a, "(", i0, "): Exception: ", a, ": ", a)', __FILE__, __LINE__, str_exception, #x; flush(6); PRINT *, 0 / 0; end if
+#define try(x, str_exception)	if (.not. (x)) then; PRINT '(a, "(", i0, "): Exception: ", a, ": ", a)', __FILE__, __LINE__, str_exception, str(x) ; flush(6); raise(); end if
 
 !> Log file macros
 #define _log_open_file				call log_open_file
 #define _log_close_file				call log_close_file
 #define _log_write(dl, f)			if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit,'(A, A, I0, A, I0, A)',advance='no') term_color(omp_get_thread_num() * size_MPI + rank_MPI), "(r", rank_MPI, ",t", omp_get_thread_num(), ") "; if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit, f)
+
