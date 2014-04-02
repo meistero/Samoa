@@ -141,15 +141,23 @@ elif env['scenario'] == 'tests':
   env.SetDefault(asagi = 'noasagi')
   env.SetDefault(library = False)
 
-if env['openmp'] == 'tasks':
-  env['F90FLAGS'] += ' -openmp -D_OPENMP_TASKS'
-  env['LINKFLAGS'] += ' -openmp'
-elif env['openmp'] == 'notasks':
-  env['F90FLAGS'] += ' -openmp'
-  env['LINKFLAGS'] += ' -openmp'
+if env['openmp'] in ['notasks', 'tasks']:
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -openmp'
+    env['LINKFLAGS'] += ' -openmp'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' -fopenmp'
+    env['LINKFLAGS'] += ' -fopenmp'
+
+  if env['openmp'] == 'tasks':
+    env['F90FLAGS'] += ' -D_OPENMP_TASKS'
 elif env['openmp'] == 'noomp':
-  env['F90FLAGS'] += ' -openmp-stubs'
-  env['LINKFLAGS'] += ' -openmp-stubs'
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -openmp-stubs'
+    env['LINKFLAGS'] += ' -openmp-stubs'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' '
+    env['LINKFLAGS'] += ' '
 
 if env['asagi'] != 'noasagi':
   env['F90FLAGS'] += ' -D_ASAGI -I' + env['asagi_dir'] + '/include'

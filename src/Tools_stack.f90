@@ -15,7 +15,6 @@
 !> where
 !>
 !> @item _CNT_DATA_TYPE				Any derived type, base data type for the container
-!> @item _CNT_CHUNK_SIZE			Any positive integer, sets the capacity of the vector chunks for vector-type stacks
 !> @item _CNT_TYPE_NAME				Container type name, will be used prefix for all operations
 !>
 !> The resulting container is defined as <container_name>, the chunk as <container_name>_chunk, methods as <container_name>_<method>
@@ -29,8 +28,8 @@
 #define _CNT					_CNT_TYPE_NAME
 #define _T						_CNT_DATA_TYPE
 
-PRIVATE create, destroy, is_empty, push_element, push_pointer, pop_element, pop_pointer, current_pointer, to_string
-!PRIVATE push_elements, pop_elements
+private
+public _CNT
 
 !define a common interface for all derived types
 

@@ -32,11 +32,8 @@
 #   define _CHUNK_SIZE 1_8
 #endif
 
-PUBLIC
-PRIVATE resize_by_value, resize_auto, clear, attach, unattach, trim_stream, merge_streams
-PRIVATE reset_stream, reverse_stream, current_element, next_element
-PRIVATE read_element, read_elements, write_element, write_elements, add_element
-PRIVATE to_string, get_c_pointer, is_forward
+private
+public _CNT
 
 !array implementation
 

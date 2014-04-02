@@ -35,6 +35,12 @@ module Conformity
         procedure, pass     :: check => conformity_check
     end type
 
+#   if defined(__GFORTRAN__)
+#       define add_edges(x)                         merge(2,1,x)
+#   else
+        integer(kind = GRID_SI), parameter	        :: add_edges(.true. : .false.) = [2, 1]
+#   endif
+
     contains
 
 	!*******************
@@ -49,7 +55,6 @@ module Conformity
 		integer (kind = GRID_SI)							    :: i_traversals
 
 		_log_write(3, "(2X, A)") "Check conformity..."
-
 
         if (.not. associated(conformity%children_stats%elements) .or. size(conformity%children_stats%elements) .ne. size(grid%sections%elements_alloc)) then
             !$omp barrier
@@ -90,7 +95,7 @@ module Conformity
     !************************
 
     subroutine initial_conformity_traversal(conformity, grid)
-		type(t_conformity), intent(inout)   :: conformity
+		class(t_conformity), intent(inout)   :: conformity
         type(t_grid), intent(inout)	        :: grid
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i_thread
 
@@ -119,7 +124,7 @@ module Conformity
     end subroutine
 
     subroutine update_conformity_traversal(conformity, grid)
-		type(t_conformity), intent(inout)   :: conformity
+		class(t_conformity), intent(inout)   :: conformity
         type(t_grid), intent(inout)         :: grid
 
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i_thread
@@ -172,7 +177,7 @@ module Conformity
     end subroutine
 
     subroutine empty_traversal(conformity, grid)
-		type(t_conformity), intent(inout)   :: conformity
+		class(t_conformity), intent(inout)   :: conformity
         type(t_grid), intent(inout)         :: grid
 
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i_thread
@@ -202,7 +207,9 @@ module Conformity
 
             stats%r_computation_time = stats%r_computation_time + omp_get_wtime()
 
-            call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%estimate_load()
+            do i_section = i_first_local_section, i_last_local_section
+                call grid%sections%elements_alloc(i_section)%estimate_load()
+            end do
 
             stats%r_barrier_time = stats%r_barrier_time - omp_get_wtime()
 
@@ -286,7 +293,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -332,7 +338,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -377,7 +382,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_edge_data), pointer					:: color_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -421,7 +425,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_edge_data), pointer					:: color_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -465,7 +468,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer					:: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
@@ -632,7 +634,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -676,7 +677,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	                :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	        :: previous_edge, next_edge
 		type(t_edge_data), pointer					        :: color_edge
 		type(t_edge_geometry)	                            :: previous_edge_geometry
@@ -716,7 +716,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -755,7 +754,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	            :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	    :: previous_edge, next_edge
 		type(t_edge_data), pointer					    :: color_edge
 		type(t_edge_geometry)	                        :: previous_edge_geometry
@@ -794,7 +792,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer				    :: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer   :: previous_edge, next_edge

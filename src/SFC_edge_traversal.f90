@@ -228,12 +228,12 @@ module SFC_edge_traversal
         src_neighbor_list_green = t_integer_list()
 
         !find all source grid neighbors
-        call get_grid_neighbors(src_grid, src_neighbor_list_red, RED)
-        call get_grid_neighbors(src_grid, src_neighbor_list_green, GREEN)
+        call get_grid_neighbors(src_grid, src_neighbor_list_red, int(RED, 1))
+        call get_grid_neighbors(src_grid, src_neighbor_list_green, int(GREEN, 1))
 
         !collect minimum distances
-        call collect_minimum_distances(dest_grid, src_neighbor_list_red, neighbor_min_distances_red, RED)
-        call collect_minimum_distances(dest_grid, src_neighbor_list_green, neighbor_min_distances_green, GREEN)
+        call collect_minimum_distances(dest_grid, src_neighbor_list_red, neighbor_min_distances_red, int(RED, 1))
+        call collect_minimum_distances(dest_grid, src_neighbor_list_green, neighbor_min_distances_green, int(GREEN, 1))
         !$omp end single
 
         !barrier here, all destination sections must have found their boundary elements in order to continue
@@ -368,8 +368,8 @@ module SFC_edge_traversal
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
 
-            call set_comms_local_data(grid, section, src_neighbor_list_red, neighbor_min_distances_red, RED)
-            call set_comms_local_data(grid, section, src_neighbor_list_green, neighbor_min_distances_green, GREEN)
+            call set_comms_local_data(grid, section, src_neighbor_list_red, neighbor_min_distances_red, int(RED, 1))
+            call set_comms_local_data(grid, section, src_neighbor_list_green, neighbor_min_distances_green, int(GREEN, 1))
         end do
 
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
