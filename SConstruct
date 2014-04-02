@@ -30,7 +30,7 @@ vars.AddVariables(
               ),
 
   EnumVariable( 'compiler', 'used compiler', 'intel',
-                allowed_values=('intel',)
+                allowed_values=('intel', 'gnu')
               ),
 
   EnumVariable( 'target', 'build target, sets debug flag and optimization level', 'release',
@@ -69,8 +69,6 @@ vars.AddVariables(
   BoolVariable( 'library', 'build samoa as a library', False),
 )
 
-default_env = DefaultEnvironment(variables=vars)
-
 # set environment
 env = Environment(ENV = {'PATH': os.environ['PATH']},
         variables=vars)
@@ -88,29 +86,35 @@ if unknownVariables:
 #
 
 #set default compiler flags
-env['F90FLAGS'] = '-implicitnone -nologo -fpp -Isrc/Samoa/'
 env['LINKFLAGS'] = ''
 
 # If MPI is active, set compilation flags
+if env['compiler'] == 'intel':
+  fc = 'ifort'
+  env['F90FLAGS'] = '-implicitnone -nologo -fpp -Isrc/Samoa/ -allow nofpp-comments'
+elif  env['compiler'] == 'gnu':
+  fc = 'gfortran'
+  env['F90FLAGS'] = '-cpp -ffree-line-length-none -Isrc/Samoa/'
+
 if env['mpi'] == 'default':
-  env['F90'] = 'MPICH_F90=ifort OMPI_FC=ifort I_MPI_F90=ifort mpif90'
-  env['LINK'] = 'MPICH_F90=ifort OMPI_FC=ifort I_MPI_F90=ifort mpif90'
+  env['F90'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
+  env['LINK'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'mpich2':
-  env['F90'] = 'MPICH_F90=ifort mpif90'
-  env['LINK'] = 'MPICH_F90=ifort mpif90'
+  env['F90'] = 'MPICH_F90=' + fc + ' mpif90'
+  env['LINK'] = 'MPICH_F90=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'openmpi':
-  env['F90'] = 'OMPI_FC=ifort mpif90'
-  env['LINK'] = 'OMPI_FC=ifort mpif90'
+  env['F90'] = 'OMPI_FC=' + fc + ' mpif90'
+  env['LINK'] = 'OMPI_FC=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'intel':
-  env['F90'] = 'I_MPI_F90=ifort mpif90'
-  env['LINK'] = 'I_MPI_F90=ifort mpif90'
+  env['F90'] = 'I_MPI_F90=' + fc + ' mpif90'
+  env['LINK'] = 'I_MPI_F90=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'nompi':
-  env['F90'] = 'ifort'
-  env['LINK'] = 'ifort'
+  env['F90'] = fc
+  env['LINK'] = fc
 
 if env['scenario'] == 'darcy':
   env['F90FLAGS'] += ' -D_DARCY'
@@ -167,9 +171,9 @@ if env['asagi_timing']:
     Exit(-1)
 
 if env['swe_solver'] == 'lf':
-  env['F90FLAGS'] 		+= ' -D_SWE_LF'
+  env['F90FLAGS'] += ' -D_SWE_LF'
 elif env['swe_solver'] == 'lfbath':
-  env['F90FLAGS'] 		+= ' -D_SWE_LF_BATH'
+  env['F90FLAGS'] += ' -D_SWE_LF_BATH'
 elif env['swe_solver'] == 'llf':
   env['F90FLAGS'] += ' -D_SWE_LLF'
 elif env['swe_solver'] == 'llfbath':
@@ -187,18 +191,33 @@ elif env['precision'] == 'quad':
   env['F90FLAGS'] += ' -D_QUAD_PRECISION'
 
 if env['target'] == 'debug':
-  env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
-  env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
+    env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' -g -O0'
+    env['LINKFLAGS'] += ' -g -O0'
+
   env.SetDefault(debug_level = '3')
   env.SetDefault(assertions = True)
 elif env['target'] == 'profile':
-  env['F90FLAGS'] += ' -g -trace -fast -inline-level=0 -funroll-loops -unroll'
-  env['LINKFLAGS'] += ' -g -trace -O3 -ip -ipo'
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -g -trace -fast -inline-level=0 -funroll-loops -unroll'
+    env['LINKFLAGS'] += ' -g -trace -O3 -ip -ipo'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' -g -O3'
+    env['LINKFLAGS'] += ' -g -O3'
+
   env.SetDefault(debug_level = '1')
   env.SetDefault(assertions = False)
 elif env['target'] == 'release':
-  env['F90FLAGS'] += ' -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
-  env['LINKFLAGS'] += ' -O3 -ip -ipo'
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
+    env['LINKFLAGS'] += ' -O3 -ip -ipo'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' -O3'
+    env['LINKFLAGS'] += ' -O3'
+
   env.SetDefault(debug_level = '1')
   env.SetDefault(assertions = False)
 
@@ -226,23 +245,27 @@ program_name = 'samoa'
 # add descriptors to the executable for any argument that is not default
 program_name += '_' + env['scenario']
 
-if env['openmp'] != default_env['openmp']:
+if env['openmp'] != 'tasks':
   program_name += '_' + env['openmp']
 
-if env['mpi'] == 'nompi':
-  program_name += '_nompi'
+if env['mpi'] != 'default':
+  program_name += '_' + env['mpi']
 
-if env['asagi'] != default_env['asagi']:
+if not env['asagi']:
   program_name += '_' + env['asagi']
 
-if env['swe_solver'] != default_env['swe_solver']:
+if env['swe_solver'] != 'aug_riemann':
   program_name += '_' + env['swe_solver']
 
-if env['precision'] != default_env['precision']:
+if env['precision'] != 'double':
   program_name += '_' + env['precision']
 
-if env['target'] != default_env['target']:
+if env['target'] != 'release':
   program_name += '_' + env['target']
+
+
+if env['compiler'] != 'intel':
+  program_name += '_' + env['compiler']
 
 if env['library']:
   program_name = 'lib' + program_name + '.so'
@@ -250,7 +273,11 @@ if env['library']:
 # set build directory
 build_dir = env['build_dir']
 object_dir = build_dir + 'build_'+ program_name + '/'
-env.Append(F90FLAGS = ' -module ' + object_dir)
+
+if env['compiler'] == 'intel':
+  env.Append(F90FLAGS = ' -module ' + object_dir)
+elif env['compiler'] == 'gnu':
+  env.Append(F90FLAGS = ' -J ' + object_dir)
 
 #No idea why, but this is necessary in order to get a correct dependency
 env['F90PATH'] = '.'
@@ -269,3 +296,4 @@ Import('env')
 
 # build the program
 env.Program(build_dir + program_name, env.obj_files)
+
