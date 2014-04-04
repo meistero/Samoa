@@ -70,37 +70,54 @@
 #define _DARCY_FLOW_EDGE_SIZE		0
 #define _DARCY_FLOW_NODE_SIZE		1
 
-!> Assertion macros:
+!compiler-dependent macros (traditional vs. modern preprocessor)
+#	define _id(x) x
 
 #if defined(__GFORTRAN__)
-#	define str(x)	"x"
-#	define raise()	call abort
+#	define _raise()	                    call abort
+#	define _stringify(x)	            "x"
+#	define _conc(x, y)	                _id(x)_id(y)
+#	define _conc3(x, y, z)	            _id(x)_id(y)_id(z)
+#	define _conc4(x, y, z, a)           _id(x)_id(y)_id(z)_id(a)
+#	define _conc5(x, y, z, a, b)        _id(x)_id(y)_id(z)_id(a)_id(b)
+#	define _conc6(x, y, z, a, b, c)     _id(x)_id(y)_id(z)_id(a)_id(b)_id(c)
+#	define _conc7(x, y, z, a, b, c, d)  _id(x)_id(y)_id(z)_id(a)_id(b)_id(c)_id(d)
 #else
-#	define str(x)	#x
-#	define raise() 	PRINT *, 0 / 0
+#	define _raise() 	                print *, 0 / 0
+#	define _stringify(x)	            #x
+#	define _conc(x, y)	                x##y
+#	define _conc3(x, y, z)	            x##y##z
+#	define _conc4(x, y, z, a)	        x##y##z##a
+#	define _conc5(x, y, z, a, b)	    x##y##z##a##b
+#	define _conc6(x, y, z, a, b, c)	    x##y##z##a##b##c
+#	define _conc7(x, y, z, a, b, c, d)	x##y##z##a##b##c##d
 #endif
+
+!> Assertion macros:
 
 !> Checks for a condition to be true and raises an artificial divide-by-zero exception for error handling
 #if defined(_ASSERT)
-#	define assert(x)				if (.not. (x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x); flush(6); raise(); end if
+#	define assert(x)				if (.not. (x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x); flush(6); _raise(); end if
 #	define assert_pure(x)			if (.not. (x)) then; call raise_error(); end if
 
-#	define assert_eq(x, y)			if (.not. (x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " == ", str(y), ": ", x, " == ", y; flush(6); raise(); end if
-#	define assert_lt(x, y)			if (.not. (x .lt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " < ", str(y), ": ", x, " < ", y; flush(6); raise(); end if
-#	define assert_le(x, y)			if (.not. (x .le. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " <= ", str(y), ": ", x, " <= ", y; flush(6); raise(); end if
-#	define assert_gt(x, y)			if (.not. (x .gt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " > ", str(y), ": ", x, " > ", y; flush(6); raise(); end if
-#	define assert_ge(x, y)			if (.not. (x .ge. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " >= ", str(y), ": ", x, " >= ", y; flush(6); raise(); end if
-#	define assert_ne(x, y)			if (.not. (x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " /= ", str(y), ": ", x, " /= ", y; flush(6); raise(); end if
+#	define assert_eq(x, y)			if (.not. (x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " == ", _stringify(y), ": ", x, " == ", y; flush(6); _raise(); end if
+#	define assert_eqv(x, y)			if (.not. (x .eqv. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " == ", _stringify(y), ": ", x, " == ", y; flush(6); _raise(); end if
+#	define assert_lt(x, y)			if (.not. (x .lt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " < ", _stringify(y), ": ", x, " < ", y; flush(6); _raise(); end if
+#	define assert_le(x, y)			if (.not. (x .le. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " <= ", _stringify(y), ": ", x, " <= ", y; flush(6); _raise(); end if
+#	define assert_gt(x, y)			if (.not. (x .gt. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " > ", _stringify(y), ": ", x, " > ", y; flush(6); _raise(); end if
+#	define assert_ge(x, y)			if (.not. (x .ge. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " >= ", _stringify(y), ": ", x, " >= ", y; flush(6); _raise(); end if
+#	define assert_ne(x, y)			if (.not. (x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " /= ", _stringify(y), ": ", x, " /= ", y; flush(6); _raise(); end if
 
-#	define assert_v(x)				if (.not. all(x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x); flush(6); raise(); end if
-#	define assert_veq(x, y)			if (.not. all(x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " == ", str(y), ": ", x, y; flush(6); raise(); end if
-#	define assert_vne(x, y)			if (.not. any(x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", str(x), " != ", str(y), ": ", x, y; flush(6); raise(); end if
+#	define assert_v(x)				if (.not. all(x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x); flush(6); _raise(); end if
+#	define assert_veq(x, y)			if (.not. all(x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " == ", _stringify(y), ": ", x, y; flush(6); _raise(); end if
+#	define assert_vne(x, y)			if (.not. any(x .ne. y)) then; PRINT '(a, a, i0, a, a, a, a, a, (X, g0), (X, g0))', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " != ", _stringify(y), ": ", x, y; flush(6); _raise(); end if
 #	define mpi_isend				mpi_issend
 #else
 #	define assert(x)
 #	define assert_pure(x)
 
 #	define assert_eq(x, y)
+#	define assert_eqv(x, y)
 #	define assert_lt(x, y)
 #	define assert_le(x, y)
 #	define assert_gt(x, y)
@@ -112,7 +129,7 @@
 #	define assert_vne(x, y)
 #endif
 
-#define try(x, str_exception)	if (.not. (x)) then; PRINT '(a, "(", i0, "): Exception: ", a, ": ", a)', __FILE__, __LINE__, str_exception, str(x) ; flush(6); raise(); end if
+#define try(x, str_exception)	if (.not. (x)) then; PRINT '(a, "(", i0, "): Exception: ", a, ": ", a)', __FILE__, __LINE__, str_exception, _stringify(x) ; flush(6); _raise(); end if
 
 !> Log file macros
 #define _log_open_file				call log_open_file

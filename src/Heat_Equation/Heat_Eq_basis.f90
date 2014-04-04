@@ -13,13 +13,13 @@
 	MODULE Samoa_heat_eq_T_space
 		use SFC_data_types
 
-#		define _BF_type_NAME		samoa_basis_T
+#		define _BF_TYPE_NAME		samoa_basis_T
 #		define _BF_ORDER			_HEAT_EQ_ORDER
 
 #		include "Tools_lagrange_basis.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_ORDER
 
 	END MODULE
@@ -32,16 +32,16 @@
 		use SFC_data_types
 		use Samoa_heat_eq_T_space
 
-#		define _BF_type_NAME		samoa_basis_T
+#		define _BF_TYPE_NAME		samoa_basis_T
 #		define _BF_SIZE				_HEAT_EQ_SIZE
-#		define _QR_type_NAME		samoa_qr_T
+#		define _QR_TYPE_NAME		samoa_qr_T
 
 #		include "Tools_quadrature_rule.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_SIZE
-#		undef _QR_type_NAME
+#		undef _QR_TYPE_NAME
 
 	END MODULE
 

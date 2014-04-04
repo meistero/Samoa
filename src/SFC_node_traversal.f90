@@ -20,7 +20,7 @@ MODULE SFC_node_traversal
 	CONTAINS
 
 	subroutine init_grid(grid, depth)
-		class(t_grid), intent(inout)			    :: grid
+		type(t_grid), intent(inout)			    :: grid
 		integer (kind = 1), intent(in), optional    :: depth
 		integer (kind = GRID_SI)            		:: i_section, i_thread
 
@@ -259,18 +259,18 @@ MODULE SFC_node_traversal
 
         select case (parent_cell%i_turtle_type)
             case (K)
-                call first_child_cell%set_edge_types(i_previous_edge_type, i_next_edge_type, NEW)
-                call second_child_cell%set_edge_types(OLD, i_color_edge_type, i_next_edge_type)
+                call first_child_cell%set_edge_types(i_previous_edge_type, i_next_edge_type, int(NEW, 1))
+                call second_child_cell%set_edge_types(int(OLD, 1), i_color_edge_type, i_next_edge_type)
                 first_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
                 second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
             case (V)
-                call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, NEW)
-                call second_child_cell%set_edge_types(OLD, i_color_edge_type, i_next_edge_type)
+                call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, int(NEW, 1))
+                call second_child_cell%set_edge_types(int(OLD, 1), i_color_edge_type, i_next_edge_type)
                 first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
                 second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
             case (H)
-                call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, NEW)
-                call second_child_cell%set_edge_types(OLD, i_previous_edge_type, i_next_edge_type)
+                call first_child_cell%set_edge_types(i_previous_edge_type, i_color_edge_type, int(NEW, 1))
+                call second_child_cell%set_edge_types(int(OLD, 1), i_previous_edge_type, i_next_edge_type)
                 first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
                 second_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
         end select

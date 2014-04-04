@@ -11,7 +11,7 @@
 
 module config
     use omp_lib
-	use M_kracken
+	use Mkracken
 	use Tools_log
 
 #	if defined(_ASAGI)
@@ -21,7 +21,7 @@ module config
     implicit none
 
     private
-    public cfg, omp_tasks, i_thread, rank_MPI, size_MPI
+    public cfg, i_thread, rank_MPI, size_MPI
 
     type t_config
         integer			                        :: i_threads			                            !< number of OpenMP threads
@@ -67,12 +67,6 @@ module config
 
     type(t_config) :: cfg
     !$omp threadprivate(cfg)
-
-#   if defined(_OPENMP_TASKS)
-        logical, parameter                      :: omp_tasks = .true.
-#   else
-        logical, parameter                      :: omp_tasks = .false.
-#   endif
 
 	integer                     :: i_thread = 1     !start counting at 1
 	!$omp threadprivate(i_thread)

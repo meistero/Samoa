@@ -2,18 +2,17 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#include "Compilation_control.f90"
+
 #define _JACOBI								    _solver
 #define _JACOBI_USE								_solver_use
 
-#define _CONC2(X, Y)							X ## _ ## Y
-#define _PREFIX(P, X)							_CONC2(P, X)
-#define _T_JACOBI								_PREFIX(t, _JACOBI)
-#define _JACOBI_(X)								_PREFIX(_JACOBI, X)
-#define _T_JACOBI_(X)							_PREFIX(t, _JACOBI_(X))
+#define _PREFIX3(P, X)							_conc3(P,_,X)
+#define _T_JACOBI								_PREFIX3(t,_JACOBI)
+#define _JACOBI_(X)								_PREFIX3(_JACOBI,X)
+#define _T_JACOBI_(X)							_PREFIX3(t,_JACOBI_(X))
 
 #define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
-
-#include "Compilation_control.f90"
 
 MODULE _JACOBI_(1)
     use SFC_edge_traversal
@@ -269,24 +268,21 @@ MODULE _JACOBI
 
         contains
 
+        procedure, pass :: create
         procedure, pass :: solve
     end type
-
-    interface _T_JACOBI
-        module procedure init_solver
-    end interface
 
     private
     public _T_JACOBI
 
     contains
 
-    function init_solver(max_error) result(solver)
-        real (kind = GRID_SR)   :: max_error
-        type(_T_JACOBI) :: solver
+    subroutine create(solver, max_error)
+        class(_T_JACOBI), intent(inout) :: solver
+        real (kind = GRID_SR)           :: max_error
 
         solver%max_error = max_error
-    end function
+    end subroutine
 
     !> Solves a poisson equation using a Jacobi solver
     !> \returns		number of iterations performed
@@ -344,3 +340,4 @@ END MODULE
 
 #undef _solver
 #undef _solver_use
+#undef _PREFIX

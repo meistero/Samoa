@@ -323,17 +323,17 @@ MODULE SFC_data_types
         end if
 	end function
 
-    elemental function t_global_data_to_string(gd) result(str)
+    function t_global_data_to_string(gd) result(str)
         class(t_global_data), intent(in)		:: gd
 		character (len = 256)					:: str
 
-		write(str, '(A, A, F0.4, X, F0.4, X, F0.4)') trim(str), " distance RED (start, min, end): ", decode_distance(gd%start_distance(RED)), decode_distance(gd%min_distance(RED)), decode_distance(gd%end_distance(RED))
-		write(str, '(A, A, F0.4, X, F0.4, X, F0.4)') trim(str), " distance GREEN (start, min, end): ", decode_distance(gd%start_distance(GREEN)), decode_distance(gd%min_distance(GREEN)), decode_distance(gd%end_distance(GREEN))
+		write(str, '(A, F0.4, X, F0.4, X, F0.4)') " distance RED (start, min, end): ", decode_distance(gd%start_distance(RED)), decode_distance(gd%min_distance(RED)), decode_distance(gd%end_distance(RED))
+		write(str, '(A, F0.4, X, F0.4, X, F0.4)') " distance GREEN (start, min, end): ", decode_distance(gd%start_distance(GREEN)), decode_distance(gd%min_distance(GREEN)), decode_distance(gd%end_distance(GREEN))
     end function
 
 	!edge geometry type-bound procedures
 
-	elemental function edge_to_string(edge) result(str)
+	function edge_to_string(edge) result(str)
 		class(t_edge_geometry), intent(in)		:: edge
 		character (len = 64)					:: str
 

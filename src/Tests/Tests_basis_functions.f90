@@ -9,7 +9,7 @@
 	MODULE Tests_space_l0
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_l0
+#		define _BF_TYPE_NAME		Tests_basis_l0
 #		define _BF_ORDER			0
 
 #		include "Tools_lagrange_basis.f90"
@@ -18,7 +18,7 @@
 	MODULE Tests_space_l1
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_l1
+#		define _BF_TYPE_NAME		Tests_basis_l1
 #		define _BF_ORDER			1
 
 #		include "Tools_lagrange_basis.f90"
@@ -27,7 +27,7 @@
 	MODULE Tests_space_l2
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_l2
+#		define _BF_TYPE_NAME		Tests_basis_l2
 #		define _BF_ORDER			2
 
 #		include "Tools_lagrange_basis.f90"
@@ -36,7 +36,7 @@
 	MODULE Tests_space_h0
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_h0
+#		define _BF_TYPE_NAME		Tests_basis_h0
 #		define _BF_ORDER			0
 
 #		include "Tools_hierarchical_basis.f90"
@@ -45,7 +45,7 @@
 	MODULE Tests_space_h1
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_h1
+#		define _BF_TYPE_NAME		Tests_basis_h1
 #		define _BF_ORDER			1
 
 #		include "Tools_hierarchical_basis.f90"
@@ -54,7 +54,7 @@
 	MODULE Tests_space_h2
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_h2
+#		define _BF_TYPE_NAME		Tests_basis_h2
 #		define _BF_ORDER			2
 
 #		include "Tools_hierarchical_basis.f90"
@@ -63,7 +63,7 @@
 	MODULE Tests_space_b0
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_b0
+#		define _BF_TYPE_NAME		Tests_basis_b0
 #		define _BF_ORDER			0
 
 #		include "Tools_boundary_basis.f90"
@@ -72,7 +72,7 @@
 	MODULE Tests_space_b1
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_b1
+#		define _BF_TYPE_NAME		Tests_basis_b1
 #		define _BF_ORDER			1
 
 #		include "Tools_boundary_basis.f90"
@@ -81,7 +81,7 @@
 	MODULE Tests_space_b2
 		use SFC_data_types
 
-#		define _BF_type_NAME		Tests_basis_b2
+#		define _BF_TYPE_NAME		Tests_basis_b2
 #		define _BF_ORDER			2
 
 #		include "Tools_boundary_basis.f90"

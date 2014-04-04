@@ -200,7 +200,7 @@ function merge(list1, list2) result(list)
     end if
 end function
 
-elemental subroutine reverse(list)
+subroutine reverse(list)
 	class(_CNT), intent(inout)		        :: list						!< list object
 
 	_T, dimension(:), pointer				:: elements_temp

@@ -38,7 +38,7 @@ vars.AddVariables(
               ),
 
   EnumVariable( 'openmp', 'OpenMP support', 'tasks',
-                allowed_values=('noomp', 'no_tasks', 'tasks')
+                allowed_values=('noomp', 'notasks', 'tasks')
               ),
 
   EnumVariable( 'mpi', 'MPI support', 'default',
@@ -141,35 +141,45 @@ elif env['scenario'] == 'tests':
   env.SetDefault(asagi = 'noasagi')
   env.SetDefault(library = False)
 
-if env['openmp'] in ['notasks', 'tasks']:
+if env['openmp'] == 'tasks':
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -openmp -D_OPENMP_TASKS'
+    env['LINKFLAGS'] += ' -openmp'
+  elif env['compiler'] == 'gnu':
+    print "******************************************************"
+    print "Warning: gnu compiler currently does not support tasks"
+    print "******************************************************"
+    env['F90FLAGS'] += ' -fopenmp -D_OPENMP_TASKS'
+    env['LINKFLAGS'] += ' -fopenmp'
+elif env['openmp'] == 'notasks':
   if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -openmp'
     env['LINKFLAGS'] += ' -openmp'
-  elif  env['compiler'] == 'gnu':
+  elif env['compiler'] == 'gnu':
     env['F90FLAGS'] += ' -fopenmp'
     env['LINKFLAGS'] += ' -fopenmp'
-
-  if env['openmp'] == 'tasks':
-    env['F90FLAGS'] += ' -D_OPENMP_TASKS'
 elif env['openmp'] == 'noomp':
   if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -openmp-stubs'
     env['LINKFLAGS'] += ' -openmp-stubs'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' '
-    env['LINKFLAGS'] += ' '
+    print "*********************************************************"
+    print "Error: NYI, OpenMP must be active if gnu compiler is used"
+    print "*********************************************************"
+    Exit(-1)
 
 if env['asagi'] != 'noasagi':
   env['F90FLAGS'] += ' -D_ASAGI -I' + env['asagi_dir'] + '/include'
-  env['LINKFLAGS'] += ' -Wl,-rpath,' + env['asagi_dir'] + ' -L' + env['asagi_dir']
+  env['LINKFLAGS'] += ' -Wl,--rpath,' + env['asagi_dir']
+  env.Append(LIBPATH = env['asagi_dir'])
 
   if env['asagi'] == 'numa':
     env['F90FLAGS'] += ' -D_ASAGI_NUMA'
 
   if env['openmp'] == 'noomp':
-    env['LINKFLAGS'] += ' -lasagi_nomt'
+    env.Append(LIBS = ['asagi_nomt'])
   else:
-    env['LINKFLAGS'] += ' -lasagi'
+    env.Append(LIBS = ['asagi'])
 
 if env['asagi_timing']:
   env['F90FLAGS'] += ' -D_ASAGI_TIMING'
@@ -229,7 +239,9 @@ elif env['target'] == 'release':
   env.SetDefault(debug_level = '1')
   env.SetDefault(assertions = False)
 
-env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
+if env['compiler'] == 'intel':
+  env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
+
 env['F90FLAGS'] += ' -D_DEBUG_LEVEL=' + env['debug_level']
 
 if env['assertions']:
@@ -285,7 +297,7 @@ object_dir = build_dir + 'build_'+ program_name + '/'
 if env['compiler'] == 'intel':
   env.Append(F90FLAGS = ' -module ' + object_dir)
 elif env['compiler'] == 'gnu':
-  env.Append(F90FLAGS = ' -J ' + object_dir)
+  env.Append(F90FLAGS = ' -J' + object_dir)
 
 #No idea why, but this is necessary in order to get a correct dependency
 env['F90PATH'] = '.'

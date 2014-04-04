@@ -5,7 +5,7 @@
 
 #include "Compilation_control.f90"
 
-#if .false.
+#if 0
     module darcy_pressure_solver_pipecg
         !this is a dummy module for automated dependency analysis
         use SFC_edge_traversal
@@ -36,7 +36,7 @@
 #   include "../Solver/PipeCG.f90"
 
     !unstable version
-#   define _solver              darcy_pressure_solver_pipecg_unstable
+#   define _solver              darcy_pressure_solver_pipecg_unst
 #   define _solver_unstable
 #   define _solver_use          Samoa_darcy
 

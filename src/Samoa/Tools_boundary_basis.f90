@@ -7,24 +7,23 @@
 !> Warning: this a template module body and requires preprocessor commands before inclusion.
 !> Usage: Inside your module definition, insert
 !>
-!> #define _BF_type_NAME	<value>
+!> #define _BF_TYPE_NAME	<value>
 !> #define _BF_ORDER		<value>
 !>
 !> #include <this_file>
 !>
 !> where
 !>
-!> @item _BF_type_NAME		Type name for the basis
+!> @item _BF_TYPE_NAME		Type name for the basis
 !> @item _BF_ORDER			Order of the lagrange basis
 !>
-!> The resulting basis type is defined as _BF_type_NAME
+!> The resulting basis type is defined as _BF_TYPE_NAME
 !> @author Oliver Meister
 
-#define _CONC2(X, Y)			X ## _ ## Y
-#define _PREFIX(P, X)			_CONC2(P, X)
-#define _BF_(X)					_PREFIX(_BF_type_NAME, X)
+#define _PREFIX(P, X)			_conc3(P,_,X)
+#define _BF_(X)					_PREFIX(_BF_TYPE_NAME,X)
 
-#define _BF						_BF_type_NAME
+#define _BF						_BF_TYPE_NAME
 #define _BF_SIZE				_BF_ORDER + 1
 
 integer (kind = GRID_SI), parameter									:: i_dofs = _BF_SIZE	!< Number of degrees of freedom
@@ -192,49 +191,49 @@ subroutine _BF_(test)()
 
 	r_values = r_dofs
 	call cpu_time(t1)
-	do i = 1, 1e8
+	do i = 1, (10**8)
 		r_values = _BF_(dofs_to_values)(r_values)
 	end do
 	call cpu_time(t2)
-	_log_write(0, "(A, F7.4, G)") "   dtv                : ", (t2 - t1), sum(r_values)
+	_log_write(0, "(A, F7.4, G0.4)") "   dtv                : ", (t2 - t1), sum(r_values)
 
 	_log_write(0, *) " ct-constant position evaluation:"
 
 	r_value = 0.0_GRID_SR
 	call cpu_time(t1)
-	do i = 1, 1e8
+	do i = 1, (10**8)
 		r_value = r_value + _BF_(eval)(x, r_dofs)
 	end do
 	call cpu_time(t2)
-	_log_write(0, "(A, F7.4, G)") "   eval(x, dofs)      : ", (t2 - t1), r_value
+	_log_write(0, "(A, F7.4, G0.4)") "   eval(x, dofs)      : ", (t2 - t1), r_value
 
 	r_value = 0.0_GRID_SR
 	call cpu_time(t1)
-	do i = 1, 1e8
+	do i = 1, (10**8)
 		r_value = r_value + DOT_PRODUCT(_BF_(at)(x), r_dofs)
 	end do
 	call cpu_time(t2)
-	_log_write(0, "(A, F7.4, G)") "   dot(at(x), dofs)   : ", (t2 - t1), r_value
+	_log_write(0, "(A, F7.4, G0.4)") "   dot(at(x), dofs)   : ", (t2 - t1), r_value
 
 	r_value = 0.0_GRID_SR
 	call cpu_time(t1)
-	do i = 1, 1e8
+	do i = 1, (10**8)
 		r_value = r_value + DOT_PRODUCT(_PSI(x), r_dofs)
 	end do
 	call cpu_time(t2)
-	_log_write(0, "(A, F7.4, G)") "   dot(_PSI(x), dofs) : ", (t2 - t1), r_value
+	_log_write(0, "(A, F7.4, G0.4)") "   dot(_PSI(x), dofs) : ", (t2 - t1), r_value
 
 	r_value = 0.0_GRID_SR
 	call cpu_time(t1)
-	do i = 1, 1e8
+	do i = 1, (10**8)
 		r_value = r_value + DOT_PRODUCT(psi_x, r_dofs)
 	end do
 	call cpu_time(t2)
-	_log_write(0, "(A, F7.4, G)") "   dot(psi_x, dofs)   : ", (t2 - t1), r_value
+	_log_write(0, "(A, F7.4, G0.4)") "   dot(psi_x, dofs)   : ", (t2 - t1), r_value
 
 	r_value = 0.0_GRID_SR
 	call cpu_time(t1)
-	do i = 1, 1e8
+	do i = 1, (10**8)
 #		if (_BF_ORDER == 0)
 			r_value = r_value + r_dofs(1)
 #		elif (_BF_ORDER == 1)
@@ -244,7 +243,7 @@ subroutine _BF_(test)()
 #		endif
 	end do
 	call cpu_time(t2)
-	_log_write(0, "(A, F7.4, G)") "   hard-coded         : ", (t2 - t1), r_value
+	_log_write(0, "(A, F7.4, G0.4)") "   hard-coded         : ", (t2 - t1), r_value
 end subroutine
 
 #undef _BF
@@ -254,5 +253,5 @@ end subroutine
 #undef _DPSI_DY
 
 #undef _BF_type
-#undef _BF_type_NAME
+#undef _BF_TYPE_NAME
 #undef _BF_ORDER

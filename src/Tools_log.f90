@@ -23,7 +23,7 @@ MODULE Tools_log
     use Tools_mpi
 
 	private
-	public log_open_file, log_close_file, g_log_file_unit, prefix_sum, postfix_sum, reduce, reduce_i64, scatter, raise_error, term_color, term_reset
+	public log_open_file, log_close_file, g_log_file_unit, prefix_sum, postfix_sum, reduce, scatter, raise_error, term_color, term_reset
 
 	interface prefix_sum
         module procedure prefix_sum_i8_sequential

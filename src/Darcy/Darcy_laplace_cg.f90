@@ -5,7 +5,7 @@
 
 #include "Compilation_control.f90"
 
-#if .false.
+#if 0
     module darcy_pressure_solver_cg
         !this is a dummy module for automated dependency analysis
         use SFC_edge_traversal

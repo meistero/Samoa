@@ -17,7 +17,7 @@
 !=======================================================================--------
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
 !=======================================================================--------
-module M_kracken_dictionary
+module Mkracken_dictionary
 
 ! @(#) common length of verbs and entries in Language dictionary
 ! NOTE:   many parameters were reduced in size so as to just accomodate
@@ -39,10 +39,13 @@ module M_kracken_dictionary
       character (len=IPverb),dimension(ic),public  ::    ix2=" " ! string variable names
       integer(kind=k_int),dimension(ic),public :: ivalue=0       ! significant lengths of string variable values
       !================================================================---------
-end module M_kracken_dictionary
+end module
 
-module M_kracken
+module Mkracken
+   use Mkracken_dictionary ! dictionary for Language routines
+
    implicit none
+
    private
 
    ! subroutineS:
@@ -77,7 +80,6 @@ subroutine retrev(name,val,len,ier)
 !     Copyright(c) 1989 John S. Urban   all rights reserved
 !@(#) retrieve token value from Language Dictionary when given NAME
 
-      use M_kracken_dictionary ! dictionary for Language routines
 
 
       character(len=*),intent(in)  ::  name
@@ -312,7 +314,6 @@ subroutine parse(verb,string,allow)
 !
 !     if ileave is 0, leave double quotes where you find them; else if 1
 !     remove them. Normally, they should be removed
-      use M_kracken_dictionary
 !=========================================================================
 ! @(#) for left-over command string for Language routines
 !     optionally needed if you are going to allow multiple commands on a line
@@ -481,8 +482,6 @@ subroutine store(name1,value1,allow1,ier)
 !
 !@(#) replace dictionary name's value (if allow=add add name if necessary)
 
-      use M_kracken_dictionary
-
       character(len=*),intent(in)        ::  name1
       character(len=*),intent(in)        ::  value1
       character(len=*),intent(in)        ::  allow1
@@ -568,8 +567,6 @@ subroutine bounce(varnam,index,ixn,ier,mssge)
 !     It is assumed all variable names are lexically greater
 !     than a blank string.
 
-      use M_kracken_dictionary
-
       character(len=*),intent(in)                     ::  varnam
       integer,intent(out)                             ::  index
       !character(len=IPverb),dimension(ic),intent(in)  ::  ixn
@@ -631,8 +628,6 @@ subroutine add_string(newnam,nchars,index,ier)
 !=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 !@(#) Add new string name to Language Library dictionary
 
-      use M_kracken_dictionary
-
 !     maximum number of string variables to be stored
       character(len=*),intent(in)       ::  newnam
       integer,intent(in)                ::  nchars
@@ -678,8 +673,6 @@ function igets(chars0)
 !     Copyright(c) 1989 John S. Urban   all rights reserved
 !@(#) return the subscript value of a string when given it's name
 !     WARNING: only request value of names known to exist
-
-      use M_kracken_dictionary ! dictionary for Language routines
 
       character(len=*),intent(in)        ::  chars0
 
@@ -942,8 +935,6 @@ function sget(name,ilen) result (string)
 !     This routine trusts that the desired name exists. A blank
 !     is returned if the name is not in the dictionary
 
-      use M_kracken_dictionary ! dictionary for Language routines
-
       character(len=*),intent(in)  ::  name    !  name to look up in dictionary
       integer,intent(in)           ::  ilen    !  length of returned output string
       character(len=ilen)          ::  string
@@ -963,4 +954,4 @@ end function sget
 !=======================================================================--------
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
 !=======================================================================--------
-end module M_kracken
+end module

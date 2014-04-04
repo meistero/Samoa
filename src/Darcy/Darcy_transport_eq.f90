@@ -21,7 +21,7 @@
 
 #		define _GT_NAME							t_darcy_transport_eq_traversal
 
-#		if (_DARCY_U_EDGE_SIZE > 0 .or. _DARCY_FLOW_EDGE_SIZE > 0)
+#		if (_DARCY_U_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
 #			define _GT_EDGES
 #		endif
 

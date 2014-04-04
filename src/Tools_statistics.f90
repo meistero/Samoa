@@ -69,7 +69,7 @@ module Tools_statistics
             type is (t_adaptive_statistics)
                 sr = s1%t_statistics
             class default
-                assert(.false.) !Object s1 is not of any known type
+                assert_pure(.false.) !Object s1 is not of any known type
         end select
     end function
 

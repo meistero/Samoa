@@ -2,19 +2,17 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#include "Compilation_control.f90"
+
 #define _CG							            _solver
 #define _CG_USE								    _solver_use
 
-#define _CONC2(X, Y)							X ## _ ## Y
-#define _PREFIX(P, X)							_CONC2(P, X)
-#define _T_CG								    _PREFIX(t, _CG)
-#define _CG_(X)									_PREFIX(_CG, X)
-#define _T_CG_(X)								_PREFIX(t, _CG_(X))
+#define _PREFIX3(P, X)							_conc3(P,_,X)
+#define _T_CG								    _PREFIX3(t,_CG)
+#define _CG_(X)									_PREFIX3(_CG,X)
+#define _T_CG_(X)								_PREFIX3(t,_CG_(X))
 
 #define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
-
-#include "Compilation_control.f90"
-
 
 MODULE _CG_(step)
     use SFC_edge_traversal
@@ -29,8 +27,8 @@ MODULE _CG_(step)
         real (kind = GRID_SR)				    :: v_u					    !< v^T * u
         real (kind = GRID_SR)					:: r_sq						!< r^2
 
-#       if .not. defined(_solver_unstable)
-            real (kind = GRID_SR)				    :: r_u					    !< r^T * u
+#       if !defined(_solver_unstable)
+            real (kind = GRID_SR)				:: r_u					    !< r^T * u
 #       endif
     end type
 
@@ -98,7 +96,7 @@ MODULE _CG_(step)
         call reduce(traversal%v_u, traversal%children%v_u, MPI_SUM, .true.)
         call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
 
-#       if .not. defined(_solver_unstable)
+#       if !defined(_solver_unstable)
             call reduce(traversal%r_u, traversal%children%r_u, MPI_SUM, .true.)
 #       endif
     end subroutine
@@ -111,7 +109,7 @@ MODULE _CG_(step)
         traversal%v_u = 0.0_GRID_SR
         traversal%r_sq = 0.0_GRID_SR
 
-#       if .not. defined(_solver_unstable)
+#       if !defined(_solver_unstable)
             traversal%r_u = 0.0_GRID_SR
 #       endif
     end subroutine
@@ -239,7 +237,7 @@ MODULE _CG_(step)
         call gv_trace_A%read(node, trace_A)
 
         do i = 1, _gv_node_size
-#           if .not. defined(_solver_unstable)
+#           if !defined(_solver_unstable)
                 call reduce_dof_op(traversal%d_u, traversal%r_u, traversal%v_u, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
 #           else
                 call reduce_dof_op(traversal%d_u, traversal%d_u, traversal%v_u, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
@@ -302,7 +300,7 @@ MODULE _CG_(step)
         v_u = v_u + (v * v * trace_A)
         r_sq = r_sq + (r * r)
 
-#       if .not. defined(_solver_unstable)
+#       if !defined(_solver_unstable)
             r_u = r_u + (r * v * trace_A)
 #       endif
     end subroutine
@@ -562,26 +560,23 @@ MODULE _CG
 
         contains
 
+        procedure, pass :: create
         procedure, pass :: solve
     end type
-
-    interface _T_CG
-        module procedure init_solver
-    end interface
 
     private
     public _T_CG
 
     contains
 
-    function init_solver(max_error, i_restart_interval) result(solver)
+    subroutine create(solver, max_error, i_restart_interval)
+        class(_T_CG), intent(inout)             :: solver
         real (kind = GRID_SR), intent(in)       :: max_error
         integer (kind = GRID_SI), intent(in)    :: i_restart_interval
-        type(_T_CG) :: solver
 
         solver%max_error = max_error
         solver%i_restart_interval = i_restart_interval
-    end function
+    end subroutine
 
     !> Solves a linear equation system using a CG solver
     !> \returns		number of iterations performed
@@ -625,12 +620,12 @@ MODULE _CG
             d_u = solver%cg_step%d_u
             v_u = solver%cg_step%v_u
 
-#           if .not. defined(_solver_unstable)
+#           if !defined(_solver_unstable)
                 r_u = solver%cg_step%r_u
 #           endif
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-            if (imod(i_iteration + 1, solver%i_restart_interval) == 0) then
+            if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
                 r_sq = solver%cg_exact%r_sq
                 r_C_r = solver%cg_exact%r_C_r
@@ -646,7 +641,7 @@ MODULE _CG
             alpha = r_C_r / d_u
             r_C_r_old = r_C_r
 
-#           if .not. defined(_solver_unstable)
+#           if !defined(_solver_unstable)
                 !requires 2 reductions, but can afford residual correction every 256 iterations
                 r_C_r = r_C_r_old + alpha * (alpha * v_u - 2.0_GRID_SR * r_u)
 #           else

@@ -2,18 +2,17 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#include "Compilation_control.f90"
+
 #define _CG							            _solver
 #define _CG_USE								    _solver_use
 
-#define _CONC2(X, Y)							X ## _ ## Y
-#define _PREFIX(P, X)							_CONC2(P, X)
-#define _T_CG								    _PREFIX(t, _CG)
-#define _CG_(X)									_PREFIX(_CG, X)
-#define _T_CG_(X)								_PREFIX(t, _CG_(X))
+#define _PREFIX3(P, X)							_conc3(P,_,X)
+#define _T_CG								    _PREFIX3(t,_CG)
+#define _CG_(X)									_PREFIX3(_CG,X)
+#define _T_CG_(X)								_PREFIX3(t,_CG_(X))
 
 #define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
-
-#include "Compilation_control.f90"
 
 MODULE _CG_(1)
     use SFC_edge_traversal
@@ -684,26 +683,23 @@ MODULE _CG
 
         contains
 
+        procedure, pass :: create
         procedure, pass :: solve
     end type
-
-    interface _T_CG
-        module procedure init_solver
-    end interface
 
     private
     public _T_CG
 
     contains
 
-    function init_solver(max_error, i_restart_interval) result(solver)
+    subroutine create(solver, max_error, i_restart_interval)
+        class(_T_CG), intent(inout)             :: solver
         real (kind = GRID_SR), intent(in)       :: max_error
         integer (kind = GRID_SI), intent(in)    :: i_restart_interval
-        type(_T_CG) :: solver
 
         solver%max_error = max_error
         solver%i_restart_interval = i_restart_interval
-    end function
+    end subroutine
 
     !> Solves a linear equation system using a CG solver
     !> \returns		number of iterations performed
@@ -745,7 +741,7 @@ MODULE _CG
             _log_write(2, '(4X, A, ES17.10)') "d A d: ", d_u
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-            if (imod(i_iteration + 1, solver%i_restart_interval) == 0) then
+            if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
                 r_C_r = solver%cg_exact%r_C_r
 

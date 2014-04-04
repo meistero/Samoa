@@ -7,29 +7,28 @@
 !> Warning: this a template module body and requires preprocessor commands before inclusion.
 !> Usage: Inside your module definition, insert
 !>
-!> #define _BF_type_NAME	<value>
+!> #define _BF_TYPE_NAME	<value>
 !> #define _BF_SIZE			<value>
-!> #define _QR_type_NAME	<value>
+!> #define _QR_TYPE_NAME	<value>
 !>
 !> #include <this_file>
 !>
 !> where
 !>
-!> @item _BF_type_NAME		Type name of the basis
+!> @item _BF_TYPE_NAME		Type name of the basis
 !> @item _BF_SIZE			Number of DoFs of the basis
-!> @item _QR_type_NAME		Type name for the quadrature rule
+!> @item _QR_TYPE_NAME		Type name for the quadrature rule
 !>
-!> The resulting quadrature rule type is defined as _QR_type_NAME
+!> The resulting quadrature rule type is defined as _QR_TYPE_NAME
 !> @author Oliver Meister
 
-#define _CONC2(X, Y)			X ## _ ## Y
-#define _PREFIX(P, X)			_CONC2(P, X)
+#define _PREFIX(P, X)			_conc3(P,_,X)
 
-#define _BF_(X)					_PREFIX(_BF_type_NAME, X)
-#define _BF						_BF_type_NAME
+#define _BF_(X)					_PREFIX(_BF_TYPE_NAME,X)
+#define _BF						_BF_TYPE_NAME
 
-#define _QR_(X)					_PREFIX(_QR_type_NAME, X)
-#define _QR						_QR_type_NAME
+#define _QR_(X)					_PREFIX(_QR_TYPE_NAME,X)
+#define _QR						_QR_TYPE_NAME
 
 use SFC_data_types
 use Tools_quadrature_rule_base
@@ -114,7 +113,7 @@ end subroutine
 
 #undef _BF
 #undef _QR
-#undef _BF_type_NAME
+#undef _BF_TYPE_NAME
 #undef _BF_SIZE
-#undef _QR_type_NAME
+#undef _QR_TYPE_NAME
 
