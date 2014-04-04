@@ -266,6 +266,12 @@ module config
 #           error "Invalid floating point precision!"
 #       endif
 
+#       if defined(__GFORTRAN__)
+            _log_write(0, '(" Compiler: GNU")')
+#       else
+            _log_write(0, '(" Compiler: Intel")')
+#       endif
+
         _log_write(0, '(" Sections per thread: ", I0)') config%i_sections_per_thread
         _log_write(0, '(" Adaptivity: min depth: ", I0, ", max depth: ", I0)') config%i_min_depth, config%i_max_depth
         _log_write(0, '(" Simulation: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)'), config%i_max_time_steps, config%r_max_time, config%r_output_time_step

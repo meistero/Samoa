@@ -103,21 +103,33 @@ pure subroutine add_node(xn, xl)
     _GV_TYPE, intent(inout)	:: xn(*)
     _GV_TYPE, intent(in)	:: xl(*)
 
-    xn(1:_GV_NODE_SIZE) = xn(1:_GV_NODE_SIZE) _GV_ADD_OP xl(1:_GV_NODE_SIZE)
+    integer :: i
+
+    forall (i = 1:_GV_NODE_SIZE)
+        xn(i) = xn(i) _GV_ADD_OP xl(i)
+    end forall
 end subroutine
 
 pure subroutine add_edge(xe, xl)
     _GV_TYPE, intent(inout)	:: xe(*)
     _GV_TYPE, intent(in)	:: xl(*)
 
-    xe(1:_GV_EDGE_SIZE) = xe(1:_GV_EDGE_SIZE) _GV_ADD_OP xl(1:_GV_EDGE_SIZE)
+    integer :: i
+
+    forall (i = 1:_GV_EDGE_SIZE)
+        xe(i) = xe(i) _GV_ADD_OP xl(i)
+    end forall
 end subroutine
 
 pure subroutine add_cell(xc, xl)
     _GV_TYPE, intent(inout)	:: xc(*)
     _GV_TYPE, intent(in)	:: xl(*)
 
-    xc(1:_GV_CELL_SIZE) = xc(1:_GV_CELL_SIZE) _GV_ADD_OP xl(1:_GV_CELL_SIZE)
+    integer :: i
+
+    forall (i = 1:_GV_CELL_SIZE)
+        xc(i) = xc(i) _GV_ADD_OP xl(i)
+    end forall
 end subroutine
 
 !********************************

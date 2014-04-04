@@ -137,7 +137,8 @@
 
 		!adds two state vectors
 		elemental function state_add(Q1, Q2)	result(Q_out)
-			class (t_state), intent(in)		:: Q1, Q2
+			class (t_state), intent(in)		:: Q1
+			type (t_state), intent(in)		:: Q2
 			type (t_state)					:: Q_out
 
 			Q_out = t_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%b + Q2%b)
@@ -145,7 +146,8 @@
 
 		!adds two update vectors
 		elemental function update_add(f1, f2)	result(f_out)
-			class (t_update), intent(in)		:: f1, f2
+			class (t_update), intent(in)		:: f1
+			type (t_update), intent(in)		    :: f2
 			type (t_update)					    :: f_out
 
 			f_out = t_update(f1%h + f2%h, f1%p + f2%p, max_wave_speed = max(f1%max_wave_speed, f2%max_wave_speed))
@@ -153,7 +155,8 @@
 
 		!adds two dof state vectors
 		elemental function dof_state_add(Q1, Q2)	result(Q_out)
-			class (t_dof_state), intent(in)		:: Q1, Q2
+			class (t_dof_state), intent(in)		:: Q1
+			type (t_dof_state), intent(in)		:: Q2
 			type (t_dof_state)					:: Q_out
 
 			Q_out = t_dof_state(Q1%h + Q2%h, Q1%p + Q2%p)

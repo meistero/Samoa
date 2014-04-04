@@ -20,7 +20,7 @@
 #		define _GV_TYPE_NAME		t_gv_Q
 #		define _GV_TYPE				type(t_state)
 #		define _GV_NAME				Q
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE

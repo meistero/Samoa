@@ -166,13 +166,13 @@ end function
 
 subroutine _BF_(test)()
 	implicit none
+	integer (kind = GRID_SI)								:: i, j
 	real (kind = GRID_SR), parameter						:: x = 0.5_GRID_SR
 	real (kind = GRID_SR), dimension(_BF_SIZE), parameter	:: psi_x = _PSI(x)
-	real (kind = GRID_SR), dimension(_BF_SIZE)				:: r_dofs = [ (DBLE(i), i = 1, _BF_SIZE) ]
+	real (kind = GRID_SR), dimension(_BF_SIZE)				:: r_dofs = [ (dble(i), i = 1, _BF_SIZE) ]
 	real (kind = GRID_SR), dimension(_BF_SIZE)				:: r_dofs1, r_dofs2
 	real (kind = GRID_SR), dimension(_BF_SIZE)				:: r_values
 	real (kind = GRID_SR)									:: r_value
-	integer (kind = GRID_SI)								:: i, j
 	real (kind = GRID_SR)									:: t1, t2, t3
 
 	_log_write(0, *) "Test: ", _BF_STRING

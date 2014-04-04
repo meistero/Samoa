@@ -263,18 +263,18 @@ module SFC_edge_traversal
 
         _log_write(4, '(3X, A, A)') "get neighbors: ", trim(color_to_char(i_color))
 
-        do i_section = 1, size(grid%sections%elements)
+        do i_section = 1, grid%sections%get_size()
             section => grid%sections%elements(i_section)
 
             _log_write(4, '(5X, A, I0)') "section:", i_section
 
-            do i_comm = 1, size(section%comms(i_color)%elements)
+            do i_comm = 1, section%comms(i_color)%get_size()
                 comm => section%comms(i_color)%elements(i_comm)
 
                 _log_write(4, '(6X, A, I0)') "comm: ", comm%neighbor_rank
 
                 if (comm%neighbor_rank .ge. 0 .and. comm%neighbor_rank .ne. rank_MPI) then
-                    if (size(rank_list%elements) .eq. 0) then
+                    if (rank_list%get_size() .eq. 0) then
                         call rank_list%add(comm%neighbor_rank)
                         _log_write(4, '(7X, A)') "added (because list is empty)"
                     else if (.not. any(rank_list%elements .eq. comm%neighbor_rank)) then
@@ -306,9 +306,9 @@ module SFC_edge_traversal
         _log_write(3, '(3X, A, A)') "collect minimum distances from sections: ", trim(color_to_char(i_color))
 
 #		if defined(_MPI)
-            i_sections = size(grid%sections%elements_alloc)
+            i_sections = grid%sections%get_size()
             i_max_sections = omp_get_max_threads() * cfg%i_sections_per_thread
-            i_neighbors = size(rank_list%elements)
+            i_neighbors = rank_list%get_size()
             assert_le(i_sections, i_max_sections)
 
 		   	allocate(requests(i_neighbors, 2), stat = i_error); assert_eq(i_error, 0)
@@ -433,7 +433,7 @@ module SFC_edge_traversal
         i_max_sections = omp_get_max_threads() * cfg%i_sections_per_thread
 
         !clear comm list if it is not empty
-        assert(.not. associated(section%comms(i_color)%elements) .or. size(section%comms(i_color)%elements) .eq. 0)
+        assert(section%comms(i_color)%get_size() .eq. 0)
         section%comms_type(OLD, i_color)%elements => null()
         section%comms_type(NEW, i_color)%elements => null()
 
@@ -457,7 +457,7 @@ module SFC_edge_traversal
         end do
 
         !next, check process neighbors
-        do i_comm = 1, size(src_neighbor_list%elements)
+        do i_comm = 1, src_neighbor_list%get_size()
             if (max_distance < min_distance .or. src_neighbor_list%elements(i_comm) > rank_MPI) then
                 exit
             end if
@@ -481,7 +481,7 @@ module SFC_edge_traversal
         max_distance = max(section%start_distance(i_color), section%end_distance(i_color))
 
         !first, check local sections
-        do i_section_2 = section%index + 1, size(grid%sections%elements_alloc)
+        do i_section_2 = section%index + 1, grid%sections%get_size()
             section_2 => grid%sections%elements_alloc(i_section_2)
 
             if (max_distance < min_distance) then
@@ -497,7 +497,7 @@ module SFC_edge_traversal
         end do
 
         !next, check process neighbors
-        do i_comm = size(src_neighbor_list%elements), 1, -1
+        do i_comm = src_neighbor_list%get_size(), 1, -1
             if (max_distance < min_distance .or. src_neighbor_list%elements(i_comm) < rank_MPI) then
                 exit
             end if
@@ -519,8 +519,8 @@ module SFC_edge_traversal
 
         !merge old and new comm lists (new list must be reversed first)
         call section%comms_type(NEW, i_color)%reverse()
-        i_comms_old = size(section%comms_type(OLD, i_color)%elements)
-        i_comms_new = size(section%comms_type(NEW, i_color)%elements)
+        i_comms_old = section%comms_type(OLD, i_color)%get_size()
+        i_comms_new = section%comms_type(NEW, i_color)%get_size()
         section%comms(i_color) = section%comms(i_color)%merge(section%comms_type(OLD, i_color), section%comms_type(NEW, i_color))
 
         call section%comms_type(OLD, i_color)%clear()

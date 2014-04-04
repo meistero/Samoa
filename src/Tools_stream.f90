@@ -57,6 +57,7 @@ type _CNT
 	procedure, pass :: reverse => reverse_stream
 	procedure, pass :: get_c_pointer => get_stream_c_pointer
 	procedure, pass :: is_forward
+	procedure, pass :: get_size
 
 	procedure, private, pass :: current_element
 	procedure, private, pass :: next_element
@@ -298,7 +299,7 @@ elemental subroutine reverse_stream(stream)
 
 	_T, pointer					                :: elements_temp(:)
 
-	elements_temp => stream%elements(size(stream%elements) : 1 : -1)
+	elements_temp => stream%elements(stream%get_size() : 1 : -1)
 
 	stream%elements => elements_temp
 	stream%i_current_element = 0
@@ -314,7 +315,7 @@ elemental function to_string(stream) result(str)
 	class(_CNT), intent(in)						:: stream					!< stream object
 	character (len = 32)						:: str
 
-	if (size(stream%elements) > 0) then
+	if (stream%get_size() > 0) then
 		write(str, '(A, I0, A, I0)') "elements: ", size(stream%elements), " current: ", stream%i_current_element
 	else
 		write(str, '(A, I0)') "elements: ", size(stream%elements)
@@ -331,8 +332,20 @@ function is_forward(stream)
     is_forward = loc(stream%elements(1)) .le. loc(stream%elements(size(stream%elements)))
 end function
 
+!> Returns the size of the list
+pure function get_size(stream) result(i_elements)
+	class(_CNT), intent(in)     :: stream						!< list object
+    integer (kind = GRID_SI)    :: i_elements
+
+    if (.not. associated(stream%elements)) then
+        i_elements = 0
+    else
+        i_elements = size(stream%elements)
+    end if
+end function
+
 function get_stream_c_pointer(stream) result(ptr)
-	class(_CNT), intent(inout)					:: stream					!< stream object
+	class(_CNT), intent(in)					    :: stream					!< stream object
 	_T, pointer					                :: ptr
 
     if (.not. associated(stream%elements) .or. size(stream%elements) .eq. 0) then

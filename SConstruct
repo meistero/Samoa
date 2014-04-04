@@ -16,7 +16,7 @@ import os
 #
 # set possible variables
 #
-vars = Variables()
+vars = Variables("SCachedSettings",)
 
 vars.AddVariables(
   PathVariable( 'build_dir', 'build directory', 'bin/', PathVariable.PathIsDirCreate),
@@ -233,8 +233,8 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -O3'
-    env['LINKFLAGS'] += ' -O3'
+    env['F90FLAGS'] += ' -malign-double -Ofast -funroll-loops'
+    env['LINKFLAGS'] += ' -Ofast'
 
   env.SetDefault(debug_level = '1')
   env.SetDefault(assertions = False)
@@ -256,6 +256,9 @@ if env['library']:
 
 # generate help text
 Help(vars.GenerateHelpText(env))
+
+#cache settings
+#vars.Save("SCachedSettings.py", env)
 
 #
 # setup the program name and the build directory
@@ -280,12 +283,11 @@ if env['swe_solver'] != 'aug_riemann':
 if env['precision'] != 'double':
   program_name += '_' + env['precision']
 
-if env['target'] != 'release':
-  program_name += '_' + env['target']
-
-
 if env['compiler'] != 'intel':
   program_name += '_' + env['compiler']
+
+if env['target'] != 'release':
+  program_name += '_' + env['target']
 
 if env['library']:
   program_name = 'lib' + program_name + '.so'

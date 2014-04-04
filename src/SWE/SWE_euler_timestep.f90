@@ -160,7 +160,7 @@
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
 
-#			if defined (_SWE_LF) .or.  defined (_SWE_LF_BATH) .or.  defined (_SWE_LLF) .or.  defined (_SWE_LLF_BATH)
+#			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
 				call compute_lf_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
@@ -196,7 +196,7 @@
 
 			bnd_rep = t_state(0.0, [0.0, 0.0], rep%Q(1)%b)
 
-#			if defined (_SWE_LF) .or.  defined (_SWE_LF_BATH) .or.  defined (_SWE_LLF) .or.  defined (_SWE_LLF_BATH)
+#			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
@@ -211,7 +211,7 @@
 
 			!local variables
 
-			type(t_state), dimension(_SWE_CELL_SIZE)				:: dQ
+			type(t_state)   :: dQ(_SWE_CELL_SIZE)
 
 			call volume_op(traversal, grid, element, dQ, [update1%flux, update2%flux, update3%flux])
 
@@ -279,7 +279,9 @@
 
 			section%u_max = max(section%u_max, maxval(fluxes%max_wave_speed))
 
-			dQ%t_dof_state = dQ%t_dof_state * (-section%r_dt / volume)
+            forall (i = 1 : _SWE_CELL_SIZE)
+                dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-section%r_dt / volume)
+            end forall
 
 			_log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
 		end subroutine
@@ -294,7 +296,7 @@
 			real(kind = GRID_SR), parameter						:: dry_tol = 0.01_GRID_SR
 			real(kind = GRID_SR)								:: vL, vR, alpha
 
-#           if defined(_SWE_LF_BATH) .or. defined(_SWE_LLF_BATH)
+#           if defined(_SWE_LF_BATH) || defined(_SWE_LLF_BATH)
                 if (QL%h - QL%b < dry_tol) then
                     vL = 0.0_GRID_SR
                     fluxL%max_wave_speed = 0.0_GRID_SR

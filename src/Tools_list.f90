@@ -28,7 +28,7 @@
 #define _CNT					_CNT_TYPE_NAME
 #define _T						_CNT_DATA_TYPE
 
-PRIVATE add_element, add_after, resize, remove_at, clear, merge, reverse, to_string, is_forward
+PRIVATE add_element, add_after, resize, remove_at, clear, merge, reverse, to_string, is_forward, get_size
 
 type _CNT
 	_T, pointer                 :: elements(:) => null(), elements_alloc(:) => null()
@@ -45,6 +45,7 @@ type _CNT
 	procedure, pass             :: reverse
 	procedure, pass             :: to_string
 	procedure, pass             :: is_forward
+	procedure, pass             :: get_size
 
 	generic :: add => add_after, add_element
 	generic :: remove => remove_at
@@ -245,6 +246,18 @@ function is_forward(list)
     logical                     :: is_forward
 
     is_forward = list%forward
+end function
+
+!> Returns the size of the list
+pure function get_size(list) result(i_elements)
+	class(_CNT), intent(in)     :: list						!< list object
+    integer (kind = GRID_SI)    :: i_elements
+
+    if (.not. associated(list%elements)) then
+        i_elements = 0
+    else
+        i_elements = size(list%elements)
+    end if
 end function
 
 #undef _CNT_DATA_TYPE
