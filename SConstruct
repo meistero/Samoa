@@ -16,10 +16,20 @@ import os
 #
 # set possible variables
 #
-vars = Variables("SCachedSettings",)
+vars = Variables()
+
+vars.AddVariables(
+  PathVariable( 'config', 'build configuration file', None, PathVariable.PathIsFile),
+)
+
+env = Environment(variables=vars)
+if 'config' in env:
+  vars = Variables(env['config'])
 
 vars.AddVariables(
   PathVariable( 'build_dir', 'build directory', 'bin/', PathVariable.PathIsDirCreate),
+
+  PathVariable( 'config', 'build configuration file', None, PathVariable.PathIsFile),
 
   EnumVariable( 'scenario', 'target scenario', 'darcy',
                 allowed_values=('darcy', 'swe', 'generic', 'flash') #, 'heat_eq', 'tests')
@@ -37,7 +47,9 @@ vars.AddVariables(
                 allowed_values=('debug', 'profile', 'release')
               ),
 
-  EnumVariable( 'openmp', 'OpenMP support', 'tasks',
+  BoolVariable( 'assertions', 'enable run-time assertions', False),
+
+  EnumVariable( 'openmp', 'OpenMP mode', 'tasks',
                 allowed_values=('noomp', 'notasks', 'tasks')
               ),
 
@@ -78,14 +90,16 @@ unknownVariables = vars.UnknownVariables()
 
 # exit in the case of unknown variables
 if unknownVariables:
-  print "*** The following build variables are unknown:", unknownVariables.keys()
+  print "****************************************************"
+  print "Error: unknown variable(s):", unknownVariables.keys()
+  print "****************************************************"
   Exit(1)
 
 #
 # precompiler, compiler and linker flags
 #
 
-#set default compiler flags
+env['F90PATH'] = '.'
 env['LINKFLAGS'] = ''
 
 # If MPI is active, set compilation flags
@@ -95,6 +109,7 @@ if env['compiler'] == 'intel':
 elif  env['compiler'] == 'gnu':
   fc = 'gfortran'
   env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none -Isrc/Samoa/'
+  env.SetDefault(openmp = 'notasks')
 
 if env['mpi'] == 'default':
   env['F90'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
@@ -158,15 +173,6 @@ elif env['openmp'] == 'notasks':
   elif env['compiler'] == 'gnu':
     env['F90FLAGS'] += ' -fopenmp'
     env['LINKFLAGS'] += ' -fopenmp'
-elif env['openmp'] == 'noomp':
-  if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -openmp-stubs'
-    env['LINKFLAGS'] += ' -openmp-stubs'
-  elif  env['compiler'] == 'gnu':
-    print "*********************************************************"
-    print "Error: NYI, OpenMP must be active if gnu compiler is used"
-    print "*********************************************************"
-    Exit(-1)
 
 if env['asagi'] != 'noasagi':
   env['F90FLAGS'] += ' -D_ASAGI -I' + env['asagi_dir'] + '/include'
@@ -209,40 +215,38 @@ elif env['precision'] == 'quad':
   env['F90FLAGS'] += ' -D_QUAD_PRECISION'
 
 if env['target'] == 'debug':
+  env.SetDefault(debug_level = '3')
+  env.SetDefault(assertions = True)
+
   if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
     env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -g -O0 -fbounds-check'
+    env['F90FLAGS'] += ' -g -O0 -fcheck=all -fbacktrace'
     env['LINKFLAGS'] += ' -g -O0'
-
-  env.SetDefault(debug_level = '3')
-  env.SetDefault(assertions = True)
 elif env['target'] == 'profile':
-  if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -g -trace -fast -inline-level=0 -funroll-loops -unroll'
-    env['LINKFLAGS'] += ' -g -trace -O3 -ip -ipo'
-  elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -g -O3'
-    env['LINKFLAGS'] += ' -g -O3'
-
   env.SetDefault(debug_level = '1')
   env.SetDefault(assertions = False)
-elif env['target'] == 'release':
+
   if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -fno-alias -fast -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
+    env['F90FLAGS'] += ' -g -fast -inline-level=0 -funroll-loops -unroll -trace'
+    env['LINKFLAGS'] += ' -g -O3 -ip -ipo -trace'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += '  -g -O3 -march=native -malign-double'
+    env['LINKFLAGS'] += ' -g -O3'
+elif env['target'] == 'release':
+  env.SetDefault(debug_level = '1')
+  env.SetDefault(assertions = False)
+
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -fast -fno-alias -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -malign-double -Ofast -funroll-loops'
-    env['LINKFLAGS'] += ' -Ofast'
-
-  env.SetDefault(debug_level = '1')
-  env.SetDefault(assertions = False)
+    env['F90FLAGS'] += '  -Ofast -fwhole-program -march=native -malign-double -funroll-loops -fno-protect-parens -flto'
+    env['LINKFLAGS'] += ' -Ofast -fwhole-program -flto'
 
 if env['compiler'] == 'intel':
   env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
-
-env['F90FLAGS'] += ' -D_DEBUG_LEVEL=' + env['debug_level']
 
 if env['assertions']:
   env['F90FLAGS'] += ' -D_ASSERT'
@@ -254,11 +258,10 @@ if env['library']:
   env['F90FLAGS'] += ' -fpic'
   env['LINKFLAGS'] += ' -fpic -shared'
 
+env['F90FLAGS'] += ' -D_DEBUG_LEVEL=' + env['debug_level']
+
 # generate help text
 Help(vars.GenerateHelpText(env))
-
-#cache settings
-#vars.Save("SCachedSettings.py", env)
 
 #
 # setup the program name and the build directory
@@ -300,9 +303,6 @@ if env['compiler'] == 'intel':
   env.Append(F90FLAGS = ' -module ' + object_dir)
 elif env['compiler'] == 'gnu':
   env.Append(F90FLAGS = ' -J' + object_dir)
-
-#No idea why, but this is necessary in order to get a correct dependency
-env['F90PATH'] = '.'
 
 #copy F77 compiler settings from F90 compiler
 env['FORTRAN'] = env['F90']
