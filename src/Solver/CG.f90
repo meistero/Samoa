@@ -738,7 +738,7 @@ MODULE _CG
             solver%cg1%beta = beta
             call solver%cg1%traverse(grid)
             d_u = solver%cg1%d_u
-            _log_write(2, '(4X, A, ES17.10)') "d A d: ", d_u
+            _log_write(2, '(4X, A, ES17.10)') "d^T A d: ", d_u
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
             if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then

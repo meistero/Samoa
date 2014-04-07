@@ -117,7 +117,7 @@ function node_merge_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     l_conform = .true.
 end function
 
-function edge_write_op(local_edges, neighbor_edges) result(l_conform)
+function edge_write_wrapper_op(local_edges, neighbor_edges) result(l_conform)
     type(t_edge_data), intent(inout)    :: local_edges
     type(t_edge_data), intent(in)       :: neighbor_edges
     logical                             :: l_conform
@@ -126,13 +126,17 @@ function edge_write_op(local_edges, neighbor_edges) result(l_conform)
     assert(.not. local_edges%owned_locally)
     assert(neighbor_edges%owned_locally)
 
-    local_edges%data_pers = neighbor_edges%data_pers
-    local_edges%data_temp = neighbor_edges%data_temp
+#   if defined(_GT_EDGE_WRITE_OP)
+        call _GT_EDGE_WRITE_OP(local_edges, neighbor_edges)
+#   else
+        local_edges%data_pers = neighbor_edges%data_pers
+        local_edges%data_temp = neighbor_edges%data_temp
+#   endif
 
     l_conform = .true.
 end function
 
-function node_write_op(local_nodes, neighbor_nodes) result(l_conform)
+function node_write_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     type(t_node_data), intent(inout)    :: local_nodes
     type(t_node_data), intent(in)       :: neighbor_nodes
     logical                             :: l_conform
@@ -142,8 +146,12 @@ function node_write_op(local_nodes, neighbor_nodes) result(l_conform)
     assert(.not. local_nodes%owned_locally)
     assert(neighbor_nodes%owned_locally)
 
-    local_nodes%data_pers = neighbor_nodes%data_pers
-    local_nodes%data_temp = neighbor_nodes%data_temp
+#   if defined(_GT_NODE_WRITE_OP)
+        call _GT_NODE_WRITE_OP(local_nodes, neighbor_nodes)
+#   else
+        local_nodes%data_pers = neighbor_nodes%data_pers
+        local_nodes%data_temp = neighbor_nodes%data_temp
+#   endif
 
     l_conform = .true.
 end function
@@ -257,7 +265,7 @@ subroutine traverse_grid(traversal, grid)
 
         !sync and call post traversal operator
         current_stats(:)%r_sync_time = -omp_get_wtime()
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
+        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
         current_stats(:)%r_sync_time = current_stats(:)%r_sync_time + omp_get_wtime()
 
         !call post traversal operator
@@ -514,7 +522,9 @@ end subroutine
 #undef _GT_ELEMENT_OP
 #undef _GT_INNER_ELEMENT_OP
 #undef _GT_EDGE_MERGE_OP
+#undef _GT_EDGE_WRITE_OP
 #undef _GT_NODE_MERGE_OP
+#undef _GT_NODE_WRITE_OP
 #undef _GT_PRE_TRAVERSAL_OP
 #undef _GT_POST_TRAVERSAL_OP
 #undef _GT_PRE_TRAVERSAL_GRID_OP

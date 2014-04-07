@@ -75,6 +75,7 @@
 
 #if defined(__GFORTRAN__)
 #	define _raise()	                    call abort
+#	define _raise_pure()                call raise_error()
 #	define _stringify(x)	            "x"
 #	define _conc(x, y)	                _id(x)_id(y)
 #	define _conc3(x, y, z)	            _id(x)_id(y)_id(z)
@@ -84,6 +85,7 @@
 #	define _conc7(x, y, z, a, b, c, d)  _id(x)_id(y)_id(z)_id(a)_id(b)_id(c)_id(d)
 #else
 #	define _raise() 	                print *, 0 / 0
+#	define _raise_pure() 	            call raise_error()
 #	define _stringify(x)	            #x
 #	define _conc(x, y)	                x##y
 #	define _conc3(x, y, z)	            x##y##z
@@ -98,7 +100,7 @@
 !> Checks for a condition to be true and raises an artificial divide-by-zero exception for error handling
 #if defined(_ASSERT)
 #	define assert(x)				if (.not. (x)) then; PRINT '(a, a, i0, a, a)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x); flush(6); _raise(); end if
-#	define assert_pure(x)			if (.not. (x)) then; call raise_error(); end if
+#	define assert_pure(x)			if (.not. (x)) then; _raise_pure(); end if
 
 #	define assert_eq(x, y)			if (.not. (x .eq. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " == ", _stringify(y), ": ", x, " == ", y; flush(6); _raise(); end if
 #	define assert_eqv(x, y)			if (.not. (x .eqv. y)) then; PRINT '(a, a, i0, a, a, a, a, a, g0, a, g0)', __FILE__, "(", __LINE__, "): Assertion failure: ", _stringify(x), " == ", _stringify(y), ": ", x, " == ", y; flush(6); _raise(); end if
