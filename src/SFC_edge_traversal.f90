@@ -92,7 +92,7 @@ module SFC_edge_traversal
             section => dest_grid%sections%elements_alloc(i_section)
 
             section%t_global_data = src_grid%t_global_data
-            section%dest_cells = size(section%cells%elements) - 4
+            section%dest_cells = section%cells%get_size() - 4
             section%load = 0.0d0
         end do
 
@@ -154,7 +154,7 @@ module SFC_edge_traversal
         !$omp barrier
 
         !$omp single
-        if (size(grid%sections%elements) > 0) then
+        if (grid%sections%get_size() > 0) then
             call prefix_sum(grid%sections%elements%end_distance(RED), grid%sections%elements%end_distance(RED))
             call prefix_sum(grid%sections%elements%end_distance(GREEN), grid%sections%elements%end_distance(GREEN))
         end if
@@ -197,9 +197,9 @@ module SFC_edge_traversal
         !$omp barrier
 
         !$omp single
-        if (size(grid%sections%elements) > 0) then
+        if (grid%sections%get_size() > 0) then
             grid%start_distance = grid%sections%elements(1)%start_distance
-            grid%end_distance = grid%sections%elements(size(grid%sections%elements))%end_distance
+            grid%end_distance = grid%sections%elements(grid%sections%get_size())%end_distance
         end if
 
         _log_write(4, '(4X, A)') "grid distances (after):"
@@ -289,7 +289,7 @@ module SFC_edge_traversal
             call rank_list%reverse()
         end if
 
-        _log_write(4, '(4X, A, I0, 1X, I0)') "#neighbors: ", size(rank_list%elements)
+        _log_write(4, '(4X, A, I0, 1X, I0)') "#neighbors: ", rank_list%get_size()
     end subroutine
 
     subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_color)
@@ -359,7 +359,7 @@ module SFC_edge_traversal
         integer (KIND = 1)			                    :: i_color
         type(t_grid_section), pointer					:: section
 
-        _log_write(4, '(3X, A, I0, X, I0)') "create destination comm list: #neighbors: ", size(src_neighbor_list_red%elements), size(src_neighbor_list_red%elements)
+        _log_write(4, '(3X, A, I0, X, I0)') "create destination comm list: #neighbors: ", src_neighbor_list_red%get_size(), src_neighbor_list_red%get_size()
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
@@ -409,11 +409,11 @@ module SFC_edge_traversal
         call set_comm_local_pointers(section, i_color)
 
         !test for correctness
-        assert_eq(sum(section%comms(i_color)%elements%i_edges), size(section%boundary_edges(i_color)%elements))
-        assert_eq(sum(max(section%comms(i_color)%elements%i_nodes - 1, 0)) + 1, size(section%boundary_nodes(i_color)%elements))
+        assert_eq(sum(section%comms(i_color)%elements%i_edges), section%boundary_edges(i_color)%get_size())
+        assert_eq(sum(max(section%comms(i_color)%elements%i_nodes - 1, 0)) + 1, section%boundary_nodes(i_color)%get_size())
 
         _log_write(4, '(5X, A, A, A)') "Neighbors (", trim(color_to_char(i_color)), "):"
-        do i_comm = 1, size(section%comms(i_color)%elements)
+        do i_comm = 1, section%comms(i_color)%get_size()
             _log_write(4, '(6X, (A))') trim(section%comms(i_color)%elements(i_comm)%to_string())
         end do
     end subroutine
@@ -561,17 +561,17 @@ module SFC_edge_traversal
             _log_write(4, '(7X, A)') "compare edges:"
 
             i_comm = 1
-            assert_le(i_comm, size(section%comms_type(i_pass, i_color)%elements))
+            assert_le(i_comm, section%comms_type(i_pass, i_color)%get_size())
             comm => section%comms_type(i_pass, i_color)%elements(i_comm)
 
             _log_write(4, '(8X, A, A)') "nb: ", trim(comm%to_string())
 
-            do i_current_edge = 1, size(section%boundary_type_edges(i_pass, i_color)%elements)
+            do i_current_edge = 1, section%boundary_type_edges(i_pass, i_color)%get_size()
                 current_edge => section%boundary_type_edges(i_pass, i_color)%elements(i_current_edge)
 
                 do while (current_edge%min_distance .lt. comm%min_distance)
                     i_comm = i_comm + 1
-                    assert_le(i_comm, size(section%comms_type(i_pass, i_color)%elements))
+                    assert_le(i_comm, section%comms_type(i_pass, i_color)%get_size())
                     comm => section%comms_type(i_pass, i_color)%elements(i_comm)
 
                     _log_write(4, '(8X, A, A)') "nb: ", trim(comm%to_string())
@@ -584,17 +584,17 @@ module SFC_edge_traversal
             _log_write(4, '(7X, A)') "compare nodes:"
 
             i_comm = 1
-            assert_le(i_comm, size(section%comms_type(i_pass, i_color)%elements))
+            assert_le(i_comm, section%comms_type(i_pass, i_color)%get_size())
             comm => section%comms_type(i_pass, i_color)%elements(i_comm)
 
             _log_write(4, '(8X, A, A)') "nb  : ", trim(comm%to_string())
 
-            do i_current_node = 1, size(section%boundary_type_nodes(i_pass, i_color)%elements)
+            do i_current_node = 1, section%boundary_type_nodes(i_pass, i_color)%get_size()
                 current_node => section%boundary_type_nodes(i_pass, i_color)%elements(i_current_node)
 
                 do while (current_node%distance .lt. comm%min_distance)
                     i_comm = i_comm + 1
-                    assert_le(i_comm, size(section%comms_type(i_pass, i_color)%elements))
+                    assert_le(i_comm, section%comms_type(i_pass, i_color)%get_size())
                     comm => section%comms_type(i_pass, i_color)%elements(i_comm)
 
                     _log_write(4, '(8X, A, A)') "nb: ", trim(comm%to_string())
@@ -606,7 +606,7 @@ module SFC_edge_traversal
 
                     if (current_node%distance .eq. comm%min_distance) then
                         i_comm = i_comm + 1
-                        assert_le(i_comm, size(section%comms_type(i_pass, i_color)%elements))
+                        assert_le(i_comm, section%comms_type(i_pass, i_color)%get_size())
                         comm => section%comms_type(i_pass, i_color)%elements(i_comm)
 
                         _log_write(4, '(8X, A, A)') "nb  : ", trim(comm%to_string())
@@ -648,7 +648,7 @@ module SFC_edge_traversal
 
         l_forward = section%boundary_nodes(i_color)%is_forward()
 
-        do i_comm = 1, size(section%comms(i_color)%elements)
+        do i_comm = 1, section%comms(i_color)%get_size()
             comm => section%comms(i_color)%elements(i_comm)
 
             _log_write(4, '(6X, (A))') trim(comm%to_string())
@@ -719,7 +719,7 @@ module SFC_edge_traversal
         do i_pass = OLD, NEW
             _log_write(4, '(5X, A, A)') trim(edge_type_to_char(i_pass)), ":"
 
-            do i_comm = 1, size(section%comms_type(i_pass, i_color)%elements)
+            do i_comm = 1, section%comms_type(i_pass, i_color)%get_size()
                 comm => section%comms_type(i_pass, i_color)%elements(i_comm)
                 assert_eq(section%index, comm%local_section)
 
@@ -770,7 +770,7 @@ module SFC_edge_traversal
              do i_color = RED, GREEN
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
-                do i_comm = 1, size(section%comms(i_color)%elements)
+                do i_comm = 1, section%comms(i_color)%get_size()
                     comm => section%comms(i_color)%elements(i_comm)
 
                     assert(associated(comm%p_local_edges))
@@ -814,7 +814,7 @@ module SFC_edge_traversal
              do i_color = RED, GREEN
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
-                do i_comm = 1, size(section%comms(i_color)%elements)
+                do i_comm = 1, section%comms(i_color)%get_size()
                     comm => section%comms(i_color)%elements(i_comm)
 
                     assert(associated(comm%p_local_edges))
@@ -878,7 +878,7 @@ module SFC_edge_traversal
                     !make sure that the section has finished all its mpi communication before proceeding
                     !otherwise a race condition might occur when merging boundary data
                     _log_write(4, '(6X, "wait for MPI neighbors:")')
-                    do i_comm = 1, size(section%comms(i_color)%elements)
+                    do i_comm = 1, section%comms(i_color)%get_size()
                         comm => section%comms(i_color)%elements(i_comm)
 
                         assert(associated(comm%p_local_edges))
@@ -911,7 +911,7 @@ module SFC_edge_traversal
                 !gather data in section with lowest index
 
                 _log_write(4, '(6X, "merge edges and nodes:")')
-                do i_comm = 1, size(section%comms(i_color)%elements)
+                do i_comm = 1, section%comms(i_color)%get_size()
                     comm => section%comms(i_color)%elements(i_comm)
 
                     assert(associated(comm%p_local_edges))
@@ -983,7 +983,7 @@ module SFC_edge_traversal
             do i_color = RED, GREEN
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
-                do i_comm = 1, size(section%comms(i_color)%elements)
+                do i_comm = 1, section%comms(i_color)%get_size()
                     comm => section%comms(i_color)%elements(i_comm)
 
                     if (comm%neighbor_rank .eq. rank_MPI .and. comm%neighbor_section < section%index) then
@@ -1067,7 +1067,7 @@ module SFC_edge_traversal
 
 			assert_gt(load, 0)
 			assert_gt(total_load, 0)
-			i_sections = size(grid%sections%elements_alloc)
+			i_sections = grid%sections%get_size()
 
             if (i_sections > 0) then
                 rank_imbalance = \
@@ -1274,9 +1274,9 @@ module SFC_edge_traversal
 			grid%sections = grid_temp%sections
 
 	        !update distances again and check for correctness
-	        if (size(grid%sections%elements) > 0) then
+	        if (grid%sections%get_size() > 0) then
 	            grid%start_distance = grid%sections%elements(1)%start_distance
-	            grid%end_distance = grid%sections%elements(size(grid%sections%elements))%end_distance
+	            grid%end_distance = grid%sections%elements(grid%sections%get_size())%end_distance
 	        else
 	            grid%start_distance = 0
 	            grid%end_distance = 0
@@ -1359,7 +1359,7 @@ module SFC_edge_traversal
 	            do i_color = RED, GREEN
 	                _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
-	                do i_comm = 1, size(section%comms(i_color)%elements)
+	                do i_comm = 1, section%comms(i_color)%get_size()
 	                    comm => section%comms(i_color)%elements(i_comm)
 	                    _log_write(4, '(6X, A)') trim(comm%to_string())
 
@@ -1404,7 +1404,7 @@ module SFC_edge_traversal
 
 	            do i_color = RED, GREEN
 	                _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
-	                do i_comm = 1, size(section%comms(i_color)%elements)
+	                do i_comm = 1, section%comms(i_color)%get_size()
 	                    comm => section%comms(i_color)%elements(i_comm)
 
 	                    _log_write(4, '(6X, A)') trim(comm%to_string())
@@ -1601,8 +1601,8 @@ module SFC_edge_traversal
 
 	            !fix the order of old/new comms
 	            do i_color = RED, GREEN
-	                section%comms_type(OLD, i_color)%elements => section%comms(i_color)%elements(1 : size(section%comms_type(OLD, i_color)%elements))
-	                section%comms_type(NEW, i_color)%elements => section%comms(i_color)%elements(size(section%comms_type(OLD, i_color)%elements) + 1 : size(section%comms(i_color)%elements))
+	                section%comms_type(OLD, i_color)%elements => section%comms(i_color)%elements(1 : section%comms_type(OLD, i_color)%get_size())
+	                section%comms_type(NEW, i_color)%elements => section%comms(i_color)%elements(section%comms_type(OLD, i_color)%get_size() + 1 : section%comms(i_color)%get_size())
 	            end do
 	        end do
 
@@ -1631,7 +1631,7 @@ module SFC_edge_traversal
 
         !set the last cell of the current section to a new boundary cell
         assert_ge(last_cell_index, 1)
-        assert_le(last_cell_index, size(section%cells%elements))
+        assert_le(last_cell_index, section%cells%get_size())
         call section%cells%elements(last_cell_index)%set_previous_edge_type(int(OLD_BND, 1))
 
         !and move the last crossed edge to the red stack

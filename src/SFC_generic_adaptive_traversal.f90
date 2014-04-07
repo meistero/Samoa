@@ -264,19 +264,19 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	type(t_thread_data), target, save						:: thread_traversal
 	!$omp threadprivate(i_thread, src_section, i_src_section, i_src_cell, thread_traversal)
 
-    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(dest_grid%sections%elements)) then
+    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. dest_grid%sections%get_size()) then
 		!$omp barrier
 
 		!$omp single
-        if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < size(dest_grid%sections%elements)) then
+        if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < dest_grid%sections%get_size()) then
             if (associated(traversal%children_alloc)) then
                 deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
             end if
 
-            allocate(traversal%children_alloc(max(omp_get_num_threads() * cfg%i_sections_per_thread, size(dest_grid%sections%elements))), stat = i_error); assert_eq(i_error, 0)
+            allocate(traversal%children_alloc(max(omp_get_num_threads() * cfg%i_sections_per_thread, dest_grid%sections%get_size())), stat = i_error); assert_eq(i_error, 0)
         end if
 
-        traversal%children => traversal%children_alloc(1 : size(dest_grid%sections%elements))
+        traversal%children => traversal%children_alloc(1 : dest_grid%sections%get_size())
     	!$omp end single
     end if
 
@@ -330,10 +330,10 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
         !traversal
 
-        if (size(src_grid%sections%elements) > 0) then
+        if (src_grid%sections%get_size() > 0) then
             !make an initial guess for the first source section and the first source cell
-            i_src_section = max(1, min(size(src_grid%sections%elements), &
-                1 + ((i_first_local_section - 1) * size(src_grid%sections%elements)) / size(dest_grid%sections%elements)))
+            i_src_section = max(1, min(src_grid%sections%get_size(), &
+                1 + ((i_first_local_section - 1) * src_grid%sections%get_size()) / dest_grid%sections%get_size()))
             i_src_cell = 0
         end if
 
@@ -358,7 +358,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
                     do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
                         i_src_section = i_src_section + 1
-                        assert_le(i_src_section, size(src_grid%sections%elements))
+                        assert_le(i_src_section, src_grid%sections%get_size())
                     end do
 
                     src_section = src_grid%sections%elements(i_src_section)
@@ -378,7 +378,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
             !traverse all source sections that overlap with the destination section
             do while (i_src_cell .le. dest_section%last_dest_cell)
-                assert_le(i_src_section, size(src_grid%sections%elements))
+                assert_le(i_src_section, src_grid%sections%get_size())
                 assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
 
                 !traverse all elements
@@ -386,7 +386,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
                     i_src_cell = i_src_cell + leaf(thread_traversal, traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
                 end do
 
-                if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < size(src_grid%sections%elements)) then
+                if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < src_grid%sections%get_size()) then
                     i_src_section = i_src_section + 1
                     src_section = src_grid%sections%elements(i_src_section)
                 end if

@@ -17,10 +17,63 @@ module Tools_mpi
 #   endif
 
     public
+
+	integer 		    :: rank_MPI = 0
+	integer 		    :: size_MPI = 1
+end module
+
+module Tools_openmp
+#	if defined(_OPENMP)
+        use omp_lib
+#	endif
+
+    public
+
+	integer                     :: i_thread = 1     !in contrast to OpenMP our thread index starts with 1
+	!$omp threadprivate(i_thread)
+
+#	if !defined(_OPENMP)
+        contains
+
+        function omp_get_thread_num() result(i_thread)
+            integer :: i_thread
+
+            i_thread = 0
+        end function
+
+        function omp_get_num_threads() result(i_threads)
+            integer :: i_threads
+
+            i_threads = 1
+        end function
+
+        function omp_get_max_threads() result(i_threads)
+            integer :: i_threads
+
+            i_threads = 1
+        end function
+
+        subroutine omp_set_num_threads(i_threads)
+            integer :: i_threads
+
+            assert_eq(i_threads, 1)
+        end subroutine
+
+        function omp_get_wtime() result(time)
+            double precision :: time
+
+            integer(kind = 8) :: counts, count_rate
+
+            call system_clock(counts, count_rate)
+
+            time = dble(counts) / dble(count_rate)
+        end function
+#   endif
 end module
 
 MODULE Tools_log
     use Tools_mpi
+    use Tools_openmp
 
 	private
 	public log_open_file, log_close_file, g_log_file_unit, prefix_sum, postfix_sum, reduce, scatter, raise_error, term_color, term_reset

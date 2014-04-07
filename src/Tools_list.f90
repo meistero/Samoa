@@ -214,7 +214,7 @@ subroutine reverse(list)
 
     list%forward = .not. list%forward
 
-    if (size(list%elements) > 1) then
+    if (list%get_size() > 1) then
         assert_pure((loc(list%elements(1)) < loc(list%elements(size(list%elements)))) .eqv. list%forward)
     end if
 end subroutine
@@ -226,7 +226,7 @@ subroutine clear(list)
 	if (associated(list%elements)) then
         nullify(list%elements)
 
-        if (size(list%elements_alloc) > 0) then
+        if (associated(list%elements_alloc)) then
             deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
         else
             nullify(list%elements_alloc)
@@ -238,7 +238,7 @@ elemental function to_string(list) result(str)
 	class(_CNT), intent(in)						:: list
 	character (len = 32)						:: str
 
-	write(str, '(A, I0)') "elements: ", size(list%elements)
+	write(str, '(A, I0)') "elements: ", list%get_size()
 end function
 
 function is_forward(list)

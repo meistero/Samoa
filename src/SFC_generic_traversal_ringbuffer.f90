@@ -330,8 +330,8 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 		_log_write(6, '(A)') ""
 #	endif
 
-	if (size(section%cells%elements) > 0) then
-        assert_ge(size(section%cells%elements), 2)
+	if (section%cells%get_size() > 0) then
+        assert_ge(section%cells%get_size(), 2)
 		call init(section, thread_traversal%p_current_element)
 
 		!process first element

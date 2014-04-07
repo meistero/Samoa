@@ -2132,7 +2132,7 @@ contains
     open(unit       = vtk_writer%Unit_VTK_Append, &
          form       = 'UNFORMATTED',   &
          access     = 'STREAM',    &
-         action     = 'WRITE',         &
+         action     = 'READWRITE',  &
          convert    = 'BIG_ENDIAN',    &
          status     = 'SCRATCH',       &
          iostat     = E_IO)

@@ -55,13 +55,13 @@
  			traversal%bedge_index = 0
  			traversal%bnode_index = 0
 
- 			section%i_bnodes = size(section%boundary_nodes(RED)%elements) + size(section%boundary_nodes(GREEN)%elements)
- 			section%i_bedges = size(section%boundary_edges(RED)%elements) + size(section%boundary_edges(GREEN)%elements)
+ 			section%i_bnodes = section%boundary_nodes(RED)%get_size() + section%boundary_nodes(GREEN)%get_size()
+ 			section%i_bedges = section%boundary_edges(RED)%get_size() + section%boundary_edges(GREEN)%get_size()
  			section%i_bcells = section%i_bedges !this is an upper bound, there must be less boundary elements than boundary edges
 
- 			section%i_nodes = size(section%nodes_in%elements) + section%i_bnodes
- 			section%i_edges = size(section%crossed_edges_in%elements) + size(section%color_edges_in%elements) + section%i_bedges
- 			section%i_cells = size(section%cells%elements)
+ 			section%i_nodes = section%nodes_in%get_size() + section%i_bnodes
+ 			section%i_edges = section%crossed_edges_in%get_size() + section%color_edges_in%get_size() + section%i_bedges
+ 			section%i_cells = section%cells%get_size()
 
             if (.not. allocated(section%cells_to_edges_map)) then
                 allocate(section%cells_to_edges_map(3, 0 : section%i_cells - 1))

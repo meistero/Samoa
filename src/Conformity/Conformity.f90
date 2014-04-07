@@ -56,11 +56,11 @@ module Conformity
 
 		_log_write(3, "(2X, A)") "Check conformity..."
 
-        if (.not. associated(conformity%children_stats%elements) .or. size(conformity%children_stats%elements) .ne. size(grid%sections%elements_alloc)) then
+        if (conformity%children_stats%get_size() .ne. grid%sections%get_size()) then
             !$omp barrier
 
             !$omp single
-            call conformity%children_stats%resize(size(grid%sections%elements_alloc))
+            call conformity%children_stats%resize(grid%sections%get_size())
             !$omp end single
         end if
 
@@ -278,8 +278,8 @@ module Conformity
 
 		i_dest_stack = section%start_dest_stack
 
-        if (size(section%cells%elements) > 0) then
-            assert_ge(size(section%cells%elements), 2)
+        if (section%cells%get_size() > 0) then
+            assert_ge(section%cells%get_size(), 2)
 
             !process first element
             p_cell_data => section%cells%next()
@@ -619,8 +619,8 @@ module Conformity
 
 		i_dest_stack = section%start_dest_stack
 
-        if (size(section%cells%elements) > 0) then
-            assert_ge(size(section%cells%elements), 2)
+        if (section%cells%get_size() > 0) then
+            assert_ge(section%cells%get_size(), 2)
 
             !process first element
             p_cell_data => section%cells%next()
@@ -920,8 +920,8 @@ module Conformity
 		! local variables
 		type(t_cell_stream_data), pointer			:: p_cell_data
 
-        if (size(section%cells%elements) > 0) then
-            assert_ge(size(section%cells%elements), 2)
+        if (section%cells%get_size() > 0) then
+            assert_ge(section%cells%get_size(), 2)
 
             !process first element
             p_cell_data => section%cells%next()

@@ -177,7 +177,7 @@
 
             assert_ge(size(grids), handle)
 
-            i_sections = size(grids(handle)%sections%elements_alloc)
+            i_sections = grids(handle)%sections%get_size()
 
             if (allocated(grids(handle)%c_sections)) then
                 if (size(grids(handle)%c_sections) .ne. i_sections) then

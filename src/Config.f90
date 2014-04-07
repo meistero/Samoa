@@ -10,9 +10,10 @@
 #endif
 
 module config
-    use omp_lib
-	use Mkracken
+	use M_kracken
 	use Tools_log
+    use Tools_openmp
+    use Tools_mpi
 
 #	if defined(_ASAGI)
 		use asagi
@@ -21,7 +22,7 @@ module config
     implicit none
 
     private
-    public cfg, i_thread, rank_MPI, size_MPI
+    public cfg
 
     type t_config
         integer			                        :: i_threads			                            !< number of OpenMP threads
@@ -68,12 +69,6 @@ module config
     type(t_config) :: cfg
     !$omp threadprivate(cfg)
 
-	integer                     :: i_thread = 1     !start counting at 1
-	!$omp threadprivate(i_thread)
-
-	integer 					:: rank_MPI = 0
-	integer 					:: size_MPI = 1
-
     contains
 
     subroutine read_from_arguments(config)
@@ -90,7 +85,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0e1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0e6 -epsilon 1.0e-5 -rho 0.2 -k_rel 1.5 -lsolver 2 -cg_restart 256"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0d1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0d6 -epsilon 1.0d-5 -rho 0.2d0 -k_rel 1.5d0 -lsolver 2 -cg_restart 256"
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
 #    	elif defined(_SWE)

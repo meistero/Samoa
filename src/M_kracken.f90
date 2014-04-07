@@ -17,7 +17,7 @@
 !=======================================================================--------
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
 !=======================================================================--------
-module Mkracken_dictionary
+module M_kracken_dictionary
 
 ! @(#) common length of verbs and entries in Language dictionary
 ! NOTE:   many parameters were reduced in size so as to just accomodate
@@ -41,8 +41,8 @@ module Mkracken_dictionary
       !================================================================---------
 end module
 
-module Mkracken
-   use Mkracken_dictionary ! dictionary for Language routines
+module M_kracken
+   use M_kracken_dictionary ! dictionary for Language routines
 
    implicit none
 
