@@ -939,7 +939,7 @@ module SFC_edge_traversal
 
                         do i = 1, comm%i_edges
                             assert(comm%p_local_edges(i)%owned_locally)
-                            assert(.not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
+                            assert((comm%neighbor_rank .ne. rank_MPI) .or. .not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
 
                             l_conform = edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
 
@@ -966,7 +966,7 @@ module SFC_edge_traversal
 
                         do i = i_first_node, i_last_node
                             assert(comm%p_local_nodes(i)%owned_locally)
-                            assert(.not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
+                            assert((comm%neighbor_rank .ne. rank_MPI) .or. .not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
 
                             l_conform = node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
 

@@ -726,7 +726,7 @@ module Grid
         !init distances with 0
         !$omp single
         grid%sections = t_grid_section_list()
-        call grid%sections%resize(size(dest_grid_sections%elements))
+        call grid%sections%resize(dest_grid_sections%get_size())
         call grid%threads%resize(omp_get_max_threads())
         !$omp end single
 
@@ -884,7 +884,7 @@ module Grid
 	subroutine grid_get_local_sections(grid, i_first_local_section, i_last_local_section)
 		class(t_grid), intent(in)				        :: grid
 		integer (kind = GRID_SI), intent(out)			:: i_first_local_section, i_last_local_section
-		integer (kind = GRID_SI)			            :: i_thread, i_threads
+		integer (kind = GRID_SI)			            :: i_thread, i_threads, i_sections
 
         !TODO: a more sophisticated scheduler could use the (prefix sum over the)
         !number of cells per section to decide which threads get which sections
@@ -892,12 +892,13 @@ module Grid
 
         i_thread = omp_get_thread_num()
         i_threads = omp_get_num_threads()
+        i_sections = grid%sections%get_size()
 
-        i_first_local_section = 1 + (i_thread * size(grid%sections%elements_alloc)) / i_threads
-        i_last_local_section = ((1 + i_thread) * size(grid%sections%elements_alloc)) / i_threads
+        i_first_local_section = 1 + (i_thread * i_sections) / i_threads
+        i_last_local_section = ((1 + i_thread) * i_sections) / i_threads
 
         assert_ge(i_first_local_section, 1)
-        assert_le(i_last_local_section, size(grid%sections%elements_alloc))
+        assert_le(i_last_local_section, i_sections)
 	end subroutine
 
 	!> Distributes the grid sections among threads **in traversal order** and returns a subset for the local thread
@@ -905,17 +906,21 @@ module Grid
 		class(t_grid), intent(in)				        :: grid
 		integer (kind = GRID_SI), intent(out)			:: i_first_local_section, i_last_local_section
 
-		integer (kind = GRID_SI)			            :: i_first_local_section_alloc, i_last_local_section_alloc
+		integer (kind = GRID_SI)			            :: i_first_local_section_alloc, i_last_local_section_alloc, i_sections
 
         call grid%get_local_sections(i_first_local_section_alloc, i_last_local_section_alloc)
+        i_sections = grid%sections%get_size()
 
         if (grid%sections%forward) then
             i_first_local_section = i_first_local_section_alloc
             i_last_local_section = i_last_local_section_alloc
         else
-            i_first_local_section = size(grid%sections%elements_alloc) + 1 - i_last_local_section_alloc
-            i_last_local_section = size(grid%sections%elements_alloc) + 1 - i_first_local_section_alloc
+            i_first_local_section = i_sections + 1 - i_last_local_section_alloc
+            i_last_local_section = i_sections + 1 - i_first_local_section_alloc
         end if
+
+        assert_ge(i_first_local_section, 1)
+        assert_le(i_last_local_section, i_sections)
 	end subroutine
 
 	!> Reverses the grid

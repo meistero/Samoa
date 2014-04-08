@@ -173,7 +173,7 @@ function current_element(stream) result(p_data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	p_data => stream%elements(stream%i_current_element)
 end function
@@ -187,7 +187,7 @@ function next_element(stream) result(p_data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	p_data => stream%elements(stream%i_current_element)
 end function
@@ -201,7 +201,7 @@ subroutine read_element(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	data = stream%elements(stream%i_current_element)
 end subroutine
@@ -215,7 +215,7 @@ subroutine read_elements(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, size(data))
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	data = stream%elements(stream%i_current_element - size(data) + 1 : stream%i_current_element)
 end subroutine
@@ -229,7 +229,7 @@ subroutine write_element(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element) = data
 end subroutine
@@ -243,7 +243,7 @@ subroutine write_elements(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, size(data))
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element - size(data) + 1 : stream%i_current_element) = data
 end subroutine
@@ -256,13 +256,13 @@ subroutine add_element(stream, data)
 	stream%i_current_element = stream%i_current_element + 1
 
 	!resize if necessary
-	if (stream%i_current_element > size(stream%elements)) then
+	if (stream%i_current_element > stream%get_size()) then
         call stream%resize_auto()
     end if
 
     !check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element) = data
 end subroutine
@@ -316,9 +316,9 @@ elemental function to_string(stream) result(str)
 	character (len = 32)						:: str
 
 	if (stream%get_size() > 0) then
-		write(str, '(A, I0, A, I0)') "elements: ", size(stream%elements), " current: ", stream%i_current_element
+		write(str, '(A, I0, A, I0)') "elements: ", stream%get_size(), " current: ", stream%i_current_element
 	else
-		write(str, '(A, I0)') "elements: ", size(stream%elements)
+		write(str, '(A, I0)') "elements: ", stream%get_size()
 	endif
 end function
 
@@ -327,7 +327,7 @@ function is_forward(stream)
     logical                     :: is_forward
 
     assert(associated(stream%elements))
-    assert_ge(size(stream%elements), 1)
+    assert_ge(stream%get_size(), 1)
 
     is_forward = loc(stream%elements(1)) .le. loc(stream%elements(size(stream%elements)))
 end function
@@ -347,9 +347,10 @@ end function
 function get_stream_c_pointer(stream) result(ptr)
 	class(_CNT), intent(in)					    :: stream					!< stream object
 	_T, pointer					                :: ptr
+	_T, target  :: dummy
 
-    if (.not. associated(stream%elements) .or. size(stream%elements) .eq. 0) then
-        ptr => null()
+    if (stream%get_size() .eq. 0) then
+        ptr => dummy
     else if (stream%is_forward()) then
         ptr => stream%elements(1)
     else

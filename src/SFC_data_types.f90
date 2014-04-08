@@ -300,9 +300,10 @@ MODULE SFC_data_types
 	function t_edge_data_get_c_pointer(array) result(ptr)
         type(t_edge_data), pointer, intent(inout)	:: array(:)
         type(t_edge_data), pointer					:: ptr
+        type(t_edge_data), target	:: dummy
 
         if (.not. associated(array) .or. size(array) .eq. 0) then
-            ptr => null()
+            ptr => dummy
         else if (loc(array(1)) < loc(array(size(array)))) then
             ptr => array(1)
         else
@@ -313,9 +314,10 @@ MODULE SFC_data_types
 	function t_node_data_get_c_pointer(array) result(ptr)
         type(t_node_data), pointer, intent(inout)	:: array(:)
         type(t_node_data), pointer					:: ptr
+        type(t_node_data), target	:: dummy
 
         if (.not. associated(array) .or. size(array) .eq. 0) then
-            ptr => null()
+            ptr => dummy
         else if (loc(array(1)) < loc(array(size(array)))) then
             ptr => array(1)
         else

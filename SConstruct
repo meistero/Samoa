@@ -242,8 +242,8 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -fast -fno-alias -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += '  -Ofast -fwhole-program -march=native -malign-double -funroll-loops -fno-protect-parens -flto'
-    env['LINKFLAGS'] += ' -Ofast -fwhole-program -flto'
+    env['F90FLAGS'] += '  -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['LINKFLAGS'] += ' -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
 
 if env['compiler'] == 'intel':
   env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
