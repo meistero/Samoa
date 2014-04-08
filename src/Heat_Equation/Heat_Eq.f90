@@ -40,7 +40,7 @@
 			real(kind = GRID_SR)										:: r_m
 			type(t_transform_data)										:: dummy_transform_data
 			CHARACTER(64)												:: s_format_string, s_log_name, s_date, s_time
-            integer(kind = 1)                                           :: i, j
+            integer(kind = BYTE)                                           :: i, j
 
 			!open log file
 			call date_and_time(s_date, s_time)

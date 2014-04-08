@@ -27,8 +27,8 @@
 			type(t_state)											:: Q
 			integer (kind = GRID_SI)								:: rank
 			integer (kind = GRID_SI)								:: section_index
-			integer (kind = 1)										:: depth
-			integer (kind = 1)										:: refinement
+			integer (kind = BYTE)										:: depth
+			integer (kind = BYTE)										:: refinement
 		end type t_output_cell_data
 
         type num_traversal_data

@@ -38,9 +38,9 @@ public _CNT
 !array implementation
 
 type _CNT
-	_T, pointer					:: elements(:) => null()		!< element array
-	_T, pointer					:: elements_alloc(:) => null()	!< element array in allocation order
-	integer*8                   :: i_current_element = 0		!< stream current element
+	_T, pointer				    :: elements(:) => null()		!< element array
+	_T, pointer				    :: elements_alloc(:) => null()	!< element array in allocation order
+	integer(kind = GRID_DI)     :: i_current_element = 0		!< stream current element
 
 	contains
 

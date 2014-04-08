@@ -222,7 +222,7 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)				:: traversal
 			type(t_grid_section), intent(inout)							:: grid
 			type(t_cell_data_ptr), intent(inout)				:: cell
-			integer (kind = 1)								:: depth
+			integer (kind = BYTE)								:: depth
 			real(kind = GRID_SR)							:: b_norm
 
 			depth = cell%geometry%i_depth
@@ -249,7 +249,7 @@
 			type(t_update), dimension(:), intent(in)						:: fluxes
 
 			real(kind = GRID_SR)											:: volume, dQ_norm, edge_lengths(3)
-			integer (kind = 1)												:: i, depth
+			integer (kind = BYTE)												:: i, depth
 
 			_log_write(6, '(3X, A)') "swe cell update op:"
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)

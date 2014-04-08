@@ -36,7 +36,7 @@ PUBLIC :: _LFS
 
 !> dummy type for the local function space used for polymorphic function calls
 type _LFS
-	integer(kind = 1), DIMENSION(0)		:: i_dummy
+	integer(kind = BYTE), DIMENSION(0)		:: i_dummy
 
 	contains
 

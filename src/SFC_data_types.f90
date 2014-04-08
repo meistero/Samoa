@@ -82,13 +82,13 @@ MODULE SFC_data_types
 	!********************************
 
 	type fine_triangle
-		integer (kind = 1)									:: i_entity_types		! encodes the types of edges and nodes (old/new, inner/boundary)							max. 8 bit
-		integer (kind = 1)									:: i_depth				! grid depth (0 to MAX_DEPTH)																max. 6? bit
-		integer (kind = 1)									:: refinement			! refinement info (-1: coarsen, 0: keep, 1-4: refine once or multiple times)				max. 3 bit
-		integer (kind = 1)									:: i_plotter_type		! plotter grammar type for cell orientation (-8 to 8)										max. 3 bit
-		integer (kind = 1)									:: i_turtle_type		! turtle grammar type for edge/node indexing) (K = 1, V = 2, H = 3)							max. 2 bit
+		integer (kind = BYTE)									:: i_entity_types		! encodes the types of edges and nodes (old/new, inner/boundary)							max. 8 bit
+		integer (kind = BYTE)									:: i_depth				! grid depth (0 to MAX_DEPTH)																max. 6? bit
+		integer (kind = BYTE)									:: refinement			! refinement info (-1: coarsen, 0: keep, 1-4: refine once or multiple times)				max. 3 bit
+		integer (kind = BYTE)									:: i_plotter_type		! plotter grammar type for cell orientation (-8 to 8)										max. 3 bit
+		integer (kind = BYTE)									:: i_turtle_type		! turtle grammar type for edge/node indexing) (K = 1, V = 2, H = 3)							max. 2 bit
 
-        integer (kind = 1)							        :: i_color_edge_color	! color of the color_edge (in -1:0)																	max. 1 bit
+        integer (kind = BYTE)							        :: i_color_edge_color	! color of the color_edge (in -1:0)																	max. 1 bit
 
 		contains
 
@@ -180,7 +180,7 @@ MODULE SFC_data_types
         integer (kind = GRID_DI)                            :: min_distance         !< edge minimum distance (only defined for boundary edges)
         logical (kind = GRID_SL)                            :: owned_locally        !< if true, the current section owns the edge, defined only for boundary nodes!
         logical (kind = GRID_SL)                            :: owned_globally       !< if true, the current rank owns the edge, defined only for boundary nodes!
-        integer (kind = 1)                                  :: depth                !< edge depth
+        integer (kind = BYTE)                                  :: depth                !< edge depth
 
 		type(t_edge_transform_data), pointer				:: transform_data		!< local edge transform data
 	end type
@@ -241,15 +241,15 @@ MODULE SFC_data_types
 			real (kind = GRID_SR), dimension(2)				:: normal					!< local edge normal in cartesian coordinates
 #		endif
 
-		integer (kind = 1)									:: index					!< local edge index
-		integer (kind = 1)									:: orientation				!< local edge orientation: -1: backward 1: forward
+		integer (kind = BYTE)									:: index					!< local edge index
+		integer (kind = BYTE)									:: orientation				!< local edge orientation: -1: backward 1: forward
 	end type
 
 	!> Reference cell transformation data for all
 	type t_cell_transform_data
-		!integer (kind = 1)									:: plotter_type				!< Sierpinski plotter grammar triangle type (appears not to be used anywhere?)
-		integer (kind = 1)									:: forward					!< true if forward traversal
-		integer (kind = 1)									:: orientation				!< local orientation: -1: backward 1: forward
+		!integer (kind = BYTE)									:: plotter_type				!< Sierpinski plotter grammar triangle type (appears not to be used anywhere?)
+		integer (kind = BYTE)									:: forward					!< true if forward traversal
+		integer (kind = BYTE)									:: orientation				!< local orientation: -1: backward 1: forward
 		real (kind = GRID_SR), DIMENSION(2, 2)				:: jacobian					!< Jacobian of the reference element transformation from barycentric to cartesian coordinates
 		real (kind = GRID_SR), DIMENSION(2, 2)				:: jacobian_inv				!< Inverse of the Jacobian
 		real (kind = GRID_SR)								:: det_jacobian				!< Determinant of the Jacobian
@@ -344,11 +344,11 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_get_edge_indices(cell, i_previous_edge, i_color_edge, i_next_edge)
 		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1), intent(out)			:: i_previous_edge
-		integer (KIND = 1), intent(out)			:: i_color_edge
-		integer (KIND = 1), intent(out)			:: i_next_edge
+		integer (kind = BYTE), intent(out)			:: i_previous_edge
+		integer (kind = BYTE), intent(out)			:: i_color_edge
+		integer (kind = BYTE), intent(out)			:: i_next_edge
 
-		integer (KIND = 1), dimension(3, 3), parameter :: indices = reshape( \
+		integer (kind = BYTE), dimension(3, 3), parameter :: indices = reshape( \
 			[LEFT_EDGE, RIGHT_EDGE, HYPOTENUSE, \
 			LEFT_EDGE, HYPOTENUSE, RIGHT_EDGE, \
 			HYPOTENUSE, LEFT_EDGE, RIGHT_EDGE], [3, 3])
@@ -360,11 +360,11 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_get_node_indices(cell, i_color_node_out, i_transfer_node, i_color_node_in)
 		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1), intent(out)			:: i_color_node_out
-		integer (KIND = 1), intent(out)			:: i_transfer_node
-		integer (KIND = 1), intent(out)			:: i_color_node_in
+		integer (kind = BYTE), intent(out)			:: i_color_node_out
+		integer (kind = BYTE), intent(out)			:: i_transfer_node
+		integer (kind = BYTE), intent(out)			:: i_color_node_in
 
-		integer (KIND = 1), dimension(3, 3), parameter :: indices = reshape( \
+		integer (kind = BYTE), dimension(3, 3), parameter :: indices = reshape( \
 			[TOP_NODE, LEFT_NODE, RIGHT_NODE, \
 			LEFT_NODE, TOP_NODE, RIGHT_NODE, \
 			LEFT_NODE, RIGHT_NODE, TOP_NODE], [3, 3])
@@ -376,9 +376,9 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_get_edge_types(cell, i_previous_edge_type, i_color_edge_type, i_next_edge_type)
 		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1), intent(out)			:: i_previous_edge_type
-		integer (KIND = 1), intent(out)			:: i_color_edge_type
-		integer (KIND = 1), intent(out)			:: i_next_edge_type
+		integer (kind = BYTE), intent(out)			:: i_previous_edge_type
+		integer (kind = BYTE), intent(out)			:: i_color_edge_type
+		integer (kind = BYTE), intent(out)			:: i_next_edge_type
 
 		i_previous_edge_type = OLD
 		i_color_edge_type = 0
@@ -390,7 +390,7 @@ MODULE SFC_data_types
 
 	elemental function cell_get_previous_edge_type(cell) result(i_previous_edge_type)
 		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1)						:: i_previous_edge_type
+		integer (kind = BYTE)						:: i_previous_edge_type
 
 		i_previous_edge_type = OLD
 		call mvbits(cell%i_entity_types, 3, 1, i_previous_edge_type, 1)
@@ -398,7 +398,7 @@ MODULE SFC_data_types
 
 	elemental function cell_get_next_edge_type(cell) result(i_next_edge_type)
 		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1)						:: i_next_edge_type
+		integer (kind = BYTE)						:: i_next_edge_type
 
 		i_next_edge_type = NEW
 		call mvbits(cell%i_entity_types, 2, 1, i_next_edge_type, 1)
@@ -406,7 +406,7 @@ MODULE SFC_data_types
 
 	elemental function cell_get_color_edge_type(cell) result(i_color_edge_type)
 		class(fine_triangle), intent(in)		:: cell
-		integer (KIND = 1)						:: i_color_edge_type
+		integer (kind = BYTE)						:: i_color_edge_type
 
 		i_color_edge_type = 0
 		call mvbits(cell%i_entity_types, 0, 2, i_color_edge_type, 0)
@@ -414,9 +414,9 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_set_edge_types(cell, i_previous_edge_type, i_color_edge_type, i_next_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (KIND = 1), intent(in)			:: i_previous_edge_type
-		integer (KIND = 1), intent(in)			:: i_color_edge_type
-		integer (KIND = 1), intent(in)			:: i_next_edge_type
+		integer (kind = BYTE), intent(in)			:: i_previous_edge_type
+		integer (kind = BYTE), intent(in)			:: i_color_edge_type
+		integer (kind = BYTE), intent(in)			:: i_next_edge_type
 
 		cell%i_entity_types = 0
 		call mvbits(i_previous_edge_type, 1, 1, cell%i_entity_types, 3)
@@ -426,21 +426,21 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_set_previous_edge_type(cell, i_previous_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (KIND = 1), intent(in)			:: i_previous_edge_type
+		integer (kind = BYTE), intent(in)			:: i_previous_edge_type
 
 		call mvbits(i_previous_edge_type, 1, 1, cell%i_entity_types, 3)
 	end subroutine
 
 	elemental subroutine cell_set_next_edge_type(cell, i_next_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (KIND = 1), intent(in)			:: i_next_edge_type
+		integer (kind = BYTE), intent(in)			:: i_next_edge_type
 
 		call mvbits(i_next_edge_type, 1, 1, cell%i_entity_types, 2)
 	end subroutine
 
 	elemental subroutine cell_set_color_edge_type(cell, i_color_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (KIND = 1), intent(in)			:: i_color_edge_type
+		integer (kind = BYTE), intent(in)			:: i_color_edge_type
 
 		call mvbits(i_color_edge_type, 0, 2, cell%i_entity_types, 0)
 	end subroutine
@@ -475,7 +475,7 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_reverse_refinement(cell)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (kind = 1), parameter           :: flip_2_3(-1:4) = [-1, 0, 1, 3, 2, 4]
+		integer (kind = BYTE), parameter           :: flip_2_3(-1:4) = [-1, 0, 1, 3, 2, 4]
 
         !invert refinement flag: flip 2 and 3
         cell%refinement = flip_2_3(cell%refinement)
@@ -484,7 +484,7 @@ MODULE SFC_data_types
 	!> returns the volume of an element
 	elemental function cell_get_scaling(cell) result(scaling)
 		class(fine_triangle), intent(in)		:: cell
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
 		real (kind = GRID_SR)					:: scaling
         real (kind = GRID_SR), parameter, dimension(-1 : MAX_DEPTH)		:: r_scalings = [ (0.5_GRID_SR ** i, 0.5_GRID_SR ** i, i = 0, MAX_DEPTH/2) ]
 
@@ -494,7 +494,7 @@ MODULE SFC_data_types
 	!> returns the volume of an element
 	elemental function cell_get_volume(cell) result(volume)
 		class(fine_triangle), intent(in)		:: cell
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
 		real (kind = GRID_SR)					:: volume
         real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)		:: r_volumes = [ (0.5_GRID_SR ** (i + 1), i = 0, MAX_DEPTH) ]
 
@@ -506,7 +506,7 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(in)		:: cell
 		real (kind = GRID_SR)					:: edge_size
 
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
         real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)	:: r_leg_sizes = [ (sqrt(0.5_GRID_SR) ** i, i = 0, MAX_DEPTH) ]
 
 		edge_size = r_leg_sizes(cell%i_depth)
@@ -517,7 +517,7 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(in)		:: cell
 		real (kind = GRID_SR)					:: edge_size
 
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
         real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)	:: r_leg_sizes = [ (sqrt(0.5_GRID_SR) ** i, i = 0, MAX_DEPTH) ]
 
 		edge_size = r_leg_sizes(cell%i_depth - 1)
@@ -528,15 +528,15 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(in)		:: cell
 		real (kind = GRID_SR)           		:: edge_sizes(3)
 
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
         real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)	:: r_leg_sizes = [ (sqrt(0.5_GRID_SR) ** i, i = 0, MAX_DEPTH) ]
 
 		edge_sizes = [r_leg_sizes(cell%i_depth), r_leg_sizes(cell%i_depth - 1), r_leg_sizes(cell%i_depth)]
 	end function
 
 	elemental function get_cell_volume(depth) result(volume)
-        integer (kind = 1), intent(in)          :: depth
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE), intent(in)          :: depth
+        integer (kind = BYTE)                      :: i
 		real (kind = GRID_SR)					:: volume
 
         real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)		:: r_volumes = [ (0.5_GRID_SR ** (i + 1), i = 0, MAX_DEPTH) ]
@@ -552,27 +552,27 @@ MODULE SFC_data_types
 	end function
 
     elemental function get_edge_size(depth) result(edge_size)
-        integer (kind = 1), intent(in)          :: depth
+        integer (kind = BYTE), intent(in)          :: depth
 		real (kind = GRID_SR)					:: edge_size
 
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
         real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)  :: r_leg_sizes = [ (sqrt(0.5_GRID_SR) ** i, i = 0, MAX_DEPTH) ]
 
 		edge_size = r_leg_sizes(depth)
     end function
 
     pure function get_edge_sizes(depth) result(edge_sizes)
-        integer (kind = 1), intent(in)          :: depth
+        integer (kind = BYTE), intent(in)          :: depth
 		real (kind = GRID_SR)					:: edge_sizes(3)
 
 		edge_sizes = get_edge_size([depth, depth - 1_1, depth])
     end function
 
     elemental function encode_edge_size(depth) result(code)
-        integer (kind = 1), intent(in)          :: depth
+        integer (kind = BYTE), intent(in)          :: depth
 		integer (kind = GRID_DI)				:: code
 
-        integer (kind = 1)                      :: i
+        integer (kind = BYTE)                      :: i
         integer (kind = GRID_DI), parameter, dimension(0 : MAX_DEPTH + 1)  :: codes = [(ishft(1_GRID_DI, MAX_DEPTH / 2 - i), ishft(1_GRID_DI, MAX_DEPTH / 2 - i), i = 0, MAX_DEPTH / 2)]
 
         code = codes(depth)
@@ -660,7 +660,7 @@ MODULE SFC_data_types
 	subroutine init_transform_data()
 		type(t_cell_transform_data), pointer				:: p_cell_data
 		type(t_edge_transform_data), pointer				:: p_edge_data
-		integer (kind = 1)									:: i_plotter_type, i
+		integer (kind = BYTE)									:: i_plotter_type, i
 		integer                                             :: i_error
 		real (kind = GRID_SR)								:: r_angle
 		real (kind = GRID_SR), dimension(2, 3)				:: edge_vectors, edge_normals

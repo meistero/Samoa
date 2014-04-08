@@ -151,7 +151,7 @@ MODULE _CG_(1)
         type(t_grid_section), intent(in)		        :: section
         type(t_node_data), intent(in)				    :: node
 
-        integer (kind = 1)					            :: i
+        integer (kind = BYTE)					            :: i
         real(kind = GRID_SR)                            :: d(_gv_node_size)
         real(kind = GRID_SR)                            :: u(_gv_node_size)
 

@@ -72,12 +72,12 @@
 
 		!> persistent scenario data on a node
 		type num_node_data_pers
-			integer (kind = 1)															:: dummy					!< no data
+			integer (kind = BYTE)															:: dummy					!< no data
 		END type num_node_data_pers
 
 		!> persistent scenario data on an edge
 		type num_edge_data_pers
-			integer (kind = 1), dimension(0)											:: dummy					!< no data
+			integer (kind = BYTE), dimension(0)											:: dummy					!< no data
 		END type num_edge_data_pers
 
 		!> persistent scenario data on a cell
@@ -101,17 +101,17 @@
 
 		!> temporary scenario data on a node (deleted after each traversal)
 		type num_node_data_temp
-			integer (kind = 1), dimension(0)										:: dummy					!< no data
+			integer (kind = BYTE), dimension(0)										:: dummy					!< no data
 		END type num_node_data_temp
 
 		!> temporary scenario data on an edge (deleted after each traversal)
 		type num_edge_data_temp
-			integer (kind = 1), dimension(0)										:: dummy					!< no data
+			integer (kind = BYTE), dimension(0)										:: dummy					!< no data
 		END type num_edge_data_temp
 
 		!> temporary scenario data on a cell (deleted after each traversal)
 		type num_cell_data_temp
-			integer (kind = 1), dimension(0)										:: dummy					!< no data
+			integer (kind = BYTE), dimension(0)										:: dummy					!< no data
 		END type num_cell_data_temp
 
 		!***********************
@@ -123,7 +123,7 @@
 			real (kind = GRID_SR)							:: r_time					!< simulation time
 			real (kind = GRID_SR)							:: r_dt						!< time step
 			real (kind = GRID_SR)							:: u_max					!< maximum wave velocity for cfl condition
-			integer (kind = 1)								:: d_max					!< current maximum grid depth
+			integer (kind = BYTE)								:: d_max					!< current maximum grid depth
 
             contains
 

@@ -62,7 +62,7 @@ module Tools_openmp
         function omp_get_wtime() result(time)
             double precision :: time
 
-            integer(kind = 8) :: counts, count_rate
+            integer(kind = selected_int_kind(16)) :: counts, count_rate
 
             call system_clock(counts, count_rate)
 
@@ -81,6 +81,8 @@ MODULE Tools_log
 	interface prefix_sum
         module procedure prefix_sum_i8_sequential
         module procedure prefix_sum_i16_sequential
+        module procedure prefix_sum_i32_sequential
+        module procedure prefix_sum_i64_sequential
         module procedure prefix_sum_r32_sequential
         module procedure prefix_sum_r64_sequential
         module procedure prefix_sum_r128_sequential
@@ -89,6 +91,8 @@ MODULE Tools_log
  	interface postfix_sum
         module procedure postfix_sum_i8
         module procedure postfix_sum_i16
+        module procedure postfix_sum_i32
+        module procedure postfix_sum_i64
         module procedure postfix_sum_r32
         module procedure postfix_sum_r64
         module procedure postfix_sum_r128
@@ -114,6 +118,8 @@ MODULE Tools_log
     end interface
 
 	interface scatter
+        module procedure scatter_i8
+        module procedure scatter_i16
         module procedure scatter_i32
         module procedure scatter_i64
         module procedure scatter_r32
@@ -125,8 +131,8 @@ MODULE Tools_log
 
 	!> global file unit (there's only one log instance possible due to the lack of variadic functions and macros in Fortran,
 	!> which makes it impossible to wrap WRITE and PRINT)
-	integer (kind=4)    :: g_log_file_unit = 6
-	integer, parameter  :: QP = kind(1.0q0)
+	integer (kind=selected_int_kind(8))     :: g_log_file_unit = 6
+	integer, parameter                      :: QP = kind(1.0q0)
 
 	contains
 
@@ -264,15 +270,15 @@ MODULE Tools_log
     end function
 
 	pure subroutine postfix_sum_i8(y, x)
-        integer(kind = selected_int_kind(8)), intent(inout)  	:: y(:)
-        integer(kind = selected_int_kind(8)), intent(in)  	    :: x(:)
+        integer(kind = selected_int_kind(1)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(1)), intent(in)  	    :: x(:)
 
 		call prefix_sum(y, x(size(x) : 1 : -1))
 	end subroutine
 
 	pure subroutine prefix_sum_i8_sequential(y, x)
-        integer(kind = selected_int_kind(8)), intent(inout)  	:: y(:)
-        integer(kind = selected_int_kind(8)), intent(in)  	    :: x(:)
+        integer(kind = selected_int_kind(1)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(1)), intent(in)  	    :: x(:)
         integer                  	                            :: i
 
         if (size(x) == 0) then
@@ -289,8 +295,8 @@ MODULE Tools_log
 	end subroutine
 
 	pure subroutine prefix_sum_i8_vectorized(y, x)
-        integer(kind = selected_int_kind(8)), intent(inout)  	:: y(:)
-        integer(kind = selected_int_kind(8)), intent(in)  	    :: x(:)
+        integer(kind = selected_int_kind(1)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(1)), intent(in)  	    :: x(:)
         integer               	                                :: i, k, n
 
         if (size(x) == 0) then
@@ -325,13 +331,138 @@ MODULE Tools_log
 	end subroutine
 
 	pure subroutine postfix_sum_i16(y, x)
+        integer(kind = selected_int_kind(4)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(4)), intent(in)  	:: x(:)
+
+		call prefix_sum(y, x(size(x) : 1 : -1))
+	end subroutine
+
+	pure subroutine prefix_sum_i16_sequential(y, x)
+        integer(kind = selected_int_kind(4)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(4)), intent(in)  	    :: x(:)
+        integer                 	                            :: i
+
+        if (size(x) == 0) then
+            return
+        end if
+
+        assert_pure(size(y) .eq. size(x))
+
+        y(1) = x(1)
+
+        do i = 2, size(x)
+            y(i) = y(i - 1) + x(i)
+        end do
+	end subroutine
+
+	pure subroutine prefix_sum_i16_vectorized(y, x)
+        integer(kind = selected_int_kind(4)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(4)), intent(in)  	    :: x(:)
+        integer(kind = selected_int_kind(4))		            :: tmp
+        integer                	                                :: i, k, n
+
+        if (size(x) == 0) then
+            return
+        end if
+
+        assert_pure(size(y) .eq. size(x))
+
+        n = size(x)
+
+        !Copy array
+        y = x
+
+        !Up-Sweep phase
+        i = 1
+        do while (i .le. n/2)
+            do k = 2 * i, n, 2 * i
+                y(k) = y(k) + y(k - i)
+            end do
+
+            i = 2 * i
+        end do
+
+        !Down-Sweep phase
+        do while (i .ge. 2)
+            i = i / 2
+
+            do k = 3 * i, n, 2 * i
+                y(k) = y(k) + y(k - i)
+            end do
+        end do
+	end subroutine
+
+	pure subroutine postfix_sum_i32(y, x)
+        integer(kind = selected_int_kind(8)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(8)), intent(in)  	:: x(:)
+
+		call prefix_sum(y, x(size(x) : 1 : -1))
+	end subroutine
+
+	pure subroutine prefix_sum_i32_sequential(y, x)
+        integer(kind = selected_int_kind(8)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(8)), intent(in)  	    :: x(:)
+        integer                 	                            :: i
+
+        if (size(x) == 0) then
+            return
+        end if
+
+        assert_pure(size(y) .eq. size(x))
+
+        y(1) = x(1)
+
+        do i = 2, size(x)
+            y(i) = y(i - 1) + x(i)
+        end do
+	end subroutine
+
+	pure subroutine prefix_sum_i32_vectorized(y, x)
+        integer(kind = selected_int_kind(8)), intent(inout)  	:: y(:)
+        integer(kind = selected_int_kind(8)), intent(in)  	    :: x(:)
+        integer(kind = selected_int_kind(8))		            :: tmp
+        integer                	                                :: i, k, n
+
+        if (size(x) == 0) then
+            return
+        end if
+
+        assert_pure(size(y) .eq. size(x))
+
+        n = size(x)
+
+        !Copy array
+        y = x
+
+        !Up-Sweep phase
+        i = 1
+        do while (i .le. n/2)
+            do k = 2 * i, n, 2 * i
+                y(k) = y(k) + y(k - i)
+            end do
+
+            i = 2 * i
+        end do
+
+        !Down-Sweep phase
+        do while (i .ge. 2)
+            i = i / 2
+
+            do k = 3 * i, n, 2 * i
+                y(k) = y(k) + y(k - i)
+            end do
+        end do
+	end subroutine
+
+
+	pure subroutine postfix_sum_i64(y, x)
         integer(kind = selected_int_kind(16)), intent(inout)  	:: y(:)
         integer(kind = selected_int_kind(16)), intent(in)  	:: x(:)
 
 		call prefix_sum(y, x(size(x) : 1 : -1))
 	end subroutine
 
-	pure subroutine prefix_sum_i16_sequential(y, x)
+	pure subroutine prefix_sum_i64_sequential(y, x)
         integer(kind = selected_int_kind(16)), intent(inout)  	:: y(:)
         integer(kind = selected_int_kind(16)), intent(in)  	    :: x(:)
         integer                 	                            :: i
@@ -349,7 +480,7 @@ MODULE Tools_log
         end do
 	end subroutine
 
-	pure subroutine prefix_sum_i16_vectorized(y, x)
+	pure subroutine prefix_sum_i64_vectorized(y, x)
         integer(kind = selected_int_kind(16)), intent(inout)  	:: y(:)
         integer(kind = selected_int_kind(16)), intent(in)  	    :: x(:)
         integer(kind = selected_int_kind(16))		            :: tmp
@@ -570,133 +701,24 @@ MODULE Tools_log
                 y(k) = y(k) + y(k - i)
             end do
         end do
-	end subroutine
-
-	subroutine reduce_r32_mpi(s, mpi_op)
-        real, intent(inout)		        :: s
-		integer, intent(in)		        :: mpi_op
-
-		integer					        :: i_error
-
-#		if defined(_MPI)
-            call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_REAL, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#		endif
-	end subroutine
-
-	subroutine reduce_r32(s, v, mpi_op, global)
-        real, intent(inout)		        :: s
-        real, intent(in)		        :: v(:)
-		integer, intent(in)		        :: mpi_op
-		logical, intent(in)             :: global
-
-        select case (mpi_op)
-            case (MPI_MAX)
-                s = maxval(v)
-            case (MPI_MIN)
-                s = minval(v)
-            case (MPI_SUM)
-                s = sum(v)
-            case (MPI_PROD)
-                s = product(v)
-            case default
-                assert(.false.)
-        end select
-
-#		if defined(_MPI)
-            if (global) then
-                call reduce_r32_mpi(s, mpi_op)
-            end if
-#		endif
-	end subroutine
-
-	subroutine reduce_r64_mpi(s, mpi_op)
-        double precision, intent(inout)         :: s
-		integer, intent(in)			            :: mpi_op
-
-		integer					                :: i_error
-
-#		if defined(_MPI)
-            call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_DOUBLE_PRECISION, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#		endif
-	end subroutine
-
-	subroutine reduce_r64(s, v, mpi_op, global)
-        double precision, intent(inout)         :: s
-        double precision, intent(in)            :: v(:)
-		integer, intent(in)			            :: mpi_op
-		logical, intent(in)                     :: global
-
-        select case (mpi_op)
-            case (MPI_MAX)
-                s = maxval(v)
-            case (MPI_MIN)
-                s = minval(v)
-            case (MPI_SUM)
-                s = sum(v)
-            case (MPI_PROD)
-                s = product(v)
-            case default
-                assert(.false.)
-        end select
-
-#		if defined(_MPI)
-            if (global) then
-                call reduce_r64_mpi(s, mpi_op)
-            end if
-#		endif
-	end subroutine
-
-	subroutine reduce_r128(s, v, mpi_op, global)
-        real (kind = QP), intent(inout)         :: s
-        real (kind = QP), intent(in)            :: v(:)
-		integer, intent(in)			            :: mpi_op
-		logical, intent(in)                     :: global
-
-        select case (mpi_op)
-            case (MPI_MAX)
-                s = maxval(v)
-            case (MPI_MIN)
-                s = minval(v)
-            case (MPI_SUM)
-                s = sum(v)
-            case (MPI_PROD)
-                s = product(v)
-            case default
-                assert(.false.)
-        end select
-
-#		if defined(_MPI)
-            if (global) then
-                call reduce_r128_mpi(s, mpi_op)
-            end if
-#		endif
-	end subroutine
-
-	subroutine reduce_r128_mpi(s, mpi_op)
-        real (kind = QP), intent(inout)         :: s
-		integer, intent(in)			            :: mpi_op
-
-		integer					                :: i_error
-
-#		if defined(_MPI)
-            call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_REAL16, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#		endif
-	end subroutine
+    end subroutine
 
 	subroutine reduce_i8_mpi(s, mpi_op)
-      	integer*1, intent(inout)	        :: s
+      	integer (kind = selected_int_kind(1)), intent(inout)	        :: s
 		integer, intent(in)		            :: mpi_op
 
 		integer					            :: i_error
 
 #		if defined(_MPI)
+            assert_eq(sizeof(s), 1)
+
             call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_INTEGER1, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #		endif
 	end subroutine
 
 	subroutine reduce_i8(s, v, mpi_op, global)
-      	integer*1, intent(inout)	        :: s
-        integer*1, intent(in)		        :: v(:)
+      	integer (kind = selected_int_kind(1)), intent(inout)	        :: s
+        integer (kind = selected_int_kind(1)), intent(in)		        :: v(:)
 		integer, intent(in)		            :: mpi_op
 		logical, intent(in)                 :: global
 
@@ -721,19 +743,21 @@ MODULE Tools_log
 	end subroutine
 
 	subroutine reduce_i16_mpi(s, mpi_op)
-      	integer*2, intent(inout)	        :: s
+      	integer (kind = selected_int_kind(4)), intent(inout)	        :: s
 		integer, intent(in)			        :: mpi_op
 
 		integer					            :: i_error
 
 #		if defined(_MPI)
+            assert_eq(sizeof(s), 2)
+
             call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_INTEGER2, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #		endif
 	end subroutine
 
 	subroutine reduce_i16(s, v, mpi_op, global)
-      	integer*2, intent(inout)	        :: s
-        integer*2, intent(in)		        :: v(:)
+      	integer (kind = selected_int_kind(4)), intent(inout)	        :: s
+        integer (kind = selected_int_kind(4)), intent(in)		        :: v(:)
 		integer, intent(in)			        :: mpi_op
 		logical, intent(in)                 :: global
 
@@ -758,19 +782,21 @@ MODULE Tools_log
 	end subroutine
 
 	subroutine reduce_i32_mpi(s, mpi_op)
-      	integer*4, intent(inout)	        :: s
+      	integer (kind = selected_int_kind(8)), intent(inout)	        :: s
 		integer, intent(in)			        :: mpi_op
 
 		integer					            :: i_error
 
 #		if defined(_MPI)
+            assert_eq(sizeof(s), 4)
+
             call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_INTEGER4, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #		endif
 	end subroutine
 
 	subroutine reduce_i32(s, v, mpi_op, global)
-      	integer*4, intent(inout)	        :: s
-        integer*4, intent(in)		        :: v(:)
+      	integer (kind = selected_int_kind(8)), intent(inout)	        :: s
+        integer (kind = selected_int_kind(8)), intent(in)		        :: v(:)
 		integer, intent(in)			        :: mpi_op
 		logical, intent(in)                 :: global
 
@@ -795,19 +821,21 @@ MODULE Tools_log
 	end subroutine
 
 	subroutine reduce_i64_mpi(s, mpi_op)
-      	integer*8, intent(inout)	        :: s
+      	integer (kind = selected_int_kind(16)), intent(inout)	        :: s
 		integer, intent(in)			        :: mpi_op
 
 		integer					            :: i_error
 
 #		if defined(_MPI)
+            assert_eq(sizeof(s), 8)
+
             call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_INTEGER8, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #		endif
 	end subroutine
 
 	subroutine reduce_i64(s, v, mpi_op, global)
-      	integer*8, intent(inout)	        :: s
-        integer*8, intent(in)		        :: v(:)
+      	integer (kind = selected_int_kind(16)), intent(inout)	        :: s
+        integer (kind = selected_int_kind(16)), intent(in)		        :: v(:)
 		integer, intent(in)			        :: mpi_op
 		logical, intent(in)                 :: global
 
@@ -827,6 +855,123 @@ MODULE Tools_log
 #		if defined(_MPI)
             if (global) then
                 call reduce_i64_mpi(s, mpi_op)
+            end if
+#		endif
+	end subroutine
+
+    subroutine reduce_r32_mpi(s, mpi_op)
+        real, intent(inout)         :: s
+		integer, intent(in)			            :: mpi_op
+
+		integer					                :: i_error
+
+#		if defined(_MPI)
+            assert_eq(sizeof(s), 4)
+
+            call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_REAL, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#		endif
+	end subroutine
+
+	subroutine reduce_r32(s, v, mpi_op, global)
+      	real, intent(inout)	    :: s
+        real, intent(in)	    :: v(:)
+		integer, intent(in)			        :: mpi_op
+		logical, intent(in)                 :: global
+
+        select case (mpi_op)
+            case (MPI_MAX)
+                s = maxval(v)
+            case (MPI_MIN)
+                s = minval(v)
+            case (MPI_SUM)
+                s = sum(v)
+            case (MPI_PROD)
+                s = product(v)
+            case default
+                assert(.false.)
+        end select
+
+#		if defined(_MPI)
+            if (global) then
+                call reduce_r32_mpi(s, mpi_op)
+            end if
+#		endif
+	end subroutine
+
+    subroutine reduce_r64_mpi(s, mpi_op)
+        double precision, intent(inout)         :: s
+		integer, intent(in)			            :: mpi_op
+
+		integer					                :: i_error
+
+#		if defined(_MPI)
+            assert_eq(sizeof(s), 8)
+
+            call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_DOUBLE_PRECISION, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#		endif
+	end subroutine
+
+	subroutine reduce_r64(s, v, mpi_op, global)
+      	double precision, intent(inout)	    :: s
+        double precision, intent(in)	    :: v(:)
+		integer, intent(in)			        :: mpi_op
+		logical, intent(in)                 :: global
+
+        select case (mpi_op)
+            case (MPI_MAX)
+                s = maxval(v)
+            case (MPI_MIN)
+                s = minval(v)
+            case (MPI_SUM)
+                s = sum(v)
+            case (MPI_PROD)
+                s = product(v)
+            case default
+                assert(.false.)
+        end select
+
+#		if defined(_MPI)
+            if (global) then
+                call reduce_r64_mpi(s, mpi_op)
+            end if
+#		endif
+	end subroutine
+
+	subroutine reduce_r128_mpi(s, mpi_op)
+        real (kind = QP), intent(inout)         :: s
+		integer, intent(in)			            :: mpi_op
+
+		integer					                :: i_error
+
+#		if defined(_MPI)
+            assert_eq(sizeof(s), 16)
+
+            call mpi_allreduce(MPI_IN_PLACE, s, 1, MPI_REAL16, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#		endif
+	end subroutine
+
+	subroutine reduce_r128(s, v, mpi_op, global)
+      	real (kind = QP), intent(inout)	    :: s
+        real (kind = QP), intent(in)	    :: v(:)
+		integer, intent(in)			        :: mpi_op
+		logical, intent(in)                 :: global
+
+        select case (mpi_op)
+            case (MPI_MAX)
+                s = maxval(v)
+            case (MPI_MIN)
+                s = minval(v)
+            case (MPI_SUM)
+                s = sum(v)
+            case (MPI_PROD)
+                s = product(v)
+            case default
+                assert(.false.)
+        end select
+
+#		if defined(_MPI)
+            if (global) then
+                call reduce_r128_mpi(s, mpi_op)
             end if
 #		endif
 	end subroutine
@@ -864,6 +1009,34 @@ MODULE Tools_log
 #		endif
 	end subroutine
 
+	subroutine scatter_i8(s, v)
+        integer (kind = selected_int_kind(1)), intent(in)		:: s
+        integer (kind = selected_int_kind(1)), intent(out)		:: v(:)
+
+        v = s
+	end subroutine
+
+	subroutine scatter_i16(s, v)
+        integer (kind = selected_int_kind(4)), intent(in)		:: s
+        integer (kind = selected_int_kind(4)), intent(out)		:: v(:)
+
+        v = s
+	end subroutine
+
+	subroutine scatter_i32(s, v)
+        integer (kind = selected_int_kind(8)), intent(in)		:: s
+        integer (kind = selected_int_kind(8)), intent(out)		:: v(:)
+
+        v = s
+	end subroutine
+
+	subroutine scatter_i64(s, v)
+        integer (kind = selected_int_kind(16)), intent(in)		:: s
+        integer (kind = selected_int_kind(16)), intent(out)		:: v(:)
+
+        v = s
+	end subroutine
+
 	subroutine scatter_r32(s, v)
         real, intent(in)    :: s
         real, intent(out)	:: v(:)
@@ -881,20 +1054,6 @@ MODULE Tools_log
 	subroutine scatter_r128(s, v)
         real (kind = QP), intent(in)		:: s
         real (kind = QP), intent(out)	:: v(:)
-
-        v = s
-	end subroutine
-
-	subroutine scatter_i32(s, v)
-        integer, intent(in)		:: s
-        integer, intent(out)		:: v(:)
-
-        v = s
-	end subroutine
-
-	subroutine scatter_i64(s, v)
-        integer*2, intent(in)		:: s
-        integer*2, intent(out)		:: v(:)
 
         v = s
 	end subroutine

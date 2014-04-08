@@ -265,7 +265,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	type(t_grid_section), pointer							:: dest_section
     integer (kind = GRID_SI)			                    :: i_dest_section, i_first_local_section, i_last_local_section
 	integer                                                 :: i_error
-	integer (kind = 1)										:: i_color
+	integer (kind = BYTE)										:: i_color
 
     integer (kind = GRID_SI), save			                :: i_thread, i_src_section, i_src_cell
 	type(t_grid_section), target, save					    :: src_section
@@ -276,15 +276,11 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 		!$omp barrier
 
 		!$omp single
-        if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < dest_grid%sections%get_size()) then
-            if (associated(traversal%children_alloc)) then
-                deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
-            end if
-
-            allocate(traversal%children_alloc(max(omp_get_num_threads() * cfg%i_sections_per_thread, dest_grid%sections%get_size())), stat = i_error); assert_eq(i_error, 0)
+        if (associated(traversal%children)) then
+            deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
         end if
 
-        traversal%children => traversal%children_alloc(1 : dest_grid%sections%get_size())
+        allocate(traversal%children(dest_grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
     	!$omp end single
     end if
 
@@ -303,11 +299,10 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     i_thread = 1 + omp_get_thread_num()
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 
-    associate(traversals => traversal%children(i_first_local_section : i_last_local_section), current_stats => traversal%children(i_first_local_section : i_last_local_section)%current_stats, dest_sections => dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
         traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = -omp_get_wtime()
 
 #       if defined(_ASAGI_TIMING)
-            dest_sections%stats%r_asagi_time = 0.0
+            dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
             traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_asagi_time = 0.0
 #       endif
 
@@ -477,7 +472,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
         do i_dest_section = i_first_local_section, i_last_local_section
             call set_stats_dest(traversal%children(i_dest_section), dest_grid%sections%elements_alloc(i_dest_section))
         end do
-    end associate
 
     !$omp barrier
 
@@ -845,9 +839,9 @@ subroutine create_parent_cell(first_child_cell, second_child_cell, parent_cell)
 	type(fine_triangle), intent(in)						:: first_child_cell, second_child_cell
 	type(fine_triangle), intent(inout)					:: parent_cell
 
-	integer(kind = 1), dimension(-8:8), parameter 	    :: i_plotter_parent_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
-	integer(kind = 1)			 						:: i_color_edge_type
-	integer(kind = 1)								 	:: i
+	integer(kind = BYTE), dimension(-8:8), parameter 	    :: i_plotter_parent_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
+	integer(kind = BYTE)			 						:: i_color_edge_type
+	integer(kind = BYTE)								 	:: i
 
 	!the parent turtle grammar type can be computed by a simple xor (it's not a symmetrical operator though, so check if the order is correct)
 	parent_cell%i_turtle_type = ieor(first_child_cell%i_turtle_type, second_child_cell%i_turtle_type)
@@ -860,10 +854,10 @@ subroutine create_parent_cell(first_child_cell, second_child_cell, parent_cell)
 	select case (parent_cell%i_turtle_type)
 		case (K)
 			parent_cell%i_color_edge_color = second_child_cell%i_color_edge_color
-			i_color_edge_type = iand(1, second_child_cell%get_color_edge_type())
+			i_color_edge_type = iand(1_BYTE, second_child_cell%get_color_edge_type())
 		case (V, H)
 			parent_cell%i_color_edge_color = first_child_cell%i_color_edge_color
-			i_color_edge_type = iand(1, first_child_cell%get_color_edge_type())
+			i_color_edge_type = iand(1_BYTE, first_child_cell%get_color_edge_type())
 	end select
 
 	call parent_cell%set_edge_types(int(OLD, 1), i_color_edge_type, int(NEW, 1))
@@ -879,10 +873,10 @@ subroutine create_child_cells(parent_cell, first_child_cell, second_child_cell)
 	type(fine_triangle), intent(in)						:: parent_cell
 	type(fine_triangle), intent(inout)					:: first_child_cell, second_child_cell
 
-	integer(kind = 1), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
-	integer(kind = 1), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
-	integer(kind = 1)			 						:: i_color_edge_type
-	integer(kind = 1)								 	:: i
+	integer(kind = BYTE), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
+	integer(kind = BYTE), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
+	integer(kind = BYTE)			 						:: i_color_edge_type
+	integer(kind = BYTE)								 	:: i
 
 	first_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 1)
 	second_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 2)

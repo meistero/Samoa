@@ -15,19 +15,19 @@
 
 		!> Output point data
 		type t_output_point_data
-			real (kind = GRID_SR), dimension(2)						:: coords
-			real (kind = GRID_SR)									:: p
-			real (kind = GRID_SR)									:: S
+			real (kind = GRID_SR)				    :: coords(2)
+			real (kind = GRID_SR)			        :: p
+			real (kind = GRID_SR)			        :: S
 		end type
 
 		!> Output cell data
 		type t_output_cell_data
-			real (kind = GRID_SR)									:: permeability
-			real (kind = GRID_SR), dimension(2)						:: u
-            integer (kind = GRID_SI)								:: rank
-            integer (kind = GRID_SI)								:: section_index
-			integer (kind = 1)										:: depth
-			integer (kind = 1)										:: refinement
+			real (kind = GRID_SR)			        :: permeability
+			real (kind = GRID_SR)					:: u(2)
+            integer (kind = GRID_SI)			    :: rank
+            integer (kind = GRID_SI)			    :: section_index
+			integer (BYTE)					    :: depth
+			integer (BYTE)					    :: refinement
 		end type
 
 		logical, parameter											:: l_second_order = (_DARCY_P_ORDER > 1)
@@ -68,7 +68,7 @@
 
 #		define	_GT_ELEMENT_OP						element_op
 
-#		define _GT_NODE_FIRST_TOUCH_OP			    node_first_touch_op
+#		define  _GT_NODE_FIRST_TOUCH_OP			    node_first_touch_op
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -154,8 +154,8 @@
 				allocate(traversal%i_connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
 			end if
 
-			allocate(traversal%cell_data(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(traversal%point_data(i_points), stat = i_error); assert_eq(i_error, 0)
+			allocate(traversal%cell_data(i_cells), stat = i_error); assert_eq(i_error, 0)
 
 			traversal%i_cell_data_index = 1
 			traversal%i_point_data_index = 1
@@ -187,7 +187,7 @@
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 
-			r_empty = 0.0_GRID_SR
+			r_empty(:) = 0.0_GRID_SR
 
 			if (l_second_order) then
 				i_types = 22_1
@@ -269,7 +269,7 @@
 			call gv_u%read_from_element(element, u)
 			call gv_saturation%read(element, saturation)
 
-			point_data_indices = r_point_data_indices
+			point_data_indices(:) = int(r_point_data_indices(:), kind=GRID_SI)
 			p = samoa_basis_p_dofs_to_values(p)
 			u(1, :) = samoa_basis_u_dofs_to_values(u(1, :))
 			u(2, :) = samoa_basis_u_dofs_to_values(u(2, :))

@@ -21,7 +21,7 @@ MODULE SFC_node_traversal
 
 	subroutine init_grid(grid, depth)
 		type(t_grid), intent(inout)			    :: grid
-		integer (kind = 1), intent(in), optional    :: depth
+		integer (kind = BYTE), intent(in), optional    :: depth
 		integer (kind = GRID_SI)            		:: i_section, i_thread
 
 		! local variables
@@ -149,16 +149,16 @@ MODULE SFC_node_traversal
 		type(t_cell_stream_data), intent(inout)							:: cell_data
 		double precision, intent(in)									            :: coords(2, 3)
 
-		integer (kind = 1)                                              :: edge_depths(3)
+		integer (kind = BYTE)                                              :: edge_depths(3)
 
 		type(t_crossed_edge_stream_data), pointer						:: previous_edge, next_edge
 		type(t_edge_data)												:: color_edge
 		type(t_edge_data), pointer										:: boundary_edge
 		type(t_node_data), pointer										:: color_node_in, color_node_out, transfer_node
-		integer (KIND = 1)												:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
-		integer (KIND = 1)												:: i_previous_edge_index, i_color_edge_index, i_next_edge_index
-		integer (KIND = 1)												:: i_color_node_in_index, i_transfer_node_index, i_color_node_out_index
-		integer (KIND = 1)										        :: i_color_edge_color
+		integer (kind = BYTE)												:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer (kind = BYTE)												:: i_previous_edge_index, i_color_edge_index, i_next_edge_index
+		integer (kind = BYTE)												:: i_color_node_in_index, i_transfer_node_index, i_color_node_out_index
+		integer (kind = BYTE)										        :: i_color_edge_color
 
 		i_color_edge_color = cell_data%i_color_edge_color
 
@@ -238,10 +238,10 @@ MODULE SFC_node_traversal
         type(fine_triangle), intent(in)						:: parent_cell
         type(fine_triangle), intent(inout)					:: first_child_cell, second_child_cell
 
-        integer(kind = 1), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
-        integer(kind = 1), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
-        integer(kind = 1)			 						:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
-        integer(kind = 1)								 	:: i
+        integer(kind = BYTE), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
+        integer(kind = BYTE), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
+        integer(kind = BYTE)			 						:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+        integer(kind = BYTE)								 	:: i
 
         first_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 1)
         second_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 2)

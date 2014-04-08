@@ -499,7 +499,7 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer(BYTE)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer					:: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -823,7 +823,7 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer(BYTE)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer				    :: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer   :: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -1026,7 +1026,7 @@ module Conformity
 		type(fine_triangle), intent(inout)			:: cell
 
 		!local variables
-		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer(BYTE)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer				    :: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer   :: next_edge
 
@@ -1188,7 +1188,7 @@ module Conformity
         type(t_global_data), intent(inout)	    :: grid_data
         type(t_global_data), intent(inout)		:: section_data(:)
 
-		integer (kind = 1)					    :: i_color
+		integer (BYTE)					    :: i_color
 
         call reduce(grid_data%dest_cells, section_data%dest_cells, MPI_SUM, .false.)
 

@@ -252,7 +252,10 @@ if env['assertions']:
   env['F90FLAGS'] += ' -D_ASSERT'
 
 if env['standard']:
-  env['F90FLAGS'] += ' -std'
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -stand f08'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' -std=f2008 -Wtabs'
 
 if env['library']:
   env['F90FLAGS'] += ' -fpic'

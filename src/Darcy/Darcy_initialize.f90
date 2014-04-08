@@ -211,7 +211,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			integer (kind = 1)					:: i
+			integer :: i
 
 			do i = 1, _DARCY_FLOW_NODE_SIZE
 				call flow_pre_dof_op(node%position, node%data_pers%saturation(i))

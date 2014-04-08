@@ -76,7 +76,7 @@
 
 		!> Base data type for the scenario configuration
 		type num_global_data
-            integer (kind = 1)					            :: i_min_depth, i_max_depth !< minimum and maximum grid depth
+            integer (kind = BYTE)					            :: i_min_depth, i_max_depth !< minimum and maximum grid depth
 			integer (kind = GRID_SI)						:: i_iterations				!< number of iterations
 			real (kind = GRID_SR)							:: r_dt						!< time step
 

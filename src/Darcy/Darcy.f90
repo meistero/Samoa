@@ -188,7 +188,7 @@
             class(t_darcy)                                               :: darcy
  			type(t_grid), intent(inout)							:: grid
 			logical		                    :: l_log
-			integer (kind = 1)				:: i
+			integer (BYTE)				:: i
 
 			if (l_log) then
 				_log_close_file()

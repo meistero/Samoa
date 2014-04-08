@@ -255,7 +255,7 @@ module SFC_edge_traversal
     subroutine get_grid_neighbors(grid, rank_list, i_color)
         type(t_grid), intent(in)						:: grid
         type(t_integer_list), intent(out)               :: rank_list
-        integer (KIND = 1), intent(in)			        :: i_color
+        integer (kind = BYTE), intent(in)			        :: i_color
 
         type(t_grid_section), pointer                   :: section
         type(t_comm_interface), pointer                 :: comm
@@ -296,7 +296,7 @@ module SFC_edge_traversal
         type(t_grid), intent(inout)						    :: grid
         type(t_integer_list), intent(inout)                 :: rank_list
         integer(kind = GRID_DI), allocatable, intent(out)   :: neighbor_min_distances(:, :)
-        integer (kind = 1), intent(in)				        :: i_color
+        integer (BYTE), intent(in)				        :: i_color
 
         integer(kind = GRID_DI), allocatable                :: local_min_distances(:)
         integer, allocatable							    :: requests(:, :)
@@ -356,7 +356,7 @@ module SFC_edge_traversal
         integer (KIND = GRID_DI), intent(in)            :: neighbor_min_distances_red(:, :), neighbor_min_distances_green(:, :)
 
         integer (KIND = GRID_SI)			            :: i_section, i_first_local_section, i_last_local_section
-        integer (KIND = 1)			                    :: i_color
+        integer (kind = BYTE)			                    :: i_color
         type(t_grid_section), pointer					:: section
 
         _log_write(4, '(3X, A, I0, X, I0)') "create destination comm list: #neighbors: ", src_neighbor_list_red%get_size(), src_neighbor_list_red%get_size()
@@ -396,7 +396,7 @@ module SFC_edge_traversal
         type(t_grid_section), pointer, intent(inout)    :: section
         type(t_integer_list), intent(in)                :: src_neighbor_list
         integer (KIND = GRID_DI), intent(in)            :: neighbor_min_distances(:,:)
-        integer (KIND = 1), intent(in)			        :: i_color
+        integer (kind = BYTE), intent(in)			        :: i_color
 
         integer                                         :: i_comm
 
@@ -423,7 +423,7 @@ module SFC_edge_traversal
         type(t_grid_section), pointer , intent(inout)	:: section
         type(t_integer_list), intent(in)                :: src_neighbor_list
         integer(kind = GRID_DI), intent(in)             :: neighbor_min_distances(:, :)
-        integer (KIND = 1), intent(in)			        :: i_color
+        integer (kind = BYTE), intent(in)			        :: i_color
 
         integer (KIND = GRID_SI)						:: i_comm, i_section_2, i_max_sections, i_comms_old, i_comms_new
         integer (KIND = GRID_DI)                        :: min_distance, max_distance
@@ -539,7 +539,7 @@ module SFC_edge_traversal
 
     subroutine count_section_boundary_elements(section, i_color)
         type(t_grid_section), intent(inout)				:: section
-        integer (KIND = 1), intent(in)			        :: i_color
+        integer (kind = BYTE), intent(in)			        :: i_color
 
         integer (KIND = GRID_SI)                        :: i_current_edge, i_current_node, i_pass, i_comm
         type(t_edge_data), pointer                      :: current_edge
@@ -625,7 +625,7 @@ module SFC_edge_traversal
 
     subroutine set_comm_local_pointers(section, i_color)
         type(t_grid_section), intent(inout)				:: section
-        integer (KIND = 1), intent(in)			        :: i_color
+        integer (kind = BYTE), intent(in)			        :: i_color
 
         integer (KIND = GRID_SI)                        :: i_comm
         integer (KIND = GRID_SI)                        :: i_first_edge, i_first_node, i_last_edge, i_last_node
@@ -706,7 +706,7 @@ module SFC_edge_traversal
     subroutine set_comm_neighbor_data(grid, section, i_color)
         type(t_grid), intent(inout)				        :: grid
         type(t_grid_section), pointer, intent(inout)	:: section
-        integer (KIND = 1), intent(in)			        :: i_color
+        integer (kind = BYTE), intent(in)			        :: i_color
 
         integer (KIND = GRID_SI)                        :: i_comm, i_pass
         integer (KIND = GRID_SI)                        :: i_first_edge, i_first_node, i_last_edge, i_last_node
@@ -761,7 +761,7 @@ module SFC_edge_traversal
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error, send_tag, recv_tag
-        integer (kind = 1)							    :: i_color
+        integer (BYTE)							    :: i_color
         type(t_comm_interface), pointer			        :: comm
 
 #        if defined(_MPI)
@@ -805,7 +805,7 @@ module SFC_edge_traversal
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error, send_tag, recv_tag
-        integer (kind = 1)							    :: i_color
+        integer (BYTE)							    :: i_color
         type(t_comm_interface), pointer			        :: comm
 
 #        if defined(_MPI)
@@ -851,7 +851,7 @@ module SFC_edge_traversal
 
         integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section, i_comm
         integer                                         :: i_error
-        integer (kind = 1)							    :: i_color
+        integer (BYTE)							    :: i_color
         type(t_grid_section), pointer					:: section
         type(t_comm_interface), pointer			        :: comm
         integer (kind = GRID_SI)       					:: i_first_node, i_last_node, i, i_iteration
@@ -1048,7 +1048,7 @@ module SFC_edge_traversal
         type(t_grid), intent(inout)						:: grid
 		real, intent(in)               					:: r_max_imbalance		!< maximum allowed global imbalance (i.e. 0.1 = 10%)
 
-        integer*8										:: load, partial_load, total_load
+        integer (kind = GRID_DI)					    :: load, partial_load, total_load
 		double precision							    :: r_total_load, r_imbalance
 		integer                                         :: rank_imbalance
         integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_rank, i_section, i_comm
@@ -1056,11 +1056,11 @@ module SFC_edge_traversal
         integer, allocatable, save                      :: i_rank_out(:), i_rank_in(:), i_sections_out(:), i_sections_in(:), i_partial_sections_in(:), i_partial_sections_out(:), i_delta_out(:), requests_out(:, :), requests_in(:, :)
         type(t_grid_section), pointer					:: section
         integer						                    :: i_error, i_sections, requests(2)
-        integer	(kind = 1)  		                    :: i_color
+        integer	(BYTE)  		                        :: i_color
         type(t_grid)						            :: grid_temp
 
 #		if defined(_MPI)
-            log_write(3, '(3X, A)') "distribute load"
+            _log_write(3, '(3X, A)') "distribute load"
 
         	call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
@@ -1086,6 +1086,8 @@ module SFC_edge_traversal
 		    !$omp single
 			!switch to integer arithmetics from now on, we need exact arithmetics
 			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
+
+            assert_eq(sizeof(load), 8)
 
 			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0d0 * size_MPI, GRID_DI))
 			call mpi_scan(load, partial_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
@@ -1366,7 +1368,7 @@ module SFC_edge_traversal
             type(t_comm_interface)                 			:: old_comm
             integer						                    :: i_error, send_tag, recv_tag, i_sections, new_rank, new_section, requests(2)
             integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_section, i_comm
-            integer (kind = 1)						        :: i_color
+            integer (BYTE)						        :: i_color
 
 	        call src_grid%get_local_sections(i_first_local_section, i_last_local_section)
 
@@ -1516,7 +1518,7 @@ module SFC_edge_traversal
 
 		    integer						                    :: i_section, i_error
             integer (kind = GRID_SI)						:: i_first_src_section, i_last_src_section, i_first_dest_section, i_last_dest_section
-		    integer (kind = 1)						        :: i_color
+		    integer (BYTE)						        :: i_color
 		    type(t_grid_section), pointer					:: section
 		    integer, allocatable 						    :: src_requests(:,:), dest_requests(:,:)
             integer (kind = GRID_DI)						:: tmp_distances(RED: GREEN)

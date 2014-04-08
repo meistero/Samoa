@@ -94,9 +94,9 @@
 
             real (kind = c_double),  parameter  :: base_coords(2, 3) = [[1, 0, 0], [0, 0, 1]]
 			integer                             :: node_indices(3), edge_indices(3), cell_index
-            integer (kind = 1)                  :: edge_types(3)
+            integer (kind = BYTE)                  :: edge_types(3)
 
-			integer (kind = 1)                  :: i_previous_edge, i_color_edge, i_next_edge, i
+			integer (kind = BYTE)                  :: i_previous_edge, i_color_edge, i_next_edge, i
 
 			cell_index = element%cell%data_pers%index
 
@@ -133,7 +133,7 @@
  			integer (kind=c_long_long), intent(inout)           :: cells_to_nodes_map(3, 0 : i_cells - 1)
  			integer (kind=c_long_long), intent(inout)           :: edges_to_nodes_map(2, 0 : i_edges - 1)
  			integer, intent(in)                                 :: i_c, i_e(3), i_v(3)
- 			integer (kind = 1), intent(in)                      :: edge_types(3)
+ 			integer (kind = BYTE), intent(in)                      :: edge_types(3)
 
             integer :: i
 

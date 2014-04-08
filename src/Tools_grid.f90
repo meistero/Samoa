@@ -525,7 +525,7 @@ module Grid_section
 
     elemental subroutine grid_section_reset(section)
 		class(t_grid_section), intent(inout)		        :: section
-		integer (kind = 1)                                  :: i_color
+		integer (kind = BYTE)                                  :: i_color
 
 		!reverse cell stream
 		call section%cells%reset()
@@ -559,7 +559,7 @@ module Grid_section
 		type(t_boundary_node_stream)            :: temp_node_stream(RED : GREEN)
 		type(t_neighbor_list)                   :: temp_comms(RED : GREEN)
 		integer (kind = GRID_DI)                :: temp_distance(RED : GREEN)
-		integer (kind = 1)                      :: i_color
+		integer (kind = BYTE)                      :: i_color
 
         temp_distance = section%start_distance
 		section%start_distance = section%end_distance

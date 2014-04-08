@@ -316,11 +316,11 @@
 		type(t_traversal_element), intent(inout)			:: element						!< input element
 
 #		if defined(_GT_NODES) || !defined(_GT_NO_COORDS)
-			integer (kind = 1)								:: i_color_node_out, i_transfer_node, i_color_node_in
+			integer (kind = BYTE)								:: i_color_node_out, i_transfer_node, i_color_node_in
 #		endif
 
 #		if defined(_GT_EDGES)
-			integer (kind = 1)								:: i, i_previous_edge, i_color_edge, i_next_edge
+			integer (kind = BYTE)								:: i, i_previous_edge, i_color_edge, i_next_edge
 			type(t_cell_transform_data), pointer			:: p_plotter_data
 #		endif
 
@@ -460,7 +460,7 @@
             type(t_traversal_element), intent(inout)	        :: element
 #       endif
 
-		integer(kind = 1)								        :: i_color_edge_color
+		integer(kind = BYTE)								        :: i_color_edge_color
 		real (kind = GRID_SI), dimension(2, 3), parameter	    :: node_offset = reshape([0.0, 1.0, -1.0, 1.0, -1.0, 0.0], [2, 3])
 
 #		if defined(_GT_SKELETON_OP) || defined(_GT_CELL_UPDATE_OP)
@@ -608,7 +608,7 @@
             type(t_traversal_element), intent(inout)	        :: element
 #       endif
 
-		integer (kind = 1)							            :: i_color_edge_color
+		integer (kind = BYTE)							            :: i_color_edge_color
 
 		i_color_edge_color = element%cell%geometry%i_color_edge_color
 

@@ -22,8 +22,8 @@
 		!> Output cell data
 		type t_output_cell_data
 			real (kind = GRID_SR)									:: heat_conductivity
-			integer (kind = 1)										:: depth
-			integer (kind = 1)										:: refinement
+			integer (kind = BYTE)										:: depth
+			integer (kind = BYTE)										:: refinement
 		END type t_output_cell_data
 
 
