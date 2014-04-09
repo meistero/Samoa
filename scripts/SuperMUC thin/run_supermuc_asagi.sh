@@ -6,8 +6,8 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/$(date +"%Y-%m-%d_%H-%M-%S")_ASAGI
-script_dir=$(dirname $0)
+output_dir=output/Thin_ASAGI_$(date +"%Y-%m-%d_%H-%M-%S")
+script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
 mkdir -p scripts
@@ -16,8 +16,11 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-scons scenario=darcy -j4
-scons scenario=swe -j4
+
+scons config=supermuc.py scenario=darcy -j4 &
+scons config=supermuc.py scenario=swe -j4 &
+
+wait %1 %2
 
 echo "Running scenarios..."
 
@@ -35,8 +38,8 @@ do
 			threads=1
 			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 
-			script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-			cat run_supermuc_template.sh > $script
+			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
+			cat "$script_dir/run_supermuc_template.sh" > $script
 
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script

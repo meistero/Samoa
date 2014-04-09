@@ -6,8 +6,8 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/$(date +"%Y-%m-%d_%H-%M-%S")_Hybrid_Scaling
-script_dir=$(dirname $0)
+output_dir=output/Thin_Hybrid_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
 mkdir -p scripts
@@ -16,40 +16,49 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-scons openmp=tasks scenario=darcy -j4
-scons openmp=tasks scenario=swe -j4
+
+scons config=supermuc.py scenario=darcy openmp=tasks -j4 &
+scons config=supermuc.py scenario=swe openmp=tasks -j4 &
+scons config=supermuc.py scenario=darcy openmp=notasks -j4 &
+scons config=supermuc.py scenario=swe openmp=notasks -j4 &
+
+wait %1 %2 %3 %4
 
 echo "Running scenarios..."
 
 class=test
 limit=02:00:00
-postfix=
 
 for asagimode in 2
 do
-	for sections in 8 16 32
+	for postfix in "" _notasks
 	do
-		for concurrency in 1 2 4 8 16 32 64 128 256 512
-		do
-			processes=$(( ($concurrency - 1) / 8 + 1 ))
-			threads=$(( $concurrency / $processes )) 
-			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+	    for sections in 1 2 3 4
+	    do
+		    for cores in 16 32 64 128 256 512
+		    do
+			    processes=$(( ($cores - 1) / 8 + 1 ))
+			    threads=$(( $cores / $processes )) 
+			    nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 
-			script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-			cat run_supermuc_template.sh > $script
+			    script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
+			    cat "$script_dir/run_supermuc_template.sh" > $script
 
-			sed -i 's=$asagimode='$asagimode'=g' $script
-			sed -i 's=$sections='$sections'=g' $script
-			sed -i 's=$processes='$processes'=g' $script
-			sed -i 's=$threads='$threads'=g' $script
-			sed -i 's=$output_dir='$output_dir'=g' $script
-			sed -i 's=$nodes='$nodes'=g' $script
-			sed -i 's=$limit='$limit'=g' $script
-			sed -i 's=$class='$class'=g' $script
-			sed -i 's=$postfix='$postfix'=g' $script
+			    sed -i 's=$asagimode='$asagimode'=g' $script
+			    sed -i 's=$sections='$sections'=g' $script
+			    sed -i 's=$processes='$processes'=g' $script
+			    sed -i 's=$threads='$threads'=g' $script
+			    sed -i 's=$output_dir='$output_dir'=g' $script
+			    sed -i 's=$nodes='$nodes'=g' $script
+			    sed -i 's=$limit='$limit'=g' $script
+			    sed -i 's=$class='$class'=g' $script
+			    sed -i 's=$postfix='$postfix'=g' $script
+			    sed -i 's=-dmin 26=-dmin 26=g' $script
+			    sed -i 's=-dmax 29=-dmax 32=g' $script
 
-			llsubmit $script
-		done
-	done
+			    llsubmit $script
+		    done
+	    done
+    done
 done
 

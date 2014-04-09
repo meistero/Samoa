@@ -6,8 +6,8 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/$(date +"%Y-%m-%d_%H-%M-%S")_Fat_MPI_Scaling
-script_dir=$(dirname $0)
+output_dir=output/Fat_MPI_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
 mkdir -p scripts
@@ -16,8 +16,11 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-scons openmp=noomp scenario=darcy -j4
-scons openmp=noomp scenario=swe -j4
+
+scons config=supermuc.py scenario=darcy openmp=noomp -j4 &
+scons config=supermuc.py scenario=swe openmp=noomp -j4 &
+
+wait %1 %2
 
 echo "Running scenarios..."
 
@@ -25,7 +28,7 @@ class=fattest
 limit=02:00:00
 postfix=_noomp
 
-for asagimode in 0
+for asagimode in 2
 do
 	for sections in 8 16 32
 	do
@@ -35,8 +38,8 @@ do
 			threads=1
 			nodes=$(( ($processes * $threads - 1) / 40 + 1 ))
 
-			script="scripts/run_fat_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
-			cat run_supzero_template.sh > $script
+			script="scripts/cache/run_fat"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
+			cat "$script_dir/run_supzero_template.sh" > $script
 
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script

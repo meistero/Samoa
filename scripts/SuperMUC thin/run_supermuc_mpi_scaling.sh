@@ -6,8 +6,8 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/$(date +"%Y-%m-%d_%H-%M-%S")_MPI_Scaling
-script_dir=$(dirname $0)
+output_dir=output/Thin_MPI_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
 mkdir -p scripts
@@ -16,8 +16,11 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-scons openmp=noomp scenario=darcy -j4
-scons openmp=noomp scenario=swe -j4
+
+scons config=supermuc.py scenario=darcy openmp=noomp -j4 &
+scons config=supermuc.py scenario=swe openmp=noomp -j4 &
+
+wait %1 %2
 
 echo "Running scenarios..."
 
@@ -29,14 +32,14 @@ for asagimode in 2
 do
 	for sections in 8 16 32
 	do
-		for concurrency in 16 32 64 128 256 512
+		for cores in 16 32 64 128 256 512
 		do
-			processes=$concurrency
+			processes=$cores
 			threads=1
 			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 
-			script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
-			cat run_supermuc_template.sh > $script
+			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
+			cat "$script_dir/run_supermuc_template.sh" > $script
 
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script
@@ -47,6 +50,8 @@ do
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
+		    sed -i 's=-dmin 26=-dmin 26=g' $script
+	        sed -i 's=-dmax 29=-dmax 32=g' $script
 
 			llsubmit $script
 		done
