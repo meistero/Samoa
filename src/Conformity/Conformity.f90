@@ -64,6 +64,7 @@ module Conformity
 
 		integer (kind = GRID_SI)		    :: i_traversals
         integer                             :: i_error
+        type(t_statistics)                  :: process_stats
 
 		_log_write(3, "(2X, A)") "Check conformity..."
 
@@ -100,7 +101,8 @@ module Conformity
 		!$omp single
         call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
 
-        call conformity%stats%reduce(conformity%children_stats)
+        call process_stats%reduce(conformity%children_stats)
+        conformity%stats = conformity%stats + process_stats
         !$omp end single
 
  		_log_write(2, "(2X, I0, A)") i_traversals, " conformity traversal(s) performed."
@@ -114,8 +116,10 @@ module Conformity
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)	        :: grid
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
+
         integer (kind = GRID_SI), save      :: i_thread
-        !$omp threadprivate(i_thread)
+        type(t_statistics), save            :: thread_stats
+        !$omp threadprivate(i_thread, thread_stats)
 
 		_log_write(3, "(3X, A)") "Initial conformity traversal:"
 
@@ -123,8 +127,8 @@ module Conformity
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
         !associate(stats => conformity%children_stats(i_first_local_section : i_last_local_section))
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time - omp_get_wtime()
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time - omp_get_wtime()
+            thread_stats%r_traversal_time = -omp_get_wtime()
+            thread_stats%r_computation_time = -omp_get_wtime()
 
             do i_section = i_first_local_section, i_last_local_section
 #               if defined(_OPENMP_TASKS)
@@ -143,28 +147,33 @@ module Conformity
                 !$omp taskwait
 #           endif
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time + omp_get_wtime()
+            thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time + omp_get_wtime()
+            thread_stats%r_traversal_time = thread_stats%r_traversal_time + omp_get_wtime()
+
+            do i_section = i_first_local_section, i_last_local_section
+                conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
+            end do
         !end associate
     end subroutine
 
     subroutine update_conformity_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
-
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
+
         integer (kind = GRID_SI), save      :: i_thread
-        !$omp threadprivate(i_thread)
+        type(t_statistics), save            :: thread_stats
+        !$omp threadprivate(i_thread, thread_stats)
 
  		_log_write(3, '(3X, A)') "Update conformity traversal:"
 
         i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        !associate(stats => conformity%children_stats(i_first_local_section : i_last_local_section))
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time - omp_get_wtime()
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time - omp_get_wtime()
+        !associate(stats => thread_stats)
+            thread_stats%r_traversal_time = -omp_get_wtime()
+            thread_stats%r_computation_time = -omp_get_wtime()
 
             do i_section = i_first_local_section, i_last_local_section
                 assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
@@ -193,31 +202,37 @@ module Conformity
                 !$omp taskwait
 #           endif
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time + omp_get_wtime()
+            thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_sync_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_sync_time - omp_get_wtime()
+            thread_stats%r_sync_time = -omp_get_wtime()
             call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_sync_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_sync_time + omp_get_wtime()
+            thread_stats%r_sync_time = thread_stats%r_sync_time + omp_get_wtime()
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time - omp_get_wtime()
+            thread_stats%r_barrier_time = -omp_get_wtime()
 
             !$omp single
             call reduce(grid%l_conform, grid%sections%elements%l_conform, MPI_LAND, .true.)
             !$omp end single
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time + omp_get_wtime()
+            thread_stats%r_barrier_time = thread_stats%r_barrier_time + omp_get_wtime()
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time + omp_get_wtime()
+            thread_stats%r_traversal_time = thread_stats%r_traversal_time + omp_get_wtime()
+
+            do i_section = i_first_local_section, i_last_local_section
+                conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
+            end do
         !end associate
     end subroutine
 
     subroutine empty_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
-
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i
+
         integer (kind = GRID_SI), save      :: i_thread
-        !$omp threadprivate(i_thread)
+        type(t_statistics), save            :: thread_stats
+        !$omp threadprivate(i_thread, thread_stats)
+
 
         double precision :: r_time
 
@@ -226,8 +241,8 @@ module Conformity
         i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time - omp_get_wtime()
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time - omp_get_wtime()
+            thread_stats%r_traversal_time = -omp_get_wtime()
+            thread_stats%r_computation_time = -omp_get_wtime()
 
             do i_section = i_first_local_section, i_last_local_section
 #               if defined(_OPENMP_TASKS)
@@ -251,13 +266,13 @@ module Conformity
                 !$omp taskwait
 #           endif
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_computation_time + omp_get_wtime()
+            thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
 
             do i_section = i_first_local_section, i_last_local_section
                 call grid%sections%elements_alloc(i_section)%estimate_load()
             end do
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time - omp_get_wtime()
+            thread_stats%r_barrier_time = -omp_get_wtime()
 
             !$omp barrier
 
@@ -265,9 +280,14 @@ module Conformity
             call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
             !$omp end single
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_barrier_time + omp_get_wtime()
+            thread_stats%r_barrier_time = thread_stats%r_barrier_time + omp_get_wtime()
 
-            conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time = conformity%children_stats(i_first_local_section : i_last_local_section)%r_traversal_time + omp_get_wtime()
+            thread_stats%r_traversal_time = thread_stats%r_traversal_time + omp_get_wtime()
+
+            do i_section = i_first_local_section, i_last_local_section
+                conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
+                call grid%sections%elements_alloc(i_section)%estimate_load()
+            end do
 
         _log_write(3, '(4X, A, I0, A, 2(X, I0), A, 2(X, I0))') "Estimate for #cells: ", grid%dest_cells, ", stack red:", grid%min_dest_stack(RED), grid%max_dest_stack(RED), ", stack green:", grid%min_dest_stack(GREEN), grid%max_dest_stack(GREEN)
     end subroutine

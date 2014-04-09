@@ -66,7 +66,7 @@ type, extends(t_element_base) :: t_refinement_element
 end type
 
 type, extends(num_traversal_data) :: t_section_data
-	type(t_adaptive_statistics)								:: stats, current_stats
+	type(t_adaptive_statistics)								:: stats
 end type
 
 type, extends(num_traversal_data) :: t_thread_data
@@ -186,15 +186,15 @@ subroutine traverse_in_place(traversal, grid)
     !$omp barrier
 
     !$omp single
-    traversal%current_stats%r_integrity_time = -omp_get_wtime()
+    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time - omp_get_wtime()
     !$omp end single
 
     call conformity%check(grid)
 
     !$omp single
-    traversal%current_stats%r_integrity_time = traversal%current_stats%r_integrity_time + omp_get_wtime()
+    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time + omp_get_wtime()
 
-    traversal%current_stats%r_load_balancing_time = -omp_get_wtime()
+    traversal%stats%r_load_balancing_time = -omp_get_wtime()
     !$omp end single
 
 #	if !defined(_GT_INPUT_DEST)
@@ -204,9 +204,9 @@ subroutine traverse_in_place(traversal, grid)
 #	endif
 
     !$omp single
-    traversal%current_stats%r_load_balancing_time = traversal%current_stats%r_load_balancing_time + omp_get_wtime()
+    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time + omp_get_wtime()
 
-    traversal%current_stats%r_allocation_time = -omp_get_wtime()
+    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time - omp_get_wtime()
     !$omp end single
 
     !$omp barrier
@@ -224,7 +224,7 @@ subroutine traverse_in_place(traversal, grid)
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
 
     !$omp single
-    traversal%current_stats%r_allocation_time = traversal%current_stats%r_allocation_time + omp_get_wtime()
+    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time + omp_get_wtime()
     !$omp end single
 
     !refine grid
@@ -265,12 +265,14 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	type(t_grid_section), pointer							:: dest_section
     integer (kind = GRID_SI)			                    :: i_dest_section, i_first_local_section, i_last_local_section
 	integer                                                 :: i_error
-	integer (kind = BYTE)										:: i_color
+	integer (kind = BYTE)								    :: i_color
+	type(t_adaptive_statistics)                             :: process_stats
 
     integer (kind = GRID_SI), save			                :: i_thread, i_src_section, i_src_cell
 	type(t_grid_section), target, save					    :: src_section
 	type(t_thread_data), target, save						:: thread_traversal
-	!$omp threadprivate(i_thread, src_section, i_src_section, i_src_cell, thread_traversal)
+	type(t_adaptive_statistics), save                       :: thread_stats
+	!$omp threadprivate(i_thread, i_src_section, i_src_cell, src_section, thread_traversal, thread_stats)
 
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. dest_grid%sections%get_size()) then
 		!$omp barrier
@@ -299,14 +301,14 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     i_thread = 1 + omp_get_thread_num()
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = -omp_get_wtime()
+        thread_stats%r_traversal_time = -omp_get_wtime()
 
 #       if defined(_ASAGI_TIMING)
             dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
-            traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_asagi_time = 0.0
+            thread_stats%r_asagi_time = 0.0
 #       endif
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = -omp_get_wtime()
+        thread_stats%r_barrier_time = -omp_get_wtime()
 
         select type (traversal)
             type is (_GT)
@@ -320,9 +322,9 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
                 assert(.false.)
         end select
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time + omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + omp_get_wtime()
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = -omp_get_wtime()
+        thread_stats%r_computation_time = -omp_get_wtime()
 
         !call pre traversal operator
         do i_dest_section = i_first_local_section, i_last_local_section
@@ -412,24 +414,24 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
             !$omp taskwait
 #       endif
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time = -omp_get_wtime()
+        thread_stats%r_update_distances_time = -omp_get_wtime()
         call update_distances(dest_grid)
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_distances_time + omp_get_wtime()
+        thread_stats%r_update_distances_time = thread_stats%r_update_distances_time + omp_get_wtime()
 
         !$omp single
         assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
         !$omp end single nowait
 
         !update communication info
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time = -omp_get_wtime()
+        thread_stats%r_update_neighbors_time = -omp_get_wtime()
         call update_neighbors(src_grid, dest_grid)
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_update_neighbors_time + omp_get_wtime()
+        thread_stats%r_update_neighbors_time = thread_stats%r_update_neighbors_time + omp_get_wtime()
 
         !$omp barrier
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = -omp_get_wtime()
+        thread_stats%r_sync_time = -omp_get_wtime()
 
         do i_dest_section = i_first_local_section, i_last_local_section
             call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
@@ -438,19 +440,19 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
         !sync and call post traversal operator
         call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_sync_time + omp_get_wtime()
+        thread_stats%r_sync_time = thread_stats%r_sync_time + omp_get_wtime()
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time - omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time - omp_get_wtime()
 
         do i_dest_section = i_first_local_section, i_last_local_section
             call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
         end do
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
 
         !$omp barrier
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time - omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time - omp_get_wtime()
 
         select type (traversal)
             type is (_GT)
@@ -461,18 +463,20 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
                 assert(.false.)
         end select
 
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_barrier_time + omp_get_wtime()
-        traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time = traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_traversal_time + omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + omp_get_wtime()
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + omp_get_wtime()
 
-        !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
+        !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that stats belongs to the section and not the traversal
 #       if defined(_ASAGI_TIMING)
-            traversal%children(i_first_local_section : i_last_local_section)%current_stats%r_asagi_time = dble(i_last_local_section - i_first_local_section + 1) * dest_sections%stats%r_asagi_time
+            thread_stats%r_asagi_time = dble(i_last_local_section - i_first_local_section + 1) * dest_sections%stats%r_asagi_time
 #       endif
 
         do i_dest_section = i_first_local_section, i_last_local_section
-            call set_stats_dest(traversal%children(i_dest_section), dest_grid%sections%elements_alloc(i_dest_section))
+            traversal%children(i_dest_section)%stats = thread_stats
+            call set_stats_dest(traversal%children(i_dest_section)%stats%t_statistics, dest_grid%sections%elements_alloc(i_dest_section))
+            dest_grid%sections%elements_alloc(i_dest_section)%stats = dest_grid%sections%elements_alloc(i_dest_section)%stats + traversal%children(i_dest_section)%stats%t_statistics
+            call dest_grid%sections%elements_alloc(i_dest_section)%estimate_load()
         end do
-
     !$omp barrier
 
 #   if defined(_GT_OUTPUT_SRC)
@@ -482,9 +486,9 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	call dest_grid%reverse()
 
     !$omp single
-        call traversal%current_stats%reduce(traversal%children%current_stats)
-        traversal%stats = traversal%stats + traversal%current_stats
-        dest_grid%stats = dest_grid%stats + to_statistics(traversal%current_stats)
+        call process_stats%reduce(traversal%children%stats)
+        traversal%stats = traversal%stats + process_stats
+        dest_grid%stats = dest_grid%stats + process_stats%t_statistics
     !$omp end single
 end subroutine
 

@@ -271,32 +271,28 @@
 #		endif
 	end subroutine
 
-    subroutine _OP0(set_stats)(traversal, section)
-        type(_GT), intent(inout)			        :: traversal
-        type(t_grid_section), intent(inout)			:: section
+    subroutine _OP0(set_stats)(stats, section)
+        type(t_statistics), intent(inout)		    :: stats
+        type(t_grid_section), intent(in)			:: section
 
         type(t_section_info)               	        :: info
 
         info = section%get_info()
 
-        traversal%current_stats%i_traversals = 1
-        traversal%current_stats%i_traversed_cells = info%i_cells
-       	traversal%current_stats%i_traversed_memory = sizeof(section%cells%elements(1)) * info%i_cells
+        stats%i_traversals = 1
+        stats%i_traversed_cells = info%i_cells
+       	stats%i_traversed_memory = sizeof(section%cells%elements(1)) * info%i_cells
 
 #   	if defined(_GT_NODES)
-            traversal%current_stats%i_traversed_nodes = info%i_nodes + sum(info%i_boundary_nodes)
-            traversal%current_stats%i_traversed_memory = traversal%current_stats%i_traversed_memory + sizeof(section%boundary_nodes(RED)%elements(1)%t_node_stream_data) * (info%i_nodes + sum(info%i_boundary_nodes))
+            stats%i_traversed_nodes = info%i_nodes + sum(info%i_boundary_nodes)
+            stats%i_traversed_memory = stats%i_traversed_memory + sizeof(section%boundary_nodes(RED)%elements(1)%t_node_stream_data) * (info%i_nodes + sum(info%i_boundary_nodes))
 #   	endif
 
 #   	if defined(_GT_EDGES)
-            traversal%current_stats%i_traversed_edges = info%i_crossed_edges + info%i_color_edges + sum(info%i_boundary_edges)
-            traversal%current_stats%i_traversed_memory = traversal%current_stats%i_traversed_memory + sizeof(section%boundary_edges(RED)%elements(1)%t_crossed_edge_stream_data) * info%i_crossed_edges
-            traversal%current_stats%i_traversed_memory = traversal%current_stats%i_traversed_memory + sizeof(section%boundary_edges(RED)%elements(1)%t_color_edge_stream_data) * (info%i_color_edges + sum(info%i_boundary_edges))
+            stats%i_traversed_edges = info%i_crossed_edges + info%i_color_edges + sum(info%i_boundary_edges)
+            stats%i_traversed_memory = stats%i_traversed_memory + sizeof(section%boundary_edges(RED)%elements(1)%t_crossed_edge_stream_data) * info%i_crossed_edges
+            stats%i_traversed_memory = stats%i_traversed_memory + sizeof(section%boundary_edges(RED)%elements(1)%t_color_edge_stream_data) * (info%i_color_edges + sum(info%i_boundary_edges))
 #   	endif
-
-        traversal%stats = traversal%stats + traversal%current_stats
-        section%stats = section%stats + to_statistics(traversal%current_stats)
-        call section%estimate_load()
     end subroutine
 
 	!> initializes a ring buffer element by setting the cell pointers

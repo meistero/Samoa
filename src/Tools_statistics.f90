@@ -6,19 +6,22 @@ module Tools_statistics
     use Tools_log
 
     private
-    public t_statistics, t_adaptive_statistics, to_statistics
+    public t_section_statistics, t_statistics, t_adaptive_statistics
 
-	type t_statistics
-        double precision					        	    :: r_traversal_time = 0.0d0
+	type t_section_statistics
         double precision					        	    :: r_computation_time = 0.0d0
-        double precision					        	    :: r_sync_time = 0.0d0
-        double precision					        	    :: r_barrier_time = 0.0d0
         double precision                                    :: r_asagi_time = 0.0d0
         integer (kind = selected_int_kind(8))			    :: i_traversals = 0
         integer (kind = selected_int_kind(16))			    :: i_traversed_cells = 0
         integer (kind = selected_int_kind(16))			    :: i_traversed_edges = 0
         integer (kind = selected_int_kind(16))			    :: i_traversed_nodes = 0
         integer (kind = selected_int_kind(16))			    :: i_traversed_memory = 0
+	end type
+
+	type, extends(t_section_statistics) :: t_statistics
+        double precision					        	    :: r_traversal_time = 0.0d0
+        double precision					        	    :: r_sync_time = 0.0d0
+        double precision					        	    :: r_barrier_time = 0.0d0
 
 		contains
 
@@ -27,9 +30,11 @@ module Tools_statistics
 		procedure, private, pass :: add => t_statistics_add
 		procedure, private, pass :: inv => t_statistics_inv
 		procedure, private, pass :: sub => t_statistics_sub
+		procedure, private, pass :: assign_stats => t_statistics_assign
 
         procedure, pass :: to_string => t_statistics_to_string
 
+		generic :: assignment(=) => assign_stats
 		generic :: reduce => reduce_local, reduce_global
 		generic :: operator(+) => add
 		generic :: operator(-) => sub
@@ -49,29 +54,17 @@ module Tools_statistics
 		procedure, private, pass :: add_adaptive => t_adaptive_statistics_add
 		procedure, private, pass :: inv_adaptive => t_adaptive_statistics_inv
 		procedure, private, pass :: sub_adaptive => t_adaptive_statistics_sub
+		procedure, private, pass :: assign_adaptive => t_adaptive_statistics_assign
 
         procedure, pass :: to_string => t_adaptive_statistics_to_string
 
+		generic :: assignment(=) => assign_adaptive
 		generic :: reduce => reduce_local_adaptive
 		generic :: operator(+) => add_adaptive
 		generic :: operator(-) => sub_adaptive
 	end type
 
 	contains
-
-	pure function to_statistics(s1) result(sr)
-        class(t_statistics), intent(in) :: s1
-        type(t_statistics) :: sr
-
-        select type(s1)
-            type is (t_statistics)
-                sr = s1
-            type is (t_adaptive_statistics)
-                sr = s1%t_statistics
-            class default
-                assert_pure(.false.) !Object s1 is not of any known type
-        end select
-    end function
 
     subroutine t_statistics_reduce_local(s, v)
         class(t_statistics), intent(inout)	:: s
@@ -164,9 +157,25 @@ module Tools_statistics
 		s%r_load_balancing_time = max(0.0d0, s%r_load_balancing_time * scaling)
 		s%r_update_distances_time = max(0.0d0, s%r_update_distances_time * scaling)
 		s%r_update_neighbors_time = max(0.0d0, s%r_update_neighbors_time * scaling)
-     end subroutine
+    end subroutine
 
-    elemental function t_statistics_add(s1, s2) result(sr)
+    pure subroutine t_statistics_assign(sr, s2)
+        class(t_statistics), intent(inout)	    :: sr
+        type(t_statistics), intent(in)			:: s2
+
+		sr%r_traversal_time = s2%r_traversal_time
+		sr%r_computation_time = s2%r_computation_time
+		sr%r_sync_time = s2%r_sync_time
+		sr%r_barrier_time = s2%r_barrier_time
+		sr%r_asagi_time = s2%r_asagi_time
+		sr%i_traversals = s2%i_traversals
+		sr%i_traversed_cells = s2%i_traversed_cells
+		sr%i_traversed_edges = s2%i_traversed_edges
+		sr%i_traversed_nodes = s2%i_traversed_nodes
+		sr%i_traversed_memory = s2%i_traversed_memory
+    end subroutine
+
+    pure function t_statistics_add(s1, s2) result(sr)
         class(t_statistics), intent(in)			:: s1
         type(t_statistics), intent(in)			:: s2
         type(t_statistics)						:: sr
@@ -183,7 +192,20 @@ module Tools_statistics
 		sr%i_traversed_memory = s1%i_traversed_memory + s2%i_traversed_memory
     end function
 
-    elemental function t_adaptive_statistics_add(s1, s2) result(sr)
+    pure subroutine t_adaptive_statistics_assign(sr, s2)
+        class(t_adaptive_statistics), intent(inout)	    :: sr
+        type(t_adaptive_statistics), intent(in)			:: s2
+
+        sr%t_statistics = s2%t_statistics
+
+		sr%r_allocation_time = s2%r_allocation_time
+		sr%r_integrity_time = s2%r_integrity_time
+		sr%r_load_balancing_time = s2%r_load_balancing_time
+		sr%r_update_distances_time = s2%r_update_distances_time
+		sr%r_update_neighbors_time = s2%r_update_neighbors_time
+    end subroutine
+
+    pure function t_adaptive_statistics_add(s1, s2) result(sr)
         class(t_adaptive_statistics), intent(in)		:: s1
         type(t_adaptive_statistics), intent(in)		    :: s2
         type(t_adaptive_statistics)						:: sr
@@ -197,7 +219,7 @@ module Tools_statistics
 		sr%r_update_neighbors_time = s1%r_update_neighbors_time + s2%r_update_neighbors_time
     end function
 
-    elemental function t_statistics_inv(s1) result(sr)
+    pure function t_statistics_inv(s1) result(sr)
         class(t_statistics), intent(in)			:: s1
         type(t_statistics)						:: sr
 
@@ -213,7 +235,7 @@ module Tools_statistics
 		sr%i_traversed_memory = -s1%i_traversed_memory
     end function
 
-    elemental function t_adaptive_statistics_inv(s1) result(sr)
+    pure function t_adaptive_statistics_inv(s1) result(sr)
         class(t_adaptive_statistics), intent(in)		:: s1
         type(t_adaptive_statistics)						:: sr
 
@@ -226,7 +248,7 @@ module Tools_statistics
 		sr%r_update_neighbors_time = -s1%r_update_neighbors_time
     end function
 
-    elemental function t_statistics_sub(s1, s2) result(sr)
+    pure function t_statistics_sub(s1, s2) result(sr)
         class(t_statistics), intent(in)			:: s1
         type(t_statistics), intent(in)			:: s2
         type(t_statistics)						:: sr
@@ -234,7 +256,7 @@ module Tools_statistics
 		sr = s1 + s2%inv()
     end function
 
-    elemental function t_adaptive_statistics_sub(s1, s2) result(sr)
+    pure function t_adaptive_statistics_sub(s1, s2) result(sr)
         class(t_adaptive_statistics), intent(in)		:: s1
         type(t_adaptive_statistics), intent(in)	        :: s2
         type(t_adaptive_statistics)						:: sr
@@ -242,7 +264,7 @@ module Tools_statistics
 		sr = s1 + s2%inv_adaptive()
     end function
 
-    elemental function t_statistics_to_string(s) result(str)
+    pure function t_statistics_to_string(s) result(str)
         class(t_statistics), intent(in)			:: s
 		character (len = 512)					:: str
 
@@ -255,7 +277,7 @@ module Tools_statistics
         end if
 	end function
 
-    elemental function t_adaptive_statistics_to_string(s) result(str)
+    pure function t_adaptive_statistics_to_string(s) result(str)
         class(t_adaptive_statistics), intent(in)	:: s
 		character (len = 512)					    :: str
 

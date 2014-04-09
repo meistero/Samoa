@@ -32,7 +32,6 @@ f90_sources = [
 "Darcy/Darcy_local_function_spaces.f90",
 "Darcy/Darcy_data_types.f90",
 "Darcy/Darcy_basis.f90",
-"Darcy/Darcy_node_dummy.f90",
 "Darcy/Darcy_initialize.f90",
 "Darcy/Darcy_output.f90",
 "Darcy/Darcy_xml_output.f90",

@@ -10,7 +10,6 @@
 		use Darcy_data_types
 		use Darcy_initialize_pressure
 		use Darcy_initialize_saturation
-		use Darcy_edge_dummy
 		use Darcy_vtk_output
 		use Darcy_xml_output
 		use Darcy_grad_p
