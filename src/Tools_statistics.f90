@@ -4,6 +4,7 @@ module Tools_statistics
     use Config
     use Tools_mpi
     use Tools_log
+    use Tools_parallel_operators
 
     private
     public t_section_statistics, t_statistics, t_adaptive_statistics

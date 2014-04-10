@@ -1090,8 +1090,10 @@ module SFC_edge_traversal
             assert_eq(sizeof(load), 8)
 
 			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0d0 * size_MPI, GRID_DI))
-			call mpi_scan(load, partial_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-			call mpi_allreduce(load, total_load, 1, MPI_INTEGER8, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+            partial_load = load
+			call prefix_sum(partial_load, MPI_SUM)
+			total_load = load
+			call reduce(total_load, MPI_SUM)
 
 			assert_gt(load, 0)
 			assert_gt(total_load, 0)
@@ -1099,13 +1101,13 @@ module SFC_edge_traversal
 
             if (i_sections > 0) then
                 rank_imbalance = \
-                    ((partial_load - (0.5d0 * grid%sections%elements_alloc(i_sections)%load / grid%load) * load) * size_MPI) / total_load - \
-                    ((partial_load - load + (0.5d0 * grid%sections%elements_alloc(1)%load / grid%load) * load) * size_MPI) / total_load
+                    (((partial_load - int(0.5d0 * grid%sections%elements_alloc(i_sections)%load / grid%load * load, GRID_DI)) * size_MPI) / total_load) - \
+                    (((partial_load - load + int(0.5d0 * grid%sections%elements_alloc(1)%load / grid%load * load, GRID_DI)) * size_MPI) / total_load)
             else
                 rank_imbalance = 0
             end if
 
-			call mpi_allreduce(MPI_IN_PLACE, rank_imbalance, 1, MPI_INTEGER, MPI_MAX, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+			call reduce(rank_imbalance, MPI_MAX)
 
             i_first_rank_out = ((partial_load - load) * size_MPI) / total_load	!round down
             i_last_rank_out = (partial_load * size_MPI - 1) / total_load		!round up and subtract 1 (if below 0, round to 0)
