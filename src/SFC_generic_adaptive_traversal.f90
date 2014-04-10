@@ -194,7 +194,7 @@ subroutine traverse_in_place(traversal, grid)
     !$omp single
     traversal%stats%r_integrity_time = traversal%stats%r_integrity_time + omp_get_wtime()
 
-    traversal%stats%r_load_balancing_time = -omp_get_wtime()
+    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time - omp_get_wtime()
     !$omp end single
 
 #	if !defined(_GT_INPUT_DEST)
