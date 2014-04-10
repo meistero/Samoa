@@ -313,13 +313,13 @@
 				!compute permeability field + refinement flag
 				call darcy%permeability%traverse(grid)
 
-                !if (rank_MPI == 0) then
+                if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(.false.)
 
                     !$omp master
                     _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0, A, I0)') " Darcy: time step: ", darcy%transport_eq%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", LSE iterations: ", i_lse_iterations
                     !$omp end master
-                !end if
+                end if
 
 				!output grid
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
