@@ -224,7 +224,7 @@
                 !$omp end master
             end if
 
-			r_t1 = omp_get_wtime()
+			r_t1 = get_wtime()
 
 			!set pressure initial condition
 			call darcy%init_pressure%traverse(grid)
@@ -253,7 +253,7 @@
 				call darcy%adaption%traverse(grid)
 			end do
 
-			r_t2 = omp_get_wtime()
+			r_t2 = get_wtime()
 
             grid_info = grid%get_info(.true.)
 
@@ -285,7 +285,7 @@
             end if
 			!$omp end master
 
-			r_t3 = omp_get_wtime()
+			r_t3 = get_wtime()
 
 			do
 				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. darcy%transport_eq%stats%i_traversals >= i_max_time_steps)) then
@@ -328,7 +328,7 @@
 				end if
 			end do
 
-			r_t4 = omp_get_wtime()
+			r_t4 = get_wtime()
 
             grid_info = grid%get_info(.true.)
 

@@ -180,7 +180,7 @@
                 !$omp end master
             end if
 
-			r_t1 = omp_get_wtime()
+			r_t1 = get_wtime()
 
 			do
 				!set numerics and check for refinement
@@ -202,7 +202,7 @@
 				call swe%adaption%traverse(grid)
 			end do
 
-			r_t2 = omp_get_wtime()
+			r_t2 = get_wtime()
 
             grid_info = grid%get_info(.true.)
 
@@ -237,7 +237,7 @@
 			end if
             !$omp end master
 
-            r_t3 = omp_get_wtime()
+            r_t3 = get_wtime()
 
 #           if defined(_ASAGI)
                 ! during the earthquake, do small time steps that include a displacement
@@ -311,7 +311,7 @@
 				end if
 			end do
 
-			r_t4 = omp_get_wtime()
+			r_t4 = get_wtime()
 
             grid_info = grid%get_info(.true.)
 

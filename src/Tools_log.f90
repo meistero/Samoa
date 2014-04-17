@@ -58,16 +58,6 @@ module Tools_openmp
 
             assert_eq(i_threads, 1)
         end subroutine
-
-        function omp_get_wtime() result(time)
-            double precision :: time
-
-            integer(kind = selected_int_kind(16)) :: counts, count_rate
-
-            call system_clock(counts, count_rate)
-
-            time = dble(counts) / dble(count_rate)
-        end function
 #   endif
 end module
 
@@ -78,7 +68,7 @@ MODULE Tools_log
     use Tools_openmp
 
 	private
-	public log_open_file, log_close_file, g_log_file_unit, raise_error, term_color, term_reset
+	public get_wtime, log_open_file, log_close_file, g_log_file_unit, raise_error, term_color, term_reset
 
 
 	!> global file unit (there's only one log instance possible due to the lack of variadic functions and macros in Fortran,
@@ -239,5 +229,27 @@ MODULE Tools_log
         i = minloc(abs(v(i_start : i_end) - s), 1)
 
         assert_eq(v(i), s)
+    end function
+
+    function get_wtime_internal() result(time)
+        double precision :: time
+
+        integer(kind = selected_int_kind(16)) :: counts, count_rate
+
+        call system_clock(counts, count_rate)
+
+        time = dble(counts) / dble(count_rate)
+    end function
+
+    function get_wtime() result(wtime)
+        double precision :: wtime
+
+#       if defined(_OPENMP)
+            wtime = omp_get_wtime()
+#       elif defined(_MPI)
+            wtime = MPI_wtime()
+#       else
+            wtime = get_wtime_internal()
+#       endif
     end function
 end MODULE

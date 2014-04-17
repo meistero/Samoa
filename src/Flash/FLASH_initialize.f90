@@ -37,7 +37,7 @@
 		subroutine pre_traversal_grid_op(traversal, grid)
 			type(t_FLASH_init_traversal), intent(inout)		        :: traversal
 			type(t_grid), intent(inout)							    :: grid
-			
+
 			grid%r_dt = 0.0_GRID_SR
 			grid%r_time = 0.0_GRID_SR
 			grid%d_max = cfg%i_max_depth
@@ -120,7 +120,7 @@
 				end do
 			endif
 
-		
+
 #               if defined (_ASAGI)
                     centroid_square = 0.5_GRID_SR * [grid_min_x(cfg%afh_displacement) + grid_max_x(cfg%afh_displacement), grid_min_y(cfg%afh_displacement) + grid_max_y(cfg%afh_displacement)]
                     centroid_square = 1.0_GRID_SR / cfg%scaling * (centroid_square - cfg%offset)
@@ -218,7 +218,7 @@
 				xs = cfg%scaling * x + cfg%offset
 
 #               if defined(_ASAGI_TIMING)
-                    section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #               endif
 
 	if (grid_min_x(cfg%afh_bathymetry) <= xs(1) .and. grid_min_y(cfg%afh_bathymetry) <= xs(2) &
@@ -238,7 +238,7 @@
                 end if
 
 #               if defined(_ASAGI_TIMING)
-                    section%stats%r_asagi_time = section%stats%r_asagi_time + omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
 #               endif
 #			else
                 real (kind = GRID_SR), dimension(2), parameter		:: dam_center = [0.5, 0.5]

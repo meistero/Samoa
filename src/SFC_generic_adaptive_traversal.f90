@@ -186,15 +186,15 @@ subroutine traverse_in_place(traversal, grid)
     !$omp barrier
 
     !$omp single
-    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time - omp_get_wtime()
+    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time - get_wtime()
     !$omp end single
 
     call conformity%check(grid)
 
     !$omp single
-    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time + omp_get_wtime()
+    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time + get_wtime()
 
-    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time - omp_get_wtime()
+    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time - get_wtime()
     !$omp end single
 
 #	if !defined(_GT_INPUT_DEST)
@@ -204,9 +204,9 @@ subroutine traverse_in_place(traversal, grid)
 #	endif
 
     !$omp single
-    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time + omp_get_wtime()
+    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time + get_wtime()
 
-    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time - omp_get_wtime()
+    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time - get_wtime()
     !$omp end single
 
     !$omp barrier
@@ -224,7 +224,7 @@ subroutine traverse_in_place(traversal, grid)
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
 
     !$omp single
-    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time + omp_get_wtime()
+    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time + get_wtime()
     !$omp end single
 
     !refine grid
@@ -301,14 +301,14 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     i_thread = 1 + omp_get_thread_num()
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 
-        thread_stats%r_traversal_time = -omp_get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
 
 #       if defined(_ASAGI_TIMING)
             dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
             thread_stats%r_asagi_time = 0.0
 #       endif
 
-        thread_stats%r_barrier_time = -omp_get_wtime()
+        thread_stats%r_barrier_time = -get_wtime()
 
         select type (traversal)
             type is (_GT)
@@ -322,9 +322,9 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
                 assert(.false.)
         end select
 
-        thread_stats%r_barrier_time = thread_stats%r_barrier_time + omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
 
-        thread_stats%r_computation_time = -omp_get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
         !call pre traversal operator
         do i_dest_section = i_first_local_section, i_last_local_section
@@ -414,24 +414,24 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
             !$omp taskwait
 #       endif
 
-        thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
-        thread_stats%r_update_distances_time = -omp_get_wtime()
+        thread_stats%r_update_distances_time = -get_wtime()
         call update_distances(dest_grid)
-        thread_stats%r_update_distances_time = thread_stats%r_update_distances_time + omp_get_wtime()
+        thread_stats%r_update_distances_time = thread_stats%r_update_distances_time + get_wtime()
 
         !$omp single
         assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
         !$omp end single nowait
 
         !update communication info
-        thread_stats%r_update_neighbors_time = -omp_get_wtime()
+        thread_stats%r_update_neighbors_time = -get_wtime()
         call update_neighbors(src_grid, dest_grid)
-        thread_stats%r_update_neighbors_time = thread_stats%r_update_neighbors_time + omp_get_wtime()
+        thread_stats%r_update_neighbors_time = thread_stats%r_update_neighbors_time + get_wtime()
 
         !$omp barrier
 
-        thread_stats%r_sync_time = -omp_get_wtime()
+        thread_stats%r_sync_time = -get_wtime()
 
         do i_dest_section = i_first_local_section, i_last_local_section
             call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
@@ -440,19 +440,19 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
         !sync and call post traversal operator
         call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
-        thread_stats%r_sync_time = thread_stats%r_sync_time + omp_get_wtime()
+        thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
-        thread_stats%r_computation_time = thread_stats%r_computation_time - omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
 
         do i_dest_section = i_first_local_section, i_last_local_section
             call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
         end do
 
-        thread_stats%r_computation_time = thread_stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
         !$omp barrier
 
-        thread_stats%r_barrier_time = thread_stats%r_barrier_time - omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time - get_wtime()
 
         select type (traversal)
             type is (_GT)
@@ -463,8 +463,8 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
                 assert(.false.)
         end select
 
-        thread_stats%r_barrier_time = thread_stats%r_barrier_time + omp_get_wtime()
-        thread_stats%r_traversal_time = thread_stats%r_traversal_time + omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
 
         !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that stats belongs to the section and not the traversal
 #       if defined(_ASAGI_TIMING)

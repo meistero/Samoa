@@ -219,7 +219,7 @@
                 xs = cfg%scaling * x + cfg%offset
 
 #               if defined(_ASAGI_TIMING)
-                    section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #               endif
 
 				if (grid_min_x(cfg%afh_bathymetry) <= xs(1) .and. grid_min_y(cfg%afh_bathymetry) <= xs(2) &
@@ -239,7 +239,7 @@
                 end if
 
 #               if defined(_ASAGI_TIMING)
-                    section%stats%r_asagi_time = section%stats%r_asagi_time + omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
 #               endif
 #			else
                 real (kind = GRID_SR), dimension(2), parameter		:: dam_center = [0.5, 0.5]

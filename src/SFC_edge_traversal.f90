@@ -71,7 +71,7 @@ module SFC_edge_traversal
             !This guarantees, that there are exactly i_cells cells in total.
 
             !Add +4 to create enough space for additional refinement cells
-			!64bit arithmetics are needed here, (i * i_cells) can become very big!
+			!64bit arithmetics are needed here, (i_section * src_grid%) can become very big!
             section_descs%elements(i_section)%index = i_section
             section_descs%elements(i_section)%i_cells = (i_section * src_grid%dest_cells) / i_sections - ((i_section - 1_GRID_DI) * src_grid%dest_cells) / i_sections + 4
             section_descs%elements(i_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
@@ -363,7 +363,7 @@ module SFC_edge_traversal
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - omp_get_wtime()
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - get_wtime()
 
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
@@ -372,11 +372,11 @@ module SFC_edge_traversal
             call set_comms_local_data(grid, section, src_neighbor_list_green, neighbor_min_distances_green, int(GREEN, 1))
         end do
 
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + get_wtime()
 
         !$omp barrier
 
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - omp_get_wtime()
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - get_wtime()
 
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
@@ -388,7 +388,7 @@ module SFC_edge_traversal
             end do
         end do
 
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + omp_get_wtime()
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + get_wtime()
     end subroutine
 
     subroutine set_comms_local_data(grid, section, src_neighbor_list, neighbor_min_distances, i_color)

@@ -178,7 +178,7 @@
 			_log_write(0, *) "Heat_Eq: setting initial values and a priori refinement.."
 			_log_write(0, *) ""
 
-			r_t1 = omp_get_wtime()
+			r_t1 = get_wtime()
 
 			grid%r_time = 0.0_GRID_SR
 			r_time_next_output = 0.0_GRID_SR
@@ -209,7 +209,7 @@
 				i_adaptions_initial = i_adaptions_initial + 1
 			end do
 
-			r_t2 = omp_get_wtime()
+			r_t2 = get_wtime()
 
 			_log_write(0, *) "Heat_Eq: done."
 			_log_write(0, *) ""
@@ -238,7 +238,7 @@
 			_log_write(0, *) "Heat_Eq: running time steps.."
 			_log_write(0, *) ""
 
-			r_t3 = omp_get_wtime()
+			r_t3 = get_wtime()
 
 			do
 				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. i_time_step >= i_max_time_steps)) then
@@ -268,7 +268,7 @@
 				i_time_step = i_time_step + 1
 			end do
 
-			r_t4 = omp_get_wtime()
+			r_t4 = get_wtime()
 
 			_log_write(0, *) "Heat_Eq: done."
 			_log_write(0, *) ""
