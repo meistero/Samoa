@@ -10,8 +10,6 @@
 		PUBLIC
 
 		!data precision
-
-		!data precision
 #       if defined(_SINGLE_PRECISION)
             integer, PARAMETER :: GRID_SR = kind(1.0e0)
 #       elif defined(_DOUBLE_PRECISION)
@@ -26,8 +24,6 @@
 		integer, PARAMETER :: SHORT = selected_int_kind(4)
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
-
-		integer, PARAMETER :: GRID_SL = 1
 
 		!***********************
 		!Entity data

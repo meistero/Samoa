@@ -265,7 +265,7 @@
 
 			real (kind = GRID_SR)												:: r_lambda_n, r_lambda_w
 			integer (kind = GRID_SI)											:: i_depth
-			logical (kind = GRID_SL)											:: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
+			logical 											:: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
 
 			!compute permeability
 

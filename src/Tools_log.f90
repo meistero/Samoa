@@ -128,8 +128,6 @@ module Tools_openmp
 #   endif
 end module
 
-#include "Tools_parallel_operators.inc"
-
 MODULE Tools_log
     use Tools_mpi
     use Tools_openmp
@@ -320,3 +318,5 @@ MODULE Tools_log
 #       endif
     end function
 end MODULE
+
+#include "Tools_parallel_operators.inc"

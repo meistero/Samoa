@@ -147,9 +147,9 @@ MODULE SFC_data_types
 
 	!> Edge geometry data structure
 	type t_edge_geometry
-		logical (kind = GRID_SL)							:: refine				!< if true, the edge will be split for refinement (initially false, if set to true the edge will be refined)
-		logical (kind = GRID_SL)							:: coarsen				!< if true, the edge will either be merged or removed for coarsening (initially true, if set to false the edge will not be coarsened)
-		logical (kind = GRID_SL)							:: remove				!< if true, the edge will be removed for coarsening (initially true, if remove is set to false the edge will not be removed)
+		logical 							:: refine				!< if true, the edge will be split for refinement (initially false, if set to true the edge will be refined)
+		logical 							:: coarsen				!< if true, the edge will either be merged or removed for coarsening (initially true, if set to false the edge will not be coarsened)
+		logical 							:: remove				!< if true, the edge will be removed for coarsening (initially true, if remove is set to false the edge will not be removed)
 
 		contains
 
@@ -177,8 +177,8 @@ MODULE SFC_data_types
 #		endif
 
         integer (kind = GRID_DI)                            :: min_distance         !< edge minimum distance (only defined for boundary edges)
-        logical (kind = GRID_SL)                            :: owned_locally        !< if true, the current section owns the edge, defined only for boundary nodes!
-        logical (kind = GRID_SL)                            :: owned_globally       !< if true, the current rank owns the edge, defined only for boundary nodes!
+        logical                             :: owned_locally        !< if true, the current section owns the edge, defined only for boundary nodes!
+        logical                             :: owned_globally       !< if true, the current rank owns the edge, defined only for boundary nodes!
         integer (kind = BYTE)                                  :: depth                !< edge depth
 
 		type(t_edge_transform_data), pointer				:: transform_data		!< local edge transform data
@@ -207,8 +207,8 @@ MODULE SFC_data_types
 #		endif
 
         integer (kind = GRID_DI)                            :: distance             !< node distance, defined only for boundary nodes!
-        logical (kind = GRID_SL)                            :: owned_locally        !< if true, the current section owns the node, defined only for boundary nodes!
-        logical (kind = GRID_SL)                            :: owned_globally       !< if true, the current rank owns the node, defined only for boundary nodes!
+        logical                             :: owned_locally        !< if true, the current section owns the node, defined only for boundary nodes!
+        logical                             :: owned_globally       !< if true, the current rank owns the node, defined only for boundary nodes!
 	end type
 
 	!traversal data types

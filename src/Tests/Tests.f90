@@ -27,7 +27,7 @@
 		!> Creates all required runtime objects for the scenario
 		subroutine tests_create(l_log)
 			implicit none
-			logical (kind = GRID_SL)									:: l_log
+			logical 									:: l_log
 
 			!local variables
 			CHARACTER(len = 64)											:: s_format_string
@@ -46,7 +46,7 @@
 		!> Destroys all required runtime objects for the scenario
 		subroutine tests_destroy(l_log)
 			implicit none
-			logical (kind = GRID_SL)									:: l_log
+			logical 									:: l_log
 
 			if (l_log) then
 				_log_close_file()
@@ -59,7 +59,7 @@
 			type(triangle_tree), dimension(:), intent(inout), target	:: triangles				!< initial triangle array
 			integer (kind = GRID_SI), intent(in)						:: num_coarse_triangles
 			integer (kind = GRID_SI), intent(inout)						:: i_triang
-			logical (kind = GRID_SL), intent(inout)						:: l_forward
+			logical , intent(inout)						:: l_forward
 			integer (kind = GRID_SI), intent(inout)						:: i_dir
 			integer (kind = GRID_SI), intent(inout)						:: i_time_steps
 

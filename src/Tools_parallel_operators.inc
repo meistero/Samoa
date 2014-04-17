@@ -12,6 +12,7 @@
     module Tools_parallel_operators
         use Tools_mpi
         use Tools_openmp
+        use Tools_log
 
         interface prefix_sum
             module procedure prefix_sum_sequential_i8
@@ -121,7 +122,7 @@
 #       define _T               logical
 #       define _T_MPI_TYPE      MPI_LOGICAL
 #       define _T_SUFFIX        l
-#       define _T_SIZE          1
+#       define _T_SIZE          4
 #       define _T_CLASS         _T_CLASS_LOGICAL
 #       include "Tools_parallel_operators.inc"
 

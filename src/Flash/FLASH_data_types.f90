@@ -22,8 +22,6 @@
     integer, PARAMETER :: GRID_SI = selected_int_kind(8)
     integer, PARAMETER :: GRID_DI = selected_int_kind(16)
 
-    integer, PARAMETER :: GRID_SL = 1
-
     real (kind = GRID_SR), parameter  :: g = 9.80665_GRID_SR        !< gravitational constant
 
 

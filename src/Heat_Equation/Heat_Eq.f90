@@ -32,7 +32,7 @@
 		!> Creates all required runtime objects for the scenario
 		subroutine heat_eq_create(grid, l_log, i_asagi_mode)
 			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL)									:: l_log
+			logical 									:: l_log
 			integer														:: i_asagi_mode
 
 			!local variables
@@ -112,7 +112,7 @@
 		!> Destroys all required runtime objects for the scenario
 		subroutine heat_eq_destroy(grid, l_log)
 			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL)		:: l_log
+			logical 		:: l_log
 
 			if (l_log) then
 				_log_close_file()

@@ -83,7 +83,7 @@
 			real (kind = GRID_SR)												:: r_lambda_n, r_lambda_w
 			real (kind = GRID_SR)												:: r_sat_norm, r_p_norm
 			integer (kind = GRID_SI)											:: i_depth, i
-			logical (kind = GRID_SL)											:: l_coarsen_p, l_coarsen_sat, l_refine_sat
+			logical 											:: l_coarsen_p, l_coarsen_sat, l_refine_sat
 
 			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation))
 			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation)

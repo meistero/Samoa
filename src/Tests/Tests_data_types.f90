@@ -10,20 +10,20 @@
 		PUBLIC
 
 		!data precision
+#       if defined(_SINGLE_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0e0)
+#       elif defined(_DOUBLE_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0d0)
+#       elif defined(_QUAD_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0q0)
+#       else
+#           error "No floating point precision is chosen!"
+#       endif
 
-#		if defined (PRECISION_SINGLE_real)
-			integer, PARAMETER :: GRID_SR = selected_real_kind(6,20)
-			integer, PARAMETER :: GRID_DR = selected_real_kind(14,40)
-#		else
-			integer, PARAMETER :: GRID_SR = selected_real_kind(14,40)
-			integer, PARAMETER :: GRID_DR = selected_real_kind(28,80)
-#		endif
-
+		integer, PARAMETER :: BYTE = selected_int_kind(1)
+		integer, PARAMETER :: SHORT = selected_int_kind(4)
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
-
-		integer, PARAMETER :: GRID_SL = 1
-		integer, PARAMETER :: GRID_DL = 4
 
 		!*********************************************
 		!Persistent Entity data (geometric association)
