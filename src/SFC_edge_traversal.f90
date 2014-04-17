@@ -13,6 +13,7 @@
 module SFC_edge_traversal
 	use SFC_data_types
     use Grid
+    use Int64_list
 
 	implicit none
 
@@ -48,38 +49,94 @@ module SFC_edge_traversal
 		integer                                                 :: i_first_dest_section, i_last_dest_section
 		type(t_grid_section), pointer                           :: section
 		type(t_section_info_list), save                         :: section_descs
-
-		integer (kind = GRID_DI)                                :: i_section, i_section_2, i_sections, overlap
+        double precision                                        :: r_total_load
+		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_section_partial_load
+		integer (kind = GRID_DI)                                :: i_section, i_section_2, i_sections, overlap, i_sum_cells, i_sum_cells_prev, k
 
         _log_write(4, '(3X, A)') "create splitting"
 
         !$omp single
-        i_sections = min(cfg%i_sections_per_thread * omp_get_num_threads(), src_grid%dest_cells / min_section_size)
+        call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
+        r_total_load = src_grid%load
+        call reduce(r_total_load, MPI_SUM)
+
+        !switch to integer arithmetics from now on, we need exact arithmetics
+        !also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
+
+        i_grid_load = max(1, int(src_grid%load / r_total_load * 1000.0d0 * size_MPI, GRID_DI))
+        i_grid_partial_load = i_grid_load
+        call prefix_sum(i_grid_partial_load, MPI_SUM)
+        i_total_load = i_grid_load
+        call reduce(i_total_load, MPI_SUM)
+
+        i_sections = (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * i_grid_partial_load + i_total_load - 1) / i_total_load - &
+            (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * (i_grid_partial_load - i_grid_load)) / i_total_load
 
         if (src_grid%dest_cells > 0) then
             i_sections = max(1, i_sections)
         end if
 
-        _log_write(4, '(3X, A, I0)') "sections: ", i_sections
-        call section_descs%resize(int(i_sections, GRID_SI))
+        if (i_sections * min_section_size > src_grid%dest_cells) then
+            i_sections = src_grid%dest_cells / min_section_size
+
+            _log_write(4, '(3X, A, I0)') "sections: ", i_sections
+            call section_descs%resize(int(i_sections, GRID_SI))
+
+            i_sum_cells_prev = 0
+
+            do i_section = 1, i_sections
+                !Set the number of cells to the difference of partial sums. This guarantees, that there are exactly src_grid%dest_cells cells in total.
+
+                !Add +4 to create enough space for additional refinement cells
+                !64bit arithmetics are needed here, (i_section * src_grid%dest_cells) can become very big!
+                i_sum_cells = (src_grid%dest_cells * i_section) / i_sections
+                section_descs%elements(i_section)%i_cells = i_sum_cells - i_sum_cells_prev + 4
+                i_sum_cells_prev = i_sum_cells
+
+                section_descs%elements(i_section)%index = i_section
+                section_descs%elements(i_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+                section_descs%elements(i_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+
+                call section_descs%elements(i_section)%estimate_bounds()
+                _log_write(4, '(4X, I0)') section_descs%elements(i_section)%i_cells - 4
+            end do
+
+            if (i_sections > 0) then
+                assert_eq(i_sum_cells, src_grid%dest_cells)
+            end if
+        else
+            _log_write(4, '(3X, A, I0)') "sections: ", i_sections
+            call section_descs%resize(int(i_sections, GRID_SI))
+
+            i_sum_cells_prev = 0
+
+            do i_section = 1, i_sections
+                !Set the number of cells to the difference of partial sums. This guarantees, that there are exactly src_grid%dest_cells cells in total.
+
+                !Add +4 to create enough space for additional refinement cells
+                !64bit arithmetics are needed here, (i_section * src_grid%dest_cells) can become very big!
+                k = (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * (i_grid_partial_load - i_grid_load)) / i_total_load + i_section
+                i_section_partial_load = (k * i_total_load) / (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI)
+                i_sum_cells = min(src_grid%dest_cells - i_sections * min_section_size, ((src_grid%dest_cells - i_sections * min_section_size) * (i_section_partial_load - i_grid_partial_load + i_grid_load)) / i_grid_load)
+                section_descs%elements(i_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4
+                assert_ge(section_descs%elements(i_section)%i_cells - 4, min_section_size)
+                i_sum_cells_prev = i_sum_cells
+
+                section_descs%elements(i_section)%index = i_section
+                section_descs%elements(i_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+                section_descs%elements(i_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+
+                call section_descs%elements(i_section)%estimate_bounds()
+                _log_write(4, '(4X, I0)') section_descs%elements(i_section)%i_cells - 4
+            end do
+
+            if (i_sections > 0) then
+                assert_eq(k, (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * i_grid_partial_load + i_total_load - 1) / i_total_load)
+                assert_eq(i_sum_cells + i_sections * min_section_size, src_grid%dest_cells)
+            end if
+        end if
 
         call prefix_sum(src_grid%sections%elements_alloc%last_dest_cell, src_grid%sections%elements_alloc%dest_cells)
-
-        do i_section = 1, i_sections
-            !Instead of rounding up the number of cells per section by using ceil(i_cells / i_sections),
-            !set it to the difference of partial sums (i * i_cells) / i_sections - ((i - 1) * i_cells) / i_sections instead.
-            !This guarantees, that there are exactly i_cells cells in total.
-
-            !Add +4 to create enough space for additional refinement cells
-			!64bit arithmetics are needed here, (i_section * src_grid%) can become very big!
-            section_descs%elements(i_section)%index = i_section
-            section_descs%elements(i_section)%i_cells = (i_section * src_grid%dest_cells) / i_sections - ((i_section - 1_GRID_DI) * src_grid%dest_cells) / i_sections + 4
-            section_descs%elements(i_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
-            section_descs%elements(i_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
-
-            call section_descs%elements(i_section)%estimate_bounds()
-            _log_write(4, '(4X, I0)') section_descs%elements(i_section)%i_cells - 4
-        end do
         !$omp end single copyprivate(i_sections)
 
         !create new grid
@@ -217,7 +274,7 @@ module SFC_edge_traversal
         type(t_grid), intent(in)						:: src_grid
         type(t_grid), intent(inout)						:: dest_grid
 
-        integer(kind = GRID_DI), save, allocatable      :: neighbor_min_distances_red(:, :), neighbor_min_distances_green(:, :)
+        type(t_int64_list), save, allocatable           :: neighbor_min_distances_red(:), neighbor_min_distances_green(:)
         type(t_integer_list), save                      :: src_neighbor_list_red, src_neighbor_list_green
         integer                                         :: i_error
 
@@ -295,56 +352,65 @@ module SFC_edge_traversal
     subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_color)
         type(t_grid), intent(inout)						    :: grid
         type(t_integer_list), intent(inout)                 :: rank_list
-        integer(kind = GRID_DI), allocatable, intent(out)   :: neighbor_min_distances(:, :)
-        integer (BYTE), intent(in)				        :: i_color
+        type(t_int64_list), allocatable, intent(out)        :: neighbor_min_distances(:)
+        integer (BYTE), intent(in)				            :: i_color
 
         integer(kind = GRID_DI), allocatable                :: local_min_distances(:)
-        integer, allocatable							    :: requests(:, :)
-        integer											    :: i_comm, i_neighbors, i_section, i_error, i_sections, i_max_sections
+        integer, allocatable							    :: requests(:, :), i_neighbor_sections(:)
+        integer											    :: i_comm, i_neighbors, i_section, i_error, i_sections
 
         !Collect minimum distances from all sections of all neighbor processes
         _log_write(3, '(3X, A, A)') "collect minimum distances from sections: ", trim(color_to_char(i_color))
 
 #		if defined(_MPI)
             i_sections = grid%sections%get_size()
-            i_max_sections = omp_get_max_threads() * cfg%i_sections_per_thread
             i_neighbors = rank_list%get_size()
-            assert_le(i_sections, i_max_sections)
 
 		   	allocate(requests(i_neighbors, 2), stat = i_error); assert_eq(i_error, 0)
 		    requests = MPI_REQUEST_NULL
 
-            allocate(local_min_distances(i_max_sections), stat = i_error); assert_eq(i_error, 0)
-            local_min_distances( : i_sections) = grid%sections%elements_alloc%min_distance(i_color)
-            local_min_distances(i_sections + 1 : ) = huge(1_GRID_DI)
+            allocate(local_min_distances(i_sections), stat = i_error); assert_eq(i_error, 0)
+            local_min_distances(:) = grid%sections%elements_alloc(:)%min_distance(i_color)
 
             _log_write(4, '(4X, A, I0, A)') "rank: ", rank_MPI, " (local)"
             do i_section = 1, i_sections
                 _log_write(4, '(5X, A, I0, A, F0.4)') "local section ", i_section, " distance: ", decode_distance(local_min_distances(i_section))
             end do
 
-            allocate(neighbor_min_distances(i_max_sections, i_neighbors), stat = i_error); assert_eq(i_error, 0)
+            allocate(neighbor_min_distances(i_neighbors), stat = i_error); assert_eq(i_error, 0)
+            allocate(i_neighbor_sections(i_neighbors), stat = i_error); assert_eq(i_error, 0)
 
             !send/receive distances
-
             assert_veq(requests, MPI_REQUEST_NULL)
 
 		    do i_comm = 1, i_neighbors
-                call mpi_isend(local_min_distances(1), i_max_sections * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
-                call mpi_irecv(neighbor_min_distances(1, i_comm), i_max_sections * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
+                call mpi_irecv(i_neighbor_sections(i_comm), 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
  		    end do
 
             call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
-            requests = MPI_REQUEST_NULL
+		    do i_comm = 1, i_neighbors
+                call neighbor_min_distances(i_comm)%resize(i_neighbor_sections(i_comm))
+ 		    end do
+
+            assert_veq(requests, MPI_REQUEST_NULL)
+
+		    do i_comm = 1, i_neighbors
+                call mpi_isend(local_min_distances(1), i_sections * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
+                call mpi_irecv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections(i_comm) * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+ 		    end do
+
+            call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
             do i_comm = 1, i_neighbors
                 _log_write(4, '(4X, A, I0)') "rank: ", rank_list%elements(i_comm)
-                do i_section = 1, i_max_sections
-                    _log_write(4, '(5X, A, I0, A, F0.4)') "section: ", i_section, " , distance: ", decode_distance(neighbor_min_distances(i_section, i_comm))
+                do i_section = 1, neighbor_min_distances(i_comm)%get_size()
+                    _log_write(4, '(5X, A, I0, A, F0.4)') "section: ", i_section, " , distance: ", decode_distance(neighbor_min_distances(i_comm)%elements(i_section))
                 end do
             end do
 
+            deallocate(i_neighbor_sections, stat = i_error); assert_eq(i_error, 0)
         	deallocate(requests, stat = i_error); assert_eq(i_error, 0)
         	deallocate(local_min_distances, stat = i_error); assert_eq(i_error, 0)
 #		endif
@@ -353,7 +419,7 @@ module SFC_edge_traversal
     subroutine create_dest_neighbor_lists(grid, src_neighbor_list_red, src_neighbor_list_green, neighbor_min_distances_red, neighbor_min_distances_green)
         type(t_grid), intent(inout)						:: grid
         type(t_integer_list), intent(in)                :: src_neighbor_list_red, src_neighbor_list_green
-        integer (KIND = GRID_DI), intent(in)            :: neighbor_min_distances_red(:, :), neighbor_min_distances_green(:, :)
+        type(t_int64_list), intent(in)                  :: neighbor_min_distances_red(:), neighbor_min_distances_green(:)
 
         integer (KIND = GRID_SI)			            :: i_section, i_first_local_section, i_last_local_section
         integer (kind = BYTE)			                    :: i_color
@@ -395,8 +461,8 @@ module SFC_edge_traversal
         type(t_grid), intent(inout)						:: grid
         type(t_grid_section), pointer, intent(inout)    :: section
         type(t_integer_list), intent(in)                :: src_neighbor_list
-        integer (KIND = GRID_DI), intent(in)            :: neighbor_min_distances(:,:)
-        integer (kind = BYTE), intent(in)			        :: i_color
+        type(t_int64_list), intent(in)                  :: neighbor_min_distances(:)
+        integer (kind = BYTE), intent(in)			    :: i_color
 
         integer                                         :: i_comm
 
@@ -422,15 +488,14 @@ module SFC_edge_traversal
         type(t_grid), intent(inout)						:: grid
         type(t_grid_section), pointer , intent(inout)	:: section
         type(t_integer_list), intent(in)                :: src_neighbor_list
-        integer(kind = GRID_DI), intent(in)             :: neighbor_min_distances(:, :)
-        integer (kind = BYTE), intent(in)			        :: i_color
+        type(t_int64_list), intent(in)                  :: neighbor_min_distances(:)
+        integer (kind = BYTE), intent(in)			    :: i_color
 
-        integer (KIND = GRID_SI)						:: i_comm, i_section_2, i_max_sections, i_comms_old, i_comms_new
+        integer (KIND = GRID_SI)						:: i_comm, i_section_2, i_comms_old, i_comms_new
         integer (KIND = GRID_DI)                        :: min_distance, max_distance
         type(t_grid_section), pointer                   :: section_2
 
         min_distance = section%min_distance(i_color)
-        i_max_sections = omp_get_max_threads() * cfg%i_sections_per_thread
 
         !clear comm list if it is not empty
         assert(section%comms(i_color)%get_size() .eq. 0)
@@ -462,14 +527,14 @@ module SFC_edge_traversal
                 exit
             end if
 
-            do i_section_2 = i_max_sections, 1, -1
+            do i_section_2 = neighbor_min_distances(i_comm)%get_size(), 1, -1
                 if (max_distance < min_distance) then
                     exit
                 end if
 
-                if (neighbor_min_distances(i_section_2, i_comm) .le. max_distance) then
-                    call section%comms_type(OLD, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = src_neighbor_list%elements(i_comm), local_section = section%index, neighbor_section = i_section_2, min_distance = neighbor_min_distances(i_section_2, i_comm)))
-                    max_distance = neighbor_min_distances(i_section_2, i_comm)
+                if (neighbor_min_distances(i_comm)%elements(i_section_2) .le. max_distance) then
+                    call section%comms_type(OLD, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = src_neighbor_list%elements(i_comm), local_section = section%index, neighbor_section = i_section_2, min_distance = neighbor_min_distances(i_comm)%elements(i_section_2)))
+                    max_distance = neighbor_min_distances(i_comm)%elements(i_section_2)
                 end if
             end do
         end do
@@ -502,14 +567,14 @@ module SFC_edge_traversal
                 exit
             end if
 
-            do i_section_2 = 1, i_max_sections
+            do i_section_2 = 1, neighbor_min_distances(i_comm)%get_size()
                 if (max_distance < min_distance) then
                     exit
                 end if
 
-                if (neighbor_min_distances(i_section_2, i_comm) .le. max_distance) then
-                    call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = src_neighbor_list%elements(i_comm), local_section = section%index, neighbor_section = i_section_2, min_distance = neighbor_min_distances(i_section_2, i_comm)))
-                    max_distance = neighbor_min_distances(i_section_2, i_comm)
+                if (neighbor_min_distances(i_comm)%elements(i_section_2) .le. max_distance) then
+                    call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = src_neighbor_list%elements(i_comm), local_section = section%index, neighbor_section = i_section_2, min_distance = neighbor_min_distances(i_comm)%elements(i_section_2)))
+                    max_distance = neighbor_min_distances(i_comm)%elements(i_section_2)
                 end if
             end do
         end do
@@ -1087,7 +1152,7 @@ module SFC_edge_traversal
 			!switch to integer arithmetics from now on, we need exact arithmetics
 			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0d0 * size_MPI, GRID_DI))
+			load = max(1_GRID_DI, int(grid%load / r_total_load * 1000.0d0 * size_MPI, GRID_DI))
             partial_load = load
 			call prefix_sum(partial_load, MPI_SUM)
 			total_load = load

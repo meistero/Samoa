@@ -109,6 +109,18 @@ module Integer_list
 end module
 
 !>Implements a list for neighbors
+module Int64_list
+	use SFC_data_types
+
+	implicit none
+
+#	define _CNT_DATA_TYPE    		integer (kind = GRID_DI)
+#	define _CNT_TYPE_NAME    		t_int64_list
+
+#	include "Tools_list.f90"
+end module
+
+!>Implements a list for neighbors
 module Neighbor_list
 	use SFC_data_types
 
