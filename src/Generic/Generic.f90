@@ -54,7 +54,7 @@
 		!> Creates all required runtime objects for the scenario
 		subroutine generic_create(generic, l_log)
             class(t_generic)                                              :: generic
-			logical (kind = GRID_SL), intent(in)						:: l_log
+			logical , intent(in)						:: l_log
 
 			!local variables
 			character (len = 64)										:: s_log_name, s_date, s_time
@@ -72,7 +72,7 @@
 		!> Destroys all required runtime objects for the scenario
 		subroutine generic_destroy(generic, l_log)
             class(t_generic)                  :: generic
-			logical (kind = GRID_SL)		:: l_log
+			logical 		:: l_log
 
 			if (l_log) then
 				_log_close_file()

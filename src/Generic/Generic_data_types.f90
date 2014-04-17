@@ -29,8 +29,6 @@
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
 
-		integer, parameter :: GRID_SL = 1
-
 		!*********************************************
 		!Persistent Entity data (geometric association)
 		!**********************************************
