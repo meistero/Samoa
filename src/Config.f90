@@ -26,7 +26,6 @@ module config
 
     type t_config
         integer			                        :: i_threads			                            !< number of OpenMP threads
-        integer			                        :: i_ranks			                                !< number of MPI ranks
         integer (kind = selected_int_kind(1))   :: i_sections_per_thread						    !< number of sections per thread
         integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
         double precision                        :: r_max_time, r_output_time_step					!< maximum simulation time, output time step

@@ -20,6 +20,73 @@ module Tools_mpi
 
 	integer 		    :: rank_MPI = 0
 	integer 		    :: size_MPI = 1
+	integer             :: ref_count_MPI = 0
+
+	contains
+
+    !> initializes the mpi communicator
+    subroutine init_mpi()
+        integer                             :: i_error, mpi_prov_thread_support
+        integer(kind = MPI_ADDRESS_KIND)    :: mpi_tag_upper_bound
+        logical                             :: mpi_flag, mpi_is_initialized
+
+#       if defined(_MPI)
+            if (ref_count_MPI == 0) then
+                call mpi_initialized(mpi_is_initialized, i_error); assert_eq(i_error, 0)
+
+                if (.not. mpi_is_initialized) then
+#                   if defined(_OPENMP)
+                        call mpi_init_thread(MPI_THREAD_MULTIPLE, mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
+
+						try(mpi_prov_thread_support >= MPI_THREAD_MULTIPLE, "MPI version does not support MPI_THREAD_MULTIPLE")
+#                   else
+                        call mpi_init(i_error); assert_eq(i_error, 0)
+#                   endif
+                else
+                    !Set MPI reference counter to 1 if samoa did not initialize MPI
+                    !This makes sure that it will not finalize MPI either.
+                    ref_count_MPI = 1
+
+#                   if defined(_OPENMP)
+                        call mpi_query_thread(mpi_prov_thread_support, i_error); assert_eq(i_error, 0)
+
+						try(mpi_prov_thread_support >= MPI_THREAD_MULTIPLE, "MPI version does not support MPI_THREAD_MULTIPLE")
+#                   endif
+                end if
+
+                call mpi_comm_size(MPI_COMM_WORLD, size_MPI, i_error); assert_eq(i_error, 0)
+                call mpi_comm_rank(MPI_COMM_WORLD, rank_MPI, i_error); assert_eq(i_error, 0)
+
+                call mpi_comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, mpi_tag_upper_bound, mpi_flag, i_error); assert_eq(i_error, 0)
+				try(mpi_flag, "MPI tag support could not be determined")
+				try(mpi_tag_upper_bound >= ishft(1, 30) - 1, "MPI version does not support a sufficient number of tags")
+            end if
+
+            ref_count_MPI = ref_count_MPI + 1
+#       else
+            size_MPI = 1
+            rank_MPI = 0
+#       endif
+    end subroutine
+
+    !> finalizes the mpi communicator
+    subroutine finalize_mpi()
+        integer                         :: i_error
+        logical                         :: mpi_is_finalized
+
+#	    if defined(_MPI)
+            ref_count_MPI = ref_count_MPI - 1
+
+            if (ref_count_MPI == 0) then
+                call mpi_finalized(mpi_is_finalized, i_error); assert_eq(i_error, 0)
+
+                if (.not. mpi_is_finalized) then
+                    call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+                    call mpi_finalize(i_error); assert_eq(i_error, 0)
+                end if
+            end if
+#	    endif
+    end subroutine
 end module
 
 module Tools_openmp

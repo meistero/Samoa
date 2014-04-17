@@ -1087,8 +1087,6 @@ module SFC_edge_traversal
 			!switch to integer arithmetics from now on, we need exact arithmetics
 			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-            assert_eq(sizeof(load), 8)
-
 			load = max(1_GRID_DI, int(grid%load / r_total_load * 100.0d0 * size_MPI, GRID_DI))
             partial_load = load
 			call prefix_sum(partial_load, MPI_SUM)
