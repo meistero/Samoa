@@ -75,12 +75,12 @@ module SFC_edge_traversal
         i_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1_GRID_DI) / i_total_load - &
             (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
 
-        if (src_grid%dest_cells > 0) then
-            i_sections = max(1, i_sections)
-        end if
-
         if (i_sections * min_section_size > src_grid%dest_cells) then
             i_sections = src_grid%dest_cells / min_section_size
+
+            if (src_grid%dest_cells > 0) then
+                i_sections = max(i_sections, 1)
+            end if
 
             _log_write(4, '(3X, A, I0)') "sections: ", i_sections
             call section_descs%resize(int(i_sections, GRID_SI))

@@ -194,6 +194,18 @@ subroutine traverse_in_place(traversal, grid)
     !$omp single
     traversal%stats%r_integrity_time = traversal%stats%r_integrity_time + get_wtime()
 
+    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time - get_wtime()
+    !$omp end single
+
+#	if !defined(_GT_INPUT_DEST)
+	    !exchange grid sections with neighbors if the destination grid will not be balanced
+		call distribute_load(grid, 0.01)
+        !$omp barrier
+#	endif
+
+    !$omp single
+    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time + get_wtime()
+
     traversal%stats%r_allocation_time = traversal%stats%r_allocation_time - get_wtime()
     !$omp end single
 
@@ -224,19 +236,6 @@ subroutine traverse_in_place(traversal, grid)
 
     !$omp single
     call grid_temp%move(grid)
-
-    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time - get_wtime()
-    !$omp end single
-
-#	if !defined(_GT_INPUT_DEST)
-	    !exchange grid sections with neighbors if the destination grid will not be balanced
-		call distribute_load(grid, 0.01)
-        !$omp barrier
-#	endif
-
-    !$omp single
-    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time + get_wtime()
-
     !$omp end single
 end subroutine
 
