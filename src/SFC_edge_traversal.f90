@@ -44,7 +44,7 @@ module SFC_edge_traversal
 		type(t_grid), intent(inout)                             :: src_grid
 		type(t_grid), intent(inout)           	                :: dest_grid
 
-		integer, parameter                                      :: min_section_size = 4
+		integer (kind = GRID_DI) , parameter                    :: min_section_size = 4_GRID_DI
 		integer                                                 :: i_first_src_section, i_last_src_section
 		integer                                                 :: i_first_dest_section, i_last_dest_section
 		type(t_grid_section), pointer                           :: section
@@ -52,6 +52,7 @@ module SFC_edge_traversal
         double precision                                        :: r_total_load
 		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_section_partial_load
 		integer (kind = GRID_DI)                                :: i_section, i_section_2, i_sections, overlap, i_sum_cells, i_sum_cells_prev, k
+		integer (kind = GRID_DI)                                :: i_total_sections
 
         _log_write(4, '(3X, A)') "create splitting"
 
@@ -63,14 +64,16 @@ module SFC_edge_traversal
         !switch to integer arithmetics from now on, we need exact arithmetics
         !also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-        i_grid_load = max(1, int(src_grid%load / r_total_load * 1000.0d0 * size_MPI, GRID_DI))
+        i_grid_load = max(1_GRID_DI, int(src_grid%load / r_total_load * 1000.0d0 * size_MPI, GRID_DI))
         i_grid_partial_load = i_grid_load
         call prefix_sum(i_grid_partial_load, MPI_SUM)
         i_total_load = i_grid_load
         call reduce(i_total_load, MPI_SUM)
 
-        i_sections = (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * i_grid_partial_load + i_total_load - 1) / i_total_load - &
-            (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * (i_grid_partial_load - i_grid_load)) / i_total_load
+        i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_num_threads(), GRID_DI) * int(size_MPI, GRID_DI)
+
+        i_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1_GRID_DI) / i_total_load - &
+            (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
 
         if (src_grid%dest_cells > 0) then
             i_sections = max(1, i_sections)
@@ -115,8 +118,8 @@ module SFC_edge_traversal
 
                 !Add +4 to create enough space for additional refinement cells
                 !64bit arithmetics are needed here, (i_section * src_grid%dest_cells) can become very big!
-                k = (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * (i_grid_partial_load - i_grid_load)) / i_total_load + i_section
-                i_section_partial_load = (k * i_total_load) / (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI)
+                k = (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load + int(i_section, GRID_DI)
+                i_section_partial_load = (i_total_load * k) / i_total_sections
                 i_sum_cells = min(src_grid%dest_cells - i_sections * min_section_size, ((src_grid%dest_cells - i_sections * min_section_size) * (i_section_partial_load - i_grid_partial_load + i_grid_load)) / i_grid_load)
                 section_descs%elements(i_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4
                 assert_ge(section_descs%elements(i_section)%i_cells - 4, min_section_size)
@@ -131,7 +134,7 @@ module SFC_edge_traversal
             end do
 
             if (i_sections > 0) then
-                assert_eq(k, (cfg%i_sections_per_thread * omp_get_num_threads() * size_MPI * i_grid_partial_load + i_total_load - 1) / i_total_load)
+                assert_eq(k, (i_total_sections * i_grid_partial_load + i_total_load - 1_GRID_DI) / i_total_load)
                 assert_eq(i_sum_cells + i_sections * min_section_size, src_grid%dest_cells)
             end if
         end if
