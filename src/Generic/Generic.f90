@@ -124,7 +124,7 @@
             !init MPI and element transformation data
 
             call omp_set_num_threads(1);
-            call init_MPI()
+            call init_mpi()
             call init_transform_data()
 
             !init grid

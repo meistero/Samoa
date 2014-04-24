@@ -596,6 +596,7 @@ MODULE _CG
 
         procedure, pass :: create
         procedure, pass :: solve
+        procedure, pass :: reduce_stats
     end type
 
     private
@@ -692,9 +693,18 @@ MODULE _CG
 
         !$omp master
         _log_write(2, '(2X, A, T24, I0)') "CG iterations:", i_iteration
-        solver%stats = solver%cg_step%stats + solver%cg_exact%stats
         !$omp end master
     end function
+
+    subroutine reduce_stats(solver, mpi_op, global)
+        class(_T_CG), intent(inout)     :: solver
+        integer, intent(in)             :: mpi_op
+        logical                         :: global
+
+        call solver%cg_step%reduce_stats(mpi_op, global)
+        call solver%cg_exact%reduce_stats(mpi_op, global)
+        solver%stats = solver%cg_step%stats + solver%cg_exact%stats
+    end subroutine
 END MODULE
 
 #undef _solver

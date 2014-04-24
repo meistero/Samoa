@@ -34,6 +34,8 @@ module config
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
         integer                                 :: i_ascii_width                                    !< width of the ascii output
         logical                                 :: l_ascii_output                                   !< ascii output on/off
+        logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
+        logical                                 :: l_split_sections                                 !< if true, sections are split for MPI load balancing, if false sections are treated as atomic units
 
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
 
@@ -80,7 +82,7 @@ module config
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
-        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
+        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -timedload .false. -splitsections .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
@@ -114,6 +116,8 @@ module config
         config%r_output_time_step = rget('samoa_tout')
         config%l_log = lget('samoa_noprint')
         config%i_threads = iget('samoa_threads')
+        config%l_timed_load = lget('samoa_timedload')
+        config%l_split_sections = lget('samoa_splitsections')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
         config%l_ascii_output = lget('samoa_asciiout')
@@ -127,10 +131,7 @@ module config
 			config%r_p0 = rget('samoa_p0')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
-#    	elif defined(_SWE)
-            config%s_bathymetry_file = sget('samoa_fbath', 256)
-            config%s_displacement_file = sget('samoa_fdispl', 256)
-#    	elif defined(_FLASH)
+#    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
 #       endif
@@ -156,6 +157,8 @@ module config
                 PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: not defined (value: ", config%r_output_time_step, ")"
                 PRINT '(A, I0, A)',     "	-threads <value>        number of OpenMP threads (value: ", config%i_threads, ")"
                 PRINT '(A, I0, A)',     "	-sections <value>       number of grid sections per OpenMP thread (value: ", config%i_sections_per_thread, ")"
+                PRINT '(A, L, A)',     "	-timedload              if true, load is estimated by timing, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
+                PRINT '(A, L, A)',     "	-splitsections          if true, sections are split for MPI load balancing, if false sections are treated as atomic units (value: ", config%l_split_sections, ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
@@ -166,8 +169,8 @@ module config
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
 #         	    elif defined(_SWE)
-                    PRINT '(A)',            "	-asciiout               turns on ascii output"
-                    PRINT '(A, I0, A)',     "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
+                    PRINT '(A, L, A)',  "	-asciiout               turns on ascii output (value: ", config%l_ascii_output, ")"
+                    PRINT '(A, I0, A)', "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #         	    elif defined(_FLASH)
@@ -175,7 +178,7 @@ module config
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #               endif
 
-                PRINT '(A)',            "	-noprint                print log to file instead of console"
+                PRINT '(A, L, A)',      "	-noprint                print log to file instead of console (value: ", config%l_log, ")"
                 PRINT '(A)',            "	--help, -h              display this help and exit"
                 PRINT '(A)',            "	--version, -v           output version information and exit"
             end if
@@ -268,8 +271,23 @@ module config
 
         _log_write(0, '(" Sections per thread: ", I0)') config%i_sections_per_thread
         _log_write(0, '(" Adaptivity: min depth: ", I0, ", max depth: ", I0)') config%i_min_depth, config%i_max_depth
-        _log_write(0, '(" Simulation: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)'), config%i_max_time_steps, config%r_max_time, config%r_output_time_step
 
+        if (config%l_timed_load) then
+            if (config%l_split_sections) then
+                _log_write(0, '(" Load balancing: timed load estimate: Yes, split sections: Yes")')
+            else
+                _log_write(0, '(" Load balancing: timed load estimate: Yes, split sections: No")')
+            end if
+        else
+            if (config%l_split_sections) then
+                _log_write(0, '(" Load balancing: timed load estimate: No, split sections: Yes")')
+            else
+                _log_write(0, '(" Load balancing: timed load estimate: No, split sections: No")')
+            end if
+        end if
+
+
+        _log_write(0, '(" Simulation: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)'), config%i_max_time_steps, config%r_max_time, config%r_output_time_step
 #		if defined(_DARCY)
             _log_write(0, '(" Scenario: permeability template: ", A)') trim(config%s_permeability_file)
             _log_write(0, '(" Scenario: linear solver error bound: ", ES8.1)') config%r_epsilon

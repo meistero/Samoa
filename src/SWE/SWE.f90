@@ -164,11 +164,12 @@
 			real (kind = GRID_SR), intent(in)							:: r_max_time
 			real (kind = GRID_SR), intent(in)							:: r_output_step
 
+			double precision										    :: t_initial, t_time_steps
+			real (kind = GRID_SR)										:: r_time_next_output
+			type(t_grid_info)           	                            :: grid_info, grid_info_max
+			integer (kind = GRID_SI)                                    :: i_initial_step, i_time_step
 			type (t_adaptive_statistics)								:: adaption_stats_initial, adaption_stats_time_steps
 			type (t_statistics)									        :: grid_stats_initial, grid_stats_time_steps
-			double precision										    :: r_t1, r_t2, r_t3, r_t4
-			real (kind = GRID_SR)										:: r_time_next_output
-			type(t_grid_info)           	                            :: grid_info
 
 			!init parameters
 			r_time_next_output = 0.0_GRID_SR
@@ -180,31 +181,34 @@
                 !$omp end master
             end if
 
-			r_t1 = get_wtime()
+			t_initial = -get_wtime()
+            i_initial_step = 0
 
 			do
 				!set numerics and check for refinement
 				call swe%init%traverse(grid)
 
                 if (rank_MPI == 0) then
-                    grid_info%i_cells = grid%get_cells(.false.)
+                    grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, "(A, I0, A, I0, A)") " SWE: ", swe%adaption%stats%i_traversals, " adaptions, ", grid_info%i_cells, " cells"
+                    _log_write(1, "(A, I0, A, I0, A)") " SWE: ", i_initial_step, " adaptions, ", grid_info%i_cells, " cells"
                     !$omp end master
                 end if
 
-                grid_info%i_cells = grid%get_cells(.true.)
+                grid_info%i_cells = grid%get_cells(MPI_SUM, .true.)
 				if (swe%init%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
 					exit
 				endif
 
 				call swe%adaption%traverse(grid)
+
+				i_initial_step = i_initial_step + 1
 			end do
 
-			r_t2 = get_wtime()
+			t_initial = t_initial + get_wtime()
 
-            grid_info = grid%get_info(.true.)
+            grid_info = grid%get_info(MPI_SUM, .true.)
 
             if (rank_MPI == 0) then
                 !$omp master
@@ -227,9 +231,13 @@
 			end if
 
             !$omp master
+            call swe%init%reduce_stats(MPI_SUM, .true.)
+            call swe%adaption%reduce_stats(MPI_SUM, .true.)
+            call grid%reduce_stats(MPI_SUM, .true.)
+
 			!copy counters
-			grid_stats_initial = grid%stats
             adaption_stats_initial = swe%adaption%stats
+            grid_stats_initial = grid%stats
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "SWE: running time steps.."
@@ -237,13 +245,14 @@
 			end if
             !$omp end master
 
-            r_t3 = get_wtime()
+            t_time_steps = -get_wtime()
+            i_time_step = 0
 
 #           if defined(_ASAGI)
                 ! during the earthquake, do small time steps that include a displacement
 
                 do
-                    if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
+                    if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. i_time_step >= i_max_time_steps)) then
                         exit
                     end if
 
@@ -253,16 +262,18 @@
 
                     !do an euler time step
                     call swe%adaption%traverse(grid)
+
                     call swe%euler%traverse(grid)
+                    i_time_step = i_time_step + 1
 
                     !displace time-dependent bathymetry
                     call swe%displace%traverse(grid)
 
                     if (rank_MPI == 0) then
-                        grid_info%i_cells = grid%get_cells(.false.)
+                        grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                         !$omp master
-                        _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", swe%euler%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                        _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
                         !$omp end master
                     end if
 
@@ -282,7 +293,7 @@
             !regular tsunami time steps begin after the earthquake is over
 
 			do
-				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. swe%euler%stats%i_traversals >= i_max_time_steps)) then
+				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. i_time_step >= i_max_time_steps)) then
 					exit
 				end if
 
@@ -290,12 +301,13 @@
 
 				!do a time step
 				call swe%euler%traverse(grid)
+				i_time_step = i_time_step + 1
 
                 if (rank_MPI == 0) then
-                    grid_info%i_cells = grid%get_cells(.false.)
+                    grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: time step: ", swe%euler%stats%i_traversals, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
                     !$omp end master
                 end if
 
@@ -311,21 +323,19 @@
 				end if
 			end do
 
-			r_t4 = get_wtime()
+			t_time_steps = t_time_steps + get_wtime()
 
-            grid_info = grid%get_info(.true.)
+            grid_info = grid%get_info(MPI_SUM, .true.)
+            grid_info_max = grid%get_info(MPI_MAX, .true.)
 
             !$omp master
+            call swe%euler%reduce_stats(MPI_SUM, .true.)
+            call swe%displace%reduce_stats(MPI_SUM, .true.)
+            call swe%adaption%reduce_stats(MPI_SUM, .true.)
+            call grid%reduce_stats(MPI_SUM, .true.)
+
 			grid_stats_time_steps = grid%stats - grid_stats_initial
             adaption_stats_time_steps = swe%adaption%stats - adaption_stats_initial
-
-            call swe%init%stats%reduce()
-            call adaption_stats_initial%reduce()
-            call grid_stats_initial%reduce()
-
-            call swe%euler%stats%reduce()
-            call adaption_stats_time_steps%reduce()
-            call grid_stats_time_steps%reduce()
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "SWE: done."
@@ -336,10 +346,10 @@
                 _log_write(0, '(A, T34, A)') " Init: ", trim(swe%init%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_initial%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_initial%to_string())
-                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid_stats_initial%i_traversed_cells) / (r_t2 - r_t1), " M/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid_stats_initial%i_traversed_memory) / ((1024 * 1024 * 1024) * (r_t2 - r_t1)), " GB/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid_stats_initial%i_traversed_cells) / t_initial, " M/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid_stats_initial%i_traversed_memory) / ((1024 * 1024 * 1024) * t_initial), " GB/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_initial%r_asagi_time, " s"
-                _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", r_t2 - r_t1, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Initialization phase time:", t_initial, " s"
                 _log_write(0, *) ""
                 _log_write(0, *) "Time step phase:"
                 _log_write(0, *) ""
@@ -347,15 +357,18 @@
                 _log_write(0, '(A, T34, A)') " Displace: ", trim(swe%displace%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
-                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid_stats_time_steps%i_traversed_cells) / (r_t4 - r_t3), " M/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid_stats_time_steps%i_traversed_memory) / ((1024 * 1024 * 1024) * (r_t4 - r_t3)), " GB/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Cell update throughput: ", 1.0d-6 * dble(swe%euler%stats%i_traversed_cells) / (r_t4 - r_t3), " M/s"
-                _log_write(0, '(A, T34, F10.4, A)') " Flux solver throughput: ", 1.0d-6 * dble(swe%euler%stats%i_traversed_edges) / (r_t4 - r_t3), " M/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid_stats_time_steps%i_traversed_cells) / t_time_steps, " M/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid_stats_time_steps%i_traversed_memory) / ((1024 * 1024 * 1024) * t_time_steps), " GB/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Cell update throughput: ", 1.0d-6 * dble(swe%euler%stats%i_traversed_cells) / t_time_steps, " M/s"
+                _log_write(0, '(A, T34, F10.4, A)') " Flux solver throughput: ", 1.0d-6 * dble(swe%euler%stats%i_traversed_edges) / t_time_steps, " M/s"
                 _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid_stats_time_steps%r_asagi_time, " s"
-                _log_write(0, '(A, T34, F10.4, A)') " Time step phase time:", r_t4 - r_t3, " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Time step phase time:", t_time_steps, " s"
                 _log_write(0, *) ""
-                _log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
+                _log_write(0, '(A, T34, F10.4, A)') " Total time:", t_initial + t_time_steps, " s"
                 _log_write(0, *) "---"
+
+                _log_write(0, '("  Cells: avg: ", I0, " max: ", I0)') grid_info%i_cells / (omp_get_max_threads() * size_MPI), grid_info_max%i_cells
+                _log_write(0, '()')
 
                 call grid_info%print()
 			end if

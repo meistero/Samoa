@@ -685,6 +685,7 @@ MODULE _CG
 
         procedure, pass :: create
         procedure, pass :: solve
+        procedure, pass :: reduce_stats
     end type
 
     private
@@ -773,6 +774,17 @@ MODULE _CG
         solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg_exact%stats
         !$omp end master
     end function
+
+    subroutine reduce_stats(solver, mpi_op, global)
+        class(_T_CG), intent(inout)   :: solver
+        integer, intent(in)             :: mpi_op
+        logical                         :: global
+
+        call solver%cg1%reduce_stats(mpi_op, global)
+        call solver%cg2%reduce_stats(mpi_op, global)
+        call solver%cg_exact%reduce_stats(mpi_op, global)
+        solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg_exact%stats
+    end subroutine
 END MODULE
 
 #undef _solver

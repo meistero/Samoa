@@ -208,7 +208,7 @@ subroutine _T_(prefix_sum_mpi)(s, mpi_op)
 
     integer				        :: i_error
 
-#   if defined(_MPI)
+#   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
         assert_eq(sizeof(s), _T_SIZE)
 
         call mpi_scan(MPI_IN_PLACE, s, 1, _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
@@ -248,7 +248,7 @@ subroutine _T_(reduce_mpi)(s, mpi_op)
 
     integer				        :: i_error
 
-#   if defined(_MPI)
+#   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
         assert_eq(sizeof(s), _T_SIZE)
 
         call mpi_allreduce(MPI_IN_PLACE, s, 1, _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)

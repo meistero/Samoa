@@ -271,7 +271,7 @@
 #		endif
 	end subroutine
 
-    subroutine _OP0(set_stats)(stats, section)
+    subroutine _OP0(set_stats_counters)(stats, section)
         type(t_statistics), intent(inout)		    :: stats
         type(t_grid_section), intent(in)			:: section
 

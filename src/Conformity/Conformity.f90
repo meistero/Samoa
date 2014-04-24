@@ -101,7 +101,7 @@ module Conformity
 		!$omp single
         call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
 
-        call process_stats%reduce(conformity%children_stats)
+        call process_stats%reduce(conformity%children_stats, MPI_SUM)
         conformity%stats = conformity%stats + process_stats
         !$omp end single
 
@@ -268,10 +268,6 @@ module Conformity
 
             thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-                call grid%sections%elements_alloc(i_section)%estimate_load()
-            end do
-
             thread_stats%r_barrier_time = -get_wtime()
 
             !$omp barrier
@@ -286,7 +282,6 @@ module Conformity
 
             do i_section = i_first_local_section, i_last_local_section
                 conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
-                call grid%sections%elements_alloc(i_section)%estimate_load()
             end do
 
         _log_write(3, '(4X, A, I0, A, 2(X, I0), A, 2(X, I0))') "Estimate for #cells: ", grid%dest_cells, ", stack red:", grid%min_dest_stack(RED), grid%max_dest_stack(RED), ", stack green:", grid%min_dest_stack(GREEN), grid%max_dest_stack(GREEN)

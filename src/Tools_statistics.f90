@@ -33,6 +33,7 @@ module Tools_statistics
 		procedure, private, pass :: sub => t_statistics_sub
 		procedure, private, pass :: assign_stats => t_statistics_assign
 
+        procedure, pass :: scale => t_statistics_scale
         procedure, pass :: to_string => t_statistics_to_string
 
 		generic :: assignment(=) => assign_stats
@@ -57,6 +58,7 @@ module Tools_statistics
 		procedure, private, pass :: sub_adaptive => t_adaptive_statistics_sub
 		procedure, private, pass :: assign_adaptive => t_adaptive_statistics_assign
 
+        procedure, pass :: scale_adaptive => t_adaptive_statistics_scale
         procedure, pass :: to_string => t_adaptive_statistics_to_string
 
 		generic :: assignment(=) => assign_adaptive
@@ -67,97 +69,66 @@ module Tools_statistics
 
 	contains
 
-    subroutine t_statistics_reduce_local(s, v)
+    subroutine t_statistics_reduce_local(s, v, mpi_op)
         class(t_statistics), intent(inout)	:: s
         type(t_statistics), intent(in)		:: v(:)
-        double precision                    :: scaling
+        integer, intent(in)                 :: mpi_op
 
-        scaling = 1.0d0 / dble(max(1, size(v)))
+		call reduce(s%r_traversal_time, v%r_traversal_time, mpi_op, .false.)
+		call reduce(s%r_computation_time, v%r_computation_time, mpi_op, .false.)
+		call reduce(s%r_sync_time, v%r_sync_time, mpi_op, .false.)
+		call reduce(s%r_barrier_time, v%r_barrier_time, mpi_op, .false.)
+		call reduce(s%r_asagi_time, v%r_asagi_time, mpi_op, .false.)
 
-		call reduce(s%r_traversal_time, v%r_traversal_time, MPI_SUM, .false.)
-		call reduce(s%r_computation_time, v%r_computation_time, MPI_SUM, .false.)
-		call reduce(s%r_sync_time, v%r_sync_time, MPI_SUM, .false.)
-		call reduce(s%r_barrier_time, v%r_barrier_time, MPI_SUM, .false.)
-		call reduce(s%r_asagi_time, v%r_asagi_time, MPI_SUM, .false.)
-		call reduce(s%i_traversals, v%i_traversals, MPI_MAX, .false.)
-
-		call reduce(s%i_traversed_cells, v%i_traversed_cells, MPI_SUM, .false.)
-		call reduce(s%i_traversed_edges, v%i_traversed_edges, MPI_SUM, .false.)
-		call reduce(s%i_traversed_nodes, v%i_traversed_nodes, MPI_SUM, .false.)
-		call reduce(s%i_traversed_memory, v%i_traversed_memory, MPI_SUM, .false.)
-
-		s%r_traversal_time = max(0.0d0, s%r_traversal_time * scaling)
-		s%r_asagi_time = max(0.0d0, s%r_asagi_time * scaling)
-		s%r_computation_time = max(0.0d0, s%r_computation_time * scaling)
-		s%r_sync_time = max(0.0d0, s%r_sync_time * scaling)
-		s%r_barrier_time = max(0.0d0, s%r_barrier_time * scaling)
-		s%i_traversals = max(1, s%i_traversals)
+		call reduce(s%i_traversals, v%i_traversals, mpi_op, .false.)
+		call reduce(s%i_traversed_cells, v%i_traversed_cells, mpi_op, .false.)
+		call reduce(s%i_traversed_edges, v%i_traversed_edges, mpi_op, .false.)
+		call reduce(s%i_traversed_nodes, v%i_traversed_nodes, mpi_op, .false.)
+		call reduce(s%i_traversed_memory, v%i_traversed_memory, mpi_op, .false.)
      end subroutine
 
-    subroutine t_adaptive_statistics_reduce_local(s, v)
+    subroutine t_adaptive_statistics_reduce_local(s, v, mpi_op)
         class(t_adaptive_statistics), intent(inout)	    :: s
         type(t_adaptive_statistics), intent(in)		    :: v(:)
-        double precision                                :: scaling
+        integer, intent(in)                             :: mpi_op
 
-        scaling = 1.0d0 / dble(max(1, size(v)))
+		call t_statistics_reduce_local(s, v%t_statistics, mpi_op)
 
-		call t_statistics_reduce_local(s, v%t_statistics)
-
-		call reduce(s%r_update_distances_time, v%r_update_distances_time, MPI_SUM, .false.)
-		call reduce(s%r_update_neighbors_time, v%r_update_neighbors_time, MPI_SUM, .false.)
-
-		s%r_update_distances_time = max(0.0d0, s%r_update_distances_time * scaling)
-		s%r_update_neighbors_time = max(0.0d0, s%r_update_neighbors_time * scaling)
+		call reduce(s%r_update_distances_time, v%r_update_distances_time, mpi_op, .false.)
+		call reduce(s%r_update_neighbors_time, v%r_update_neighbors_time, mpi_op, .false.)
 
 		!allocation, integrity and load balancing time is measured globally, not per section
 		!so we do not reduce these locally
     end subroutine
 
-    subroutine t_statistics_reduce_global(s)
+    subroutine t_statistics_reduce_global(s, mpi_op)
         class(t_statistics), intent(inout)          :: s
-        double precision                            :: scaling
+        integer, intent(in)                         :: mpi_op
 
-        scaling = 1.0d0 / dble(max(1, size_MPI))
+		call reduce(s%r_traversal_time, mpi_op)
+		call reduce(s%r_computation_time, mpi_op)
+		call reduce(s%r_sync_time, mpi_op)
+		call reduce(s%r_barrier_time, mpi_op)
+		call reduce(s%r_asagi_time, mpi_op)
 
-		call reduce(s%r_traversal_time, mpi_op=MPI_SUM)
-		call reduce(s%r_computation_time, mpi_op=MPI_SUM)
-		call reduce(s%r_sync_time, mpi_op=MPI_SUM)
-		call reduce(s%r_barrier_time, mpi_op=MPI_SUM)
-		call reduce(s%r_asagi_time, mpi_op=MPI_SUM)
-		call reduce(s%i_traversals, mpi_op=MPI_MAX)
-
-		call reduce(s%i_traversed_cells, mpi_op=MPI_SUM)
-		call reduce(s%i_traversed_edges, mpi_op=MPI_SUM)
-		call reduce(s%i_traversed_nodes, mpi_op=MPI_SUM)
-		call reduce(s%i_traversed_memory, mpi_op=MPI_SUM)
-
-		s%r_traversal_time = max(0.0d0, s%r_traversal_time * scaling)
-		s%r_computation_time = max(0.0d0, s%r_computation_time * scaling)
-		s%r_sync_time = max(0.0d0, s%r_sync_time * scaling)
-		s%r_barrier_time = max(0.0d0, s%r_barrier_time * scaling)
-		s%r_asagi_time = max(0.0d0, s%r_asagi_time * scaling)
-		s%i_traversals = max(1, s%i_traversals)
+		call reduce(s%i_traversals, mpi_op)
+		call reduce(s%i_traversed_cells, mpi_op)
+		call reduce(s%i_traversed_edges, mpi_op)
+		call reduce(s%i_traversed_nodes, mpi_op)
+		call reduce(s%i_traversed_memory, mpi_op)
      end subroutine
 
-    subroutine t_adaptive_statistics_reduce_global(s)
+    subroutine t_adaptive_statistics_reduce_global(s, mpi_op)
         class(t_adaptive_statistics), intent(inout)     :: s
-        double precision                                :: scaling
+        integer, intent(in)                             :: mpi_op
 
-        scaling = 1.0d0 / dble(max(1, size_MPI))
+        call t_statistics_reduce_global(s%t_statistics, mpi_op)
 
-        call t_statistics_reduce_global(s%t_statistics)
-
-		call reduce(s%r_allocation_time, mpi_op=MPI_SUM)
-		call reduce(s%r_integrity_time, mpi_op=MPI_SUM)
-		call reduce(s%r_load_balancing_time, mpi_op=MPI_SUM)
-		call reduce(s%r_update_distances_time, mpi_op=MPI_SUM)
-		call reduce(s%r_update_neighbors_time, mpi_op=MPI_SUM)
-
-		s%r_allocation_time = max(0.0d0, s%r_allocation_time * scaling)
-		s%r_integrity_time = max(0.0d0, s%r_integrity_time * scaling)
-		s%r_load_balancing_time = max(0.0d0, s%r_load_balancing_time * scaling)
-		s%r_update_distances_time = max(0.0d0, s%r_update_distances_time * scaling)
-		s%r_update_neighbors_time = max(0.0d0, s%r_update_neighbors_time * scaling)
+		call reduce(s%r_allocation_time, mpi_op)
+		call reduce(s%r_integrity_time, mpi_op)
+		call reduce(s%r_load_balancing_time, mpi_op)
+		call reduce(s%r_update_distances_time, mpi_op)
+		call reduce(s%r_update_neighbors_time, mpi_op)
     end subroutine
 
     pure subroutine t_statistics_assign(sr, s2)
@@ -169,6 +140,7 @@ module Tools_statistics
 		sr%r_sync_time = s2%r_sync_time
 		sr%r_barrier_time = s2%r_barrier_time
 		sr%r_asagi_time = s2%r_asagi_time
+
 		sr%i_traversals = s2%i_traversals
 		sr%i_traversed_cells = s2%i_traversed_cells
 		sr%i_traversed_edges = s2%i_traversed_edges
@@ -186,6 +158,7 @@ module Tools_statistics
 		sr%r_sync_time = s1%r_sync_time + s2%r_sync_time
 		sr%r_barrier_time = s1%r_barrier_time + s2%r_barrier_time
 		sr%r_asagi_time = s1%r_asagi_time + s2%r_asagi_time
+
 		sr%i_traversals = s1%i_traversals + s2%i_traversals
 		sr%i_traversed_cells = s1%i_traversed_cells + s2%i_traversed_cells
 		sr%i_traversed_edges = s1%i_traversed_edges + s2%i_traversed_edges
@@ -229,6 +202,7 @@ module Tools_statistics
 		sr%r_sync_time = -s1%r_sync_time
 		sr%r_barrier_time = -s1%r_barrier_time
 		sr%r_asagi_time = -s1%r_asagi_time
+
 		sr%i_traversals = -s1%i_traversals
 		sr%i_traversed_cells = -s1%i_traversed_cells
 		sr%i_traversed_edges = -s1%i_traversed_edges
@@ -249,12 +223,44 @@ module Tools_statistics
 		sr%r_update_neighbors_time = -s1%r_update_neighbors_time
     end function
 
+    pure function t_statistics_scale(s, scaling) result(sr)
+        class(t_statistics), intent(in)		            :: s
+        double precision, intent(in)                    :: scaling
+        type(t_statistics)		                        :: sr
+
+		sr%r_traversal_time = s%r_traversal_time * scaling
+		sr%r_computation_time = s%r_computation_time * scaling
+		sr%r_sync_time = s%r_sync_time * scaling
+		sr%r_barrier_time = s%r_barrier_time * scaling
+		sr%r_asagi_time = s%r_asagi_time * scaling
+
+		sr%i_traversals = int(s%i_traversals * scaling, selected_int_kind(8))
+		sr%i_traversed_cells = int(s%i_traversed_cells * scaling, selected_int_kind(16))
+		sr%i_traversed_edges = int(s%i_traversed_edges * scaling, selected_int_kind(16))
+		sr%i_traversed_nodes = int(s%i_traversed_nodes * scaling, selected_int_kind(16))
+		sr%i_traversed_memory = int(s%i_traversed_memory * scaling, selected_int_kind(16))
+    end function
+
+    pure function t_adaptive_statistics_scale(s, scaling) result(sr)
+        class(t_adaptive_statistics), intent(in)		:: s
+        double precision, intent(in)                    :: scaling
+        type(t_adaptive_statistics)		                :: sr
+
+        sr%t_statistics = t_statistics_scale(s%t_statistics, scaling)
+
+		sr%r_allocation_time = max(0.0d0, s%r_allocation_time * scaling)
+		sr%r_integrity_time = max(0.0d0, s%r_integrity_time * scaling)
+		sr%r_load_balancing_time = max(0.0d0, s%r_load_balancing_time * scaling)
+		sr%r_update_distances_time = max(0.0d0, s%r_update_distances_time * scaling)
+		sr%r_update_neighbors_time = max(0.0d0, s%r_update_neighbors_time * scaling)
+    end function
+
     pure function t_statistics_sub(s1, s2) result(sr)
         class(t_statistics), intent(in)			:: s1
         type(t_statistics), intent(in)			:: s2
         type(t_statistics)						:: sr
 
-		sr = s1 + s2%inv()
+		sr = t_statistics_add(s1, s2%inv())
     end function
 
     pure function t_adaptive_statistics_sub(s1, s2) result(sr)
@@ -262,7 +268,7 @@ module Tools_statistics
         type(t_adaptive_statistics), intent(in)	        :: s2
         type(t_adaptive_statistics)						:: sr
 
-		sr = s1 + s2%inv_adaptive()
+		sr = t_adaptive_statistics_add(s1, s2%inv_adaptive())
     end function
 
     pure function t_statistics_to_string(s) result(str)

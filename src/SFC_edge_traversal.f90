@@ -56,27 +56,37 @@ module SFC_edge_traversal
 
         _log_write(4, '(3X, A)') "create splitting"
 
+        call src_grid%get_local_sections(i_first_src_section, i_last_src_section)
+
+!        do i_section = i_first_src_section, i_last_src_section
+!            call src_grid%sections%elements_alloc(i_section)%estimate_load()
+!        end do
+!
+!        !$omp barrier
+
         !$omp single
-        call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
-        r_total_load = src_grid%load
-        call reduce(r_total_load, MPI_SUM)
+        if (cfg%l_split_sections) then
+            call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
+            r_total_load = src_grid%load
+            call reduce(r_total_load, MPI_SUM)
 
-        !switch to integer arithmetics from now on, we need exact arithmetics
-        !also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
+            !switch to integer arithmetics from now on, we need exact arithmetics
+            !also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-        i_grid_load = max(1_GRID_DI, int(src_grid%load / r_total_load * 1000.0d0 * size_MPI, GRID_DI))
-        i_grid_partial_load = i_grid_load
-        call prefix_sum(i_grid_partial_load, MPI_SUM)
-        i_total_load = i_grid_load
-        call reduce(i_total_load, MPI_SUM)
+            i_grid_load = max(1_GRID_DI, int(src_grid%load / r_total_load * 1000.0d0 * size_MPI, GRID_DI))
+            i_grid_partial_load = i_grid_load
+            call prefix_sum(i_grid_partial_load, MPI_SUM)
+            i_total_load = i_grid_load
+            call reduce(i_total_load, MPI_SUM)
 
-        i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_num_threads(), GRID_DI) * int(size_MPI, GRID_DI)
+            i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_max_threads(), GRID_DI) * int(size_MPI, GRID_DI)
 
-        i_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1_GRID_DI) / i_total_load - &
-            (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
+            i_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1_GRID_DI) / i_total_load - &
+                (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
+        end if
 
-        if (i_sections * min_section_size > src_grid%dest_cells) then
-            i_sections = src_grid%dest_cells / min_section_size
+        if (.not. cfg%l_split_sections .or. i_sections > src_grid%dest_cells / min_section_size) then
+            i_sections = min(src_grid%dest_cells / min_section_size, cfg%i_sections_per_thread * omp_get_max_threads())
 
             if (src_grid%dest_cells > 0) then
                 i_sections = max(i_sections, 1)
@@ -145,7 +155,6 @@ module SFC_edge_traversal
         !create new grid
         call dest_grid%create(section_descs, src_grid%max_dest_stack - src_grid%min_dest_stack + 1)
 
-        call src_grid%get_local_sections(i_first_src_section, i_last_src_section)
         call dest_grid%get_local_sections(i_first_dest_section, i_last_dest_section)
 
         do i_section = i_first_dest_section, i_last_dest_section
@@ -158,23 +167,7 @@ module SFC_edge_traversal
 
         !$omp barrier
 
-        !copy load estimate from old grid
-        do i_section = i_first_src_section, i_last_src_section
-            section => src_grid%sections%elements_alloc(i_section)
-
-            i_first_dest_section = 1 + ((section%last_dest_cell - section%dest_cells + 1) * i_sections - 1) / src_grid%dest_cells
-            i_last_dest_section = 1 + (section%last_dest_cell * i_sections - 1) / src_grid%dest_cells
-
-            do i_section_2 = i_first_dest_section, i_last_dest_section
-                !determine overlap
-                overlap = min(section%last_dest_cell, (i_section_2 * src_grid%dest_cells) / i_sections) - max(section%last_dest_cell - section%dest_cells, ((i_section_2 - 1_GRID_DI)  * src_grid%dest_cells) / i_sections)
-                assert_gt(overlap, 0)
-                assert_le(overlap, section%dest_cells)
-
-                !$omp atomic
-                dest_grid%sections%elements_alloc(i_section_2)%load = dest_grid%sections%elements_alloc(i_section_2)%load + (section%load * overlap) / section%dest_cells
-            end do
-        end do
+        dest_grid%threads%elements(i_thread)%stats = src_grid%threads%elements(i_thread)%stats
 
         !$omp single
             dest_grid%stats = src_grid%stats
@@ -432,8 +425,6 @@ module SFC_edge_traversal
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - get_wtime()
-
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
 
@@ -441,11 +432,7 @@ module SFC_edge_traversal
             call set_comms_local_data(grid, section, src_neighbor_list_green, neighbor_min_distances_green, int(GREEN, 1))
         end do
 
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + get_wtime()
-
         !$omp barrier
-
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time - get_wtime()
 
         do i_section = i_first_local_section, i_last_local_section
             section => grid%sections%elements_alloc(i_section)
@@ -456,8 +443,6 @@ module SFC_edge_traversal
                 call set_comm_neighbor_data(grid, section, i_color)
             end do
         end do
-
-        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time = grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_computation_time + get_wtime()
     end subroutine
 
     subroutine set_comms_local_data(grid, section, src_neighbor_list, neighbor_min_distances, i_color)
@@ -1131,6 +1116,12 @@ module SFC_edge_traversal
             _log_write(3, '(3X, A)') "distribute load"
 
         	call grid%get_local_sections(i_first_local_section, i_last_local_section)
+
+            do i_section = i_first_local_section, i_last_local_section
+                call grid%sections%elements_alloc(i_section)%estimate_load()
+            end do
+
+            !$omp barrier
 
 		    !$omp single
 			!compute global imbalance by a prefix sum over the grid load

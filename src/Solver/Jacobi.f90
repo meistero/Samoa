@@ -270,6 +270,7 @@ MODULE _JACOBI
 
         procedure, pass :: create
         procedure, pass :: solve
+        procedure, pass :: reduce_stats
     end type
 
     private
@@ -333,9 +334,17 @@ MODULE _JACOBI
 
         !$omp master
         _log_write(2, '(A, T30, I0)') "  Jacobi iterations:", i_iteration
-        solver%stats = solver%jacobi%stats
         !$omp end master
     end function
+
+    subroutine reduce_stats(solver, mpi_op, global)
+        class(_T_JACOBI), intent(inout)   :: solver
+        integer, intent(in)             :: mpi_op
+        logical                         :: global
+
+        call solver%jacobi%reduce_stats(mpi_op, global)
+        solver%stats = solver%jacobi%stats
+    end subroutine
 END MODULE
 
 #undef _solver

@@ -264,9 +264,10 @@ module Section_info_list
         gi%i_comms_type = gi1%i_comms_type + gi2%i_comms_type
     end function
 
-    subroutine grid_info_reduce(s, v, global)
+    subroutine grid_info_reduce(s, v, mpi_op, global)
         class(t_grid_info), intent(inout)	:: s
         type(t_grid_info), intent(in)		:: v(:)
+        integer, intent(in)                 :: mpi_op
         logical, intent(in)                 :: global
 
         integer                             :: i_color
@@ -275,22 +276,22 @@ module Section_info_list
         !HACK: for some reason, the compiler gets problems if we pass v%i_cells directly to reduce()??
         i_cells = v%i_cells
 
-        call reduce(s%i_cells, i_cells, MPI_SUM, global)
-		call reduce(s%i_crossed_edges, v%i_crossed_edges, MPI_SUM, global)
-		call reduce(s%i_color_edges, v%i_color_edges, MPI_SUM, global)
-		call reduce(s%i_nodes, v%i_nodes, MPI_SUM, global)
+        call reduce(s%i_cells, i_cells, mpi_op, global)
+		call reduce(s%i_crossed_edges, v%i_crossed_edges, mpi_op, global)
+		call reduce(s%i_color_edges, v%i_color_edges, mpi_op, global)
+		call reduce(s%i_nodes, v%i_nodes, mpi_op, global)
 
 		do i_color = RED, GREEN
-            call reduce(s%i_boundary_edges(i_color), v%i_boundary_edges(i_color), MPI_SUM, global)
-            call reduce(s%i_boundary_nodes(i_color), v%i_boundary_nodes(i_color), MPI_SUM, global)
+            call reduce(s%i_boundary_edges(i_color), v%i_boundary_edges(i_color), mpi_op, global)
+            call reduce(s%i_boundary_nodes(i_color), v%i_boundary_nodes(i_color), mpi_op, global)
 
             call reduce(s%i_stack_edges(i_color), v%i_stack_edges(i_color), MPI_MAX, global)
             call reduce(s%i_stack_nodes(i_color), v%i_stack_nodes(i_color), MPI_MAX, global)
 
             !not correct, but an upper bound
-            call reduce(s%i_comms(i_color), v%i_comms(i_color), MPI_SUM, global)
-            call reduce(s%i_comms_type(OLD, i_color), v%i_comms_type(OLD, i_color), MPI_SUM, global)
-            call reduce(s%i_comms_type(NEW, i_color), v%i_comms_type(NEW, i_color), MPI_SUM, global)
+            call reduce(s%i_comms(i_color), v%i_comms(i_color), mpi_op, global)
+            call reduce(s%i_comms_type(OLD, i_color), v%i_comms_type(OLD, i_color), mpi_op, global)
+            call reduce(s%i_comms_type(NEW, i_color), v%i_comms_type(NEW, i_color), mpi_op, global)
         end do
     end subroutine
 
@@ -334,12 +335,13 @@ module Section_info_list
 		_log_write(0, *) ""
 	end subroutine
 
-    subroutine section_info_reduce(s, v, global)
+    subroutine section_info_reduce(s, v, mpi_op, global)
         class(t_section_info), intent(inout)	:: s
         type(t_section_info), intent(in)	    :: v(:)
+        integer, intent(in)                     :: mpi_op
         logical, intent(in)                     :: global
 
-        call s%reduce(v%t_grid_info, global)
+        call s%reduce(v%t_grid_info, mpi_op, global)
     end subroutine
 end module
 
@@ -353,10 +355,10 @@ module Grid_thread
 	implicit none
 
 	type t_grid_thread
-
 		type(t_edge_stack), dimension(RED : GREEN)									:: edges_stack									!< red/green color edge stacks
 		type(t_node_stack), dimension(RED : GREEN)									:: nodes_stack									!< red/green node stacks
 		type(t_integer_stack), dimension(RED : GREEN)								:: indices_stack								!< red/green stacks for comm cell indices in adaptive traversal
+		type(t_statistics)															:: stats
 
 		contains
 
@@ -622,8 +624,11 @@ module Grid_section
 	elemental subroutine grid_section_estimate_load(section)
 		class(t_grid_section), intent(inout)		        :: section
 
-		!section%load = section%stats%r_computation_time
-		section%load = section%dest_cells
+        if (cfg%l_timed_load) then
+            section%load = (section%stats%r_computation_time * section%dest_cells) / section%cells%get_size()
+		else
+            section%load = section%dest_cells
+		endif
     end subroutine
 
 	subroutine grid_section_traverse_empty(section)
@@ -716,6 +721,8 @@ module Grid
 		procedure, pass :: destroy => grid_destroy
 		procedure, pass :: print => grid_print
 
+
+		procedure, pass :: reduce_stats => grid_reduce_stats
 		procedure, pass :: get_cells => grid_get_cells
 		procedure, pass :: get_info => grid_get_info
 		procedure, pass :: get_local_sections => grid_get_local_sections
@@ -805,75 +812,89 @@ module Grid
 		_log_write(0, '(4X, A)')		                trim(grid%t_global_data%to_string())
 	end subroutine
 
-	function grid_get_cells(grid, global) result(i_grid_cells)
+    subroutine grid_reduce_stats(grid, mpi_op, global)
+        class(t_grid)           :: grid
+        integer, intent(in)     :: mpi_op
+        logical, intent(in)     :: global
+
+        call grid%stats%reduce(grid%threads%elements(:)%stats, mpi_op)
+
+        if (global) then
+            call grid%stats%reduce(mpi_op)
+        end if
+    end subroutine
+
+	function grid_get_cells(grid, mpi_op, global) result(i_grid_cells)
         class(t_grid), intent(in)			        :: grid
+        integer                                     :: mpi_op
         logical, intent(in)                         :: global
+
         integer (kind = GRID_SI)                    :: i_section, i_first_local_section, i_last_local_section
 		integer                                     :: i_error
 
-		integer(kind = GRID_DI), save, allocatable  :: i_section_cells(:)
+		integer(kind = GRID_DI), save, allocatable  :: i_thread_cells(:)
 		integer(kind = GRID_DI)          	        :: i_grid_cells
 
-        if (.not. allocated(i_section_cells) .or. size(i_section_cells) .ne. size(grid%sections%elements_alloc)) then
+        if (.not. allocated(i_thread_cells)) then
             !$omp barrier
 
             !$omp single
-            if (allocated(i_section_cells)) then
-                deallocate(i_section_cells, stat = i_error); assert_eq(i_error, 0)
-            end if
-
-            allocate(i_section_cells(size(grid%sections%elements_alloc)), stat = i_error); assert_eq(i_error, 0)
+            allocate(i_thread_cells(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
             !$omp end single
         end if
 
+        assert_eq(size(i_thread_cells), omp_get_max_threads())
+
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
+        i_thread_cells(i_thread) = 0
+
 		do i_section = i_first_local_section, i_last_local_section
-            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-            i_section_cells(i_section) = grid%sections%elements_alloc(i_section)%get_cells()
+            i_thread_cells(i_thread) = i_thread_cells(i_thread) + grid%sections%elements_alloc(i_section)%get_cells()
 		end do
 
         !$omp barrier
 
         !$omp single
-        call reduce(i_grid_cells, i_section_cells, MPI_SUM, global)
+        call reduce(i_grid_cells, i_thread_cells, mpi_op, global)
         !$omp end single copyprivate(i_grid_cells)
 	end function
 
-	function grid_get_info(grid, global) result(grid_info)
+	function grid_get_info(grid, mpi_op, global) result(grid_info)
         class(t_grid), intent(in)			    :: grid
+        integer, intent(in)                     :: mpi_op
         logical, intent(in)                     :: global
+
         integer (kind = GRID_SI)                :: i_section, i_first_local_section, i_last_local_section
 		integer                                 :: i_error
 
-		type(t_grid_info), save, allocatable    :: section_infos(:)
+        type(t_grid_info), save, allocatable    :: thread_infos(:)
 		type(t_grid_info)         	            :: grid_info
 		type(t_section_info)         	        :: section_info
 
-        if (.not. allocated(section_infos) .or. size(section_infos) .ne. size(grid%sections%elements_alloc)) then
+        if (.not. allocated(thread_infos)) then
             !$omp barrier
 
             !$omp single
-            if (allocated(section_infos)) then
-                deallocate(section_infos, stat = i_error); assert_eq(i_error, 0)
-            end if
-
-            allocate(section_infos(size(grid%sections%elements_alloc)), stat = i_error); assert_eq(i_error, 0)
+            allocate(thread_infos(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
             !$omp end single
         end if
 
+        assert_eq(size(thread_infos), omp_get_max_threads())
+
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
+        thread_infos(i_thread) = t_grid_info()
+
 		do i_section = i_first_local_section, i_last_local_section
-            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
             section_info = grid%sections%elements_alloc(i_section)%get_info()
-            section_infos(i_section) = section_info%t_grid_info
+            thread_infos(i_thread) = thread_infos(i_thread) + section_info%t_grid_info
 		end do
 
         !$omp barrier
 
         !$omp single
-        call grid_info%reduce(section_infos, global)
+        call grid_info%reduce(thread_infos, mpi_op, global)
         !$omp end single copyprivate(grid_info)
 	end function
 
