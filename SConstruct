@@ -55,7 +55,7 @@ vars.AddVariables(
   BoolVariable( 'assertions', 'enable run-time assertions', False),
 
   EnumVariable( 'openmp', 'OpenMP mode', 'tasks',
-                allowed_values=('noomp', 'notasks', 'tasks')
+                allowed_values=('noomp', 'notasks', 'tasks', 'adaptive_tasks')
               ),
 
   EnumVariable( 'mpi', 'MPI support', 'default',
@@ -163,23 +163,23 @@ elif env['scenario'] == 'tests':
   env.SetDefault(library = False)
 
 #set compilation flags for OpenMP
-if env['openmp'] == 'tasks':
-  if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -openmp -D_OPENMP_TASKS'
-    env['LINKFLAGS'] += ' -openmp'
-  elif env['compiler'] == 'gnu':
-    print "******************************************************"
-    print "Warning: gnu compiler currently does not support tasks"
-    print "******************************************************"
-    env['F90FLAGS'] += ' -fopenmp -D_OPENMP_TASKS'
-    env['LINKFLAGS'] += ' -fopenmp'
-elif env['openmp'] == 'notasks':
+if env['openmp'] != 'noomp':
+  if env['openmp'] == 'tasks':
+    env['F90FLAGS'] += ' -D_OPENMP_TASKS'
+  elif env['openmp'] == 'adaptive_tasks':
+    env['F90FLAGS'] += ' -D_OPENMP_TASKS -D_OPENMP_TASKS_ADAPTIVITY'
+
   if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -openmp'
     env['LINKFLAGS'] += ' -openmp'
   elif env['compiler'] == 'gnu':
     env['F90FLAGS'] += ' -fopenmp'
     env['LINKFLAGS'] += ' -fopenmp'
+
+    if env['openmp'] != 'notasks':
+      print "******************************************************"
+      print "Warning: gnu compiler currently does not support tasks"
+      print "******************************************************"
 
 #set compilation flags and preprocessor macros for the ASAGI library
 if env['asagi'] != 'noasagi':
