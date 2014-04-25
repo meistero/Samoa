@@ -459,8 +459,10 @@ module Grid_section
 		procedure, pass :: get_cells => grid_section_get_cells
 		procedure, pass :: get_info => grid_section_get_info
 		procedure, pass :: eq => grid_section_eq
+		procedure, pass :: assign => grid_section_assign
 
         generic :: operator(.eq.) => eq
+        generic :: assignment(=) => assign
  	end type
 
 	PUBLIC t_grid_section, t_grid_info, t_section_info, t_section_info_list
@@ -470,6 +472,27 @@ module Grid_section
 
 #	include "Tools_list.f90"
 
+    !< Moves a grid to the destination grid, clearing the source grid in the process
+	subroutine grid_section_assign(dest_section, src_section)
+		class(t_grid_section), intent(inout)    :: dest_section
+		type(t_grid_section), intent(in)        :: src_section
+
+        dest_section%t_global_data = src_section%t_global_data
+        dest_section%stats = src_section%stats
+        dest_section%index = src_section%index
+        dest_section%cells = src_section%cells
+        dest_section%crossed_edges_in = src_section%crossed_edges_in
+        dest_section%crossed_edges_out = src_section%crossed_edges_out
+        dest_section%color_edges_in = src_section%color_edges_in
+        dest_section%color_edges_out = src_section%color_edges_out
+        dest_section%nodes_in = src_section%nodes_in
+        dest_section%nodes_out = src_section%nodes_out
+        dest_section%boundary_edges = src_section%boundary_edges
+        dest_section%boundary_nodes = src_section%boundary_nodes
+        dest_section%boundary_type_edges = src_section%boundary_type_edges
+        dest_section%comms = src_section%comms
+        dest_section%comms_type = src_section%comms_type
+    end subroutine
 
 	elemental function grid_section_eq(s1, s2)
 		class(t_grid_section), intent(in)		:: s1, s2
@@ -721,7 +744,7 @@ module Grid
 		procedure, pass :: destroy => grid_destroy
 		procedure, pass :: print => grid_print
 
-
+        procedure, pass :: assign => grid_assign
 		procedure, pass :: reduce_stats => grid_reduce_stats
 		procedure, pass :: get_cells => grid_get_cells
 		procedure, pass :: get_info => grid_get_info
@@ -730,6 +753,8 @@ module Grid
 		procedure, pass :: reset => grid_reset
 		procedure, pass :: reverse => grid_reverse
 		procedure, pass :: move => grid_move
+
+		generic :: assignment(=) => assign
 	end type
 
 	contains
@@ -789,17 +814,23 @@ module Grid
 		!$omp end single
 	end subroutine
 
+	    !< Moves a grid to the destination grid, clearing the source grid in the process
+	subroutine grid_assign(dest_grid, src_grid)
+		class(t_grid), intent(inout)    :: dest_grid
+		type(t_grid), intent(in)        :: src_grid
+
+        dest_grid%t_global_data = src_grid%t_global_data
+        dest_grid%sections = src_grid%sections
+        dest_grid%threads = src_grid%threads
+        dest_grid%stats = src_grid%stats
+    end subroutine
+
     !< Moves a grid to the destination grid, clearing the source grid in the process
 	subroutine grid_move(src_grid, dest_grid)
 		class(t_grid), intent(inout)    :: src_grid
 		type(t_grid), intent(inout)     :: dest_grid
 
-        select type(src_grid)
-            type is (t_grid)
-                dest_grid = src_grid
-            class default
-                assert(.false.) !Object src_grid is not of any known type
-        end select
+        dest_grid = src_grid
 
         src_grid%sections%elements => null()
         src_grid%threads%elements => null()

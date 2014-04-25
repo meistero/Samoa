@@ -115,7 +115,7 @@ if env['compiler'] == 'intel':
   fc = 'ifort'
   env['F90FLAGS'] = '-implicitnone -nologo -fpp -Isrc/Samoa/ -allow nofpp-comments'
 elif  env['compiler'] == 'gnu':
-  fc = 'gfortran'
+  fc = 'gfortran-4.8'
   env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none -Isrc/Samoa/'
   env.SetDefault(openmp = 'notasks')
 
