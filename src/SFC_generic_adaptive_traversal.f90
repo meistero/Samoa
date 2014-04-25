@@ -232,14 +232,12 @@ subroutine traverse_in_place(traversal, grid)
 #	if !defined(_GT_INPUT_DEST)
 	    !exchange grid sections with neighbors if the destination grid will not be balanced
 		call distribute_load(grid, 0.01)
-        !$omp barrier
 #	endif
     traversal%threads(i_thread)%stats%r_load_balancing_time = traversal%threads(i_thread)%stats%r_load_balancing_time + get_wtime()
 
-    traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time - get_wtime()
-
     !$omp barrier
 
+    traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time - get_wtime()
     call create_destination_grid(grid, grid_temp)
 
     !if necessary, reverse order to match source and destination grid
@@ -251,7 +249,6 @@ subroutine traverse_in_place(traversal, grid)
     end if
 
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
-
     traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time + get_wtime()
 
     !refine grid
