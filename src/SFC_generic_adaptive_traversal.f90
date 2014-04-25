@@ -198,35 +198,45 @@ subroutine traverse_in_place(traversal, grid)
 	class(_GT), target, intent(inout)	                :: traversal
 	type(t_grid), intent(inout)							:: grid
 
+	integer                                             :: i_error
 	type(t_grid), save							        :: grid_temp
     type(t_conformity), save                            :: conformity
 
-    !no traversal on empty grids
+    if (.not. associated(traversal%threads)) then
+        !$omp barrier
+
+        !$omp single
+        allocate(traversal%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
+        !$omp end single
+
+    	assert(.not. associated(traversal%threads(i_thread)%p_dest_element))
+
+    	!create ringbuffers and temporary elements
+		call create_ringbuffer(traversal%threads(i_thread)%src_elements)
+		call create_ringbuffer(traversal%threads(i_thread)%dest_elements)
+		call create_refinement_element(traversal%threads(i_thread)%refinement_elements)
+
+		traversal%threads(i_thread)%p_src_element => traversal%threads(i_thread)%src_elements(1)
+		traversal%threads(i_thread)%p_dest_element => traversal%threads(i_thread)%dest_elements(1)
+    end if
+
+    assert_eq(size(traversal%threads), omp_get_max_threads())
+
     !$omp barrier
 
-    !$omp single
-    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time - get_wtime()
-    !$omp end single
-
+    traversal%threads(i_thread)%stats%r_integrity_time = traversal%threads(i_thread)%stats%r_integrity_time - get_wtime()
     call conformity%check(grid)
+    traversal%threads(i_thread)%stats%r_integrity_time = traversal%threads(i_thread)%stats%r_integrity_time + get_wtime()
 
-    !$omp single
-    traversal%stats%r_integrity_time = traversal%stats%r_integrity_time + get_wtime()
-
-    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time - get_wtime()
-    !$omp end single
-
+    traversal%threads(i_thread)%stats%r_load_balancing_time = traversal%threads(i_thread)%stats%r_load_balancing_time - get_wtime()
 #	if !defined(_GT_INPUT_DEST)
 	    !exchange grid sections with neighbors if the destination grid will not be balanced
 		call distribute_load(grid, 0.01)
         !$omp barrier
 #	endif
+    traversal%threads(i_thread)%stats%r_load_balancing_time = traversal%threads(i_thread)%stats%r_load_balancing_time + get_wtime()
 
-    !$omp single
-    traversal%stats%r_load_balancing_time = traversal%stats%r_load_balancing_time + get_wtime()
-
-    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time - get_wtime()
-    !$omp end single
+    traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time - get_wtime()
 
     !$omp barrier
 
@@ -242,9 +252,7 @@ subroutine traverse_in_place(traversal, grid)
 
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
 
-    !$omp single
-    traversal%stats%r_allocation_time = traversal%stats%r_allocation_time + get_wtime()
-    !$omp end single
+    traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time + get_wtime()
 
     !refine grid
     call traverse_out_of_place(traversal, grid, grid_temp)
@@ -287,9 +295,9 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	integer (kind = BYTE)								    :: i_color
 	type(t_adaptive_statistics)                             :: thread_stats
 
-    integer (kind = GRID_SI), save			                :: i_thread, i_src_section, i_src_cell
+    integer (kind = GRID_SI), save			                :: i_src_section, i_src_cell
 	type(t_grid_section), target, save					    :: src_section
-	!$omp threadprivate(i_thread, i_src_section, i_src_cell, src_section)
+	!$omp threadprivate(i_src_section, i_src_cell, src_section)
 
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. dest_grid%sections%get_size()) then
 		!$omp barrier
@@ -302,28 +310,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
         allocate(traversal%children(dest_grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
     	!$omp end single
     end if
-
-    if (.not. associated(traversal%threads)) then
-        !$omp barrier
-
-        !$omp single
-        allocate(traversal%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
-        !$omp end single
-
-        i_thread = 1 + omp_get_thread_num()
-
-    	assert(.not. associated(traversal%threads(i_thread)%p_dest_element))
-
-    	!create ringbuffers and temporary elements
-		call create_ringbuffer(traversal%threads(i_thread)%src_elements)
-		call create_ringbuffer(traversal%threads(i_thread)%dest_elements)
-		call create_refinement_element(traversal%threads(i_thread)%refinement_elements)
-
-		traversal%threads(i_thread)%p_src_element => traversal%threads(i_thread)%src_elements(1)
-		traversal%threads(i_thread)%p_dest_element => traversal%threads(i_thread)%dest_elements(1)
-    end if
-
-    assert_eq(size(traversal%threads), omp_get_max_threads())
 
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 

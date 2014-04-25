@@ -94,11 +94,11 @@ module Tools_statistics
 
 		call t_statistics_reduce_local(s, v%t_statistics, mpi_op)
 
+		call reduce(s%r_allocation_time, v%r_allocation_time, mpi_op, .false.)
+		call reduce(s%r_integrity_time, v%r_integrity_time, mpi_op, .false.)
+		call reduce(s%r_load_balancing_time, v%r_load_balancing_time, mpi_op, .false.)
 		call reduce(s%r_update_distances_time, v%r_update_distances_time, mpi_op, .false.)
 		call reduce(s%r_update_neighbors_time, v%r_update_neighbors_time, mpi_op, .false.)
-
-		!allocation, integrity and load balancing time is measured globally, not per section
-		!so we do not reduce these locally
     end subroutine
 
     subroutine t_statistics_reduce_global(s, mpi_op)
