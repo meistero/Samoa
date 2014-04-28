@@ -814,10 +814,10 @@ module Grid
 		!$omp end single
 	end subroutine
 
-	    !< Moves a grid to the destination grid, clearing the source grid in the process
+    !< Assigns one grid to another
 	subroutine grid_assign(dest_grid, src_grid)
 		class(t_grid), intent(inout)    :: dest_grid
-		type(t_grid), intent(in)        :: src_grid
+		class(t_grid), intent(in)        :: src_grid
 
         dest_grid%t_global_data = src_grid%t_global_data
         dest_grid%sections = src_grid%sections
@@ -830,7 +830,7 @@ module Grid
 		class(t_grid), intent(inout)    :: src_grid
 		type(t_grid), intent(inout)     :: dest_grid
 
-        dest_grid = src_grid
+        call dest_grid%assign(src_grid)
 
         src_grid%sections%elements => null()
         src_grid%threads%elements => null()
