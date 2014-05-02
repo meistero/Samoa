@@ -1499,9 +1499,6 @@ module SFC_edge_traversal
 
             n = size(l)
 
-            print *, l
-            print *, s
-
             allocate(s_test(n), stat=i_error); assert_eq(i_error, 0)
 
             i = 0
@@ -1526,8 +1523,6 @@ module SFC_edge_traversal
             test = (current_min + current_max) / 2
 
             do
-                print *, current_min, test, current_max
-
                 if (current_max <= current_min) then
                     exit
                 end if
@@ -1546,7 +1541,6 @@ module SFC_edge_traversal
                 end do
 
                 if (load_i < current_max) then
-                    print *, "yay"
                     i = 0
                     load_i = 0.0d0
                     current_max = 0.0d0
@@ -1566,13 +1560,10 @@ module SFC_edge_traversal
                     test = (current_min + current_max) / 2
                     s(:) = s_test(:)
                 else
-                    print *, "nay"
                     current_min = test
                     test = current_max
                 end if
             end do
-
-            print *, s
         end subroutine
 
 
@@ -1637,8 +1628,6 @@ module SFC_edge_traversal
                     j = j + all_sections(i)
                 end do
 
-                print *, "all: sections per rank: ", all_sections, " rank for each section: ", all_ranks
-
                 call iterative_binary(all_load, all_ranks)
 
                 all_sections(:) = 0
@@ -1648,8 +1637,6 @@ module SFC_edge_traversal
                     all_sections(i) = all_sections(i) + 1
                     all_section_indices_out(j) = all_sections(i)
                 end do
-
-                print *, "all: sections per rank: ", all_sections, " rank for each section: ", all_ranks, " section index out for each section: ", all_section_indices_out
             end if
 
             !scatter new section count
@@ -1686,8 +1673,6 @@ module SFC_edge_traversal
             if (rank_MPI == 0) then
                 all_sections(0 : size_MPI - 2) = displacements(1 : size_MPI - 1) - displacements(0 : size_MPI - 2)
                 all_sections(size_MPI - 1) = total_sections - displacements(size_MPI - 1)
-
-                print *, "all: sections per rank: ", all_sections, " displacements: ", displacements
             end if
 
             call mpi_scatterv(all_ranks, all_sections, displacements, MPI_INTEGER, i_rank_out, i_sections_out, MPI_INTEGER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
@@ -1700,9 +1685,6 @@ module SFC_edge_traversal
             deallocate(all_ranks, stat=i_error); assert_eq(i_error, 0)
             deallocate(all_section_indices_out, stat=i_error); assert_eq(i_error, 0)
 
-            _log_write(1, *) "out: sections: ", i_sections_out, " ranks per section:", i_rank_out, " section index per section:", i_section_index_out
-            _log_write(1, *) "in: sections: ", i_sections_in
-
             do j = 1, i_sections_in
                 call mpi_irecv(i_rank_in(j), 1, MPI_INTEGER, MPI_ANY_SOURCE, j, MPI_COMM_WORLD, requests_in(j), i_error); assert_eq(i_error, 0)
             end do
@@ -1713,8 +1695,6 @@ module SFC_edge_traversal
 
             call mpi_waitall(i_sections_in, requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
             call mpi_waitall(i_sections_out, requests_out, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-
-            _log_write(1, *) "in: sections: ", i_sections_in, " ranks per section:", i_rank_in
             !$omp end single
         end subroutine
 
