@@ -34,8 +34,9 @@ module config
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
         integer                                 :: i_ascii_width                                    !< width of the ascii output
         logical                                 :: l_ascii_output                                   !< ascii output on/off
-        logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
-        logical                                 :: l_split_sections                                 !< if true, sections are split for MPI load balancing, if false sections are treated as atomic units
+        logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by cell count
+        logical                                 :: l_split_sections                                 !< if true, MPI load balancing may split sections, if false sections are treated as atomic units
+        logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
 
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
 
@@ -82,7 +83,7 @@ module config
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
-        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -timedload .false. -splitsections .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
+        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -lbtime .false. -lbsplit .false. -lbserial .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
@@ -116,8 +117,9 @@ module config
         config%r_output_time_step = rget('samoa_tout')
         config%l_log = lget('samoa_noprint')
         config%i_threads = iget('samoa_threads')
-        config%l_timed_load = lget('samoa_timedload')
-        config%l_split_sections = lget('samoa_splitsections')
+        config%l_timed_load = lget('samoa_lbtime')
+        config%l_split_sections = lget('samoa_lbsplit')
+        config%l_serial_lb = lget('samoa_lbserial')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
         config%l_ascii_output = lget('samoa_asciiout')
@@ -157,8 +159,9 @@ module config
                 PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: not defined (value: ", config%r_output_time_step, ")"
                 PRINT '(A, I0, A)',     "	-threads <value>        number of OpenMP threads (value: ", config%i_threads, ")"
                 PRINT '(A, I0, A)',     "	-sections <value>       number of grid sections per OpenMP thread (value: ", config%i_sections_per_thread, ")"
-                PRINT '(A, L, A)',     "	-timedload              if true, load is estimated by timing, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
-                PRINT '(A, L, A)',     "	-splitsections          if true, sections are split for MPI load balancing, if false sections are treated as atomic units (value: ", config%l_split_sections, ")"
+                PRINT '(A, L, A)',     "	-lbtime                 if true, load is estimated by time measurements, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
+                PRINT '(A, L, A)',     "	-lbsplit                if true, MPI load balancing may split sections, if false sections are treated as atomic units (value: ", config%l_split_sections, ")"
+                PRINT '(A, L, A)',     "	-lbserial               if true, MPI load balancing is serialized, if false a distributed algorithm is used (value: ", config%l_serial_lb, ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
@@ -197,6 +200,13 @@ module config
             i_thread = 1 + omp_get_thread_num()
         !$omp end parallel
     end subroutine
+
+    function logical_to_char(l) result(s)
+        logical, intent(in) :: l
+        character(3)        :: s
+
+        s = merge("Yes", " No", l)
+    end function
 
     subroutine config_print(config)
         class(t_config)                         :: config
@@ -272,20 +282,7 @@ module config
         _log_write(0, '(" Sections per thread: ", I0)') config%i_sections_per_thread
         _log_write(0, '(" Adaptivity: min depth: ", I0, ", max depth: ", I0)') config%i_min_depth, config%i_max_depth
 
-        if (config%l_timed_load) then
-            if (config%l_split_sections) then
-                _log_write(0, '(" Load balancing: timed load estimate: Yes, split sections: Yes")')
-            else
-                _log_write(0, '(" Load balancing: timed load estimate: Yes, split sections: No")')
-            end if
-        else
-            if (config%l_split_sections) then
-                _log_write(0, '(" Load balancing: timed load estimate: No, split sections: Yes")')
-            else
-                _log_write(0, '(" Load balancing: timed load estimate: No, split sections: No")')
-            end if
-        end if
-
+        _log_write(0, '(" Load balancing: timed load estimate: ", A, ", split sections: ", A, ", serial: ", A)') logical_to_char(config%l_timed_load), logical_to_char(config%l_split_sections), logical_to_char(config%l_serial_lb)
 
         _log_write(0, '(" Simulation: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)'), config%i_max_time_steps, config%r_max_time, config%r_output_time_step
 #		if defined(_DARCY)
