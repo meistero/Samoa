@@ -15,8 +15,8 @@
         end type
 
 
-		type(t_gv_Q)												:: gv_Q
-        type(ascy)                                                  :: ascii
+	type(t_gv_Q)				:: gv_Q
+        type(ascy)                              :: ascii
 
 #		define _GT_NAME								t_swe_ascii_output_traversal
 
@@ -39,16 +39,19 @@
 
             try (cfg%i_ascii_width >= 2, "Invalid ascii output width")
             ascii = create_ascy(cfg%i_ascii_width, (cfg%i_ascii_width/2), dble(0.001), dble([1.0, -1.0]), dble([0.0, 1.0]))
-		end subroutine
+            
+	end subroutine
 
         subroutine post_traversal_grid_op(traversal, grid)
 			type(t_swe_ascii_output_traversal), intent(inout)				:: traversal
 			type(t_grid), intent(inout)							        :: grid
 
-            integer                                         :: i_error
-            character (len = 64)							:: s_file_name
-			integer(4)										:: i_rank, i_section, e_io
-			logical                                         :: l_exists
+        integer                                         :: i_error, alloc_err, i, j, k
+        character (len = 64)				:: s_file_name
+	integer(4)					:: i_rank, i_section, e_io
+	logical                                         :: l_exists
+	type(bhshs), pointer				:: dummy_ascii(:,:,:) !groesse/dimension auf null setzen
+	type(bhshs), pointer 				:: big_matrix_array(:,:,:) => null()
 
 #           if defined(_MPI)
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
@@ -64,8 +67,52 @@
             ascii%h_max = traversal%max_water
             ascii%h_avg = traversal%avg_water
 
-            call print_it(ascii)
+#           if defined(_MPI)            
+            
+            if (rank_MPI == 0) then     
+                allocate (big_matrix_array(size(ascii%mat,dim=1),size(ascii%mat,dim=2),size_MPI), stat = alloc_err)
+                if (alloc_err > 0) then
+                    write(*,'(A)') "Error when trying to allocate rank-0-ascii"
+                end if
+            else 
+	      allocate (dummy_ascii(1,1,1), stat = alloc_err)
+              if (alloc_err > 0) then
+                    write(*,'(A)') "Error when trying to allocate rank-0-ascii"
+              end if
+	      big_matrix_array => dummy_ascii
+            end if           
+            
+            call MPI_gather(ascii%mat(1,1), sizeof(ascii%mat), MPI_BYTE, &
+              big_matrix_array(1,1,1), sizeof(ascii%mat), MPI_BYTE, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0) 
+            
+            if (rank_MPI == 0) then
+                do i=2, (size_MPI)
+                    do j=1, size(ascii%mat,dim=1)
+                        do k=1, size(ascii%mat, dim=2)
+                            ascii%mat(j,k)%b = ascii%mat(j,k)%b + big_matrix_array(j,k,i)%b
+                            ascii%mat(j,k)%h_sum = ascii%mat(j,k)%h_sum + big_matrix_array(j,k,i)%h_sum
+                            ascii%mat(j,k)%h_summands = ascii%mat(j,k)%h_summands + big_matrix_array(j,k,i)%h_summands
+                        end do
+                    end do
+                end do
 
+#           endif     
+              
+                call print_it(ascii)
+
+#           if defined(_MPI)                
+                
+            end if
+            
+            if (rank_MPI == 0) then     
+                deallocate (big_matrix_array, stat = alloc_err)
+                if (alloc_err > 0) then
+                    write(*,'(A)') "Error when trying to deallocate rank-0-ascii"
+                end if
+            end if
+
+#	    endif            
+            
         end subroutine
 
 		subroutine pre_traversal_op(traversal, section)

@@ -145,14 +145,6 @@ subroutine print_it(sao_values_mat)
     write(*,'(A,$)') "Maximum height: "
     write(*,*) sao_values_mat%h_max
     
-    ! reset
-    do i=1, size(sao_values_mat%mat,dim=2)                                          
-        do j=1, size(sao_values_mat%mat,dim=1)
-            sao_values_mat%mat(j,i)%b = dble(-5.0)
-            sao_values_mat%mat(j,i)%h_sum = dble(0.0)
-            sao_values_mat%mat(j,i)%h_summands = 0  
-        end do                                                  
-    end do
                                                                                             
 end subroutine
 
@@ -204,5 +196,19 @@ function which_ascii(sao_values_mat, j, i)  result(symb)
         symb = '#'
     end if      
 end function
+
+subroutine reset(sao_values_mat)
+    type(ascy)                          :: sao_values_mat
+    integer                             :: i,j
+    
+    do i=1, size(sao_values_mat%mat,dim=2)                                          
+        do j=1, size(sao_values_mat%mat,dim=1)
+            sao_values_mat%mat(j,i)%b = dble(-5.0)
+            sao_values_mat%mat(j,i)%h_sum = dble(0.0)
+            sao_values_mat%mat(j,i)%h_summands = 0  
+        end do                                                  
+    end do
+
+end subroutine
         
 END MODULE
