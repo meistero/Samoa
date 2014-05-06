@@ -36,7 +36,7 @@
             type(t_output_cell_data), allocatable			        :: cell_data(:)
             character(len=64)							            :: s_file_stamp
 
-            integer (kind = GRID_SI)								:: i_output_iteration
+            integer (kind = GRID_SI)								:: i_output_iteration = 0
             integer (kind = GRID_SI)								:: i_point_data_index
             integer (kind = GRID_SI)								:: i_cell_data_index
         end type
