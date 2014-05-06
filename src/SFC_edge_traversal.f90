@@ -1495,21 +1495,21 @@ module SFC_edge_traversal
 
             integer(kind = GRID_SI), allocatable    :: s_test(:)
             integer                                 :: n, i_error, i, j
-            double precision                        :: test, current_min, current_max, load_i
+            double precision                        :: test, test_max, current_min, current_max, load_i
 
             n = size(l)
 
             allocate(s_test(n), stat=i_error); assert_eq(i_error, 0)
 
+            current_max = 0.0d0
             i = 0
             load_i = 0.0d0
-            current_max = 0.0d0
 
-            do j = 1, size(s)
+            do j = 1, n
                 if (s(j) > i) then
                     current_max = max(current_max, load_i)
-                    load_i = 0.0d0
                     i = s(j)
+                    load_i = 0.0d0
                 end if
 
                 load_i = load_i + l(j)
@@ -1527,11 +1527,13 @@ module SFC_edge_traversal
                     exit
                 end if
 
+                test_max = 0.0d0
                 i = 0
                 load_i = 0.0d0
 
-                do j = 1, size(s)
+                do j = 1, n
                     if (load_i + l(j) >= test .and. i < size_MPI - 1) then
+                        test_max = max(test_max, load_i)
                         i = i + 1
                         load_i = 0.0d0
                     end if
@@ -1540,27 +1542,16 @@ module SFC_edge_traversal
                     s_test(j) = i
                 end do
 
-                if (load_i < current_max) then
-                    i = 0
-                    load_i = 0.0d0
-                    current_max = 0.0d0
+                test_max = max(test_max, load_i)
 
-                    do j = 1, size(s)
-                        if (s(j) > i) then
-                            current_max = max(current_max, load_i)
-                            load_i = 0.0d0
-                            i = s(j)
-                        end if
-
-                        load_i = load_i + l(j)
-                    end do
-
-                    current_max = max(current_max, load_i)
+                if (test_max < current_max) then
+                    current_max = test_max
 
                     test = (current_min + current_max) / 2
                     s(:) = s_test(:)
                 else
                     current_min = test
+
                     test = current_max
                 end if
             end do
