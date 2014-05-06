@@ -271,8 +271,19 @@ MODULE _CG_(2)
         type(_T_CG_(2_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .true.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        integer                                                     :: i_error
+        double precision                                            :: reduction_set(2)
+
+        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+
+        reduction_set(1) = traversal%r_C_r
+        reduction_set(2) = traversal%r_sq
+
+        call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+
+        traversal%r_C_r = reduction_set(1)
+        traversal%r_sq = reduction_set(2)
     end subroutine
 
     pure subroutine pre_traversal_op(traversal, section)
@@ -494,8 +505,19 @@ MODULE _CG_(exact)
         type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .true.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        integer                                                     :: i_error
+        double precision                                            :: reduction_set(2)
+
+        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+
+        reduction_set(1) = traversal%r_C_r
+        reduction_set(2) = traversal%r_sq
+
+        call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+
+        traversal%r_C_r = reduction_set(1)
+        traversal%r_sq = reduction_set(2)
     end subroutine
 
     subroutine pre_traversal_op(traversal, section)
