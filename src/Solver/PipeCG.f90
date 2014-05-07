@@ -79,7 +79,60 @@ MODULE _CG_(step)
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_WRITE_OP		        node_write_op
 
+#		define _GT_NODE_MPI_TYPE
+#		define _GT_EDGE_MPI_TYPE
+
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+    subroutine create_node_mpi_type(mpi_node_type)
+        integer, intent(out)    :: mpi_node_type
+
+        type(t_node_data)               :: node
+        integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
+
+        blocklengths(1) = 1
+        blocklengths(2) = 1
+        blocklengths(3) = 1
+        blocklengths(4) = 1
+
+        disps(1) = 0
+        disps(2) = loc(node%data_pers%A_d) - loc(node)
+        disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
+        disps(4) = sizeof(node)
+
+        types(1) = MPI_LB
+        types(2) = MPI_DOUBLE_PRECISION
+        types(3) = MPI_DOUBLE_PRECISION
+        types(4) = MPI_UB
+
+        call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+        call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+        call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+        assert_eq(sizeof(node), extent)
+    end subroutine
+
+    subroutine create_edge_mpi_type(mpi_edge_type)
+        integer, intent(out)            :: mpi_edge_type
+
+        type(t_edge_data)               :: edge
+        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+        blocklengths(1) = 1
+        blocklengths(2) = 1
+
+        disps(1) = 0
+        disps(2) = sizeof(edge)
+
+        types(1) = MPI_LB
+        types(2) = MPI_UB
+
+        call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+        call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+        call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+        assert_eq(sizeof(edge), extent)
+    end subroutine
 
     subroutine pre_traversal_grid_op(traversal, grid)
         type(_T_CG_(step_traversal)), intent(inout)					:: traversal
@@ -638,6 +691,9 @@ MODULE _CG
         class(_T_CG), intent(inout)             :: solver
         real (kind = GRID_SR), intent(in)       :: max_error
         integer (kind = GRID_SI), intent(in)    :: i_restart_interval
+
+        call solver%cg_exact%create()
+        call solver%cg_step%create()
 
         solver%max_error = max_error
         solver%i_restart_interval = i_restart_interval

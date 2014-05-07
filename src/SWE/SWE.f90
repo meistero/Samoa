@@ -169,7 +169,7 @@
 			type(t_grid_info)           	                            :: grid_info, grid_info_max
 			integer (kind = GRID_SI)                                    :: i_initial_step, i_time_step
 			type (t_adaptive_statistics)								:: adaption_stats_initial, adaption_stats_time_steps
-			type (t_statistics)									        :: grid_stats_initial, grid_stats_time_steps
+			type (t_adaptive_statistics)							    :: grid_stats_initial, grid_stats_time_steps
 
 			!init parameters
 			r_time_next_output = 0.0_GRID_SR

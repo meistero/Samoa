@@ -201,6 +201,7 @@ subroutine traverse_in_place(traversal, grid)
 	integer                                             :: i_error
 	type(t_grid), save							        :: grid_temp
     type(t_conformity), save                            :: conformity
+	type(t_adaptive_statistics)                         :: thread_stats
 
     if (.not. associated(traversal%threads)) then
         !$omp barrier
@@ -224,20 +225,20 @@ subroutine traverse_in_place(traversal, grid)
 
     !$omp barrier
 
-    traversal%threads(i_thread)%stats%r_integrity_time = traversal%threads(i_thread)%stats%r_integrity_time - get_wtime()
+    thread_stats%r_integrity_time = -get_wtime()
     call conformity%check(grid)
-    traversal%threads(i_thread)%stats%r_integrity_time = traversal%threads(i_thread)%stats%r_integrity_time + get_wtime()
+    thread_stats%r_integrity_time = thread_stats%r_integrity_time + get_wtime()
 
-    traversal%threads(i_thread)%stats%r_load_balancing_time = traversal%threads(i_thread)%stats%r_load_balancing_time - get_wtime()
+    thread_stats%r_load_balancing_time = -get_wtime()
 #	if !defined(_GT_INPUT_DEST)
 	    !exchange grid sections with neighbors if the destination grid will not be balanced
 		call distribute_load(grid, 0.01)
 #	endif
-    traversal%threads(i_thread)%stats%r_load_balancing_time = traversal%threads(i_thread)%stats%r_load_balancing_time + get_wtime()
+    thread_stats%r_load_balancing_time = thread_stats%r_load_balancing_time + get_wtime()
 
     !$omp barrier
 
-    traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time - get_wtime()
+    thread_stats%r_allocation_time = -get_wtime()
     call create_destination_grid(grid, grid_temp)
 
     !if necessary, reverse order to match source and destination grid
@@ -249,7 +250,7 @@ subroutine traverse_in_place(traversal, grid)
     end if
 
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
-    traversal%threads(i_thread)%stats%r_allocation_time = traversal%threads(i_thread)%stats%r_allocation_time + get_wtime()
+    thread_stats%r_allocation_time = thread_stats%r_allocation_time + get_wtime()
 
     !refine grid
     call traverse_out_of_place(traversal, grid, grid_temp)
@@ -261,6 +262,9 @@ subroutine traverse_in_place(traversal, grid)
     !$omp single
     call grid_temp%move(grid)
     !$omp end single
+
+    traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
+    grid%threads%elements(i_thread)%stats = grid%threads%elements(i_thread)%stats + thread_stats
 end subroutine
 
 !> Generic adaptive grid traversal
@@ -495,7 +499,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     end do
 
     traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
-    dest_grid%threads%elements(i_thread)%stats = dest_grid%threads%elements(i_thread)%stats + thread_stats%t_statistics
+    dest_grid%threads%elements(i_thread)%stats = dest_grid%threads%elements(i_thread)%stats + thread_stats
 
 #   if defined(_GT_OUTPUT_SRC)
         call src_grid%reverse()

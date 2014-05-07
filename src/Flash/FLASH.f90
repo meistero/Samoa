@@ -171,7 +171,7 @@
 			real (kind = GRID_SR), intent(in)							:: r_output_step
 
 			type (t_adaptive_statistics)								:: adaption_stats_initial, adaption_stats_time_steps
-			type (t_statistics)									        :: grid_stats_initial, grid_stats_time_steps
+			type (t_adaptive_statistics)							    :: grid_stats_initial, grid_stats_time_steps
 			real (kind = GRID_SR)										:: r_t1, r_t2, r_t3, r_t4
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_section_info)           	                            :: grid_info

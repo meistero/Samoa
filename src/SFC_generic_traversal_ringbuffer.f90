@@ -67,10 +67,12 @@ type, extends(num_traversal_data) :: _GT
     type(_GT), pointer                                      :: children(:) => null()			!< section data
     type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
     type(t_statistics)                                      :: stats
+    integer                                                 :: mpi_node_type, mpi_edge_type
 
     contains
 
-    procedure, pass :: traverse => traverse_grid
+    procedure, pass :: traverse
+    procedure, pass :: create
     procedure, pass :: destroy
     procedure, pass :: reduce_stats
 end type
@@ -91,9 +93,30 @@ subroutine reduce_stats(traversal, mpi_op, global)
     end if
 end subroutine
 
+subroutine create(traversal)
+    class(_GT)      :: traversal
+	integer         :: i_error
+
+#    if defined(_GT_NODE_MPI_TYPE)
+        call create_node_mpi_type(traversal%mpi_node_type)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE)
+        call create_edge_mpi_type(traversal%mpi_edge_type)
+#    endif
+end subroutine
+
 subroutine destroy(traversal)
     class(_GT)      :: traversal
 	integer         :: i_error
+
+#    if defined(_GT_NODE_MPI_TYPE)
+        call MPI_Type_free(traversal%mpi_node_type, i_error); assert_eq(i_error, 0)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE)
+        call MPI_Type_free(traversal%mpi_edge_type, i_error); assert_eq(i_error, 0)
+#    endif
 
     if (associated(traversal%children)) then
         deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
@@ -180,7 +203,7 @@ end function
 
 !> Generic iterative traversal subroutine
 !> @author Oliver Meister
-subroutine traverse_grid(traversal, grid)
+subroutine traverse(traversal, grid)
 	class(_GT), intent(inout)	                        :: traversal
 	type(t_grid), intent(inout)					        :: grid
 
@@ -257,7 +280,15 @@ subroutine traverse_grid(traversal, grid)
     !thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
 
     do i_section = i_first_local_section, i_last_local_section
-        call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
+#       elif defined(_GT_NODE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
     end do
 
     do i_section = i_first_local_section, i_last_local_section
@@ -269,7 +300,16 @@ subroutine traverse_grid(traversal, grid)
 
         call pre_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
         call traverse_section(traversal%threads(i_thread), traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-        call send_mpi_boundary(grid%sections%elements_alloc(i_section))
+
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section))
+#       elif defined(_GT_NODE_MPI_TYPE)
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE)
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
 
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
 
@@ -529,9 +569,15 @@ end subroutine
 #undef _GT_EDGE_FIRST_TOUCH_OP
 #undef _GT_EDGE_LAST_TOUCH_OP
 #undef _GT_EDGE_REDUCE_OP
+#undef _GT_EDGE_MPI_TYPE
+#undef _GT_EDGE_MERGE_OP
+#undef _GT_EDGE_WRITE_OP
 #undef _GT_NODE_FIRST_TOUCH_OP
 #undef _GT_NODE_LAST_TOUCH_OP
 #undef _GT_NODE_REDUCE_OP
+#undef _GT_NODE_MPI_TYPE
+#undef _GT_NODE_MERGE_OP
+#undef _GT_NODE_WRITE_OP
 #undef _GT_INNER_EDGE_FIRST_TOUCH_OP
 #undef _GT_INNER_EDGE_LAST_TOUCH_OP
 #undef _GT_INNER_EDGE_REDUCE_OP
@@ -540,10 +586,6 @@ end subroutine
 #undef _GT_INNER_NODE_REDUCE_OP
 #undef _GT_ELEMENT_OP
 #undef _GT_INNER_ELEMENT_OP
-#undef _GT_EDGE_MERGE_OP
-#undef _GT_EDGE_WRITE_OP
-#undef _GT_NODE_MERGE_OP
-#undef _GT_NODE_WRITE_OP
 #undef _GT_PRE_TRAVERSAL_OP
 #undef _GT_POST_TRAVERSAL_OP
 #undef _GT_PRE_TRAVERSAL_GRID_OP

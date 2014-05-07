@@ -358,7 +358,7 @@ module Grid_thread
 		type(t_edge_stack), dimension(RED : GREEN)									:: edges_stack									!< red/green color edge stacks
 		type(t_node_stack), dimension(RED : GREEN)									:: nodes_stack									!< red/green node stacks
 		type(t_integer_stack), dimension(RED : GREEN)								:: indices_stack								!< red/green stacks for comm cell indices in adaptive traversal
-		type(t_statistics)															:: stats
+		type(t_adaptive_statistics)											        :: stats
 
 		contains
 
@@ -429,10 +429,10 @@ module Grid_section
 	implicit none
 
 	type, extends(t_global_data) :: t_grid_section
-		type(t_statistics)															:: stats
+		type(t_adaptive_statistics)												    :: stats
 
  		integer (kind = GRID_SI)													:: index					                    !< source rank of the section
-		!logical                                                                     :: is_synchronized(RED:GREEN)                   !< if true, the boundary is sychronized with neighbors
+		!logical                                                                    :: is_synchronized(RED:GREEN)                   !< if true, the boundary is sychronized with neighbors
 
 		type(t_cell_stream)															:: cells										!< cell geometry + pers data + refinement stream
 		type(t_crossed_edge_stream)													:: crossed_edges_in, crossed_edges_out			!< crossed edge geometry + pers data stream
@@ -736,7 +736,7 @@ module Grid
 	type, extends(t_global_data) :: t_grid
 		type(t_grid_section_list)									:: sections
 		type(t_grid_thread_list)									:: threads
-		type(t_statistics)											:: stats
+		type(t_adaptive_statistics)								    :: stats
 
 		contains
 

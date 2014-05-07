@@ -810,15 +810,33 @@ module SFC_edge_traversal
         end do
     end subroutine
 
-    subroutine send_mpi_boundary(section)
+    subroutine send_mpi_boundary(section, mpi_edge_type_optional, mpi_node_type_optional)
         type(t_grid_section), intent(inout)				:: section
+        integer, intent(in), optional                   :: mpi_edge_type_optional, mpi_node_type_optional
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error, send_tag, recv_tag
-        integer (BYTE)							    :: i_color
+        integer                                         :: mpi_edge_type, mpi_node_type, mpi_edge_size, mpi_node_size
+        integer (BYTE)							        :: i_color
         type(t_comm_interface), pointer			        :: comm
 
 #        if defined(_MPI)
+            if (present(mpi_edge_type_optional)) then
+                mpi_edge_type = mpi_edge_type_optional
+                mpi_edge_size = 1
+            else
+                mpi_edge_type = MPI_BYTE
+                mpi_edge_size = sizeof(section%boundary_edges(RED)%elements(1))
+            end if
+
+            if (present(mpi_node_type_optional)) then
+                mpi_node_type = mpi_node_type_optional
+                mpi_node_size = 1
+            else
+                mpi_node_type = MPI_BYTE
+                mpi_node_size = sizeof(section%boundary_nodes(RED)%elements(1))
+            end if
+
             _log_write(4, '(4X, A, I0)') "send mpi boundary: section ", section%index
 
              do i_color = RED, GREEN
@@ -844,8 +862,8 @@ module SFC_edge_traversal
 
                         assert_veq(comm%send_requests, MPI_REQUEST_NULL)
 
-                        call mpi_isend(get_c_pointer(comm%p_local_edges), sizeof(comm%p_local_edges),        MPI_BYTE, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
-                        call mpi_isend(get_c_pointer(comm%p_local_nodes), sizeof(comm%p_local_nodes),        MPI_BYTE, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
+                        call mpi_isend(get_c_pointer(comm%p_local_edges), comm%i_edges * mpi_edge_size, mpi_edge_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
+                        call mpi_isend(get_c_pointer(comm%p_local_nodes), comm%i_nodes * mpi_node_size, mpi_node_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
 
                         assert_vne(comm%send_requests, MPI_REQUEST_NULL)
                     end if
@@ -854,15 +872,33 @@ module SFC_edge_traversal
 #       endif
     end subroutine
 
-    subroutine recv_mpi_boundary(section)
+    subroutine recv_mpi_boundary(section, mpi_edge_type_optional, mpi_node_type_optional)
         type(t_grid_section), intent(inout)				:: section
+        integer, intent(in), optional                   :: mpi_edge_type_optional, mpi_node_type_optional
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error, send_tag, recv_tag
-        integer (BYTE)							    :: i_color
+        integer                                         :: mpi_edge_type, mpi_node_type, mpi_edge_size, mpi_node_size
+       integer (BYTE)							        :: i_color
         type(t_comm_interface), pointer			        :: comm
 
 #        if defined(_MPI)
+            if (present(mpi_edge_type_optional)) then
+                mpi_edge_type = mpi_edge_type_optional
+                mpi_edge_size = 1
+            else
+                mpi_edge_type = MPI_BYTE
+                mpi_edge_size = sizeof(section%boundary_edges(RED)%elements(1))
+            end if
+
+            if (present(mpi_node_type_optional)) then
+                mpi_node_type = mpi_node_type_optional
+                mpi_node_size = 1
+            else
+                mpi_node_type = MPI_BYTE
+                mpi_node_size = sizeof(section%boundary_nodes(RED)%elements(1))
+            end if
+
             _log_write(4, '(4X, A, I0)') "recv mpi boundary: section ", section%index
 
              do i_color = RED, GREEN
@@ -888,8 +924,8 @@ module SFC_edge_traversal
 
                         assert_veq(comm%recv_requests, MPI_REQUEST_NULL)
 
-                        call mpi_irecv(get_c_pointer(comm%p_neighbor_edges), sizeof(comm%p_neighbor_edges),  MPI_BYTE, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
-                        call mpi_irecv(get_c_pointer(comm%p_neighbor_nodes), sizeof(comm%p_neighbor_nodes),  MPI_BYTE, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
+                        call mpi_irecv(get_c_pointer(comm%p_neighbor_edges), comm%i_edges * mpi_edge_size, mpi_edge_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
+                        call mpi_irecv(get_c_pointer(comm%p_neighbor_nodes), comm%i_nodes * mpi_node_size, mpi_node_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
 
                         assert_vne(comm%recv_requests, MPI_REQUEST_NULL)
                     end if
@@ -1516,8 +1552,6 @@ module SFC_edge_traversal
             end do
 
             current_max = max(current_max, load_i)
-
-            current_max = current_max * (1.0d0 + 2.0d0 * epsilon(1.0d0))
             current_min = max(sum(l) / size_MPI, maxval(l))
 
             test = (current_min + current_max) / 2
@@ -1546,15 +1580,16 @@ module SFC_edge_traversal
 
                 if (test_max < current_max) then
                     current_max = test_max
-
                     test = (current_min + current_max) / 2
+
                     s(:) = s_test(:)
                 else
                     current_min = test
-
                     test = current_max
                 end if
             end do
+
+            deallocate(s_test, stat=i_error); assert_eq(i_error, 0)
         end subroutine
 
 
