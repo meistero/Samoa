@@ -90,26 +90,28 @@ MODULE _CG_(step)
         type(t_node_data)               :: node
         integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
 
-        blocklengths(1) = 1
-        blocklengths(2) = 1
-        blocklengths(3) = 1
-        blocklengths(4) = 1
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+            blocklengths(3) = 1
+            blocklengths(4) = 1
 
-        disps(1) = 0
-        disps(2) = loc(node%data_pers%A_d) - loc(node)
-        disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
-        disps(4) = sizeof(node)
+            disps(1) = 0
+            disps(2) = loc(node%data_pers%A_d) - loc(node)
+            disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
+            disps(4) = sizeof(node)
 
-        types(1) = MPI_LB
-        types(2) = MPI_DOUBLE_PRECISION
-        types(3) = MPI_DOUBLE_PRECISION
-        types(4) = MPI_UB
+            types(1) = MPI_LB
+            types(2) = MPI_DOUBLE_PRECISION
+            types(3) = MPI_DOUBLE_PRECISION
+            types(4) = MPI_UB
 
-        call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
-        call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
 
-        call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-        assert_eq(sizeof(node), extent)
+            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(node), extent)
+#       endif
     end subroutine
 
     subroutine create_edge_mpi_type(mpi_edge_type)
@@ -118,20 +120,22 @@ MODULE _CG_(step)
         type(t_edge_data)               :: edge
         integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
 
-        blocklengths(1) = 1
-        blocklengths(2) = 1
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
 
-        disps(1) = 0
-        disps(2) = sizeof(edge)
+            disps(1) = 0
+            disps(2) = sizeof(edge)
 
-        types(1) = MPI_LB
-        types(2) = MPI_UB
+            types(1) = MPI_LB
+            types(2) = MPI_UB
 
-        call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
-        call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-        call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-        assert_eq(sizeof(edge), extent)
+            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(edge), extent)
+#       endif
     end subroutine
 
     subroutine pre_traversal_grid_op(traversal, grid)
@@ -162,11 +166,15 @@ MODULE _CG_(step)
 
             reduction_set(4) = traversal%r_u
 
-            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           if defined(_MPI)
+                call mpi_allreduce(MPI_IN_PLACE, reduction_set, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           endif
 
             traversal%r_u = reduction_set(4)
 #       else
-            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 3, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           if defined(_MPI)
+                call mpi_allreduce(MPI_IN_PLACE, reduction_set, 3, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           endif
 #       endif
 
         traversal%d_u = reduction_set(1)
@@ -452,7 +460,64 @@ MODULE _CG_(exact)
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_WRITE_OP		        node_write_op
 
+#		define _GT_NODE_MPI_TYPE
+#		define _GT_EDGE_MPI_TYPE
+
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+    subroutine create_node_mpi_type(mpi_node_type)
+        integer, intent(out)            :: mpi_node_type
+
+        type(t_node_data)               :: node
+        integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+            blocklengths(3) = 1
+            blocklengths(4) = 1
+
+            disps(1) = 0
+            disps(2) = loc(node%data_pers%r) - loc(node)
+            disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
+            disps(4) = sizeof(node)
+
+            types(1) = MPI_LB
+            types(2) = MPI_DOUBLE_PRECISION
+            types(3) = MPI_DOUBLE_PRECISION
+            types(4) = MPI_UB
+
+            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(node), extent)
+#       endif
+    end subroutine
+
+    subroutine create_edge_mpi_type(mpi_edge_type)
+        integer, intent(out)            :: mpi_edge_type
+
+        type(t_edge_data)               :: edge
+        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+
+            disps(1) = 0
+            disps(2) = sizeof(edge)
+
+            types(1) = MPI_LB
+            types(2) = MPI_UB
+
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(edge), extent)
+#       endif
+    end subroutine
 
     subroutine pre_traversal_grid_op(traversal, grid)
         type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
@@ -472,7 +537,9 @@ MODULE _CG_(exact)
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
 
-        call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       if defined(_MPI)
+            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
 
         traversal%r_C_r = reduction_set(1)
         traversal%r_sq = reduction_set(2)

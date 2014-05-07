@@ -280,7 +280,9 @@ MODULE _CG_(2)
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
 
-        call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       if defined(_MPI)
+            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
 
         traversal%r_C_r = reduction_set(1)
         traversal%r_sq = reduction_set(2)
@@ -514,7 +516,9 @@ MODULE _CG_(exact)
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
 
-        call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       if defined(_MPI)
+            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
 
         traversal%r_C_r = reduction_set(1)
         traversal%r_sq = reduction_set(2)

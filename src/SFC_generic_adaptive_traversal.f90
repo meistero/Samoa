@@ -494,7 +494,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     do i_dest_section = i_first_local_section, i_last_local_section
         call set_stats_counters_dest(traversal%children(i_dest_section)%stats%t_statistics, dest_grid%sections%elements_alloc(i_dest_section))
-        dest_grid%sections%elements_alloc(i_dest_section)%stats = dest_grid%sections%elements_alloc(i_dest_section)%stats + traversal%children(i_dest_section)%stats%t_statistics
+        dest_grid%sections%elements_alloc(i_dest_section)%stats = dest_grid%sections%elements_alloc(i_dest_section)%stats + traversal%children(i_dest_section)%stats
         thread_stats = thread_stats + traversal%children(i_dest_section)%stats
     end do
 

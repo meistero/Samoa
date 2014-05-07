@@ -110,11 +110,11 @@ subroutine destroy(traversal)
     class(_GT)      :: traversal
 	integer         :: i_error
 
-#    if defined(_GT_NODE_MPI_TYPE)
+#    if defined(_GT_NODE_MPI_TYPE) && defined(_MPI)
         call MPI_Type_free(traversal%mpi_node_type, i_error); assert_eq(i_error, 0)
 #    endif
 
-#    if defined(_GT_EDGE_MPI_TYPE)
+#    if defined(_GT_EDGE_MPI_TYPE) && defined(_MPI)
         call MPI_Type_free(traversal%mpi_edge_type, i_error); assert_eq(i_error, 0)
 #    endif
 
@@ -364,12 +364,12 @@ subroutine traverse(traversal, grid)
 
     do i_section = i_first_local_section, i_last_local_section
         call set_stats_counters(traversal%children(i_section)%stats, grid%sections%elements_alloc(i_section))
-        grid%sections%elements_alloc(i_section)%stats = grid%sections%elements_alloc(i_section)%stats + traversal%children(i_section)%stats
+        grid%sections%elements_alloc(i_section)%stats%t_statistics = grid%sections%elements_alloc(i_section)%stats%t_statistics + traversal%children(i_section)%stats
         thread_stats = thread_stats + traversal%children(i_section)%stats
     end do
 
     traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
-    grid%threads%elements(i_thread)%stats = grid%threads%elements(i_thread)%stats + thread_stats
+    grid%threads%elements(i_thread)%stats%t_statistics = grid%threads%elements(i_thread)%stats%t_statistics + thread_stats
 end subroutine
 
 !> Generic iterative traversal subroutine
