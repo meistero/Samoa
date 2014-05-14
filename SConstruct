@@ -107,16 +107,16 @@ if unknownVariables:
 # precompiler, compiler and linker flags
 #
 
-env['F90PATH'] = '.'
+env['F90PATH'] = ['.', os.path.abspath('src/Samoa/')]
 env['LINKFLAGS'] = ''
 
 # Choose compiler
 if env['compiler'] == 'intel':
   fc = 'ifort'
-  env['F90FLAGS'] = '-implicitnone -nologo -fpp -Isrc/Samoa/ -allow nofpp-comments'
+  env['F90FLAGS'] = '-implicitnone -nologo -fpp -allow nofpp-comments'
 elif  env['compiler'] == 'gnu':
   fc = 'gfortran'
-  env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none -Isrc/Samoa/'
+  env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none'
   env.SetDefault(openmp = 'notasks')
 
 # If MPI is active, use the mpif90 wrapper for compilation
@@ -187,8 +187,9 @@ if env['openmp'] != 'noomp':
 
 #set compilation flags and preprocessor macros for the ASAGI library
 if env['asagi'] != 'noasagi':
-  env['F90FLAGS'] += ' -D_ASAGI -I' + env['asagi_dir'] + '/include'
-  env['LINKFLAGS'] += ' -Wl,--rpath,' + env['asagi_dir']
+  env.Append(F90PATH = os.path.abspath(env['asagi_dir'] + '/include'))
+  env['F90FLAGS'] += ' -D_ASAGI'
+  env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir'])
   env.Append(LIBPATH = env['asagi_dir'])
 
   if env['asagi'] == 'numa':
