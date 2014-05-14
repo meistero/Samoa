@@ -710,6 +710,7 @@ MODULE _CG
         contains
 
         procedure, pass :: create
+        procedure, pass :: destroy
         procedure, pass :: solve
         procedure, pass :: reduce_stats
     end type
@@ -726,6 +727,18 @@ MODULE _CG
 
         solver%max_error = max_error
         solver%i_restart_interval = i_restart_interval
+
+        call solver%cg1%create()
+        call solver%cg2%create()
+        call solver%cg_exact%create()
+    end subroutine
+
+    subroutine destroy(solver)
+        class(_T_CG), intent(inout)             :: solver
+
+        call solver%cg1%destroy()
+        call solver%cg2%destroy()
+        call solver%cg_exact%destroy()
     end subroutine
 
     !> Solves a linear equation system using a CG solver

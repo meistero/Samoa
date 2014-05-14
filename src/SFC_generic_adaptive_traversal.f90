@@ -80,11 +80,14 @@ type, extends(num_traversal_data) :: _GT
     type(_GT), pointer                                      :: children(:) => null()			!< section data
     type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
 	type(t_adaptive_statistics)								:: stats
+    type(t_conformity)                                      :: conformity
+    integer                                                 :: mpi_node_type, mpi_edge_type
 
     contains
 
-    procedure, pass :: traverse => traverse_in_place
+    procedure, pass :: create
     procedure, pass :: destroy
+    procedure, pass :: traverse => traverse_in_place
     procedure, pass :: reduce_stats
 end type
 
@@ -104,9 +107,34 @@ subroutine reduce_stats(traversal, mpi_op, global)
     end if
 end subroutine
 
+subroutine create(traversal)
+    class(_GT)      :: traversal
+	integer         :: i_error
+
+	call traversal%conformity%create()
+
+#    if defined(_GT_NODE_MPI_TYPE)
+        call create_node_mpi_type(traversal%mpi_node_type)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE)
+        call create_edge_mpi_type(traversal%mpi_edge_type)
+#    endif
+end subroutine
+
 subroutine destroy(traversal)
     class(_GT)      :: traversal
 	integer         :: i_error
+
+	call traversal%conformity%destroy()
+
+#    if defined(_GT_NODE_MPI_TYPE) && defined(_MPI)
+        call MPI_Type_free(traversal%mpi_node_type, i_error); assert_eq(i_error, 0)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE) && defined(_MPI)
+        call MPI_Type_free(traversal%mpi_edge_type, i_error); assert_eq(i_error, 0)
+#    endif
 
     if (associated(traversal%children)) then
         deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
@@ -123,7 +151,7 @@ function edge_merge_wrapper_op(local_edges, neighbor_edges) result(l_conform)
     type(t_edge_data), intent(in)       :: neighbor_edges
     logical                             :: l_conform
 
-    assert_eq(local_edges%min_distance, neighbor_edges%min_distance)
+    !assert_eq(local_edges%min_distance, neighbor_edges%min_distance)
     assert(local_edges%owned_locally)
 
 #   if defined(_GT_EDGE_MERGE_OP)
@@ -138,8 +166,8 @@ function node_merge_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     type(t_node_data), intent(in)       :: neighbor_nodes
     logical                             :: l_conform
 
-    assert_eq(local_nodes%distance, neighbor_nodes%distance)
-    assert_veq(local_nodes%position, neighbor_nodes%position)
+    !assert_eq(local_nodes%distance, neighbor_nodes%distance)
+    !assert_veq(local_nodes%position, neighbor_nodes%position)
     assert(local_nodes%owned_locally)
 
 #   if defined(_GT_NODE_MERGE_OP)
@@ -200,7 +228,6 @@ subroutine traverse_in_place(traversal, grid)
 
 	integer                                             :: i_error
 	type(t_grid), save							        :: grid_temp
-    type(t_conformity), save                            :: conformity
 	type(t_adaptive_statistics)                         :: thread_stats
 
     if (.not. associated(traversal%threads)) then
@@ -226,7 +253,7 @@ subroutine traverse_in_place(traversal, grid)
     !$omp barrier
 
     thread_stats%r_integrity_time = -get_wtime()
-    call conformity%check(grid)
+    call traversal%conformity%check(grid)
     thread_stats%r_integrity_time = thread_stats%r_integrity_time + get_wtime()
 
     thread_stats%r_load_balancing_time = -get_wtime()
@@ -455,8 +482,19 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     thread_stats%r_sync_time = -get_wtime()
 
     do i_dest_section = i_first_local_section, i_last_local_section
-        call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
-        call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+#       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_node_type_optional=traversal%mpi_node_type)
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
     end do
 
     !sync and call post traversal operator
@@ -1073,19 +1111,21 @@ end subroutine
 #undef _GT_EDGE_FIRST_TOUCH_OP
 #undef _GT_EDGE_LAST_TOUCH_OP
 #undef _GT_EDGE_REDUCE_OP
+#undef _GT_EDGE_MPI_TYPE
+#undef _GT_EDGE_MERGE_OP
+#undef _GT_EDGE_WRITE_OP
 #undef _GT_NODE_FIRST_TOUCH_OP
 #undef _GT_NODE_LAST_TOUCH_OP
 #undef _GT_NODE_REDUCE_OP
+#undef _GT_NODE_MPI_TYPE
+#undef _GT_NODE_MERGE_OP
+#undef _GT_NODE_WRITE_OP
 #undef _GT_INNER_EDGE_FIRST_TOUCH_OP
 #undef _GT_INNER_EDGE_LAST_TOUCH_OP
 #undef _GT_INNER_EDGE_REDUCE_OP
 #undef _GT_INNER_NODE_FIRST_TOUCH_OP
 #undef _GT_INNER_NODE_LAST_TOUCH_OP
 #undef _GT_INNER_NODE_REDUCE_OP
-#undef _GT_EDGE_MERGE_OP
-#undef _GT_EDGE_WRITE_OP
-#undef _GT_NODE_MERGE_OP
-#undef _GT_NODE_WRITE_OP
 #undef _GT_PRE_TRAVERSAL_GRID_OP
 #undef _GT_POST_TRAVERSAL_GRID_OP
 #undef _GT_PRE_TRAVERSAL_OP

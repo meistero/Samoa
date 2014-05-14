@@ -154,8 +154,8 @@ module Neighbor_list
 #	include "Tools_stream.f90"
 
 	subroutine comm_interface_create_buffer(comm)
-		class(t_comm_interface), intent(inout)   :: comm
-		integer                                         :: i_error
+		class(t_comm_interface), intent(inout)      :: comm
+		integer                                     :: i_error, i
 
         if (comm%neighbor_rank .ge. 0 .and. comm%neighbor_rank .ne. rank_MPI) then
             assert(.not. associated(comm%p_neighbor_edges))
@@ -163,6 +163,19 @@ module Neighbor_list
 
             allocate(comm%p_neighbor_edges(comm%i_edges), stat = i_error); assert_eq(i_error, 0)
             allocate(comm%p_neighbor_nodes(comm%i_nodes), stat = i_error); assert_eq(i_error, 0)
+
+#           if defined(_ASSERT)
+                !in case assertions are active, copy local data to neighbor buffer to ensure that
+                !the assertions for distance, position, etc do not fail if they are not communicate
+
+                do i = 1, comm%i_edges
+                    comm%p_neighbor_edges(comm%i_edges + 1 - i) = comm%p_local_edges(i)
+                end do
+
+                do i = 1, comm%i_nodes
+                    comm%p_neighbor_nodes(comm%i_nodes + 1 - i) = comm%p_local_nodes(i)
+                end do
+#           endif
         end if
 	end subroutine
 
@@ -351,6 +364,7 @@ module Grid_thread
 	use Integer_stack
 	use Color_edge_stack
 	use Node_stack
+	use Section_info_list
 
 	implicit none
 
@@ -359,6 +373,7 @@ module Grid_thread
 		type(t_node_stack), dimension(RED : GREEN)									:: nodes_stack									!< red/green node stacks
 		type(t_integer_stack), dimension(RED : GREEN)								:: indices_stack								!< red/green stacks for comm cell indices in adaptive traversal
 		type(t_adaptive_statistics)											        :: stats
+		type(t_grid_info)											                :: info
 
 		contains
 
@@ -536,7 +551,7 @@ module Grid_section
 	!> Removes a section from the grid
 	subroutine grid_section_destroy(section)
 		class(t_grid_section), intent(inout)			:: section
-		integer (kind = GRID_SI)					    :: i, j, i_error
+		integer (kind = GRID_SI)					    :: i_color, j, i_error
 
 		call section%cells%clear()
 		call section%crossed_edges_out%unattach()
@@ -548,15 +563,18 @@ module Grid_section
 		call section%nodes_out%unattach()
 		call section%nodes_in%clear()
 
-		do i = RED, GREEN
-			call section%boundary_edges(i)%clear()
-			call section%boundary_nodes(i)%clear()
+		do i_color = RED, GREEN
+			call section%boundary_edges(i_color)%clear()
+			call section%boundary_nodes(i_color)%clear()
 
-			do j = 1, size(section%comms(i)%elements)
-                call section%comms(i)%elements(j)%destroy_buffer()
+			do j = 1, size(section%comms(i_color)%elements)
+                call section%comms(i_color)%elements(j)%destroy_buffer()
             end do
 
-			call section%comms(i)%clear()
+			nullify(section%comms_type(OLD, i_color)%elements)
+			nullify(section%comms_type(NEW, i_color)%elements)
+
+			call section%comms(i_color)%clear()
 		end do
 	end subroutine
 
@@ -780,7 +798,7 @@ module Grid
             call grid%sections%elements_alloc(i_section)%create(dest_grid_sections%elements(i_section))
         end do
 
-        call grid%threads%elements(1 + omp_get_thread_num())%create(i_stack_size)
+        call grid%threads%elements(i_thread)%create(i_stack_size)
 
         !$omp barrier
 
@@ -804,7 +822,7 @@ module Grid
             end do
         end if
 
-        call grid%threads%elements(1 + omp_get_thread_num())%destroy()
+        call grid%threads%elements(i_thread)%destroy()
 
         !$omp barrier
 
@@ -859,35 +877,23 @@ module Grid
         class(t_grid), intent(in)			        :: grid
         integer                                     :: mpi_op
         logical, intent(in)                         :: global
+		integer(kind = GRID_DI)          	        :: i_grid_cells
 
         integer (kind = GRID_SI)                    :: i_section, i_first_local_section, i_last_local_section
 		integer                                     :: i_error
 
-		integer(kind = GRID_DI), save, allocatable  :: i_thread_cells(:)
-		integer(kind = GRID_DI)          	        :: i_grid_cells
-
-        if (.not. allocated(i_thread_cells)) then
-            !$omp barrier
-
-            !$omp single
-            allocate(i_thread_cells(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
-            !$omp end single
-        end if
-
-        assert_eq(size(i_thread_cells), omp_get_max_threads())
-
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        i_thread_cells(i_thread) = 0
+        grid%threads%elements(i_thread)%info%i_cells = 0
 
 		do i_section = i_first_local_section, i_last_local_section
-            i_thread_cells(i_thread) = i_thread_cells(i_thread) + grid%sections%elements_alloc(i_section)%get_cells()
+             grid%threads%elements(i_thread)%info%i_cells = grid%threads%elements(i_thread)%info%i_cells + grid%sections%elements_alloc(i_section)%get_cells()
 		end do
 
         !$omp barrier
 
         !$omp single
-        call reduce(i_grid_cells, i_thread_cells, mpi_op, global)
+        call reduce(i_grid_cells, grid%threads%elements(:)%info%i_cells, mpi_op, global)
         !$omp end single copyprivate(i_grid_cells)
 	end function
 
@@ -895,37 +901,25 @@ module Grid
         class(t_grid), intent(in)			    :: grid
         integer, intent(in)                     :: mpi_op
         logical, intent(in)                     :: global
+		type(t_grid_info)         	            :: grid_info
 
         integer (kind = GRID_SI)                :: i_section, i_first_local_section, i_last_local_section
 		integer                                 :: i_error
-
-        type(t_grid_info), save, allocatable    :: thread_infos(:)
-		type(t_grid_info)         	            :: grid_info
 		type(t_section_info)         	        :: section_info
-
-        if (.not. allocated(thread_infos)) then
-            !$omp barrier
-
-            !$omp single
-            allocate(thread_infos(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
-            !$omp end single
-        end if
-
-        assert_eq(size(thread_infos), omp_get_max_threads())
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        thread_infos(i_thread) = t_grid_info()
+        grid%threads%elements(i_thread)%info = t_grid_info()
 
 		do i_section = i_first_local_section, i_last_local_section
             section_info = grid%sections%elements_alloc(i_section)%get_info()
-            thread_infos(i_thread) = thread_infos(i_thread) + section_info%t_grid_info
+            grid%threads%elements(i_thread)%info = grid%threads%elements(i_thread)%info + section_info%t_grid_info
 		end do
 
         !$omp barrier
 
         !$omp single
-        call grid_info%reduce(thread_infos, mpi_op, global)
+        call grid_info%reduce(grid%threads%elements(:)%info, mpi_op, global)
         !$omp end single copyprivate(grid_info)
 	end function
 

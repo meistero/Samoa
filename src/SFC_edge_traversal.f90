@@ -1047,7 +1047,7 @@ module SFC_edge_traversal
                         !merge on local edges
                         !only the owner may execute merge operations (a race condition might occur otherwise)
 
-                        !assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
+                        assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
 
                         do i = 1, comm%i_edges
                             assert(comm%p_local_edges(i)%owned_locally)
@@ -1058,9 +1058,9 @@ module SFC_edge_traversal
                             section%l_conform = section%l_conform .and. l_conform
                         end do
 
-                        !assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
-                        !assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
-                        !assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
+                        assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
+                        assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
+                        assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
 
                         !merge on local nodes
                         !only the owner may execute merge operations (which is the local section)

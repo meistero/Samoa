@@ -79,7 +79,7 @@ MODULE _CG_(step)
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_WRITE_OP		        node_write_op
 
-#		define _GT_NODE_MPI_TYPE
+!#		define _GT_NODE_MPI_TYPE
 #		define _GT_EDGE_MPI_TYPE
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
@@ -111,6 +111,9 @@ MODULE _CG_(step)
 
             call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
             assert_eq(sizeof(node), extent)
+
+            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(16, extent)
 #       endif
     end subroutine
 
@@ -135,6 +138,9 @@ MODULE _CG_(step)
 
             call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
             assert_eq(sizeof(edge), extent)
+
+            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(0, extent)
 #       endif
     end subroutine
 
@@ -460,7 +466,7 @@ MODULE _CG_(exact)
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_WRITE_OP		        node_write_op
 
-#		define _GT_NODE_MPI_TYPE
+!#		define _GT_NODE_MPI_TYPE
 #		define _GT_EDGE_MPI_TYPE
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
@@ -492,6 +498,9 @@ MODULE _CG_(exact)
 
             call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
             assert_eq(sizeof(node), extent)
+
+            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(16, extent)
 #       endif
     end subroutine
 
@@ -516,6 +525,9 @@ MODULE _CG_(exact)
 
             call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
             assert_eq(sizeof(edge), extent)
+
+            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(0, extent)
 #       endif
     end subroutine
 
@@ -745,6 +757,7 @@ MODULE _CG
         contains
 
         procedure, pass :: create
+        procedure, pass :: destroy
         procedure, pass :: solve
         procedure, pass :: reduce_stats
     end type
@@ -759,11 +772,18 @@ MODULE _CG
         real (kind = GRID_SR), intent(in)       :: max_error
         integer (kind = GRID_SI), intent(in)    :: i_restart_interval
 
-        call solver%cg_exact%create()
         call solver%cg_step%create()
+        call solver%cg_exact%create()
 
         solver%max_error = max_error
         solver%i_restart_interval = i_restart_interval
+    end subroutine
+
+    subroutine destroy(solver)
+        class(_T_CG), intent(inout)             :: solver
+
+        call solver%cg_step%destroy()
+        call solver%cg_exact%destroy()
     end subroutine
 
     !> Solves a linear equation system using a CG solver

@@ -8,6 +8,7 @@ module linear_solver
 
         contains
 
+        procedure(i_destroy), deferred, pass        :: destroy
         procedure(i_solve), deferred, pass          :: solve
         procedure(i_reduce_stats), deferred, pass   :: reduce_stats
     end type
@@ -25,6 +26,11 @@ module linear_solver
             class(t_linear_solver), intent(inout)   :: solver
             integer, intent(in)                     :: mpi_op
             logical                                 :: global
+        end subroutine
+
+        subroutine i_destroy(solver)
+            import
+            class(t_linear_solver), intent(inout)   :: solver
         end subroutine
     end interface
 end module

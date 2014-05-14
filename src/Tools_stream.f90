@@ -105,6 +105,7 @@ subroutine resize_by_value(stream, i_elements)
 
         stream%elements_alloc => elements_temp
     else
+        assert(.not. associated(stream%elements_alloc))
         allocate(stream%elements_alloc(i_elements), stat = i_error); assert_eq(i_error, 0)
         stream%elements => stream%elements_alloc
     end if
@@ -120,6 +121,7 @@ subroutine resize_auto(stream)
 	if (associated(stream%elements)) then
         call stream%resize(size(stream%elements) + _CHUNK_SIZE)
     else
+        assert(.not. associated(stream%elements_alloc))
         allocate(stream%elements_alloc(_CHUNK_SIZE), stat = i_error); assert_eq(i_error, 0)
     end if
 
@@ -267,7 +269,7 @@ subroutine add_element(stream, data)
 	stream%elements(stream%i_current_element) = data
 end subroutine
 
-!> Merges two a self-managed streams
+!> Merges two self-managed streams
 function merge_streams(stream1, stream2) result(stream)
 	class(_CNT), intent(in)					    :: stream1, stream2     !< stream objects
 	type(_CNT)              					:: stream               !< stream objects
@@ -289,6 +291,8 @@ function merge_streams(stream1, stream2) result(stream)
             elements_temp(total_size - size(stream2%elements) + 1 : total_size) = stream2%elements
         end if
 
+        assert(.not. associated(stream%elements))
+        assert(.not. associated(stream%elements_alloc))
         stream%elements_alloc => elements_temp
         stream%elements => elements_temp
     end if

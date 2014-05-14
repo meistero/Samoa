@@ -83,7 +83,7 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
     if (present(i_count_arg)) then
         i_count = i_count_arg
     else
-        i_count = min(i_elements, size(list%elements_alloc))
+        i_count = min(i_elements, list%get_size())
     end if
 
     if (associated(list%elements)) then
@@ -125,7 +125,7 @@ subroutine add_after(list, i_current_element, element)
         elements_temp(i_current_element + 1) = element
         elements_temp(i_current_element + 2 : ) = list%elements_alloc(i_current_element + 1 : )
 
-        if (size(list%elements_alloc) > 0) then
+        if (associated(list%elements_alloc)) then
             deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
         else
             nullify(list%elements_alloc)

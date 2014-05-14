@@ -269,6 +269,7 @@ MODULE _JACOBI
         contains
 
         procedure, pass :: create
+        procedure, pass :: destroy
         procedure, pass :: solve
         procedure, pass :: reduce_stats
     end type
@@ -283,6 +284,14 @@ MODULE _JACOBI
         real (kind = GRID_SR)           :: max_error
 
         solver%max_error = max_error
+
+        call solver%jacobi%create()
+    end subroutine
+
+    subroutine destroy(solver)
+        class(_T_JACOBI), intent(inout) :: solver
+
+        call solver%jacobi%destroy()
     end subroutine
 
     !> Solves a poisson equation using a Jacobi solver
