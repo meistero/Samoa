@@ -151,7 +151,7 @@ function edge_merge_wrapper_op(local_edges, neighbor_edges) result(l_conform)
     type(t_edge_data), intent(in)       :: neighbor_edges
     logical                             :: l_conform
 
-    !assert_eq(local_edges%min_distance, neighbor_edges%min_distance)
+    assert_eq(local_edges%min_distance, neighbor_edges%min_distance)
     assert(local_edges%owned_locally)
 
 #   if defined(_GT_EDGE_MERGE_OP)
@@ -166,8 +166,8 @@ function node_merge_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     type(t_node_data), intent(in)       :: neighbor_nodes
     logical                             :: l_conform
 
-    !assert_eq(local_nodes%distance, neighbor_nodes%distance)
-    !assert_veq(local_nodes%position, neighbor_nodes%position)
+    assert_eq(local_nodes%distance, neighbor_nodes%distance)
+    assert_veq(local_nodes%position, neighbor_nodes%position)
     assert(local_nodes%owned_locally)
 
 #   if defined(_GT_NODE_MERGE_OP)
