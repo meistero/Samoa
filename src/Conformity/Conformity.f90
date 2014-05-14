@@ -27,11 +27,13 @@ module Conformity
     public t_conformity
 
     type t_conformity
-        type(t_statistics), pointer :: children_stats(:)
+        type(t_statistics), pointer :: children_stats(:) => null()
         type(t_statistics)          :: stats
+        integer                     :: mpi_node_type, mpi_edge_type
 
         contains
 
+        procedure, pass :: create
         procedure, pass :: check => conformity_check
         procedure, pass :: destroy
     end type
@@ -44,9 +46,81 @@ module Conformity
 
     contains
 
+    subroutine create_node_mpi_type(mpi_node_type)
+        integer, intent(out)            :: mpi_node_type
+
+        type(t_node_data)               :: node
+        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+
+            disps(1) = 0
+            disps(2) = sizeof(node)
+
+            types(1) = MPI_LB
+            types(2) = MPI_UB
+
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(node), extent)
+
+            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(0, extent)
+#       endif
+    end subroutine
+
+    subroutine create_edge_mpi_type(mpi_edge_type)
+        integer, intent(out)            :: mpi_edge_type
+
+        type(t_edge_data)               :: edge
+        integer                         :: blocklengths(3), types(3), disps(3), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 3
+            blocklengths(3) = 1
+
+            disps(1) = 0
+            disps(2) = loc(edge%refine) - loc(edge)
+            disps(3) = sizeof(edge)
+
+            types(1) = MPI_LB
+            types(2) = MPI_LOGICAL
+            types(3) = MPI_UB
+
+            call MPI_Type_struct(3, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(edge), extent)
+
+            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(3*4, extent)
+#       endif
+    end subroutine
+
+    subroutine create(conformity)
+        class(t_conformity) :: conformity
+
+        call create_node_mpi_type(conformity%mpi_node_type)
+        call create_edge_mpi_type(conformity%mpi_edge_type)
+    end subroutine
+
     subroutine destroy(conformity)
         class(t_conformity) :: conformity
         integer             :: i_error
+
+#       if defined(_MPI)
+            call MPI_Type_free(conformity%mpi_node_type, i_error); assert_eq(i_error, 0)
+#       endif
+
+#       if defined(_MPI)
+            call MPI_Type_free(conformity%mpi_edge_type, i_error); assert_eq(i_error, 0)
+#       endif
 
         if (associated(conformity%children_stats)) then
             deallocate(conformity%children_stats, stat = i_error); assert_eq(i_error, 0)
@@ -177,7 +251,7 @@ module Conformity
 
             do i_section = i_first_local_section, i_last_local_section
                 assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-                call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
+                call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
             end do
 
             do i_section = i_first_local_section, i_last_local_section
@@ -191,7 +265,7 @@ module Conformity
                     call grid%sections%elements_alloc(i_section)%reverse()
                 end do
 
-                call send_mpi_boundary(grid%sections%elements_alloc(i_section))
+                call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
 
 #               if defined(_OPENMP_TASKS)
                     !$omp end task
