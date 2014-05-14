@@ -28,6 +28,8 @@ env = Environment(variables=vars)
 
 if 'config' in env:
   vars = Variables(env['config'])
+else:
+  vars = Variables()
 
 #Add config variables
 
