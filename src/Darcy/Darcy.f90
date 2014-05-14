@@ -69,6 +69,15 @@
 
  			grid%r_time = 0.0_GRID_SR
 
+            call darcy%init_pressure%create()
+            call darcy%init_saturation%create()
+            call darcy%vtk_output%create()
+            call darcy%xml_output%create()
+            call darcy%grad_p%create()
+            call darcy%transport_eq%create()
+            call darcy%permeability%create()
+            call darcy%adaption%create()
+
  			select case (cfg%i_lsolver)
                 case (0)
                     call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
@@ -85,6 +94,7 @@
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 3")
             end select
+
 
 			!open log file
 			call date_and_time(s_date, s_time)
@@ -189,7 +199,18 @@
             integer                         :: i_error
             logical		                    :: l_log
 
+            call darcy%init_pressure%destroy()
+            call darcy%init_saturation%destroy()
+            call darcy%vtk_output%destroy()
+            call darcy%xml_output%destroy()
+            call darcy%grad_p%destroy()
+            call darcy%transport_eq%destroy()
+            call darcy%permeability%destroy()
+            call darcy%adaption%destroy()
+
             if (associated(darcy%pressure_solver)) then
+                call darcy%pressure_solver%destroy()
+
                 deallocate(darcy%pressure_solver, stat = i_error); assert_eq(i_error, 0)
             end if
 
