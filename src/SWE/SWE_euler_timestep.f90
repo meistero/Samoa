@@ -36,7 +36,6 @@
 #		define _GT_NAME							t_swe_euler_timestep_traversal
 
 #		define _GT_EDGES
-#		define _GT_EDGES_TEMP
 
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
 #		define _GT_POST_TRAVERSAL_OP			post_traversal_op
@@ -49,7 +48,36 @@
 #		define _GT_CELL_UPDATE_OP				cell_update_op
 #		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
 
+#		define _GT_NODE_MPI_TYPE
+
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+        subroutine create_node_mpi_type(mpi_node_type)
+            integer, intent(out)            :: mpi_node_type
+
+            type(t_node_data)               :: node
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(node)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(node), extent)
+
+                call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
 
 		!*******************************
 		!Geometry operators

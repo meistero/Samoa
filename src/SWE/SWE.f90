@@ -30,15 +30,15 @@
             type(t_swe_displace_traversal)          :: displace
             type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
-            type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
+            type(t_swe_ascii_output_traversal)      :: ascii_output
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
             contains
 
-            procedure , pass :: create => swe_create
-            procedure , pass :: run => swe_run
-            procedure , pass :: destroy => swe_destroy
+            procedure, pass :: create => swe_create
+            procedure, pass :: run => swe_run
+            procedure, pass :: destroy => swe_destroy
         end type
 
 		contains
@@ -64,6 +64,14 @@
 			endif
 
 			call load_scenario(grid, cfg%s_bathymetry_file, cfg%s_displacement_file)
+
+			call swe%init%create()
+            call swe%displace%create()
+            call swe%output%create()
+            call swe%xml_output%create()
+            call swe%ascii_output%create()
+            call swe%euler%create()
+            call swe%adaption%create()
 		end subroutine
 
 		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
@@ -141,6 +149,14 @@
             class(t_swe), intent(inout)                                  :: swe
 			type(t_grid), intent(inout)									:: grid
 			logical, intent(in)		:: l_log
+
+			call swe%init%destroy()
+            call swe%displace%destroy()
+            call swe%output%destroy()
+            call swe%xml_output%destroy()
+            call swe%ascii_output%destroy()
+            call swe%euler%destroy()
+            call swe%adaption%destroy()
 
 #			if defined(_ASAGI)
 				call asagi_close(cfg%afh_displacement)

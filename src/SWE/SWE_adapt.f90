@@ -39,7 +39,36 @@
 #		define _GT_CELL_TO_EDGE_OP				cell_to_edge_op
 #		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
 
+#		define _GT_NODE_MPI_TYPE
+
 #		include "SFC_generic_adaptive_traversal.f90"
+
+        subroutine create_node_mpi_type(mpi_node_type)
+            integer, intent(out)            :: mpi_node_type
+
+            type(t_node_data)               :: node
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(node)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(node), extent)
+
+                call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
 			type(t_swe_adaption_traversal), intent(inout)				:: traversal
