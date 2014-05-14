@@ -153,6 +153,8 @@ module SFC_edge_traversal
         call prefix_sum(src_grid%sections%elements_alloc%last_dest_cell, src_grid%sections%elements_alloc%dest_cells)
         !$omp end single copyprivate(i_sections)
 
+        assert_le(i_sections, ishft(1, 14) - 1)
+
         !create new grid
         call dest_grid%create(section_descs, src_grid%max_dest_stack - src_grid%min_dest_stack + 1)
 
@@ -381,8 +383,8 @@ module SFC_edge_traversal
             assert_veq(requests, MPI_REQUEST_NULL)
 
 		    do i_comm = 1, i_neighbors
-                call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
                 call mpi_irecv(i_neighbor_sections(i_comm), 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
  		    end do
 
             call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
@@ -394,8 +396,8 @@ module SFC_edge_traversal
             assert_veq(requests, MPI_REQUEST_NULL)
 
 		    do i_comm = 1, i_neighbors
-                call mpi_isend(local_min_distances(1), i_sections * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
-                call mpi_irecv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections(i_comm) * sizeof(local_min_distances(1)), MPI_BYTE, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_irecv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections(i_comm), MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_isend(local_min_distances(1), i_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
  		    end do
 
             call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
@@ -487,7 +489,7 @@ module SFC_edge_traversal
         min_distance = section%min_distance(i_color)
 
         !clear comm list if it is not empty
-        assert(section%comms(i_color)%get_size() .eq. 0)
+        assert_eq(section%comms(i_color)%get_size(), 0)
         section%comms_type(OLD, i_color)%elements => null()
         section%comms_type(NEW, i_color)%elements => null()
 
@@ -575,6 +577,7 @@ module SFC_edge_traversal
         call section%comms_type(NEW, i_color)%reverse()
         i_comms_old = section%comms_type(OLD, i_color)%get_size()
         i_comms_new = section%comms_type(NEW, i_color)%get_size()
+        call section%comms(i_color)%clear()
         section%comms(i_color) = section%comms(i_color)%merge(section%comms_type(OLD, i_color), section%comms_type(NEW, i_color))
 
         call section%comms_type(OLD, i_color)%clear()
@@ -816,30 +819,33 @@ module SFC_edge_traversal
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error, send_tag, recv_tag
-        integer                                         :: mpi_edge_type, mpi_node_type, mpi_edge_size, mpi_node_size
+        integer                                         :: mpi_edge_type, mpi_node_type, mpi_edge_extent, mpi_node_extent, mpi_edge_size, mpi_node_size
         integer (BYTE)							        :: i_color
         type(t_comm_interface), pointer			        :: comm
 
 #        if defined(_MPI)
             if (present(mpi_edge_type_optional)) then
                 mpi_edge_type = mpi_edge_type_optional
-                mpi_edge_size = 1
+                mpi_edge_extent = 1
             else
                 mpi_edge_type = MPI_BYTE
-                mpi_edge_size = sizeof(section%boundary_edges(RED)%elements(1))
+                mpi_edge_extent = sizeof(section%boundary_edges(RED)%elements(1))
             end if
 
             if (present(mpi_node_type_optional)) then
                 mpi_node_type = mpi_node_type_optional
-                mpi_node_size = 1
+                mpi_node_extent = 1
             else
                 mpi_node_type = MPI_BYTE
-                mpi_node_size = sizeof(section%boundary_nodes(RED)%elements(1))
+                mpi_node_extent = sizeof(section%boundary_nodes(RED)%elements(1))
             end if
+
+            call MPI_Type_size(mpi_edge_type, mpi_edge_size, i_error); assert_eq(i_error, 0)
+            call MPI_Type_size(mpi_node_type, mpi_node_size, i_error); assert_eq(i_error, 0)
 
             _log_write(4, '(4X, A, I0)') "send mpi boundary: section ", section%index
 
-             do i_color = RED, GREEN
+            do i_color = RED, GREEN
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
                 do i_comm = 1, section%comms(i_color)%get_size()
@@ -852,20 +858,28 @@ module SFC_edge_traversal
                         _log_write(4, '(6X, A)') trim(comm%to_string())
                         assert(associated(comm%p_neighbor_edges))
                         assert(associated(comm%p_neighbor_nodes))
-						assert_lt(comm%local_section, ishft(1, 15))
-						assert_lt(comm%neighbor_section, ishft(1, 15))
+						assert_lt(comm%local_section, ishft(1, 14))
+						assert_lt(comm%neighbor_section, ishft(1, 14))
 
-                        send_tag = ishft(comm%local_section, 15) + comm%neighbor_section
-                        recv_tag = ishft(comm%neighbor_section, 15) + comm%local_section
+                        send_tag = ishft(comm%local_section, 14) + comm%neighbor_section
+                        recv_tag = ishft(comm%neighbor_section, 14) + comm%local_section
+
+                        assert_lt(send_tag, ishft(1, 28))
+                        assert_lt(recv_tag, ishft(1, 28))
 
                         _log_write(5, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "send from: ", comm%local_rank, comm%local_section,  " to  : ", comm%neighbor_rank, comm%neighbor_section, " send tag: ", send_tag
 
-                        assert_veq(comm%send_requests, MPI_REQUEST_NULL)
+                        if (mpi_edge_size > 0) then
+                            assert_eq(comm%send_requests(1), MPI_REQUEST_NULL)
+                            call mpi_isend(get_c_pointer(comm%p_local_edges), comm%i_edges * mpi_edge_extent, mpi_edge_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
+                            assert_ne(comm%send_requests(1), MPI_REQUEST_NULL)
+                        end if
 
-                        call mpi_isend(get_c_pointer(comm%p_local_edges), comm%i_edges * mpi_edge_size, mpi_edge_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
-                        call mpi_isend(get_c_pointer(comm%p_local_nodes), comm%i_nodes * mpi_node_size, mpi_node_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
-
-                        assert_vne(comm%send_requests, MPI_REQUEST_NULL)
+                        if (mpi_node_size > 0) then
+                            assert_eq(comm%send_requests(2), MPI_REQUEST_NULL)
+                            call mpi_isend(get_c_pointer(comm%p_local_nodes), comm%i_nodes * mpi_node_extent, mpi_node_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
+                            assert_ne(comm%send_requests(2), MPI_REQUEST_NULL)
+                        endif
                     end if
                 end do
             end do
@@ -878,26 +892,29 @@ module SFC_edge_traversal
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error, send_tag, recv_tag
-        integer                                         :: mpi_edge_type, mpi_node_type, mpi_edge_size, mpi_node_size
-       integer (BYTE)							        :: i_color
+        integer                                         :: mpi_edge_type, mpi_node_type, mpi_edge_extent, mpi_node_extent, mpi_edge_size, mpi_node_size
+        integer (BYTE)							        :: i_color
         type(t_comm_interface), pointer			        :: comm
 
 #        if defined(_MPI)
             if (present(mpi_edge_type_optional)) then
                 mpi_edge_type = mpi_edge_type_optional
-                mpi_edge_size = 1
+                mpi_edge_extent = 1
             else
                 mpi_edge_type = MPI_BYTE
-                mpi_edge_size = sizeof(section%boundary_edges(RED)%elements(1))
+                mpi_edge_extent = sizeof(section%boundary_edges(RED)%elements(1))
             end if
 
             if (present(mpi_node_type_optional)) then
                 mpi_node_type = mpi_node_type_optional
-                mpi_node_size = 1
+                mpi_node_extent = 1
             else
                 mpi_node_type = MPI_BYTE
-                mpi_node_size = sizeof(section%boundary_nodes(RED)%elements(1))
+                mpi_node_extent = sizeof(section%boundary_nodes(RED)%elements(1))
             end if
+
+            call MPI_Type_size(mpi_edge_type, mpi_edge_size, i_error); assert_eq(i_error, 0)
+            call MPI_Type_size(mpi_node_type, mpi_node_size, i_error); assert_eq(i_error, 0)
 
             _log_write(4, '(4X, A, I0)') "recv mpi boundary: section ", section%index
 
@@ -914,20 +931,28 @@ module SFC_edge_traversal
                         _log_write(4, '(6X, A)') trim(comm%to_string())
                         assert(associated(comm%p_neighbor_edges))
                         assert(associated(comm%p_neighbor_nodes))
-						assert_lt(comm%local_section, ishft(1, 15))
-						assert_lt(comm%neighbor_section, ishft(1, 15))
+						assert_lt(comm%local_section, ishft(1, 14))
+						assert_lt(comm%neighbor_section, ishft(1, 14))
 
-                        send_tag = ishft(comm%local_section, 15) + comm%neighbor_section
-                        recv_tag = ishft(comm%neighbor_section, 15) + comm%local_section
+                        send_tag = ishft(comm%local_section, 14) + comm%neighbor_section
+                        recv_tag = ishft(comm%neighbor_section, 14) + comm%local_section
+
+                        assert_lt(send_tag, ishft(1, 28))
+                        assert_lt(recv_tag, ishft(1, 28))
 
                         _log_write(5, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "recv to  : ", comm%local_rank, comm%local_section, " from: ", comm%neighbor_rank, comm%neighbor_section, " recv tag: ", recv_tag
 
-                        assert_veq(comm%recv_requests, MPI_REQUEST_NULL)
+                        if (mpi_edge_size > 0) then
+                            assert_eq(comm%recv_requests(1), MPI_REQUEST_NULL)
+                            call mpi_irecv(get_c_pointer(comm%p_neighbor_edges), comm%i_edges * mpi_edge_extent, mpi_edge_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
+                            assert_ne(comm%recv_requests(1), MPI_REQUEST_NULL)
+                        end if
 
-                        call mpi_irecv(get_c_pointer(comm%p_neighbor_edges), comm%i_edges * mpi_edge_size, mpi_edge_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
-                        call mpi_irecv(get_c_pointer(comm%p_neighbor_nodes), comm%i_nodes * mpi_node_size, mpi_node_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
-
-                        assert_vne(comm%recv_requests, MPI_REQUEST_NULL)
+                        if (mpi_node_size > 0) then
+                            assert_eq(comm%recv_requests(2), MPI_REQUEST_NULL)
+                            call mpi_irecv(get_c_pointer(comm%p_neighbor_nodes), comm%i_nodes * mpi_node_extent, mpi_node_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
+                            assert_ne(comm%recv_requests(2), MPI_REQUEST_NULL)
+                        endif
                     end if
                 end do
             end do
@@ -941,7 +966,7 @@ module SFC_edge_traversal
 
         integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section, i_comm
         integer                                         :: i_error
-        integer (BYTE)							    :: i_color
+        integer (BYTE)							        :: i_color
         type(t_grid_section), pointer					:: section
         type(t_comm_interface), pointer			        :: comm
         integer (kind = GRID_SI)       					:: i_first_node, i_last_node, i, i_iteration
@@ -985,16 +1010,13 @@ module SFC_edge_traversal
                             _log_write(5, '(8X, A, I0, X, I0, A, I0, X, I0)') "wait from: ", comm%local_rank, comm%local_section, " to  : ", comm%neighbor_rank, comm%neighbor_section
                             _log_write(5, '(8X, A, I0, X, I0, A, I0, X, I0)') "wait to  : ", comm%local_rank, comm%local_section, " from: ", comm%neighbor_rank, comm%neighbor_section
 
-                            assert_vne(comm%send_requests, MPI_REQUEST_NULL)
-                            assert_vne(comm%recv_requests, MPI_REQUEST_NULL)
-
                             call mpi_wait(comm%send_requests(1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
                             call mpi_wait(comm%send_requests(2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
                             call mpi_wait(comm%recv_requests(1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
                             call mpi_wait(comm%recv_requests(2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
-                            comm%send_requests = MPI_REQUEST_NULL
-                            comm%recv_requests = MPI_REQUEST_NULL
+                            assert_veq(comm%send_requests, MPI_REQUEST_NULL)
+                            assert_veq(comm%recv_requests, MPI_REQUEST_NULL)
                         end if
                     end do
 #               endif
@@ -1025,7 +1047,7 @@ module SFC_edge_traversal
                         !merge on local edges
                         !only the owner may execute merge operations (a race condition might occur otherwise)
 
-                        assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
+                        !assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
 
                         do i = 1, comm%i_edges
                             assert(comm%p_local_edges(i)%owned_locally)
@@ -1036,9 +1058,9 @@ module SFC_edge_traversal
                             section%l_conform = section%l_conform .and. l_conform
                         end do
 
-                        assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
-                        assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
-                        assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
+                        !assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
+                        !assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
+                        !assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
 
                         !merge on local nodes
                         !only the owner may execute merge operations (which is the local section)
@@ -1525,6 +1547,25 @@ module SFC_edge_traversal
 	        end do
         end subroutine
 
+        subroutine midpoint_cutoff(l, s)
+            double precision, intent(in)            :: l(:)
+            integer(kind = GRID_SI), intent(inout)  :: s(:)
+
+            integer                                 :: n, i, j
+            double precision                        :: L_j, L_n
+
+            n = size(l)
+            L_n = sum(l)
+            L_j = 0.0d0
+
+            do j = 1, n
+                i = int((size_MPI * (L_j + 0.5d0 * l(j))) / L_n)
+                s(j) = i
+
+                L_j = L_j + l(j)
+            end do
+        end subroutine
+
         subroutine iterative_binary(l, s)
             double precision, intent(in)            :: l(:)
             integer(kind = GRID_SI), intent(inout)  :: s(:)
@@ -1551,7 +1592,7 @@ module SFC_edge_traversal
                 load_i = load_i + l(j)
             end do
 
-            current_max = max(current_max, load_i)
+            current_max = max(current_max, load_i) * 1.01d0
             current_min = max(sum(l) / size_MPI, maxval(l))
 
             test = (current_min + current_max) / 2
@@ -1591,7 +1632,6 @@ module SFC_edge_traversal
 
             deallocate(s_test, stat=i_error); assert_eq(i_error, 0)
         end subroutine
-
 
         !> uses a serial algorithm to compute the new partition
         !> this approach scales badly, but can apply global methods and can achieve optimal load balance

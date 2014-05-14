@@ -59,7 +59,8 @@ module Tools_mpi
 
                 call mpi_comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, mpi_tag_upper_bound, mpi_flag, i_error); assert_eq(i_error, 0)
 				try(mpi_flag, "MPI tag support could not be determined")
-				try(mpi_tag_upper_bound >= ishft(1, 30) - 1, "MPI version does not support a sufficient number of tags")
+
+				try(mpi_tag_upper_bound >= ishft(1, 28) - 1, "MPI version does not support a sufficient number of tags")
             end if
 
             ref_count_MPI = ref_count_MPI + 1
