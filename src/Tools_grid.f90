@@ -166,14 +166,18 @@ module Neighbor_list
 
 #           if defined(_ASSERT)
                 !in case assertions are active, copy local data to neighbor buffer to ensure that
-                !the assertions for distance, position, etc do not fail if they are not communicate
+                !the assertions for distance, position, etc do not fail if they are not communicated
 
                 do i = 1, comm%i_edges
-                    comm%p_neighbor_edges(comm%i_edges + 1 - i) = comm%p_local_edges(i)
+                    comm%p_neighbor_edges(i) = comm%p_local_edges(comm%i_edges + 1 - i)
+                    comm%p_neighbor_edges(i)%owned_globally = .false.
+                    comm%p_neighbor_edges(i)%owned_locally = .false.
                 end do
 
                 do i = 1, comm%i_nodes
-                    comm%p_neighbor_nodes(comm%i_nodes + 1 - i) = comm%p_local_nodes(i)
+                    comm%p_neighbor_nodes(i) = comm%p_local_nodes(comm%i_nodes + 1 - i)
+                    comm%p_neighbor_nodes(i)%owned_globally = .false.
+                    comm%p_neighbor_nodes(i)%owned_locally = .false.
                 end do
 #           endif
         end if
