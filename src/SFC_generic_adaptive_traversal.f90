@@ -105,6 +105,8 @@ subroutine reduce_stats(traversal, mpi_op, global)
     if (global) then
         call traversal%stats%reduce(mpi_op)
     end if
+
+    call traversal%conformity%reduce_stats(mpi_op, global)
 end subroutine
 
 subroutine create(traversal)
