@@ -26,15 +26,20 @@ module Conformity
     private
     public t_conformity
 
+    type :: t_thread_data
+        type(t_statistics)  :: stats
+    end type
+
     type t_conformity
-        type(t_statistics), pointer :: children_stats(:) => null()
-        type(t_statistics)          :: stats
-        integer                     :: mpi_node_type, mpi_edge_type
+        type(t_thread_data), pointer    :: threads(:) => null()
+        type(t_statistics)              :: stats
+        integer                         :: mpi_node_type, mpi_edge_type
 
         contains
 
         procedure, pass :: create
         procedure, pass :: check => conformity_check
+        procedure, pass :: reduce_stats
         procedure, pass :: destroy
     end type
 
@@ -45,6 +50,20 @@ module Conformity
 #   endif
 
     contains
+
+    subroutine reduce_stats(conformity, mpi_op, global)
+        class(t_conformity)     :: conformity
+        integer, intent(in)     :: mpi_op
+        logical, intent(in)     :: global
+
+        if (associated(conformity%threads)) then
+            call conformity%stats%reduce(conformity%threads(:)%stats, mpi_op)
+        end if
+
+        if (global) then
+            call conformity%stats%reduce(mpi_op)
+        end if
+    end subroutine
 
     subroutine create_node_mpi_type(mpi_node_type)
         integer, intent(out)            :: mpi_node_type
@@ -122,8 +141,8 @@ module Conformity
             call MPI_Type_free(conformity%mpi_edge_type, i_error); assert_eq(i_error, 0)
 #       endif
 
-        if (associated(conformity%children_stats)) then
-            deallocate(conformity%children_stats, stat = i_error); assert_eq(i_error, 0)
+        if (associated(conformity%threads)) then
+            deallocate(conformity%threads, stat = i_error); assert_eq(i_error, 0)
         end if
     end subroutine
 
@@ -138,19 +157,14 @@ module Conformity
 
 		integer (kind = GRID_SI)		    :: i_traversals
         integer                             :: i_error
-        type(t_statistics)                  :: process_stats
 
 		_log_write(3, "(2X, A)") "Check conformity..."
 
-        if (.not. associated(conformity%children_stats) .or. size(conformity%children_stats) .ne. grid%sections%get_size()) then
+        if (.not. associated(conformity%threads)) then
             !$omp barrier
 
             !$omp single
-            if (associated(conformity%children_stats)) then
-                deallocate(conformity%children_stats, stat = i_error); assert_eq(i_error, 0)
-            end if
-
-            allocate(conformity%children_stats(grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
+            allocate(conformity%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
             !$omp end single
         end if
 
@@ -172,13 +186,6 @@ module Conformity
         !do empty traversals where necessary in order to align the traversal directions
         call empty_traversal(conformity, grid)
 
-		!$omp single
-        call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
-
-        call process_stats%reduce(conformity%children_stats, MPI_SUM)
-        conformity%stats = conformity%stats + process_stats
-        !$omp end single
-
  		_log_write(2, "(2X, I0, A)") i_traversals, " conformity traversal(s) performed."
 	end subroutine
 
@@ -189,124 +196,105 @@ module Conformity
     subroutine initial_conformity_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)	        :: grid
-        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
 
-        integer (kind = GRID_SI), save      :: i_thread
-        type(t_statistics), save            :: thread_stats
-        !$omp threadprivate(i_thread, thread_stats)
+        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
+        type(t_statistics)                  :: thread_stats
 
 		_log_write(3, "(3X, A)") "Initial conformity traversal:"
 
-        i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        !associate(stats => conformity%children_stats(i_first_local_section : i_last_local_section))
-            thread_stats%r_traversal_time = -get_wtime()
-            thread_stats%r_computation_time = -get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-#               if defined(_OPENMP_TASKS)
-                    !$omp task default(shared) firstprivate(i_section) mergeable
-#               endif
-
-                call initial_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                call grid%sections%elements_alloc(i_section)%reverse()
-
-#               if defined(_OPENMP_TASKS)
-                    !$omp end task
-#               endif
-            end do
-
+        do i_section = i_first_local_section, i_last_local_section
 #           if defined(_OPENMP_TASKS)
-                !$omp taskwait
+                !$omp task default(shared) firstprivate(i_section) mergeable
 #           endif
 
-            thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+            call initial_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+            call grid%sections%elements_alloc(i_section)%reverse()
 
-            thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+#           if defined(_OPENMP_TASKS)
+                !$omp end task
+#           endif
+        end do
 
-            do i_section = i_first_local_section, i_last_local_section
-                conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
-            end do
-        !end associate
+#       if defined(_OPENMP_TASKS)
+            !$omp taskwait
+#       endif
+
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+
+        conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
     end subroutine
 
     subroutine update_conformity_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
-
-        integer (kind = GRID_SI), save      :: i_thread
-        type(t_statistics), save            :: thread_stats
-        !$omp threadprivate(i_thread, thread_stats)
+        type(t_statistics)                  :: thread_stats
 
  		_log_write(3, '(3X, A)') "Update conformity traversal:"
 
         i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        !associate(stats => thread_stats)
-            thread_stats%r_traversal_time = -get_wtime()
-            thread_stats%r_computation_time = -get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-                assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-                call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
-            end do
+        do i_section = i_first_local_section, i_last_local_section
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
+        end do
 
-            do i_section = i_first_local_section, i_last_local_section
-#               if defined(_OPENMP_TASKS)
-                    !$omp task default(shared) firstprivate(i_section) mergeable
-#               endif
-
-                !do a conformity traversal only if it is required
-                do while (.not. grid%sections%elements_alloc(i_section)%l_conform)
-                    call update_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                    call grid%sections%elements_alloc(i_section)%reverse()
-                end do
-
-                call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
-
-#               if defined(_OPENMP_TASKS)
-                    !$omp end task
-#               endif
-            end do
-
+        do i_section = i_first_local_section, i_last_local_section
 #           if defined(_OPENMP_TASKS)
-                !$omp taskwait
+                !$omp task default(shared) firstprivate(i_section) mergeable
 #           endif
 
-            thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
-
-            thread_stats%r_sync_time = -get_wtime()
-            call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
-            thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
-
-            thread_stats%r_barrier_time = -get_wtime()
-
-            !$omp single
-            call reduce(grid%l_conform, grid%sections%elements%l_conform, MPI_LAND, .true.)
-            !$omp end single
-
-            thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
-
-            thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
-
-            do i_section = i_first_local_section, i_last_local_section
-                conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
+            !do a conformity traversal only if it is required
+            do while (.not. grid%sections%elements_alloc(i_section)%l_conform)
+                call update_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+                call grid%sections%elements_alloc(i_section)%reverse()
             end do
-        !end associate
+
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
+
+#           if defined(_OPENMP_TASKS)
+                !$omp end task
+#           endif
+        end do
+
+#       if defined(_OPENMP_TASKS)
+            !$omp taskwait
+#       endif
+
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+
+        thread_stats%r_sync_time = -get_wtime()
+        call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
+        thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+
+        thread_stats%r_barrier_time = -get_wtime()
+
+        !$omp single
+        call reduce(grid%l_conform, grid%sections%elements_alloc%l_conform, MPI_LAND, .true.)
+        !$omp end single
+
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+
+        conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
     end subroutine
 
     subroutine empty_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i
-
-        integer (kind = GRID_SI), save      :: i_thread
-        type(t_statistics), save            :: thread_stats
-        !$omp threadprivate(i_thread, thread_stats)
-
+        type(t_statistics)                  :: thread_stats
 
         double precision :: r_time
 
@@ -315,48 +303,46 @@ module Conformity
         i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-            thread_stats%r_traversal_time = -get_wtime()
-            thread_stats%r_computation_time = -get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-#               if defined(_OPENMP_TASKS)
-                    !$omp task default(shared) firstprivate(i_section) mergeable
-#               endif
-
-                assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-
-                !do an empty traversal if the section is backwards
-                if (grid%sections%elements_alloc(i_section)%cells%is_forward() .neqv. grid%sections%is_forward()) then
-                    call empty_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                    call grid%sections%elements_alloc(i_section)%reverse()
-                end if
-
-#               if defined(_OPENMP_TASKS)
-                    !$omp end task
-#               endif
-            end do
-
+        do i_section = i_first_local_section, i_last_local_section
 #           if defined(_OPENMP_TASKS)
-                !$omp taskwait
+                !$omp task default(shared) firstprivate(i_section) mergeable
 #           endif
 
-            thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
 
-            thread_stats%r_barrier_time = -get_wtime()
+            !do an empty traversal if the section is backwards
+            if (grid%sections%elements_alloc(i_section)%cells%is_forward() .neqv. grid%sections%is_forward()) then
+                call empty_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+                call grid%sections%elements_alloc(i_section)%reverse()
+            end if
 
-            !$omp barrier
+#           if defined(_OPENMP_TASKS)
+                !$omp end task
+#           endif
+        end do
 
-            !$omp single
-            call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
-            !$omp end single
+#       if defined(_OPENMP_TASKS)
+            !$omp taskwait
+#       endif
 
-            thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
-            thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+        thread_stats%r_barrier_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-                conformity%children_stats(i_section) = conformity%children_stats(i_section) + thread_stats
-            end do
+        !$omp barrier
+
+        !$omp single
+        call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
+        !$omp end single
+
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+
+        conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
 
         _log_write(3, '(4X, A, I0, A, 2(X, I0), A, 2(X, I0))') "Estimate for #cells: ", grid%dest_cells, ", stack red:", grid%min_dest_stack(RED), grid%max_dest_stack(RED), ", stack green:", grid%min_dest_stack(GREEN), grid%max_dest_stack(GREEN)
     end subroutine
@@ -1007,7 +993,6 @@ module Conformity
                 section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 		end select
 
-
 		call cell%reverse()
 	end subroutine
 
@@ -1291,7 +1276,7 @@ module Conformity
         type(t_global_data), intent(inout)	    :: grid_data
         type(t_global_data), intent(inout)		:: section_data(:)
 
-		integer (BYTE)					    :: i_color
+		integer (BYTE)					        :: i_color
 
         call reduce(grid_data%dest_cells, section_data%dest_cells, MPI_SUM, .false.)
 
