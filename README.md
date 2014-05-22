@@ -8,23 +8,23 @@ Contents:
 
 1. Prerequisites
 2. Installation
-2a. SuperMUC
-2b. Linux Cluster
-3. Running
+ 1. SuperMUC
+ 2. Linux Cluster
+3. Execution
 
-1. Prerequisites:
+## Prerequisites:
 -----------------
 
 The following prerequisites are necessary in order to install and run sam(oa)²:
 * [git](http://git-scm.com/)
 * [scons](http://www.scons.org/)
 * [ASAGI](https://github.com/tum-i5/ASAGI)
-* gfortran >= 4.7 OR Intel Fortran Compiler >= 13.0
+* gfortran 4.7 or higher OR Intel Fortran Compiler 13.0 or higher
 
-2. Installation:
+## Installation:
 -----------------
 
-After installing all the prerequisites, create a directory <samoa_dir> and execute the following steps:
+After installing all the prerequisites, create a directory samoa_dir and execute the following steps:
 
     cd <samoa_dir>
     git clone https://github.com/meistero/samoa .
@@ -38,9 +38,10 @@ now, in order to view all the compilation options sam(oa)² provides. Typical se
     scons asagi_dir=<asagi_dir> compiler=gnu scenario=darcy -j<threads>
     scons asagi_dir=<asagi_dir> compiler=intel target=debug scenario=swe -j<threads>
 
-Executables will be created in the directory <samoa_dir>/bin and should be run from <samoa_dir>
+Executables will be created in the directory samoa_dir/bin and should be run from samoa_dir
 
-2a. SuperMUC:
--------------
+### SuperMUC
+-----------
 
-
+### Linux Cluster
+-----------------
