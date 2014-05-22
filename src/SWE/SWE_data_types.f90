@@ -123,14 +123,7 @@
 			real (kind = GRID_SR)							:: r_time					!< simulation time
 			real (kind = GRID_SR)							:: r_dt						!< time step
 			real (kind = GRID_SR)							:: u_max					!< maximum wave velocity for cfl condition
-			integer (kind = BYTE)								:: d_max					!< current maximum grid depth
-
-            contains
-
-            procedure, pass :: init => num_global_data_init
-            procedure, pass :: reduce_num_global_data => num_global_data_reduce
-
-            generic :: reduce => reduce_num_global_data
+			integer (kind = BYTE)						    :: d_max					!< current maximum grid depth
 		end type
 
 		contains
@@ -178,21 +171,5 @@
 
 			f_out = t_dof_state(s * f%h, s * f%p)
 		end function
-
-
-        elemental subroutine num_global_data_init(gd)
-            class(num_global_data), intent(inout)		:: gd
-
-            gd%u_max = 0
-            gd%d_max = 0
-        end subroutine
-
-		elemental subroutine num_global_data_reduce(gd1, gd2)
-            class(num_global_data), intent(inout)	:: gd1
-            type(num_global_data), intent(in)	    :: gd2
-
-            gd1%u_max = max(gd1%u_max, gd2%u_max)
-            gd1%d_max = max(gd1%d_max, gd2%d_max)
-        end subroutine
 	END MODULE SWE_data_types
 #endif
