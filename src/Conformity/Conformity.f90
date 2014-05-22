@@ -274,7 +274,7 @@ module Conformity
         thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
         thread_stats%r_sync_time = -get_wtime()
-        call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
+        call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity, mpi_node_type_optional=conformity%mpi_node_type)
         thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
         thread_stats%r_barrier_time = -get_wtime()
