@@ -19,6 +19,7 @@
 		use Darcy_pressure_solver_pipecg_unst
 		use Darcy_transport_eq
 		use Darcy_permeability
+		use Darcy_error_estimate
 		use Darcy_adapt
 
 		use linear_solver
@@ -35,6 +36,7 @@
             type(t_darcy_grad_p_traversal)                  :: grad_p
             type(t_darcy_transport_eq_traversal)            :: transport_eq
             type(t_darcy_permeability_traversal)            :: permeability
+            type(t_darcy_error_estimate_traversal)          :: error_estimate
             type(t_darcy_adaption_traversal)                :: adaption
             class(t_linear_solver), pointer                 :: pressure_solver
 
@@ -76,6 +78,7 @@
             call darcy%grad_p%create()
             call darcy%transport_eq%create()
             call darcy%permeability%create()
+            call darcy%error_estimate%create()
             call darcy%adaption%create()
 
  			select case (cfg%i_lsolver)
@@ -205,6 +208,7 @@
             call darcy%xml_output%destroy()
             call darcy%grad_p%destroy()
             call darcy%transport_eq%destroy()
+            call darcy%error_estimate%destroy()
             call darcy%permeability%destroy()
             call darcy%adaption%destroy()
 
@@ -298,6 +302,7 @@
 			!output initial grid
 			if (r_output_step >= 0.0_GRID_SR) then
 				call darcy%grad_p%traverse(grid)
+                call darcy%permeability%traverse(grid)
 				call darcy%xml_output%traverse(grid)
 				r_time_next_output = r_time_next_output + r_output_step
 			end if
@@ -347,7 +352,7 @@
 				i_time_step = i_time_step + 1
 
 				!compute permeability field + refinement flag
-				call darcy%permeability%traverse(grid)
+				call darcy%error_estimate%traverse(grid)
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
@@ -359,6 +364,7 @@
 
 				!output grid
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+                    call darcy%permeability%traverse(grid)
 					call darcy%xml_output%traverse(grid)
 					r_time_next_output = r_time_next_output + r_output_step
 				end if
@@ -372,6 +378,7 @@
             call darcy%grad_p%reduce_stats(MPI_SUM, .true.)
             call darcy%transport_eq%reduce_stats(MPI_SUM, .true.)
             call darcy%permeability%reduce_stats(MPI_SUM, .true.)
+            call darcy%error_estimate%reduce_stats(MPI_SUM, .true.)
             call grid%reduce_stats(MPI_SUM, .true.)
 
             !copy counters
@@ -399,6 +406,7 @@
                 _log_write(0, '(A, T34, A)') " Transport: ", trim(darcy%transport_eq%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Gradient: ", trim(darcy%grad_p%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Permeability: ", trim(darcy%permeability%stats%to_string())
+                _log_write(0, '(A, T34, A)') " Error Estimate: ", trim(darcy%error_estimate%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(pressure_solver_stats_time_steps%to_string())
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
