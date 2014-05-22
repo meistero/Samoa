@@ -49,8 +49,7 @@ module SFC_edge_traversal
 		integer                                                 :: i_first_dest_section, i_last_dest_section
 		type(t_grid_section), pointer                           :: section
 		type(t_section_info_list), save                         :: section_descs
-        double precision                                        :: r_total_load
-		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_section_partial_load
+		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_section_partial_load, i_section_partial_load_prev
 		integer (kind = GRID_DI)                                :: i_section, i_section_2, i_sections, overlap, i_sum_cells, i_sum_cells_prev, i_total_section
 		integer (kind = GRID_DI)                                :: i_total_sections, i_eff_dest_cells
 
@@ -67,14 +66,7 @@ module SFC_edge_traversal
         !$omp single
         if (cfg%l_split_sections) then
             call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
-            r_total_load = src_grid%load
-            call reduce(r_total_load, MPI_SUM)
-            src_grid%load = src_grid%load / r_total_load
-
-            !switch to integer arithmetics from now on, we need exact arithmetics
-            !also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
-
-            i_grid_load = max(1_GRID_DI, int(src_grid%load * 1.0d6 * size_MPI, GRID_DI))
+            i_grid_load = max(1_GRID_DI, src_grid%load)
             i_grid_partial_load = i_grid_load
             call prefix_sum(i_grid_partial_load, MPI_SUM)
             i_total_load = i_grid_load
@@ -107,6 +99,7 @@ module SFC_edge_traversal
                 !64bit arithmetics are needed here, (i_section * src_grid%dest_cells) can become very big!
                 i_sum_cells = (i_eff_dest_cells * i_section) / i_sections
                 section_descs%elements(i_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4
+                section_descs%elements(i_section)%i_load = (i_grid_load * i_section) / i_sections - (i_grid_load * (i_section - 1)) / i_sections
                 assert_ge(section_descs%elements(i_section)%i_cells - 4, min_section_size)
                 i_sum_cells_prev = i_sum_cells
 
@@ -126,6 +119,7 @@ module SFC_edge_traversal
             call section_descs%resize(int(i_sections, GRID_SI))
 
             i_sum_cells_prev = 0
+            i_section_partial_load_prev = i_grid_partial_load - i_grid_load
             i_eff_dest_cells = src_grid%dest_cells - i_sections * min_section_size
             assert_ge(i_eff_dest_cells, 0)
             i_total_section = (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load + 1_GRID_DI
@@ -134,7 +128,10 @@ module SFC_edge_traversal
                 i_section_partial_load = min(1_GRID_DI + (i_total_load * i_total_section - 1_GRID_DI) / i_total_sections, i_grid_partial_load)
                 assert_gt(i_section_partial_load, i_grid_partial_load - i_grid_load)
                 assert_lt((i_total_load * (i_total_section - 1_GRID_DI)) / i_total_sections, i_grid_partial_load)
+
+                section_descs%elements(i_section)%i_load = i_section_partial_load - i_section_partial_load_prev
                 i_sum_cells = (i_eff_dest_cells * (i_section_partial_load - (i_grid_partial_load - i_grid_load))) / i_grid_load
+
                 section_descs%elements(i_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4_GRID_DI
                 assert_ge(section_descs%elements(i_section)%i_cells - 4_GRID_DI, min_section_size)
 
@@ -146,6 +143,7 @@ module SFC_edge_traversal
                 _log_write(1, '(4X, I0)') section_descs%elements(i_section)%i_cells - 4
 
                 i_sum_cells_prev = i_sum_cells
+                i_section_partial_load_prev = i_section_partial_load
                 i_total_section = i_total_section + 1
             end do
 
@@ -1271,7 +1269,7 @@ module SFC_edge_traversal
         type(t_grid), intent(inout)						:: grid
 		real, intent(in)               					:: r_max_imbalance		!< maximum allowed global imbalance (i.e. 0.1 = 10%)
 
-		double precision							    :: r_total_load, r_imbalance
+        integer (kind = GRID_DI)                        :: i_total_load, i_max_load
         integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_section
         integer, pointer, save                          :: i_rank_out(:), i_section_index_out(:), i_rank_in(:)
         type(t_grid)						            :: grid_temp
@@ -1294,32 +1292,26 @@ module SFC_edge_traversal
 
 		    call prefix_sum(grid%sections%elements_alloc%partial_load, grid%sections%elements_alloc%load)
 		    call reduce(grid%load, grid%sections%elements_alloc%load, MPI_SUM, .false.)
-		    r_total_load = grid%load
-		    call reduce(r_total_load, MPI_SUM)
-
-		    grid%load = grid%load / r_total_load
 
 			!check imbalance
 			if (r_max_imbalance > 0.0d0) then
-                r_imbalance = grid%load * size_MPI - 1.0d0
-                call reduce(r_imbalance, MPI_MAX)
+                i_total_load = grid%load
+                i_max_load = grid%load
+                call reduce(i_total_load, MPI_SUM)
+                call reduce(i_max_load, MPI_MAX)
             else
-                r_imbalance = 1.0d0
+                i_max_load = huge(1_GRID_DI)
+                i_total_load = 1_GRID_DI
             end if
-	        !$omp end single copyprivate(r_total_load, r_imbalance)
-
-            do i_section = i_first_local_section, i_last_local_section
-                grid%sections%elements_alloc(i_section)%load = grid%sections%elements_alloc(i_section)%load / r_total_load
-                grid%sections%elements_alloc(i_section)%partial_load = grid%sections%elements_alloc(i_section)%partial_load / r_total_load
-            end do
+	        !$omp end single copyprivate(i_max_load, i_total_load)
 
 			!exit early if the imbalance is small enough
-	        if (r_imbalance .le. r_max_imbalance) then
-                _log_write(2, '(4X, "load balancing: imbalance above threshold? no: ", F0.3, " < ", F0.3)') r_imbalance, r_max_imbalance
+	        if (dble(i_max_load) * size_MPI .le. (1.0d0 + r_max_imbalance) * i_total_load) then
+                _log_write(2, '(4X, "load balancing: imbalance above threshold? no: ", F0.3, " < ", F0.3)') dble(i_max_load) * size_MPI / dble(i_total_load) - 1.0d0, r_max_imbalance
                 return
            	end if
 
-	        _log_write(2, '(4X, "load balancing: imbalance above threshold? yes: ", F0.3, " > ", F0.3)') r_imbalance, r_max_imbalance
+	        _log_write(2, '(4X, "load balancing: imbalance above threshold? yes: ", F0.3, " > ", F0.3)') dble(i_max_load) * size_MPI / dble(i_total_load) - 1.0d0, r_max_imbalance
 
             if (cfg%l_serial_lb) then
                 call compute_partition_serial(grid, i_rank_out, i_section_index_out, i_rank_in, l_early_exit)
@@ -1459,7 +1451,7 @@ module SFC_edge_traversal
 			!switch to integer arithmetics from now on, we need exact arithmetics
 			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-			load = max(1_GRID_DI, int(grid%load * 1.0d6 * size_MPI, GRID_DI))
+			load = max(1_GRID_DI, grid%load)
             partial_load = load
 			call prefix_sum(partial_load, MPI_SUM)
 			total_load = load
@@ -1471,8 +1463,8 @@ module SFC_edge_traversal
 
             if (i_sections > 0) then
                 rank_imbalance = \
-                    (((partial_load - int(0.5d0 * grid%sections%elements_alloc(i_sections)%load / grid%load * load, GRID_DI)) * size_MPI) / total_load) - \
-                    (((partial_load - load + int(0.5d0 * grid%sections%elements_alloc(1)%load / grid%load * load, GRID_DI)) * size_MPI) / total_load)
+                    ((2_GRID_DI * partial_load - grid%sections%elements_alloc(i_sections)%load) * size_MPI) / (2_GRID_DI * total_load) - \
+                    ((2_GRID_DI * (partial_load - load) + grid%sections%elements_alloc(1)%load) * size_MPI) / (2_GRID_DI * total_load)
             else
                 rank_imbalance = 0
             end if
@@ -1532,7 +1524,7 @@ module SFC_edge_traversal
 	            assert_eq(section%index, i_section)
 
 	            !assign this section to its respective ideal rank
-	            i_rank = ((partial_load - load + int((section%partial_load - 0.5d0 * section%load) / grid%load * load, GRID_DI)) * size_MPI) / total_load
+	            i_rank = (((2_GRID_DI * (partial_load - load + section%partial_load) - section%load)) * size_MPI) / (2_GRID_DI * total_load)
 	        	assert_ge(i_rank, i_first_rank_out)
 	        	assert_le(i_rank, i_last_rank_out)
 
@@ -1659,18 +1651,18 @@ module SFC_edge_traversal
         end subroutine
 
         subroutine midpoint_cutoff(l, s)
-            double precision, intent(in)            :: l(:)
+            integer(kind = GRID_DI), intent(in)     :: l(:)
             integer(kind = GRID_SI), intent(inout)  :: s(:)
 
             integer                                 :: n, i, j
-            double precision                        :: L_j, L_n
+            integer (kind = GRID_DI)                :: L_j, L_n
 
             n = size(l)
             L_n = sum(l)
-            L_j = 0.0d0
+            L_j = 0_GRID_DI
 
             do j = 1, n
-                i = int((size_MPI * (L_j + 0.5d0 * l(j))) / L_n)
+                i = int((size_MPI * (2_GRID_DI * L_j + l(j))) / (2_GRID_DI * L_n))
                 s(j) = i
 
                 L_j = L_j + l(j)
@@ -1678,32 +1670,32 @@ module SFC_edge_traversal
         end subroutine
 
         subroutine iterative_binary(l, s)
-            double precision, intent(in)            :: l(:)
+            integer(kind = GRID_DI), intent(in)     :: l(:)
             integer(kind = GRID_SI), intent(inout)  :: s(:)
 
             integer(kind = GRID_SI), allocatable    :: s_test(:)
             integer                                 :: n, i_error, i, j
-            double precision                        :: test, test_max, current_min, current_max, load_i
+            integer (kind = GRID_DI)                :: test, test_max, current_min, current_max, load_i
 
             n = size(l)
 
             allocate(s_test(n), stat=i_error); assert_eq(i_error, 0)
 
-            current_max = 0.0d0
+            current_max = 0_GRID_DI
             i = 0
-            load_i = 0.0d0
+            load_i = 0_GRID_DI
 
             do j = 1, n
                 if (s(j) > i) then
                     current_max = max(current_max, load_i)
                     i = s(j)
-                    load_i = 0.0d0
+                    load_i = 0_GRID_DI
                 end if
 
                 load_i = load_i + l(j)
             end do
 
-            current_max = max(current_max, load_i) * 1.01d0
+            current_max = max(current_max, load_i) + 1_GRID_DI
             current_min = max(sum(l) / size_MPI, maxval(l))
 
             test = (current_min + current_max) / 2
@@ -1713,15 +1705,15 @@ module SFC_edge_traversal
                     exit
                 end if
 
-                test_max = 0.0d0
+                test_max = 0_GRID_DI
                 i = 0
-                load_i = 0.0d0
+                load_i = 0_GRID_DI
 
                 do j = 1, n
                     if (load_i + l(j) >= test .and. i < size_MPI - 1) then
                         test_max = max(test_max, load_i)
                         i = i + 1
-                        load_i = 0.0d0
+                        load_i = 0_GRID_DI
                     end if
 
                     load_i = load_i + l(j)
@@ -1753,7 +1745,7 @@ module SFC_edge_traversal
 
             integer, allocatable, save                      :: all_sections(:), displacements(:), all_ranks(:), all_section_indices_out(:)
             integer, allocatable, save                      :: requests_in(:), requests_out(:)
-            double precision, allocatable, save             :: all_load(:), local_load(:)
+            integer (kind = GRID_DI), allocatable, save     :: all_load(:), local_load(:)
             integer                                         :: total_sections, i_sections_out, i_sections_in, i_error, i, j, k
 
 			l_early_exit = .false.

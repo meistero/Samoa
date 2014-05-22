@@ -234,6 +234,8 @@ module Section_info_list
 		integer (kind = GRID_SI)    :: i_comms(RED : GREEN) = 0		            !< red and green comms
         integer (kind = GRID_SI)    :: i_comms_type(OLD : NEW, RED : GREEN) = 0 !< old and new, red and green comms
 
+		integer (kind = GRID_DI)    :: i_load = 0	                            !< section load
+
 		contains
 
 		procedure, private, pass :: add => grid_info_add
@@ -247,7 +249,6 @@ module Section_info_list
 
  	type, extends(t_grid_info) :: t_section_info
 		integer (kind = GRID_SI)                                                    :: index	    !< index of the section
-
 		contains
 
 		procedure, pass :: reduce_section_info => section_info_reduce
@@ -276,6 +277,8 @@ module Section_info_list
 		gi%i_boundary_nodes = gi1%i_boundary_nodes + gi2%i_boundary_nodes
 		gi%i_stack_nodes = max(gi1%i_stack_nodes, gi2%i_stack_nodes)
 
+        gi%i_load = gi1%i_load + gi2%i_load
+
         !not correct, but an upper bound
         gi%i_comms = gi1%i_comms + gi2%i_comms
         gi%i_comms_type = gi1%i_comms_type + gi2%i_comms_type
@@ -297,6 +300,8 @@ module Section_info_list
 		call reduce(s%i_crossed_edges, v%i_crossed_edges, mpi_op, global)
 		call reduce(s%i_color_edges, v%i_color_edges, mpi_op, global)
 		call reduce(s%i_nodes, v%i_nodes, mpi_op, global)
+
+        call reduce(s%i_load, v%i_load, mpi_op, global)
 
 		do i_color = RED, GREEN
             call reduce(s%i_boundary_edges(i_color), v%i_boundary_edges(i_color), mpi_op, global)
@@ -670,9 +675,9 @@ module Grid_section
 		class(t_grid_section), intent(inout)		        :: section
 
         if (cfg%l_timed_load) then
-            section%load = (section%stats%r_computation_time * section%dest_cells) / section%cells%get_size()
+            section%load = (int(section%stats%r_computation_time * 1.0d6, GRID_DI) * section%dest_cells) / section%cells%get_size()
 		else
-            section%load = cfg%r_cell_weight * section%dest_cells + cfg%r_boundary_weight * (section%boundary_nodes(RED)%get_size() + section%boundary_nodes(GREEN)%get_size())
+            section%load = int(cfg%r_cell_weight * section%dest_cells + cfg%r_boundary_weight * (section%boundary_nodes(RED)%get_size() + section%boundary_nodes(GREEN)%get_size()), GRID_DI)
 		endif
     end subroutine
 
