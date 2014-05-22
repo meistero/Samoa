@@ -666,13 +666,13 @@ module Grid_section
 		end do
 	end subroutine
 
-	elemental subroutine grid_section_estimate_load(section)
+	subroutine grid_section_estimate_load(section)
 		class(t_grid_section), intent(inout)		        :: section
 
         if (cfg%l_timed_load) then
             section%load = (section%stats%r_computation_time * section%dest_cells) / section%cells%get_size()
 		else
-            section%load = section%dest_cells
+            section%load = cfg%r_cell_weight * section%dest_cells + cfg%r_boundary_weight * (section%boundary_nodes(RED)%get_size() + section%boundary_nodes(GREEN)%get_size())
 		endif
     end subroutine
 
