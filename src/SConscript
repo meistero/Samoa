@@ -41,6 +41,7 @@ f90_sources = [
 "Darcy/Darcy_grad_p.f90",
 "Darcy/Darcy_transport_eq.f90",
 "Darcy/Darcy_permeability.f90",
+"Darcy/Darcy_error_estimate.f90",
 "Darcy/Darcy_adapt.f90",
 "Heat_Equation/Heat_Eq.f90",
 "Heat_Equation/Heat_Eq_local_function_spaces.f90",
