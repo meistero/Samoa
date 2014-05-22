@@ -4,7 +4,7 @@ Samoa
 Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications.
 Website: [Samoa](https://github.com/meistero/Samoa)
 
-Contents:
+## Contents:
 
 1. Prerequisites
 2. Installation
@@ -13,7 +13,6 @@ Contents:
 3. Execution
 
 ## Prerequisites:
------------------
 
 The following prerequisites are necessary in order to install and run sam(oa)²:
 * [git](http://git-scm.com/)
@@ -22,7 +21,6 @@ The following prerequisites are necessary in order to install and run sam(oa)²:
 * gfortran 4.7 or higher OR Intel Fortran Compiler 13.0 or higher
 
 ## Installation:
------------------
 
 After installing all the prerequisites, create a directory samoa_dir and execute the following steps:
 
@@ -41,7 +39,5 @@ now, in order to view all the compilation options sam(oa)² provides. Typical se
 Executables will be created in the directory samoa_dir/bin and should be run from samoa_dir
 
 ### SuperMUC
------------
 
 ### Linux Cluster
------------------
