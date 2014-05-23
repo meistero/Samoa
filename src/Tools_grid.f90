@@ -136,6 +136,7 @@ module Neighbor_list
 		integer                         :: recv_requests(2) = MPI_REQUEST_NULL              !< mpi receive request
 		type(t_edge_data), pointer      :: p_local_edges(:) => null(), p_neighbor_edges(:) => null()
 		type(t_node_data), pointer      :: p_local_nodes(:) => null(), p_neighbor_nodes(:) => null()
+		logical                         :: l_buffer_allocated = .false.                     !< if true, the neighbor edges and nodes are buffers that must be deallocated
 
 		contains
 
@@ -158,11 +159,13 @@ module Neighbor_list
 		integer                                     :: i_error, i
 
         if (comm%neighbor_rank .ge. 0 .and. comm%neighbor_rank .ne. rank_MPI) then
+            assert(.not. comm%l_buffer_allocated)
             assert(.not. associated(comm%p_neighbor_edges))
             assert(.not. associated(comm%p_neighbor_nodes))
 
             allocate(comm%p_neighbor_edges(comm%i_edges), stat = i_error); assert_eq(i_error, 0)
             allocate(comm%p_neighbor_nodes(comm%i_nodes), stat = i_error); assert_eq(i_error, 0)
+            comm%l_buffer_allocated = .true.
 
 #           if defined(_ASSERT)
                 !in case assertions are active, copy local data to neighbor buffer to ensure that
@@ -187,14 +190,14 @@ module Neighbor_list
 		class(t_comm_interface), intent(inout)   :: comm
 		integer                                         :: i_error
 
-        if (comm%neighbor_rank .ge. 0 .and. comm%neighbor_rank .ne. rank_MPI) then
-            if (associated(comm%p_neighbor_edges)) then
-                deallocate(comm%p_neighbor_edges, stat = i_error); assert_eq(i_error, 0)
-            end if
+        if (comm%l_buffer_allocated) then
+            assert(associated(comm%p_neighbor_edges))
+            assert(associated(comm%p_neighbor_nodes))
 
-            if (associated(comm%p_neighbor_nodes)) then
-                deallocate(comm%p_neighbor_nodes, stat = i_error); assert_eq(i_error, 0)
-            end if
+            deallocate(comm%p_neighbor_edges, stat = i_error); assert_eq(i_error, 0)
+            deallocate(comm%p_neighbor_nodes, stat = i_error); assert_eq(i_error, 0)
+
+            comm%l_buffer_allocated = .false.
         else
             nullify(comm%p_neighbor_edges)
             nullify(comm%p_neighbor_nodes)
@@ -530,10 +533,11 @@ module Grid_section
 		class(t_grid_section), intent(inout)		:: section
 		type(t_section_info), intent(in)			:: section_info
 
-		integer (kind = GRID_SI)					:: i_color, i_error
+		integer (kind = GRID_SI)					:: i_color, i_error, i
 
         section%index = section_info%index
-        section%load = 0.0_GRID_SR
+        section%load = section_info%i_load
+        section%dest_cells = section_info%i_cells - 4
 
 		call section%cells%resize(section_info%i_cells)
 		call section%crossed_edges_in%resize(section_info%i_crossed_edges)
@@ -576,7 +580,7 @@ module Grid_section
 			call section%boundary_edges(i_color)%clear()
 			call section%boundary_nodes(i_color)%clear()
 
-			do j = 1, size(section%comms(i_color)%elements)
+			do j = 1, section%comms(i_color)%get_size()
                 call section%comms(i_color)%elements(j)%destroy_buffer()
             end do
 
@@ -804,6 +808,7 @@ module Grid
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
         do i_section = i_first_local_section, i_last_local_section
+            grid%sections%elements_alloc(i_section)%t_global_data = grid%t_global_data
             call grid%sections%elements_alloc(i_section)%create(dest_grid_sections%elements(i_section))
         end do
 

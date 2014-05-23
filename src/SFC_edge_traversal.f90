@@ -49,24 +49,29 @@ module SFC_edge_traversal
 		integer                                                 :: i_first_dest_section, i_last_dest_section
 		type(t_grid_section), pointer                           :: section
 		type(t_section_info_list), save                         :: section_descs
-		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_section_partial_load, i_section_partial_load_prev
-		integer (kind = GRID_DI)                                :: i_section, i_section_2, i_sections, overlap, i_sum_cells, i_sum_cells_prev, i_total_section
+		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_src_section_partial_load, i_section_partial_load, i_section_partial_load_prev
+		integer (kind = GRID_DI)                                :: i_src_section, i_dest_section, i_src_sections, i_dest_sections, i_sum_cells, i_sum_cells_prev, i_total_section
 		integer (kind = GRID_DI)                                :: i_total_sections, i_eff_dest_cells
 
         _log_write(4, '(3X, A)') "create splitting"
 
         call src_grid%get_local_sections(i_first_src_section, i_last_src_section)
 
-        do i_section = i_first_src_section, i_last_src_section
-            call src_grid%sections%elements_alloc(i_section)%estimate_load()
+        do i_src_section = i_first_src_section, i_last_src_section
+            call src_grid%sections%elements_alloc(i_src_section)%estimate_load()
         end do
+
+        i_src_sections = src_grid%sections%get_size()
 
         !$omp barrier
 
         !$omp single
+        call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
+        call prefix_sum(src_grid%sections%elements_alloc%last_dest_cell, src_grid%sections%elements_alloc%dest_cells)
+
+        i_grid_load = max(1_GRID_DI, src_grid%load)
+
         if (cfg%l_split_sections) then
-            call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
-            i_grid_load = max(1_GRID_DI, src_grid%load)
             i_grid_partial_load = i_grid_load
             call prefix_sum(i_grid_partial_load, MPI_SUM)
             i_total_load = i_grid_load
@@ -74,108 +79,117 @@ module SFC_edge_traversal
 
             i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_max_threads(), GRID_DI) * int(size_MPI, GRID_DI)
 
-            i_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1) / i_total_load &
+            i_dest_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1) / i_total_load &
                 - (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
         end if
 
-        if (.not. cfg%l_split_sections .or. src_grid%dest_cells < i_sections * min_section_size) then
-            i_sections = min(src_grid%dest_cells / min_section_size, int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_max_threads(), GRID_DI))
+        if (.not. cfg%l_split_sections .or. src_grid%dest_cells < i_dest_sections * min_section_size) then
+            i_dest_sections = min(src_grid%dest_cells / min_section_size, int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_max_threads(), GRID_DI))
 
             if (src_grid%dest_cells > 0) then
-                i_sections = max(i_sections, 1)
+                i_dest_sections = max(i_dest_sections, 1)
             end if
 
-            _log_write(4, '(3X, A, I0)') "sections: ", i_sections
-            call section_descs%resize(int(i_sections, GRID_SI))
+            _log_write(4, '(3X, A, I0)') "sections: ", i_dest_sections
+            call section_descs%resize(int(i_dest_sections, GRID_SI))
 
             i_sum_cells_prev = 0
-            i_eff_dest_cells = src_grid%dest_cells - i_sections * min_section_size
+            i_eff_dest_cells = src_grid%dest_cells - i_dest_sections * min_section_size
             assert_ge(i_eff_dest_cells, 0)
 
-            do i_section = 1, i_sections
+            do i_dest_section = 1, i_dest_sections
                 !Set the number of cells to the difference of partial sums. This guarantees, that there are exactly src_grid%dest_cells cells in total.
 
                 !Add +4 to create enough space for additional refinement cells
-                !64bit arithmetics are needed here, (i_section * src_grid%dest_cells) can become very big!
-                i_sum_cells = (i_eff_dest_cells * i_section) / i_sections
-                section_descs%elements(i_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4
-                section_descs%elements(i_section)%i_load = (i_grid_load * i_section) / i_sections - (i_grid_load * (i_section - 1)) / i_sections
-                assert_ge(section_descs%elements(i_section)%i_cells - 4, min_section_size)
+                !64bit arithmetics are needed here, (i_dest_section * src_grid%dest_cells) can become very big!
+                i_sum_cells = (i_eff_dest_cells * i_dest_section) / i_dest_sections
+                section_descs%elements(i_dest_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4_GRID_DI
+                section_descs%elements(i_dest_section)%i_load = (i_grid_load * i_dest_section) / i_dest_sections - (i_grid_load * (i_dest_section - 1)) / i_dest_sections
+                assert_ge(section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI, min_section_size)
                 i_sum_cells_prev = i_sum_cells
 
-                section_descs%elements(i_section)%index = i_section
-                section_descs%elements(i_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
-                section_descs%elements(i_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+                section_descs%elements(i_dest_section)%index = i_dest_section
+                section_descs%elements(i_dest_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+                section_descs%elements(i_dest_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
 
-                call section_descs%elements(i_section)%estimate_bounds()
-                _log_write(4, '(4X, I0)') section_descs%elements(i_section)%i_cells - 4
+                call section_descs%elements(i_dest_section)%estimate_bounds()
+                _log_write(1, '(4X, "Cells: ", I0)') section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI
+                _log_write(1, '(4X, "Load: ", I0)') section_descs%elements(i_dest_section)%i_load
             end do
 
-            if (i_sections > 0) then
+            if (i_dest_sections > 0) then
                 assert_eq(i_sum_cells, i_eff_dest_cells)
             end if
         else
-            _log_write(4, '(3X, A, I0)') "sections: ", i_sections
-            call section_descs%resize(int(i_sections, GRID_SI))
+            _log_write(4, '(3X, A, I0)') "sections: ", i_dest_sections
+            call section_descs%resize(int(i_dest_sections, GRID_SI))
 
+            i_sum_cells = 0
             i_sum_cells_prev = 0
             i_section_partial_load_prev = i_grid_partial_load - i_grid_load
-            i_eff_dest_cells = src_grid%dest_cells - i_sections * min_section_size
+            i_eff_dest_cells = src_grid%dest_cells - i_dest_sections * min_section_size
             assert_ge(i_eff_dest_cells, 0)
             i_total_section = (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load + 1_GRID_DI
 
-            do i_section = 1, i_sections
+            i_src_section = 1
+            i_src_section_partial_load = i_grid_partial_load - i_grid_load
+
+            do i_dest_section = 1, i_dest_sections
                 i_section_partial_load = min(1_GRID_DI + (i_total_load * i_total_section - 1_GRID_DI) / i_total_sections, i_grid_partial_load)
                 assert_gt(i_section_partial_load, i_grid_partial_load - i_grid_load)
                 assert_lt((i_total_load * (i_total_section - 1_GRID_DI)) / i_total_sections, i_grid_partial_load)
 
-                section_descs%elements(i_section)%i_load = i_section_partial_load - i_section_partial_load_prev
-                i_sum_cells = (i_eff_dest_cells * (i_section_partial_load - (i_grid_partial_load - i_grid_load))) / i_grid_load
+                do
+                    if (i_src_section_partial_load + src_grid%sections%elements_alloc(i_src_section)%load >= i_section_partial_load) then
+                        exit
+                    endif
 
-                section_descs%elements(i_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4_GRID_DI
-                assert_ge(section_descs%elements(i_section)%i_cells - 4_GRID_DI, min_section_size)
+                    i_src_section_partial_load = i_src_section_partial_load + src_grid%sections%elements_alloc(i_src_section)%load
+                    i_src_section = i_src_section + 1
+                end do
 
-                section_descs%elements(i_section)%index = i_section
-                section_descs%elements(i_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
-                section_descs%elements(i_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+                i_sum_cells = src_grid%sections%elements_alloc(i_src_section)%last_dest_cell - src_grid%sections%elements_alloc(i_src_section)%dest_cells &
+                 + ((i_section_partial_load - i_src_section_partial_load) * src_grid%sections%elements_alloc(i_src_section)%dest_cells) / &
+                    src_grid%sections%elements_alloc(i_src_section)%load
 
-                call section_descs%elements(i_section)%estimate_bounds()
-                _log_write(1, '(4X, I0)') section_descs%elements(i_section)%i_cells - 4
+                section_descs%elements(i_dest_section)%i_load = i_section_partial_load - i_section_partial_load_prev
+
+                section_descs%elements(i_dest_section)%i_cells = min_section_size &
+                     + (i_sum_cells * i_eff_dest_cells) / src_grid%dest_cells &
+                    - (i_sum_cells_prev * i_eff_dest_cells) / src_grid%dest_cells + 4_GRID_DI
+
+                assert_ge(section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI, min_section_size)
+
+                section_descs%elements(i_dest_section)%index = i_dest_section
+                section_descs%elements(i_dest_section)%i_stack_nodes = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+                section_descs%elements(i_dest_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
+
+                call section_descs%elements(i_dest_section)%estimate_bounds()
+                _log_write(1, '(4X, "Cells: ", I0, " Load: ", I0)') section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI, section_descs%elements(i_dest_section)%i_load
 
                 i_sum_cells_prev = i_sum_cells
                 i_section_partial_load_prev = i_section_partial_load
                 i_total_section = i_total_section + 1
             end do
 
-            if (i_sections > 0) then
+            if (i_dest_sections > 0) then
                 assert_eq(i_total_section, 1 + (i_total_sections * i_grid_partial_load + i_total_load - 1_GRID_DI) / i_total_load)
-                assert_eq(i_sum_cells, i_eff_dest_cells)
+                assert_eq(i_sum_cells, src_grid%dest_cells)
             end if
         end if
+        !$omp end single copyprivate(i_dest_sections)
 
-        call prefix_sum(src_grid%sections%elements_alloc%last_dest_cell, src_grid%sections%elements_alloc%dest_cells)
-        !$omp end single copyprivate(i_sections)
-
-        assert_le(i_sections, ishft(1, 14) - 1)
-
-        !create new grid
-        call dest_grid%create(section_descs, src_grid%max_dest_stack - src_grid%min_dest_stack + 1)
-
-        call dest_grid%get_local_sections(i_first_dest_section, i_last_dest_section)
-
-        dest_grid%threads%elements(i_thread)%stats = src_grid%threads%elements(i_thread)%stats
-
-        do i_section = i_first_dest_section, i_last_dest_section
-            section => dest_grid%sections%elements_alloc(i_section)
-
-            section%t_global_data = src_grid%t_global_data
-            section%dest_cells = section%cells%get_size() - 4
-        end do
+        assert_le(i_dest_sections, ishft(1, 14) - 1)
 
         !$omp single
             dest_grid%stats = src_grid%stats
             dest_grid%t_global_data = src_grid%t_global_data
         !$omp end single
+
+        !create new grid
+        call dest_grid%create(section_descs, src_grid%max_dest_stack - src_grid%min_dest_stack + 1)
+
+        dest_grid%threads%elements(i_thread)%stats = src_grid%threads%elements(i_thread)%stats
     end subroutine
 
     subroutine update_distances(grid)
@@ -438,12 +452,12 @@ module SFC_edge_traversal
         !$omp barrier
 
         do i_section = i_first_local_section, i_last_local_section
-            section => grid%sections%elements_alloc(i_section)
+            assert_eq(grid%sections%elements_alloc(i_section)%index, i_section)
 
             _log_write(4, '(4X, A, I0)') "section set neighbor pointers: ", i_section
 
             do i_color = RED, GREEN
-                call set_comm_neighbor_data(grid, section, i_color)
+                call set_comm_neighbor_data(grid, grid%sections%elements_alloc(i_section), i_color)
             end do
         end do
     end subroutine
@@ -1279,12 +1293,6 @@ module SFC_edge_traversal
 #		if defined(_MPI)
             _log_write(3, '(3X, A)') "distribute load"
 
-        	call grid%get_local_sections(i_first_local_section, i_last_local_section)
-
-            do i_section = i_first_local_section, i_last_local_section
-                call grid%sections%elements_alloc(i_section)%estimate_load()
-            end do
-
             !$omp barrier
 
 		    !$omp single
@@ -1300,7 +1308,7 @@ module SFC_edge_traversal
                 call reduce(i_total_load, MPI_SUM)
                 call reduce(i_max_load, MPI_MAX)
             else
-                i_max_load = huge(1_GRID_DI)
+                i_max_load = 2_GRID_DI
                 i_total_load = 1_GRID_DI
             end if
 	        !$omp end single copyprivate(i_max_load, i_total_load)
@@ -1340,7 +1348,8 @@ module SFC_edge_traversal
 	        !exit early if nothing changes on this rank
 
 	        if (size(i_rank_out) == 0 .and. size(i_rank_in) == 0) then
-	            !if we have nothing and we get nothing we are done
+	            !if we have nothing and we get nothing from others we are done
+                _log_write(2, '(4X, "load balancing: exit, we do not have nor get anything ")')
 	            return
             else if (size(i_rank_in) == 0) then
                 !if we get nothing we cannot give anything to ourselves
@@ -1352,6 +1361,7 @@ module SFC_edge_traversal
                     i_rank_in(1) .eq. rank_MPI .and. i_rank_in(size(i_rank_in)) .eq. rank_MPI) then
 
                 !if we give nothing to others and get nothing from others we are done
+                _log_write(2, '(4X, "load balancing: exit, we have something, but do not give nor get anything")')
                 return
 	        end if
 
@@ -1397,8 +1407,8 @@ module SFC_edge_traversal
 			!$omp end single
 
 	        !resize stacks to make sure they are big enough for the new sections
-	        call grid%threads%elements(1 + omp_get_thread_num())%destroy()
-	        call grid%threads%elements(1 + omp_get_thread_num())%create(grid%max_dest_stack - grid%min_dest_stack + 1)
+	        call grid%threads%elements(i_thread)%destroy()
+	        call grid%threads%elements(i_thread)%create(grid%max_dest_stack - grid%min_dest_stack + 1)
 
 	        call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
@@ -1785,7 +1795,7 @@ module SFC_edge_traversal
             allocate(local_load(i_sections_out), stat=i_error); assert_eq(i_error, 0)
 
             local_load(:) = grid%sections%elements_alloc(:)%load
-            call mpi_gatherv(local_load, i_sections_out, MPI_DOUBLE_PRECISION, all_load, all_sections, displacements, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+            call mpi_gatherv(local_load, i_sections_out, MPI_INTEGER8, all_load, all_sections, displacements, MPI_INTEGER8, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
             if (rank_MPI == 0) then
                 j = 0
@@ -1905,8 +1915,6 @@ module SFC_edge_traversal
 	                    comm%local_section = new_section
 
 	                    if (comm%neighbor_rank .ge. 0) then
-	                        call comm%destroy_buffer()
-
 							assert_lt(old_comm%local_section, ishft(1, 15))
 							assert_lt(old_comm%neighbor_section, ishft(1, 15))
 					        send_tag = ishft(old_comm%local_section, 15) + old_comm%neighbor_section
@@ -2024,7 +2032,7 @@ module SFC_edge_traversal
 		    type(t_grid), intent(inout)		                :: src_grid, dest_grid
 		    integer, intent(in)                             :: i_rank_out(:), i_rank_in(:)
 
-		    integer						                    :: i_section, i_error
+		    integer						                    :: i_section, i_comm, i_error
             integer (kind = GRID_SI)						:: i_first_src_section, i_last_src_section, i_first_dest_section, i_last_dest_section
 		    integer (BYTE)						        :: i_color
 		    type(t_grid_section), pointer					:: section
@@ -2131,6 +2139,15 @@ module SFC_edge_traversal
                             l_reverse_section_list = .true.
                         end if
                 end select
+
+                !nullify invalid pointers to neighbor edges and nodes
+                do i_color = RED, GREEN
+                    do i_comm = 1, section%comms(i_color)%get_size()
+                        section%comms(i_color)%elements(i_comm)%l_buffer_allocated = .false.
+                        nullify(section%comms(i_color)%elements(i_comm)%p_neighbor_edges)
+                        nullify(section%comms(i_color)%elements(i_comm)%p_neighbor_nodes)
+                    end do
+                end do
 
 	            assert_eq(section%cells%elements(1)%get_previous_edge_type(), OLD_BND)
 	            assert(section%cells%is_forward() .eqv. section%boundary_edges(RED)%is_forward())

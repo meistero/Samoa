@@ -42,6 +42,7 @@ MODULE SFC_node_traversal
 		if (rank_MPI == 0) then
 			section_descriptor = t_section_info(&
                 index = 1, &
+                i_load = 0, &
 				i_cells = 2 ** (start_depth + 1), &
 				i_stack_nodes = [2 ** ((start_depth + 4) / 2), 2 ** ((start_depth + 3) / 2)], &
 				i_stack_edges = [2 ** ((start_depth + 4) / 2) - 1, 2 ** ((start_depth + 3) / 2) - 1], &

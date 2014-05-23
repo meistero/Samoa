@@ -123,7 +123,7 @@ MODULE SFC_data_types
 
         integer (kind = GRID_SI), dimension(RED : GREEN)	:: start_dest_stack, end_dest_stack, min_dest_stack, max_dest_stack
         integer (kind = GRID_DI)	                        :: dest_cells, last_dest_cell
-        integer (kind = GRID_DI)                            :: dest_load, load, partial_load
+        integer (kind = GRID_DI)                            :: load, partial_load
         logical	                                            :: l_conform
 
         contains
