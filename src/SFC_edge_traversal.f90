@@ -113,8 +113,8 @@ module SFC_edge_traversal
                 section_descs%elements(i_dest_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
 
                 call section_descs%elements(i_dest_section)%estimate_bounds()
-                _log_write(1, '(4X, "Cells: ", I0)') section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI
-                _log_write(1, '(4X, "Load: ", I0)') section_descs%elements(i_dest_section)%i_load
+                _log_write(4, '(4X, "Cells: ", I0)') section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI
+                _log_write(4, '(4X, "Load: ", I0)') section_descs%elements(i_dest_section)%i_load
             end do
 
             if (i_dest_sections > 0) then
@@ -165,7 +165,7 @@ module SFC_edge_traversal
                 section_descs%elements(i_dest_section)%i_stack_edges = src_grid%max_dest_stack - src_grid%min_dest_stack + 1
 
                 call section_descs%elements(i_dest_section)%estimate_bounds()
-                _log_write(1, '(4X, "Cells: ", I0, " Load: ", I0)') section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI, section_descs%elements(i_dest_section)%i_load
+                _log_write(4, '(4X, "Cells: ", I0, " Load: ", I0)') section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI, section_descs%elements(i_dest_section)%i_load
 
                 i_sum_cells_prev = i_sum_cells
                 i_section_partial_load_prev = i_section_partial_load
