@@ -38,7 +38,6 @@
 #		define _GT_EDGES
 
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
-#		define _GT_POST_TRAVERSAL_OP			post_traversal_op
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 
@@ -116,11 +115,6 @@
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0_GRID_DI
 			section%u_max = 0.0_GRID_SR
-		end subroutine
-
-		subroutine post_traversal_op(traversal, section)
-			type(t_swe_euler_timestep_traversal), intent(inout)				:: traversal
-			type(t_grid_section), intent(inout)							    :: section
 		end subroutine
 
 		function cell_to_edge_op(element, edge) result(rep)
