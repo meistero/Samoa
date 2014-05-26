@@ -1338,6 +1338,14 @@ module SFC_edge_traversal
 	        _log_write(4, '(5X, A, 2(F0.4, X))') "min  :", decode_distance(grid%min_distance)
 	        _log_write(4, '(5X, A, 2(F0.4, X))') "end  :", decode_distance(grid%end_distance)
 
+            !HACK: this allows neighbor representations to be transferred from old to new grid
+	        call grid%get_local_sections(i_first_local_section, i_last_local_section)
+
+	        do i_section = i_first_local_section, i_last_local_section
+	            assert_eq(grid%sections%elements_alloc(i_section)%index, i_section)
+                call save_neighbor_rep(grid%sections%elements_alloc(i_section))
+	        end do
+
             !Rank and section indices may have changed, so send the new information to the neighbors
             call send_recv_comm_changes(grid, i_rank_out, i_section_index_out, i_rank_in)
 
@@ -1432,6 +1440,9 @@ module SFC_edge_traversal
 	            do i_color = RED, GREEN
 	                call set_comm_neighbor_data(grid, grid%sections%elements_alloc(i_section), i_color)
 	            end do
+
+                !HACK: this allows neighbor representations to be transferred from old to new grid
+                call load_neighbor_rep(grid%sections%elements_alloc(i_section))
 	        end do
 
 	        !$omp barrier
@@ -1439,6 +1450,50 @@ module SFC_edge_traversal
     end subroutine
 
 #	if defined(_MPI)
+		subroutine load_neighbor_rep(section)
+		    type(t_grid_section), intent(inout)             :: section
+		    integer						                    :: i_section, i_color, i_comm, i_edge
+
+#		    if defined(_USE_SKELETON_OP)
+                type(num_cell_rep)                              :: rep
+                type(num_cell_update)                           :: update
+
+                do i_color = RED, GREEN
+                    do i_comm = 1, section%comms(i_color)%get_size()
+                        if (section%comms(i_color)%elements(i_comm)%neighbor_rank .ge. 0 .and. section%comms(i_color)%elements(i_comm)%neighbor_rank .ne. rank_MPI) then
+                            do i_edge = 1, section%comms(i_color)%elements(i_comm)%i_edges
+                                update = section%comms(i_color)%elements(i_comm)%p_local_edges(i_edge)%update
+                                rep = transfer(update, rep)
+                                section%comms(i_color)%elements(i_comm)%p_neighbor_edges(i_edge)%rep = rep
+                            end do
+                        end if
+                    end do
+                end do
+#		    endif
+		end subroutine
+
+        subroutine save_neighbor_rep(section)
+		    type(t_grid_section), intent(inout)             :: section
+		    integer						                    :: i_section, i_color, i_comm, i_edge
+
+#		    if defined(_USE_SKELETON_OP)
+                type(num_cell_rep)                              :: rep
+                type(num_cell_update)                           :: update
+
+                do i_color = RED, GREEN
+                    do i_comm = 1, section%comms(i_color)%get_size()
+                        if (section%comms(i_color)%elements(i_comm)%neighbor_rank .ge. 0) then
+                            do i_edge = 1, section%comms(i_color)%elements(i_comm)%i_edges
+                                rep = section%comms(i_color)%elements(i_comm)%p_neighbor_edges(i_edge)%rep
+                                update = transfer(rep, update)
+                                section%comms(i_color)%elements(i_comm)%p_local_edges(i_edge)%update = update
+                            end do
+                        end if
+                    end do
+                end do
+#		    endif
+		end subroutine
+
         !> uses a distributed algorithm to compute the new partitiion
         !> this approach scales well, but requires local methods and cannot achieve optimal load balance
         subroutine compute_partition_distributed(grid, i_rank_out, i_section_index_out, i_rank_in, l_early_exit)
@@ -1926,10 +1981,10 @@ module SFC_edge_traversal
 	                        assert_veq(comm%send_requests, MPI_REQUEST_NULL)
 	                        assert_veq(comm%recv_requests, MPI_REQUEST_NULL)
 
-	                        call mpi_isend(comm%local_rank,              1, MPI_INTEGER, old_comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
-	                        call mpi_isend(comm%local_section,           1, MPI_INTEGER, old_comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
 	                        call mpi_irecv(comm%neighbor_rank,           1, MPI_INTEGER, old_comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
 	                        call mpi_irecv(comm%neighbor_section,        1, MPI_INTEGER, old_comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
+	                        call mpi_isend(comm%local_rank,              1, MPI_INTEGER, old_comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
+	                        call mpi_isend(comm%local_section,           1, MPI_INTEGER, old_comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
 
 	                        assert_vne(comm%send_requests, MPI_REQUEST_NULL)
 	                        assert_vne(comm%recv_requests, MPI_REQUEST_NULL)
