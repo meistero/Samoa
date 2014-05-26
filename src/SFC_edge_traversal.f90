@@ -95,7 +95,7 @@ module SFC_edge_traversal
 
             i_sum_cells_prev = 0
             i_eff_dest_cells = src_grid%dest_cells - i_dest_sections * min_section_size
-            assert_ge(i_eff_dest_cells, 0)
+            assert(i_eff_dest_cells .ge. 0 .or. i_dest_sections == 1)
 
             do i_dest_section = 1, i_dest_sections
                 !Set the number of cells to the difference of partial sums. This guarantees, that there are exactly src_grid%dest_cells cells in total.
@@ -105,7 +105,7 @@ module SFC_edge_traversal
                 i_sum_cells = (i_eff_dest_cells * i_dest_section) / i_dest_sections
                 section_descs%elements(i_dest_section)%i_cells = min_section_size + i_sum_cells - i_sum_cells_prev + 4_GRID_DI
                 section_descs%elements(i_dest_section)%i_load = (i_grid_load * i_dest_section) / i_dest_sections - (i_grid_load * (i_dest_section - 1)) / i_dest_sections
-                assert_ge(section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI, min_section_size)
+                assert(section_descs%elements(i_dest_section)%i_cells - 4_GRID_DI .ge. min_section_size .or. i_dest_sections == 1)
                 i_sum_cells_prev = i_sum_cells
 
                 section_descs%elements(i_dest_section)%index = i_dest_section
@@ -1457,14 +1457,17 @@ module SFC_edge_traversal
 #		    if defined(_USE_SKELETON_OP)
                 type(num_cell_rep)                              :: rep
                 type(num_cell_update)                           :: update
+                type(t_comm_interface), pointer                 :: comm
 
                 do i_color = RED, GREEN
                     do i_comm = 1, section%comms(i_color)%get_size()
-                        if (section%comms(i_color)%elements(i_comm)%neighbor_rank .ge. 0 .and. section%comms(i_color)%elements(i_comm)%neighbor_rank .ne. rank_MPI) then
-                            do i_edge = 1, section%comms(i_color)%elements(i_comm)%i_edges
-                                update = section%comms(i_color)%elements(i_comm)%p_local_edges(i_edge)%update
+                        comm => section%comms(i_color)%elements(i_comm)
+
+                        if (comm%neighbor_rank .ge. 0 .and. comm%neighbor_rank .ne. rank_MPI) then
+                            do i_edge = 1, comm%i_edges
+                                update%flux(:) = comm%p_local_edges(i_edge)%update%flux(:)
                                 rep = transfer(update, rep)
-                                section%comms(i_color)%elements(i_comm)%p_neighbor_edges(i_edge)%rep = rep
+                                comm%p_neighbor_edges(i_edge)%rep%Q(:) = rep%Q(:)
                             end do
                         end if
                     end do
@@ -1479,14 +1482,17 @@ module SFC_edge_traversal
 #		    if defined(_USE_SKELETON_OP)
                 type(num_cell_rep)                              :: rep
                 type(num_cell_update)                           :: update
+                type(t_comm_interface), pointer                 :: comm
 
                 do i_color = RED, GREEN
                     do i_comm = 1, section%comms(i_color)%get_size()
-                        if (section%comms(i_color)%elements(i_comm)%neighbor_rank .ge. 0) then
-                            do i_edge = 1, section%comms(i_color)%elements(i_comm)%i_edges
-                                rep = section%comms(i_color)%elements(i_comm)%p_neighbor_edges(i_edge)%rep
+                        comm => section%comms(i_color)%elements(i_comm)
+
+                        if (comm%neighbor_rank .ge. 0) then
+                            do i_edge = 1, comm%i_edges
+                                rep%Q(:) = comm%p_neighbor_edges(i_edge)%rep%Q(:)
                                 update = transfer(rep, update)
-                                section%comms(i_color)%elements(i_comm)%p_local_edges(i_edge)%update = update
+                                comm%p_local_edges(i_edge)%update%flux(:) = update%flux(:)
                             end do
                         end if
                     end do
@@ -2089,7 +2095,7 @@ module SFC_edge_traversal
 
 		    integer						                    :: i_section, i_comm, i_error
             integer (kind = GRID_SI)						:: i_first_src_section, i_last_src_section, i_first_dest_section, i_last_dest_section
-		    integer (BYTE)						        :: i_color
+		    integer (BYTE)						            :: i_color
 		    type(t_grid_section), pointer					:: section
 		    integer, allocatable 						    :: src_requests(:,:), dest_requests(:,:)
             integer (kind = GRID_DI)						:: tmp_distances(RED: GREEN)

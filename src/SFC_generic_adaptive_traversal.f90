@@ -505,6 +505,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 #   else
         call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
 #   endif
+
     thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
     thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
