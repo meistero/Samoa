@@ -24,15 +24,15 @@ The following prerequisites are necessary in order to install and run sam(oa)²:
 
 ### SuperMUC
 
-SuperMUC restricts access to outside sources and thus does not allow connections to https servers. However, there are 
+SuperMUC restricts access to outside sources and thus does not allow connections to https servers. However, there are
 two methods to download sam(oa)² from github on the SuperMUC:
-* By accessing the SuperMUC file system as a remote directory via 
+* By accessing the SuperMUC file system as a remote directory via
     nohup sshfs <login>@supermuc.lrz.de:<remote_dir> <local_dir>
   git can then be executed locally (see below).
 
 * By login with remote port forwarding via
     ssh -X <login>@supermuc.lrz.de -R <port>:github.com:9418
-  In this case an alternative URL must be used to clone the git repository (see below): 
+  In this case an alternative URL must be used to clone the git repository (see below):
     git clone git://localhost:<port>/meistero/Samoa
 
 scons must be installed manually on the SuperMUC as the current version is not compatible with sam(oa)².
@@ -51,7 +51,7 @@ Additionally, in order to compile and run ASAGI and sam(oa)² on the SuperMUC th
     module switch mpi.ibm mpi.intel
 
 sam(oa)² supports both multithreaded and single-threaded MPI. Both ASAGI and sam(oa)² must link to the same respective libraries, thus it is necessary to compile ASAGI twice:
-once without MT support and once with MT support. Rename the first library to "libasagi_nomt.so" and leave the second library as "libasagi.so" in order to be able to use both.
+once without MT support and once with MT support. Rename the single-threaded library to "libasagi_nomt.so" and the multi-threaded library to "libasagi.so".
 
 At this point, you should be able to compile sam(oa)².
 
