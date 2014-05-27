@@ -30,6 +30,7 @@
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 
+#		define _GT_INNER_ELEMENT_OP				inner_element_op
 #		define _GT_ELEMENT_OP					element_op
 
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
@@ -92,7 +93,7 @@
 
 		!element
 
-		subroutine element_op(traversal, section, element)
+		subroutine inner_element_op(traversal, section, element)
  			type(t_darcy_transport_eq_traversal), intent(inout)	    :: traversal
  			type(t_grid_section), intent(inout)						:: section
 			type(t_element_base), intent(inout), target				:: element
@@ -106,12 +107,61 @@
 			call gv_saturation%read(element, saturation)
 
 			!call volume operator
-			call alpha_volume_op(section, element, u, saturation, volume, flux)
+			call alpha_volume_op(element, u, saturation, volume, flux)
 
 			call gv_volume%add(element, volume)
 			call gv_flux%add(element, flux)
 		end subroutine
 
+		subroutine element_op(traversal, section, element)
+ 			type(t_darcy_transport_eq_traversal), intent(inout)	    :: traversal
+ 			type(t_grid_section), intent(inout)						:: section
+			type(t_element_base), intent(inout), target				:: element
+
+			real(kind = GRID_SR), dimension(2, _DARCY_U_SIZE)		:: u
+			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: saturation
+			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: flux
+			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: volume
+
+			integer :: i
+			real(kind = GRID_SR) :: u_dot_n
+			real(kind = GRID_SR) :: edge_length
+
+			call gv_u%read_from_element(element, u)
+			call gv_saturation%read(element, saturation)
+
+			!call volume operator
+			call alpha_volume_op(element, u, saturation, volume, flux)
+
+            !outflow on the right
+            if (element%nodes(2)%ptr%position(1) == 1.0 .and. element%nodes(1)%ptr%position(1) == 1.0) then
+                flux(2) = flux(2) - u(1, 1) * cfg%r_rel_permeability * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+                flux(1) = flux(1) - u(1, 1) * cfg%r_rel_permeability * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+            else if (element%nodes(2)%ptr%position(1) == 1.0 .and. element%nodes(3)%ptr%position(1) == 1.0) then
+                flux(2) = flux(2) - u(1, 1) * cfg%r_rel_permeability * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+                flux(3) = flux(3) - u(1, 1) * cfg%r_rel_permeability * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+            else if (element%nodes(1)%ptr%position(1) == 1.0 .and. element%nodes(3)%ptr%position(1) == 1.0) then
+                flux(1) = flux(1) - u(1, 1) * cfg%r_rel_permeability * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size()
+                flux(3) = flux(3) - u(1, 1) * cfg%r_rel_permeability * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size()
+            end if
+
+            !outflow on the top
+            if (element%nodes(2)%ptr%position(2) == 1.0 .and. element%nodes(1)%ptr%position(2) == 1.0) then
+                flux(2) = flux(2) - u(2, 1) * cfg%r_rel_permeability * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+                flux(1) = flux(1) - u(2, 1) * cfg%r_rel_permeability * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+            else if (element%nodes(2)%ptr%position(2) == 1.0 .and. element%nodes(3)%ptr%position(2) == 1.0) then
+                flux(2) = flux(2) - u(2, 1) * cfg%r_rel_permeability * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+                flux(3) = flux(3) - u(2, 1) * cfg%r_rel_permeability * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+            else if (element%nodes(1)%ptr%position(2) == 1.0 .and. element%nodes(3)%ptr%position(2) == 1.0) then
+                flux(1) = flux(1) - u(2, 1) * cfg%r_rel_permeability * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size()
+                flux(3) = flux(3) - u(2, 1) * cfg%r_rel_permeability * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size()
+            end if
+
+			!left and bottom boundary have mirror conditions, so the fluxes cancel out
+
+			call gv_volume%add(element, volume)
+			call gv_flux%add(element, flux)
+		end subroutine
 		!first touches
 
 		elemental subroutine node_first_touch_op(traversal, section, node)
@@ -142,11 +192,9 @@
 
 			integer (kind = GRID_SI)					:: i
 
-			if (node%position(1) > 0.0_GRID_SR) then
+			if (node%position(1) > 0.0_GRID_SR .or. node%position(2) > 0.0_GRID_SR) then
                 call post_dof_op(section, node%data_pers%saturation, node%data_temp%flux, node%data_temp%volume)
 			end if
-
-			node%data_pers%saturation = min(node%data_pers%saturation, 1.0_GRID_SR)
 		end subroutine
 
 		!*******************************
@@ -161,8 +209,7 @@
 			volume = 0.0_GRID_SR
 		end subroutine
 
-		subroutine alpha_volume_op(section, element, u, saturation, volume, flux)
- 			type(t_grid_section), intent(inout)							:: section
+		subroutine alpha_volume_op(element, u, saturation, volume, flux)
 			type(t_element_base), intent(inout)									:: element
 			real (kind = GRID_SR), dimension(:, :), intent(in)					:: u
 			real (kind = GRID_SR), dimension(:), intent(in)						:: saturation

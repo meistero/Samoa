@@ -144,7 +144,8 @@
 
 			!permeability
 
-			dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
+			!dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
+			dest_element%cell%data_pers%base_permeability = 1.0e-8
 		end subroutine
 
 		subroutine coarsen_op(traversal, grid, src_element, dest_element, refinement_path)
@@ -218,10 +219,10 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)					:: node
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
-				node%data_temp%is_dirichlet_boundary = .false.
-			else
+			if (all(node%position == [0.0_GRID_SR, 0.0_GRID_SR]) .or. all(node%position == [1.0_GRID_SR, 1.0_GRID_SR])) then
 				node%data_temp%is_dirichlet_boundary = .true.
+			else
+				node%data_temp%is_dirichlet_boundary = .false.
 			end if
 
 			call inner_node_last_touch_op(traversal, section, node)

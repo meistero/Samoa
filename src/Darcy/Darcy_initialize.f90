@@ -64,10 +64,10 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
-				node%data_temp%is_dirichlet_boundary = .false.
-			else
+			if (all(node%position == [0.0_GRID_SR, 0.0_GRID_SR]) .or. all(node%position == [1.0_GRID_SR, 1.0_GRID_SR])) then
 				node%data_temp%is_dirichlet_boundary = .true.
+			else
+				node%data_temp%is_dirichlet_boundary = .false.
 			end if
 
             call inner_node_first_touch_op(traversal, section, node)
@@ -96,7 +96,8 @@
 			real (kind = GRID_SR), dimension(2)									:: pos
 
 			!set base permeability
-			base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, (/ 1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR /)), element%cell%geometry%i_depth / 2_GRID_SI)
+			!base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, (/ 1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR /)), element%cell%geometry%i_depth / 2_GRID_SI)
+			base_permeability = 1.0d-8
 		end subroutine
 
 		function get_base_permeability(section, x, lod) result(r_base_permeability)
@@ -141,7 +142,7 @@
 			real (kind = GRID_SR), intent(out)					:: d
 			real (kind = GRID_SR), intent(out)					:: A_d
 
-			p = (1.0_GRID_SR - pos(1)) * p0
+			p = 0.5_GRID_SR * (2.0_GRID_SR - pos(1) - pos(2)) * p0
 			r = 0.0_GRID_SR
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
@@ -247,7 +248,7 @@
 			real (kind = GRID_SR), dimension(2), intent(in)		:: pos
 			real (kind = GRID_SR), intent(out)					:: saturation
 
-			if (pos(1) == 0.0_GRID_SR .and. pos(2) > 3.1_GRID_SR / 8.0_GRID_SR .and. pos(2) < 4.9_GRID_SR/8.0_GRID_SR) then
+			if (pos(1) == 0.0_GRID_SR .and. pos(2) == 0.0_GRID_SR) then
 				saturation = 1.0_GRID_SR
 			else
 				saturation = 0.0_GRID_SR

@@ -73,6 +73,7 @@ MODULE _CG_(step)
 #		define _GT_NODE_FIRST_TOUCH_OP			node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP			node_last_touch_op
 #		define _GT_NODE_REDUCE_OP			    node_reduce_op
+#		define _GT_INNER_NODE_FIRST_TOUCH_OP    inner_node_first_touch_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
 #		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
 
@@ -205,7 +206,7 @@ MODULE _CG_(step)
     !Geometry operators
     !*******************************
 
-    elemental subroutine node_first_touch_op(traversal, section, node)
+    elemental subroutine inner_node_first_touch_op(traversal, section, node)
         type(_T_CG_(step_traversal)), intent(in)    :: traversal
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(inout)			:: node
@@ -236,6 +237,20 @@ MODULE _CG_(step)
             call gv_v%write(node, v)
             call gv_trace_A%write(node, trace_A)
 #       endif
+    end subroutine
+
+    elemental subroutine node_first_touch_op(traversal, section, node)
+        type(_T_CG_(step_traversal)), intent(in)    :: traversal
+        type(t_grid_section), intent(in)		    :: section
+        type(t_node_data), intent(inout)			:: node
+
+        logical :: is_dirichlet(1)
+
+        call gv_dirichlet%read(node, is_dirichlet)
+
+        if (.not. any(is_dirichlet)) then
+            call inner_node_first_touch_op(traversal, section, node)
+        end if
     end subroutine
 
     pure subroutine element_op(traversal, section, element)
