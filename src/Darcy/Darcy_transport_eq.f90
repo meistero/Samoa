@@ -78,7 +78,7 @@
 			type(t_grid), intent(inout)							    :: grid
 
             !Dual cells have a size of of edge_length, the maximum Eigenvalue of the system is 2 / \Rho S_max K_rel u_max = 2 / \Rho K_rel u_max
-            !This gives an upper bound of \Delta t \leq (\Rho edge_length) / (4 K_rel u_max)
+            !This gives an upper bound of \Delta t \leq (\Rho edge_length) / (2 K_rel u_max)
             grid%r_dt = cfg%courant_number * cfg%scaling * cfg%r_rho * get_edge_size(cfg%i_max_depth) / (2.0_GRID_SR * cfg%r_rel_permeability * grid%u_max)
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
 		end subroutine
