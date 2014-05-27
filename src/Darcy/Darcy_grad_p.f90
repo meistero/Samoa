@@ -94,6 +94,7 @@
 			type(t_grid), intent(inout)							:: grid
 
 			call reduce(grid%u_max, traversal%children%u_max, MPI_MAX, .true.)
+			grid%u_max = sqrt(grid%u_max)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
