@@ -144,8 +144,7 @@
 
 			!permeability
 
-			!dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
-			dest_element%cell%data_pers%base_permeability = 1.0e-8
+			dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
 		end subroutine
 
 		subroutine coarsen_op(traversal, grid, src_element, dest_element, refinement_path)
@@ -189,7 +188,7 @@
 			call gv_saturation%add( dest_element%t_element_base, volume * saturation_out)
 			call gv_volume%add( dest_element%t_element_base, volume)
 
-			!dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [ 1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR ]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
+			dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [ 1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR ]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
 		end subroutine
 
 		!first touch ops

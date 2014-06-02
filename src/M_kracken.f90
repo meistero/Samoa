@@ -23,14 +23,14 @@ module M_kracken_dictionary
 ! NOTE:   many parameters were reduced in size so as to just accomodate
 !         being used as a command line parser. In particular, some might
 !         want to change:
-!          ic=30          ! number of entries in language dictionary
+!          ic=50          ! number of entries in language dictionary
 !          IPvalue=1024   ! ilength of verb value
 
       implicit none
 
       integer, parameter,public :: IPverb=20                          ! ilength of verb
       integer, parameter,public :: IPvalue=1024                        ! ilength of verb value
-      integer, parameter,public :: ic=30                              ! number of entries in language dictionary
+      integer, parameter,public :: ic=50                              ! number of entries in language dictionary
       integer, parameter,public :: k_int = SELECTED_INT_kind(9)       ! integer*4
       integer, parameter,public :: k_dbl = SELECTED_real_kind(15,300) ! real*8
       !=================================================================--------

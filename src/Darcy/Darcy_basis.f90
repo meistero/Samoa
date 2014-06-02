@@ -112,6 +112,7 @@
 
         use Darcy_gm_A_mod
 		use Darcy_gv_p_mod
+		use Darcy_gv_rhs_mod
 		use Darcy_gv_r_mod
 		use Darcy_gv_d_mod
 		use Darcy_gv_A_d_mod

@@ -63,7 +63,6 @@ MODULE Samoa
 
 	!> Transforms a vector from world to barycentric coordinates
 	pure function samoa_world_to_barycentric_vector(td, x) result(r_pos)
-
 		type(t_transform_data), intent(in)						:: td
 		real (kind = GRID_SR), DIMENSION(:), intent(in)			:: x
 		real (kind = GRID_SR), DIMENSION(2)						:: r_pos

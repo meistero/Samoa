@@ -33,7 +33,7 @@
 
 		!> persistent, scenario specific data on a node
 		type num_node_data_pers
-			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE)
+			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE), rhs(_DARCY_P_NODE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_NODE_SIZE), d(_DARCY_P_NODE_SIZE), r(_DARCY_P_NODE_SIZE)
 
 			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_NODE_SIZE)    !< water saturation
@@ -46,7 +46,7 @@
 		!> persistent, scenario specific data on an edge
 		type num_edge_data_pers
 #           if (_DARCY_P_EDGE_SIZE > 0)
-			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE)
+			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE), rhs(_DARCY_P_NODE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_EDGE_SIZE), d(_DARCY_P_EDGE_SIZE), r(_DARCY_P_EDGE_SIZE)
 #           endif
 
@@ -62,7 +62,7 @@
 		!> persistent, scenario specific data on a cell
 		type num_cell_data_pers
 #           if (_DARCY_P_CELL_SIZE > 0)
-			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE)
+			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE), rhs(_DARCY_P_NODE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_CELL_SIZE), d(_DARCY_P_CELL_SIZE), r(_DARCY_P_CELL_SIZE)
 #           endif
 

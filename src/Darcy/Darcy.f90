@@ -83,16 +83,16 @@
 
  			select case (cfg%i_lsolver)
                 case (0)
-                    call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
+                    call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
-                    call pressure_solver_cg%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_cg%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
-                    call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
                 case (3)
-                    call pressure_solver_pipecg_unst%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_pipecg_unst%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg_unst, stat=i_error); assert_eq(i_error, 0)
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 3")
@@ -109,12 +109,11 @@
 				_log_open_file(s_log_name)
 			endif
 
-			call load_permeability(grid, cfg%s_permeability_file)
+			call load_scenario(grid)
 		end subroutine
 
-		subroutine load_permeability(grid, s_template)
+		subroutine load_scenario(grid)
 			type(t_grid), target, intent(inout)		:: grid
-			character(256)					        :: s_template
 
             integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
@@ -140,54 +139,19 @@
 
 #               if defined(_ASAGI_NUMA)
                     cfg%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
+                    cfg%afh_porosity = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
 
-					!$omp parallel private(i_error, i, j, i_ext_pos, s_file_name)
+                    !$omp parallel private(i_error)
 						i_error = grid_register_thread(cfg%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
-
-						do j = min(10, cfg%i_max_depth / 2), 0, -1
-                            i_ext_pos = index(s_template, ".", .true.)
-                            write (s_file_name, fmt = '(A, "_", I0, A)') s_template(: i_ext_pos - 1), 2 ** j, trim(s_template(i_ext_pos :))
-
-                            i_error = asagi_open(cfg%afh_permeability, trim(s_file_name), 0)
-
-                            if (i_error == GRID_SUCCESS) then
-                                exit
-                            endif
-                        end do
-
-	                    assert_eq(i_error, GRID_SUCCESS)
-
-	                    if (rank_MPI == 0) then
-	                		associate(afh => cfg%afh_permeability)
-	                        	_log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-	                        	    trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
-	                		end associate
-	                    end if
-					!$omp end parallel
+						i_error = grid_register_thread(cfg%afh_porosity); assert_eq(i_error, GRID_SUCCESS)
+                        i_error = asagi_open(cfg%afh_permeability, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
+                        i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
+                    !$omp end parallel
 #               else
-                    cfg%afh_permeability = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = cfg%i_max_depth / 2 + 1)
+                    cfg%afh_permeability = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
 
-                    do i = 0, cfg%i_max_depth / 2
-                        do j = i, 0, -1
-                            i_ext_pos = index(s_template, ".", .true.)
-                            write (s_file_name, fmt = '(A, "_", I0, A)') s_template(: i_ext_pos - 1), 2 ** j, trim(s_template(i_ext_pos :))
-
-                            i_error = asagi_open(cfg%afh_permeability, trim(s_file_name), i)
-
-                            if (i_error == GRID_SUCCESS) then
-                                exit
-                            endif
-                        end do
-
-                        assert_eq(i_error, GRID_SUCCESS)
-
-                        if (rank_MPI == 0) then
-                    		associate(afh => cfg%afh_permeability)
-                            	_log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            	    trim(s_file_name), grid_min_x(afh), grid_max_x(afh),  grid_min_y(afh), grid_max_y(afh),  grid_min_z(afh), grid_max_z(afh)
-                    		end associate
-                        end if
-                    end do
+                    i_error = asagi_open(cfg%afh_permeability, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
+                    i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
 #               endif
 #			endif
 
@@ -337,7 +301,7 @@
 					!refine grid
 					call darcy%adaption%traverse(grid)
 
-					!recompute permeability + refinement flag
+					!compute permeability
 					call darcy%permeability%traverse(grid)
 				!end if
 
@@ -351,7 +315,7 @@
 				call darcy%transport_eq%traverse(grid)
 				i_time_step = i_time_step + 1
 
-				!compute permeability field + refinement flag
+				!compute refinement flag
 				call darcy%error_estimate%traverse(grid)
 
                 if (rank_MPI == 0) then

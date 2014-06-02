@@ -135,12 +135,14 @@
 			real (kind = GRID_SR), dimension(:, :), intent(out)					:: u
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 
+			real (kind = GRID_SR), parameter, dimension(2)						:: g(2) = [0.0, -9.81]
+
 			integer (kind = GRID_SI)											:: i
 
 			!define velocity by u = -k grad p
 			do i = 1, _DARCY_U_SIZE
-				u(:, i) = -base_permeability * samoa_basis_p_gradient(samoa_basis_u_get_dof_coords(i), p)
-				u(:, i) = samoa_barycentric_to_world_normal(element%transform_data, u(:, i))
+				u(:, i) = samoa_basis_p_gradient(samoa_basis_u_get_dof_coords(i), p)
+				u(:, i) = -base_permeability * samoa_barycentric_to_world_normal(element%transform_data, u(:, i)) + cfg%r_rho_w * g
 				traversal%u_max = max(traversal%u_max, DOT_PRODUCT(u(:, i), u(:, i)))
 			end do
 

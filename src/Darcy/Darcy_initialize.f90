@@ -80,7 +80,7 @@
 			integer										:: i
 
 			do i = 1, _DARCY_P_NODE_SIZE
-				call pressure_pre_dof_op(real(cfg%r_p0, GRID_SR), node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
+				call pressure_pre_dof_op(real(cfg%r_p_in, GRID_SR), real(cfg%r_p_prod, GRID_SR), node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
 			end do
 		end subroutine
 
@@ -96,15 +96,14 @@
 			real (kind = GRID_SR), dimension(2)									:: pos
 
 			!set base permeability
-			!base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, (/ 1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR /)), element%cell%geometry%i_depth / 2_GRID_SI)
-			base_permeability = 1.0d-8
+			base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, (/ 1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR /)), element%cell%geometry%i_depth / 2_GRID_SI)
 		end subroutine
 
 		function get_base_permeability(section, x, lod) result(r_base_permeability)
  			type(t_grid_section), intent(inout)					:: section
 			real (kind = GRID_SR), dimension(:), intent(in)		:: x						!< position in world coordinates
 			integer (kind = GRID_SI), intent(in)				:: lod						!< level of detail
-			real (kind = GRID_SR)								:: r_base_permeability		!< heat conductivity
+			real (kind = GRID_SR)								:: r_base_permeability		!< permeability tensor
 
             real (kind = GRID_SR)                               :: xs(2)
 
@@ -114,17 +113,10 @@
             assert_le(x(1), 1.0); assert_le(x(2), 1.0)
 
 #			if defined(_ASAGI)
-
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #               endif
-
-#               if defined(_ASAGI_NUMA)
-                	r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), 0)
-#				else
-                	r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), lod)
-#				endif
-
+                r_base_permeability = 1.0e-8_GRID_SR + asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), 0)
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
 #               endif
@@ -132,17 +124,20 @@
 				r_base_permeability = -7.0e-8_GRID_SR * (t_noise_2D((/ 10.0_GRID_SR * xs(1) - 2.0_GRID_SR, 10.0_GRID_SR * xs(2) /), lod, 0.2_GRID_SR) + 0.7_GRID_SR - 4.0_GRID_SR * xs(2) * (1.0_GRID_SR - xs(2))) + 0.5e-8_GRID_SR
 				r_base_permeability = max(0.0_GRID_SR, min(1.0e-8_GRID_SR, r_base_permeability))
 #			endif
+
+			!r_base_permeability = 1.0e-8
 		end function
 
-		pure subroutine pressure_pre_dof_op(p0, pos, p, r, d, A_d)
- 			real (kind = GRID_SR), intent(in)					:: p0
+		pure subroutine pressure_pre_dof_op(p_in, p_prod, pos, p, r, d, A_d)
+ 			real (kind = GRID_SR), intent(in)					:: p_in
+ 			real (kind = GRID_SR), intent(in)					:: p_prod
 			real (kind = GRID_SR), intent(in)					:: pos(2)
 			real (kind = GRID_SR), intent(out)					:: p
 			real (kind = GRID_SR), intent(out)					:: r
 			real (kind = GRID_SR), intent(out)					:: d
 			real (kind = GRID_SR), intent(out)					:: A_d
 
-			p = 0.5_GRID_SR * (2.0_GRID_SR - pos(1) - pos(2)) * p0
+			p = 0.5_GRID_SR * (2.0_GRID_SR - pos(1) - pos(2)) * p_in + 0.5_GRID_SR * (pos(1) + pos(2)) * p_prod
 			r = 0.0_GRID_SR
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
@@ -161,6 +156,7 @@
 
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_p)						:: gv_p
+		type(darcy_gv_rhs)						:: gv_rhs
 
 #		define	_GT_NAME						t_darcy_init_saturation_traversal
 
@@ -204,7 +200,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call inner_flow_pre_dof_op(node%data_pers%saturation)
+			call inner_flow_pre_dof_op(node%data_pers%saturation, node%data_pers%rhs)
 		end subroutine
 
 		elemental subroutine node_first_touch_op(traversal, section, node)
@@ -215,7 +211,7 @@
 			integer :: i
 
 			do i = 1, _DARCY_FLOW_NODE_SIZE
-				call flow_pre_dof_op(node%position, node%data_pers%saturation(i))
+				call flow_pre_dof_op(node%position, node%data_pers%saturation(i), node%data_pers%rhs(i))
 			end do
 		end subroutine
 
@@ -226,36 +222,44 @@
 
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: saturation
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)			:: p
+			real (kind = GRID_SR)		                            :: rhs(_DARCY_P_SIZE)
 
 			call gv_saturation%read(element, saturation)
 			call gv_p%read(element, p)
 
 			!call element operator
-			call alpha_volume_op(traversal, section, element, saturation, p, element%cell%data_pers%base_permeability, element%cell%data_pers%permeability)
+			call alpha_volume_op(traversal, section, element, saturation, p, element%cell%data_pers%base_permeability, element%cell%data_pers%permeability, rhs)
+
+			call gv_rhs%add(element, rhs)
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine inner_flow_pre_dof_op(saturation)
+		elemental subroutine inner_flow_pre_dof_op(saturation, rhs)
 			real (kind = GRID_SR), intent(out)					:: saturation
+			real (kind = GRID_SR), intent(out)					:: rhs
 
 			saturation = 0.0_GRID_SR
+			rhs = 0.0_GRID_SR
 		end subroutine
 
-		pure subroutine flow_pre_dof_op(pos, saturation)
+		pure subroutine flow_pre_dof_op(pos, saturation, rhs)
 			real (kind = GRID_SR), dimension(2), intent(in)		:: pos
 			real (kind = GRID_SR), intent(out)					:: saturation
+			real (kind = GRID_SR), intent(out)					:: rhs
 
 			if (pos(1) == 0.0_GRID_SR .and. pos(2) == 0.0_GRID_SR) then
 				saturation = 1.0_GRID_SR
 			else
 				saturation = 0.0_GRID_SR
 			end if
+
+			rhs = 0.0_GRID_SR
 		end subroutine
 
-		subroutine alpha_volume_op(traversal, section, element, saturation, p, base_permeability, permeability)
+		subroutine alpha_volume_op(traversal, section, element, saturation, p, base_permeability, permeability, rhs)
  			type(t_darcy_init_saturation_traversal)                 :: traversal
  			type(t_grid_section), intent(inout)							:: section
 			type(t_element_base), intent(inout)									:: element
@@ -263,20 +267,30 @@
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(in)			:: p
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 			real (kind = GRID_SR), intent(out)									:: permeability
+			real (kind = GRID_SR), intent(out)									:: rhs(:)
 
-			real (kind = GRID_SR)												:: r_lambda_n, r_lambda_w
 			integer (kind = GRID_SI)											:: i_depth
-			logical 											:: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
+			logical 											                :: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
+			real (kind = GRID_SR), parameter                                    :: g(2) = [0.0d0, -9.81d0]
+			real (kind = GRID_SR)												:: x(2), grad_psi(2), r_lambda_w, r_lambda_n
+			integer     :: i
 
 			!compute permeability
 
-			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation))
-			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation)
+			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation) / cfg%r_nu_w
+			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation)) / cfg%r_nu_n
 
-			permeability = base_permeability * (r_lambda_n + cfg%r_rel_permeability * r_lambda_w)
+			permeability = base_permeability * (r_lambda_w + r_lambda_n)
+
+            do i = 1, 3
+                x = samoa_basis_p_get_dof_coords(i)
+                grad_psi = [samoa_basis_p_d_dx(x), samoa_basis_p_d_dy(x)]
+                grad_psi = samoa_barycentric_to_world_normal(element%transform_data, grad_psi)
+                rhs(i) = (cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n) * dot_product(g, grad_psi) !this should be the integral over lambda_t * g * grad psi
+            end do
 
 			l_refine_sat = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2))) > 0.1_GRID_SR
-			l_refine_p = max(abs(p(3) - p(2)), abs(p(1) - p(2))) > 0.01_GRID_SR * cfg%r_p0
+			l_refine_p = max(abs(p(3) - p(2)), abs(p(1) - p(2))) > 0.01_GRID_SR * (cfg%r_p_in - cfg%r_p_prod)
 
 			!refine the cell if necessary (no coarsening in the initialization!)
 

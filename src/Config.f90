@@ -45,14 +45,20 @@ module config
 
 #    	if defined(_DARCY)
             character(256)                      :: s_permeability_file                              !< permeability file
+            character(256)                      :: s_porosity_file                                  !< porosity file
  			integer					 		    :: afh_permeability			                        !< asagi file handle to permeability data
+ 			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
             integer			        	        :: i_lsolver			                		    !< linear solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
-			double precision				    :: r_rel_permeability		                        !< relative permeability of the entering fluid
-			double precision				    :: r_rho					                        !< fluid density
-			double precision				    :: r_p0			                                    !< initial boundary pressure difference
+			double precision				    :: r_nu_w		                                    !< viscosity of the wetting phase
+			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase
+			double precision				    :: r_rho_w		                                    !< density of the wetting phase
+			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase
+			double precision				    :: r_phi					                        !< porosity
+			double precision				    :: r_p_in			                                !< injection well pressure
+			double precision				    :: r_p_prod			                                !< production well pressure
 #    	elif defined(_SWE)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -81,7 +87,7 @@ module config
 
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
-        character(512)                          :: arguments
+        character(1024)                         :: arguments
         character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
@@ -93,7 +99,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm.nc -p0 1.0d6 -epsilon 1.0d-5 -rho 0.2d0 -k_rel 1.5d0 -lsolver 2 -cg_restart 256"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm_1024.nc -fpor data/darcy_benchmark/perm_1024.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-5 -phi 0.2d0 -rho_w 1.0d0 -rho_n 0.67d0 -nu_w 0.3d0 -nu_n 1.01d0 -lsolver 2 -cg_restart 256"
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -136,10 +142,15 @@ module config
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
+            config%s_porosity_file = sget('samoa_fpor', 256)
             config%r_epsilon = rget('samoa_epsilon')
-			config%r_rel_permeability = rget('samoa_k_rel')
-			config%r_rho = rget('samoa_rho')
-			config%r_p0 = rget('samoa_p0')
+			config%r_nu_w = rget('samoa_nu_w')
+			config%r_nu_n = rget('samoa_nu_n')
+			config%r_rho_w = rget('samoa_rho_w')
+			config%r_rho_n = rget('samoa_rho_n')
+			config%r_phi = rget('samoa_phi')
+			config%r_p_in = rget('samoa_p_in')
+			config%r_p_prod = rget('samoa_p_prod')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
 #    	elif defined(_SWE) || defined(_FLASH)
@@ -176,11 +187,16 @@ module config
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
 
 #       	    if defined(_DARCY)
-                    PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
+                    PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
+                    PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
                     PRINT '(A, ES8.1, A)',  "	-epsilon			    linear solver error bound (value: ", config%r_epsilon, ")"
-                    PRINT '(A, ES8.1, A)',  "	-k_rel	                relative permeability of the entering fluid (value: ", config%r_rel_permeability, ")"
-                    PRINT '(A, ES8.1, A)',  "	-rho				    fluid density (value: ", config%r_rho, ")"
-                    PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
+                    PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, ")"
+                    PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, ")"
+                    PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, ")"
+                    PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, ")"
+                    PRINT '(A, ES8.1, A)',  "	-phi				    porosity (value: ", config%r_phi, ")"
+                    PRINT '(A, ES8.1, A)',  "	-p_in			        injection well pressure (value: ", config%r_p_in, ")"
+                    PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
 #         	    elif defined(_SWE)
@@ -301,11 +317,12 @@ module config
         _log_write(0, '(" Scenario: courant number: ", F0.3)'), config%courant_number
 
 #		if defined(_DARCY)
-            _log_write(0, '(" Darcy: permeability template: ", A)') trim(config%s_permeability_file)
+            _log_write(0, '(" Darcy: permeability file: ", A)') trim(config%s_permeability_file)
             _log_write(0, '(" Darcy: linear solver error bound: ", ES8.1)') config%r_epsilon
-            _log_write(0, '(" Darcy: relative permeability of the entering fluid: ", ES8.1)') config%r_rel_permeability
-            _log_write(0, '(" Darcy: fluid density: ", ES8.1)') config%r_rho
-            _log_write(0, '(" Darcy: initial boundary pressure difference: ", ES8.1)') config%r_p0
+            _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
+            _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
+            _log_write(0, '(" Darcy: porosity: ", ES8.1)') config%r_phi
+            _log_write(0, '(" Darcy: injection well pressure: ", ES8.1, ", production well pressure: ", ES8.1)') config%r_p_in, config%r_p_prod
             _log_write(0, '(" Darcy: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
             _log_write(0, '(" Darcy: CG restart interval: ", I0)') config%i_CG_restart
 #		elif defined(_FLASH)

@@ -61,6 +61,17 @@
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
+	MODULE Darcy_gv_rhs_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		darcy_gv_rhs
+#		define _GV_TYPE				real (kind = GRID_SR)
+#		define _GV_NAME				rhs
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
+
 	MODULE Darcy_gv_d_mod
 		use SFC_data_types
 
