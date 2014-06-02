@@ -12,6 +12,7 @@
 		use Darcy_initialize_saturation
 		use Darcy_vtk_output
 		use Darcy_xml_output
+		use Darcy_lse_output
 		use Darcy_grad_p
 		use Darcy_pressure_solver_jacobi
 		use Darcy_pressure_solver_cg
@@ -33,6 +34,7 @@
             type(t_darcy_init_saturation_traversal)         :: init_saturation
             type(t_darcy_vtk_output_traversal)              :: vtk_output
             type(t_darcy_xml_output_traversal)              :: xml_output
+            type(t_darcy_lse_output_traversal)              :: lse_output
             type(t_darcy_grad_p_traversal)                  :: grad_p
             type(t_darcy_transport_eq_traversal)            :: transport_eq
             type(t_darcy_permeability_traversal)            :: permeability
@@ -75,6 +77,7 @@
             call darcy%init_saturation%create()
             call darcy%vtk_output%create()
             call darcy%xml_output%create()
+            call darcy%lse_output%create()
             call darcy%grad_p%create()
             call darcy%transport_eq%create()
             call darcy%permeability%create()
@@ -97,7 +100,6 @@
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 3")
             end select
-
 
 			!open log file
 			call date_and_time(s_date, s_time)
@@ -206,6 +208,7 @@
             call darcy%init_saturation%destroy()
             call darcy%vtk_output%destroy()
             call darcy%xml_output%destroy()
+            call darcy%lse_output%destroy()
             call darcy%grad_p%destroy()
             call darcy%transport_eq%destroy()
             call darcy%error_estimate%destroy()
@@ -264,8 +267,16 @@
 				!reset saturation to initial condition, compute permeability and set refinement flag
 				call darcy%init_saturation%traverse(grid)
 
+                if (cfg%l_lse_output) then
+                    call darcy%lse_output%traverse(grid)
+                end if
+
 				!solve pressure equation
 				i_lse_iterations = darcy%pressure_solver%solve(grid)
+
+                if (cfg%l_lse_output) then
+                    call darcy%lse_output%traverse(grid)
+                end if
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
@@ -341,8 +352,16 @@
 					call darcy%permeability%traverse(grid)
 				!end if
 
+                if (cfg%l_lse_output) then
+                    call darcy%lse_output%traverse(grid)
+                end if
+
 				!solve pressure equation
 				i_lse_iterations = darcy%pressure_solver%solve(grid)
+
+                if (cfg%l_lse_output) then
+                    call darcy%lse_output%traverse(grid)
+                end if
 
 				!compute velocity field
 				call darcy%grad_p%traverse(grid)
