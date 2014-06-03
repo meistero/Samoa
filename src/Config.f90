@@ -50,6 +50,7 @@ module config
  			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
             integer			        	        :: i_lsolver			                		    !< linear solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
+            logical                             :: l_lse_output                                     !< print out the linear equation system
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
 			double precision				    :: r_nu_w		                                    !< viscosity of the wetting phase
@@ -99,7 +100,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm_1024.nc -fpor data/darcy_benchmark/perm_1024.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-5 -phi 0.2d0 -rho_w 1.0d0 -rho_n 0.67d0 -nu_w 0.3d0 -nu_n 1.01d0 -lsolver 2 -cg_restart 256"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm_1024.nc -fpor data/darcy_benchmark/perm_1024.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-5 -phi 0.2d0 -rho_w 1.0d0 -rho_n 0.67d0 -nu_w 0.3d0 -nu_n 1.01d0 -lsolver 2 -cg_restart 256 -lse_output .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -153,6 +154,7 @@ module config
 			config%r_p_prod = rget('samoa_p_prod')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
+            config%l_lse_output = lget('samoa_lse_output')
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
@@ -199,6 +201,7 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
+                    PRINT '(A, L, A)',     "	-lse_output             enable LSE output (value: ", config%l_lse_output, ")"
 #         	    elif defined(_SWE)
                     PRINT '(A, L, A)',  "	-asciiout               turns on ascii output (value: ", config%l_ascii_output, ")"
                     PRINT '(A, I0, A)', "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"

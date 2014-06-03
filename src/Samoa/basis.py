@@ -14,8 +14,8 @@ class basis:
 
     def __repr__(self):
         if len(self.functions) == 0:
-            return "basis()"        
-        
+            return "basis()"
+
         s = "basis("
         for f in self.functions[:-1]:
             s += "%s, " % f
@@ -32,7 +32,7 @@ class basis_function:
         self.domain = domain
 
     def __repr__(self):
-        return "function(%s, %s)" % (self.expr, self.domain) 
+        return "function(%s, %s)" % (self.expr, self.domain)
 
     def __add__(f, g):
         return f, g
@@ -42,13 +42,13 @@ class basis_function:
             return NotImplemented
 
         domain = intersect(f.domain, g.domain)
-        
+
         return basis_function(f.expr * g.expr, domain)
-    
+
     def dx(f):
         x = symbols('x', real=True)
         return basis_function(diff(f.expr, x), f.domain)
-    
+
     def dy(f):
         y = symbols('y', real=True)
         return basis_function(diff(f.expr, y), f.domain)
@@ -76,7 +76,7 @@ class basis_function:
     def boundary_integrate(f):
         x, y = symbols('x, y', real=True)
         t = symbols('t', real=True, nonnegative=True)
-        
+
         bnd_int = S(0)
 
         if isinstance(f.domain, Triangle) or isinstance(f.domain, Polygon):
@@ -104,15 +104,15 @@ class dirac_basis_function(basis_function):
     def __mul__(f, g):
         point = f.point
         domain = intersect(f.domain, g.domain)
-        
+
         return dirac_basis_function(f.expr * g.expr, point, domain)
 
     def __rmul__(f, g):
         return f * g
-    
+
     def dx(f):
         raise NotImplementedError("Derivative of Dirac function is not available")
-    
+
     def dy(f):
         raise NotImplementedError("Derivative of Dirac function is not available")
 
@@ -124,7 +124,7 @@ class dirac_basis_function(basis_function):
 
     def inner(f, g):
         expr = sum([a * b for (a,b) in zip(f.expr, g.expr)])
-        
+
         point = intersect(f.point, g.point)
         domain = intersect(f.domain, g.domain)
 
@@ -132,12 +132,12 @@ class dirac_basis_function(basis_function):
 
     def epsilon_area(f, epsilon):
         d = intersect(f.domain, Polygon(
-            Point(f.point.x - epsilon / 2, f.point.y - epsilon / 2), 
+            Point(f.point.x - epsilon / 2, f.point.y - epsilon / 2),
             Point(f.point.x + epsilon / 2, f.point.y - epsilon / 2),
-            Point(f.point.x + epsilon / 2, f.point.y + epsilon / 2), 
+            Point(f.point.x + epsilon / 2, f.point.y + epsilon / 2),
             Point(f.point.x - epsilon / 2, f.point.y + epsilon / 2)))
 
-        b = basis_function(S(1), d) 
+        b = basis_function(S(1), d)
         area = volume_integrate(b)
 
         return area / (epsilon ** 2)
@@ -149,15 +149,15 @@ class dirac_basis_function(basis_function):
             #compute the area ratio covered by the domain around the dirac point
             epsilon = Rational(1, 1e99)
             ratio = f.epsilon_area(epsilon)
-            
+
             #multiply by the value, this gives an additive integral
             return ratio * f.expr.subs({x:f.point.x, y:f.point.y})
 
-        else:        
+        else:
             return 0
 
     def boundary_integrate(f):
-        if isinstance(f.domain, Point) and (f.domain.x == 0 or f.domain.y == 0 or 1 - f.domain.x - f.domain.y == 0):        
+        if isinstance(f.domain, Point) and (f.domain.x == 0 or f.domain.y == 0 or 1 - f.domain.x - f.domain.y == 0):
             return f.expr.subs({x:f.domain.x, y:f.domain.y})
         else:
             return 0
@@ -204,19 +204,19 @@ def boundary_integrate(f):
     if isinstance(f, basis_function):
         return f.boundary_integrate()
     else:
-        return sum([boundary_integrate(f_sub) for f_sub in f]) 
+        return sum([boundary_integrate(f_sub) for f_sub in f])
 
 
 def intersect(A, B):
     isection = decompose(intersection(A, B))
-     
+
     if isinstance(A, Polygon) or isinstance(A, Segment):
         v_B = decompose(B)
 
         for b in v_B:
             if A.encloses(b):
                 isection.append(b)
-  
+
     if isinstance(B, Polygon) or isinstance(B, Segment):
         v_A = decompose(A)
 
@@ -242,7 +242,7 @@ def decompose(A):
         v_A = [A]
     else:
         v_A = [x for a in A for x in decompose(a)]
-    
+
     return v_A
 
 def index_to_coords(order, index):
@@ -270,7 +270,7 @@ def index_to_coords(order, index):
     else:
         j = int(sqrt(2 * (index - 3 * order) + 0.25) - 0.5)
         i = index - 3 * order - (j * (j + 1)) / 2
-        j = order - 3 - j        
+        j = order - 3 - j
         j += 1
         i += 1
 
@@ -282,7 +282,7 @@ def dirac_test_function(order, index, triangle, x, y):
     else:
         i,j = index_to_coords(order, index)
         point = triangle.vertices[1] + (triangle.vertices[0] - triangle.vertices[1]) * Rational(i,order) + (triangle.vertices[2] - triangle.vertices[1]) * Rational(j,order)
- 
+
     return dirac_basis_function(S(1), point, triangle)
 
 def fv_dual_basis_function(order, index, triangle, x, y):
@@ -290,15 +290,15 @@ def fv_dual_basis_function(order, index, triangle, x, y):
     assert(index < 3)
 
     domains = [
-        Triangle(triangle.vertices[0], (triangle.vertices[0] + triangle.vertices[2]) / 2, (triangle.vertices[0] + triangle.vertices[1]) / 2), 
-        Polygon(triangle.vertices[1], (triangle.vertices[0] + triangle.vertices[1]) / 2, (triangle.vertices[0] + triangle.vertices[2]) / 2, (triangle.vertices[1] + triangle.vertices[2]) / 2), 
+        Triangle(triangle.vertices[0], (triangle.vertices[0] + triangle.vertices[2]) / 2, (triangle.vertices[0] + triangle.vertices[1]) / 2),
+        Polygon(triangle.vertices[1], (triangle.vertices[0] + triangle.vertices[1]) / 2, (triangle.vertices[0] + triangle.vertices[2]) / 2, (triangle.vertices[1] + triangle.vertices[2]) / 2),
         Triangle(triangle.vertices[2], (triangle.vertices[1] + triangle.vertices[2]) / 2, (triangle.vertices[0] + triangle.vertices[2]) / 2)
         ]
 
     return basis_function(S(1), domains[index])
 
 def lagrange_basis_function_cb(order, i, j, triangle, x, y):
-    epsilon, xi = symbols('epsilon, xi')    
+    epsilon, xi = symbols('epsilon, xi')
 
     base_i = [S(1) for m in xrange(order + 1)]
     base_j = [S(1) for m in xrange(order + 1)]
@@ -364,25 +364,38 @@ def deriv_matrices(P, Q):
 
     return Ax, Ay
 
+def boundary_matrices(P, Q):
+    Ax = ImmutableMatrix([[boundary_integrate(basis_function((p.expr * q.expr,0), intersect(p.domain, q.domain))) for p in P] for q in Q])
+    Ay = ImmutableMatrix([[boundary_integrate(basis_function((0,p.expr * q.expr), intersect(p.domain, q.domain))) for p in P] for q in Q])
+
+    return Ax, Ay
+
 def main():
     T1 = Triangle((1, 0), (0, 0), (0, 1))
     T2 = Triangle((1, 0), (Rational(1,2), Rational(1,2)), (0, 0))
 
     p = lagrange_basis(1, T1)
-    q = lagrange_basis(0, T1)
+    q = fv_dual_basis(1, T1)
 
     M = mass_matrix(p, q)
     pprint(Eq(Symbol('M'), M))
-    print fcode(M) 
-   
+    print fcode(M)
+
     Dx, Dy = deriv_matrices(p, q)
     pprint(Eq(Symbol('Dx'), Dx))
     pprint(Eq(Symbol('Dy'), Dy))
-    print fcode(Dx) 
-    print fcode(Dy) 
-    
+    print fcode(Dx)
+    print fcode(Dy)
+
+    Bx, By = boundary_matrices(p, q)
+    pprint(Eq(Symbol('Bx'), Bx))
+    pprint(Eq(Symbol('By'), By))
+    print fcode(Bx)
+    print fcode(By)
+    print fcode(By)
+
     A = stiffness_matrix(p, q)
     pprint(Eq(Symbol('A'), A))
-    print fcode(A) 
+    print fcode(A)
 main()
 

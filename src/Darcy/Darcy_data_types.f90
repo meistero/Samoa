@@ -27,6 +27,8 @@
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
 
+        real (kind = GRID_SR), parameter            :: g(2) = [0.0d0, -9.81d2]
+
 		!*********************************************
 		!Persistent Entity data (geometric association)
 		!**********************************************
@@ -46,7 +48,7 @@
 		!> persistent, scenario specific data on an edge
 		type num_edge_data_pers
 #           if (_DARCY_P_EDGE_SIZE > 0)
-			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE), rhs(_DARCY_P_NODE_SIZE)
+			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE), rhs(_DARCY_P_EDGE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_EDGE_SIZE), d(_DARCY_P_EDGE_SIZE), r(_DARCY_P_EDGE_SIZE)
 #           endif
 
@@ -62,7 +64,7 @@
 		!> persistent, scenario specific data on a cell
 		type num_cell_data_pers
 #           if (_DARCY_P_CELL_SIZE > 0)
-			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE), rhs(_DARCY_P_NODE_SIZE)
+			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE), rhs(_DARCY_P_CELL_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_CELL_SIZE), d(_DARCY_P_CELL_SIZE), r(_DARCY_P_CELL_SIZE)
 #           endif
 

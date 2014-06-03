@@ -32,7 +32,7 @@
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP    inner_node_first_touch_op
+#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 
 #		define	_GT_ELEMENT_OP					element_op
 
@@ -165,7 +165,6 @@
 #		endif
 
 #		define _GT_NODES
-#		define _GT_REFINEMENTS
 
 #		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
@@ -173,6 +172,8 @@
 #		define	_GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 #		define	_GT_PRE_TRAVERSAL_OP			pre_traversal_op
 #		define	_GT_ELEMENT_OP					element_op
+
+#		define _GT_NODE_MERGE_OP		        node_merge_op
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -233,6 +234,13 @@
 			call gv_rhs%add(element, rhs)
 		end subroutine
 
+		elemental subroutine node_merge_op(local_node, neighbor_node)
+			type(t_node_data), intent(inout)		:: local_node
+ 			type(t_node_data), intent(in)		    :: neighbor_node
+
+			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
+		end subroutine
+
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
@@ -269,25 +277,22 @@
 			real (kind = GRID_SR), intent(out)									:: permeability
 			real (kind = GRID_SR), intent(out)									:: rhs(:)
 
-			integer (kind = GRID_SI)											:: i_depth
-			logical 											                :: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
-			real (kind = GRID_SR), parameter                                    :: g(2) = [0.0d0, -9.81d0]
-			real (kind = GRID_SR)												:: x(2), grad_psi(2), r_lambda_w, r_lambda_n
-			integer     :: i
+			integer (kind = GRID_SI)	                :: i_depth
+			logical 								    :: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
+			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 0.0d0, 0.0d0, 0.0d0], [3, 3])
+			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0d0, 0.0d0, 0.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0], [3, 3])
+			real (kind = GRID_SR)					    :: g_local(2), x(2), r_lambda_w(3), r_lambda_n(3)
 
 			!compute permeability
 
-			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation) / cfg%r_nu_w
-			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation)) / cfg%r_nu_n
+			r_lambda_w = (saturation * saturation) / cfg%r_nu_w
+			r_lambda_n = (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation) / cfg%r_nu_n
 
-			permeability = base_permeability * (r_lambda_w + r_lambda_n)
+			permeability = base_permeability * (dot_product([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR], r_lambda_w) + dot_product([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR], r_lambda_n))
+            g_local = samoa_world_to_barycentric_normal(element%transform_data, g)
 
-            do i = 1, 3
-                x = samoa_basis_p_get_dof_coords(i)
-                grad_psi = [samoa_basis_p_d_dx(x), samoa_basis_p_d_dy(x)]
-                grad_psi = samoa_barycentric_to_world_normal(element%transform_data, grad_psi)
-                rhs(i) = (cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n) * dot_product(g, grad_psi) !this should be the integral over lambda_t * g * grad psi
-            end do
+            rhs = g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy)
+            rhs = base_permeability * rhs
 
 			l_refine_sat = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2))) > 0.1_GRID_SR
 			l_refine_p = max(abs(p(3) - p(2)), abs(p(1) - p(2))) > 0.01_GRID_SR * (cfg%r_p_in - cfg%r_p_prod)

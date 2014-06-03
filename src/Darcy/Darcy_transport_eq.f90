@@ -157,7 +157,7 @@
                 flux(3) = flux(3) - u(2, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
             end if
 
-			!left and bottom boundary have mirror conditions, so the fluxes cancel out
+			!left and bottom boundary have symmetry conditions, so the fluxes cancel out
 
 			call gv_volume%add(element, volume)
 			call gv_flux%add(element, flux)

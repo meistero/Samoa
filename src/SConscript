@@ -35,6 +35,7 @@ f90_sources = [
 "Darcy/Darcy_initialize.f90",
 "Darcy/Darcy_output.f90",
 "Darcy/Darcy_xml_output.f90",
+"Darcy/Darcy_lse_output.f90",
 "Darcy/Darcy_laplace_jacobi.f90",
 "Darcy/Darcy_laplace_cg.f90",
 "Darcy/Darcy_laplace_pipecg.f90",

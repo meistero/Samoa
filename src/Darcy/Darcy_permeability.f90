@@ -27,8 +27,9 @@
 
 #		define _GT_ELEMENT_OP					element_op
 
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
+
+#		define _GT_NODE_MERGE_OP		        node_merge_op
 
 #		define _GT_EDGE_MPI_TYPE
 
@@ -66,37 +67,12 @@
 		!Geometry operators
 		!*******************************
 
-		elemental subroutine inner_node_first_touch_op(traversal, section, node)
- 			type(t_darcy_permeability_traversal), intent(in)                     :: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			:: node
-
-			call inner_flow_pre_dof_op(node%data_pers%rhs)
-		end subroutine
-
 		elemental subroutine node_first_touch_op(traversal, section, node)
  			type(t_darcy_permeability_traversal), intent(in)                     :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			integer :: i
-
-			do i = 1, _DARCY_FLOW_NODE_SIZE
-				call flow_pre_dof_op(node%position, node%data_pers%rhs(i))
-			end do
-		end subroutine
-
-		elemental subroutine inner_flow_pre_dof_op(rhs)
-			real (kind = GRID_SR), intent(out)					:: rhs
-
-			rhs = 0.0_GRID_SR
-		end subroutine
-
-		pure subroutine flow_pre_dof_op(pos, rhs)
-			real (kind = GRID_SR), dimension(2), intent(in)		:: pos
-			real (kind = GRID_SR), intent(out)					:: rhs
-
-			rhs = 0.0_GRID_SR
+			node%data_pers%rhs = 0.0d0
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -115,32 +91,37 @@
 			call gv_rhs%add(element, rhs)
 		end subroutine
 
+		elemental subroutine node_merge_op(local_node, neighbor_node)
+			type(t_node_data), intent(inout)		:: local_node
+ 			type(t_node_data), intent(in)		    :: neighbor_node
+
+			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
+		end subroutine
+
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
 		subroutine alpha_volume_op(element, saturation, base_permeability, permeability, rhs)
 			type(t_element_base), intent(inout)				                    :: element
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE), intent(in)		:: saturation
+			real (kind = GRID_SR), intent(in)		                            :: saturation(:)
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 			real (kind = GRID_SR), intent(out)									:: permeability
 			real (kind = GRID_SR), intent(out)									:: rhs(:)
 
-			real (kind = GRID_SR), parameter                                    :: g(2) = [0.0d0, -9.81d0]
-			real (kind = GRID_SR)												:: x(2), grad_psi(2), r_lambda_w, r_lambda_n
-			integer     :: i
+			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 0.0d0, 0.0d0, 0.0d0], [3, 3])
+			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0d0, 0.0d0, 0.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0], [3, 3])
+			real (kind = GRID_SR)					    :: g_local(2), x(2), r_lambda_w(3), r_lambda_n(3)
+			integer                                     :: i
 
-			r_lambda_w = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * saturation * saturation) / cfg%r_nu_w
-			r_lambda_n = sum([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR] * (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation)) / cfg%r_nu_n
+			r_lambda_w = (saturation * saturation) / cfg%r_nu_w
+			r_lambda_n = (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation) / cfg%r_nu_n
 
-			permeability = base_permeability * (r_lambda_w + r_lambda_n)
+			permeability = base_permeability * dot_product([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR], r_lambda_w + r_lambda_n)
+            g_local = samoa_world_to_barycentric_normal(element%transform_data, g)
 
-            do i = 1, 3
-                x = samoa_basis_p_get_dof_coords(i)
-                grad_psi = [samoa_basis_p_d_dx(x), samoa_basis_p_d_dy(x)]
-                grad_psi = samoa_barycentric_to_world_normal(element%transform_data, grad_psi)
-                rhs(i) = (cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n) * dot_product(g, grad_psi) !this should be the integral over lambda_t * g * grad psi
-            end do
+            rhs = g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy)
+            rhs = base_permeability * rhs
 		end subroutine
 	END MODULE
 #endif
