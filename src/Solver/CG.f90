@@ -542,16 +542,9 @@ MODULE _CG_(exact)
         type(t_node_data), intent(inout)		    :: node
 
         real(kind = GRID_SR)                        :: r(_gv_node_size)
-        real(kind = GRID_SR)                        :: rhs(_gv_node_size)
         real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
-#       if defined(_gv_rhs)
-            call gv_rhs%read(node, rhs)
-#       else
-            rhs = 0.0_GRID_SR
-#       endif
-
-        call pre_dof_op(r, rhs, trace_A)
+        call pre_dof_op(r, trace_A)
 
         call gv_r%write(node, r)
         call gv_trace_A%write(node, trace_A)
@@ -586,7 +579,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(1)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -602,13 +595,20 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        real(kind = GRID_SR)                        :: r(_gv_node_size)
-        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
+        real(kind = GRID_SR)    :: r(_gv_node_size)
+        real(kind = GRID_SR)    :: rhs(_gv_node_size)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
+
+#       if defined(_gv_rhs)
+            call gv_rhs%read(node, rhs)
+#       else
+            rhs = 0.0_GRID_SR
+#       endif
 
         call gv_r%read(node, r)
         call gv_trace_A%read(node, trace_A)
 
-        call post_dof_op(r, trace_A)
+        call post_dof_op(r, rhs, trace_A)
 
         call gv_r%write(node, r)
     end subroutine
@@ -663,20 +663,20 @@ MODULE _CG_(exact)
     !Volume and DoF operators
     !*******************************
 
-    elemental subroutine pre_dof_op(r, rhs, trace_A)
+    elemental subroutine pre_dof_op(r, trace_A)
         real (kind = GRID_SR), intent(out)			:: r
-        real (kind = GRID_SR), intent(in)			:: rhs
         real (kind = GRID_SR), intent(out)			:: trace_A
 
-        r = rhs
+        r = 0.0_GRID_SR
         trace_A = tiny(1.0_GRID_SR)
     end subroutine
 
-    elemental subroutine post_dof_op(r, trace_A)
+    elemental subroutine post_dof_op(r, rhs, trace_A)
         real (kind = GRID_SR), intent(inout)		:: r
+        real (kind = GRID_SR), intent(in)			:: rhs
         real (kind = GRID_SR), intent(in)			:: trace_A
 
-        r = r / trace_A
+        r = (rhs + r) / trace_A
     end subroutine
 
     elemental subroutine reduce_dof_op(r_C_r, r_sq, r, trace_A)
