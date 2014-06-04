@@ -156,11 +156,8 @@
 
 		!> Sets the initial values of the Heat_Eq and runs the time steps
 		!> @param i_output_step_interval		if < 0 no output is produced, if 0 only the initial data is written out, otherwise each n-th time step is written out.
-		subroutine heat_eq_run(grid, i_max_time_steps, r_max_time, r_output_step)
+		subroutine heat_eq_run(grid)
 			type(t_grid), intent(inout)									:: grid
-			integer (kind = GRID_SI), intent(inout)						:: i_max_time_steps
-			real (kind = GRID_SR), intent(in)							:: r_max_time
-			real (kind = GRID_SR), intent(in)							:: r_output_step
 
 			type(t_grid)												:: grid_temp
 			integer (kind = GRID_SI)									:: i_time_step
@@ -172,7 +169,7 @@
 			type(t_section_info)           	                            :: grid_info
 
 			_log_write(0, '(A, I0, A, I0)') " Heat_Eq: min depth: ", cfg%i_min_depth, ", max depth: ", cfg%i_max_depth
-			_log_write(0, '(A, I0, A, ES9.2, A, ES9.2)') " Heat_Eq: max time steps: ", i_max_time_steps, ", max sim. time: ", r_max_time, ", output step: ", r_output_step
+			_log_write(0, '(A, I0, A, ES9.2, A, ES9.2)') " Heat_Eq: max time steps: ", i_max_time_steps, ", max sim. time: ", r_max_time, ", output step: ", cfg%r_output_time_step
 			_log_write(0, *) ""
 
 			_log_write(0, *) "Heat_Eq: setting initial values and a priori refinement.."
@@ -218,9 +215,9 @@
 			call grid_info%print()
 
 			!output initial grid
-			if (r_output_step >= 0.0_GRID_SR) then
+			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
 				call heat_eq_xml_output_traversal(grid)
-				r_time_next_output = r_time_next_output + r_output_step
+				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
 			!reset counters
@@ -260,9 +257,9 @@
 				_log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " Heat_Eq: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
 
 				!output grid
-				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
 					call heat_eq_xml_output_traversal(grid)
-					r_time_next_output = r_time_next_output + r_output_step
+					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if
 
 				i_time_step = i_time_step + 1

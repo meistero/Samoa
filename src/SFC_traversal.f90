@@ -56,6 +56,9 @@ MODULE SFC_traversal
            type(t_generic)                                                  :: generic
 #	    endif
 
+        !signal handling
+        call signal(2, signal_interrupt)
+
 		!create, run and destroy scenario
 
 #		if defined(_TESTS)
@@ -66,7 +69,7 @@ MODULE SFC_traversal
 			call tests_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
 			!$omp parallel copyin(cfg)
-			call tests_run(grid, cfg%i_max_time_steps)
+			call tests_run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -77,7 +80,7 @@ MODULE SFC_traversal
 			call heat_eq_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
 			!$omp parallel copyin(cfg)
-			call heat_eq_run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call heat_eq_run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -88,7 +91,7 @@ MODULE SFC_traversal
 			call darcy%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call darcy%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call darcy%run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -99,7 +102,7 @@ MODULE SFC_traversal
 			call swe%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call swe%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call swe%run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -110,7 +113,7 @@ MODULE SFC_traversal
 			call flash%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call flash%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call flash%run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -121,7 +124,7 @@ MODULE SFC_traversal
 			call numa%create(grid, cfg%l_log)
 
             !$omp parallel copyin(cfg)
-			call numa%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call numa%run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -134,4 +137,18 @@ MODULE SFC_traversal
 			call generic%destroy(cfg%l_log)
 #		endif
 	end subroutine sfc_generic
+
+	subroutine signal_interrupt()
+        _log_write(1, '("*****************************************************")')
+        _log_write(1, '("*** Interrupt signal caught, initiating soft exit ***")')
+        _log_write(1, '("*****************************************************")')
+        !initiate a soft stop for the scenario
+
+        cfg%i_max_depth = 1
+        cfg%r_max_time = 0.0_GRID_SR
+
+#       if defined (_DARCY)
+            cfg%r_epsilon = huge(1.0_GRID_SR)
+#       endif
+    end subroutine
 end MODULE SFC_traversal

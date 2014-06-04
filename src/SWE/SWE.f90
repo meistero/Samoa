@@ -173,12 +173,9 @@
 		!*********************************
 
 		!> Sets the initial values of the SWE and runs the time steps
-		subroutine swe_run(swe, grid, i_max_time_steps, r_max_time, r_output_step)
+		subroutine swe_run(swe, grid)
             class(t_swe), intent(inout)                                 :: swe
 			type(t_grid), intent(inout)									:: grid
-			integer (kind = GRID_SI), intent(inout)						:: i_max_time_steps
-			real (kind = GRID_SR), intent(in)							:: r_max_time
-			real (kind = GRID_SR), intent(in)							:: r_output_step
 
 			double precision										    :: t_initial, t_time_steps
 			real (kind = GRID_SR)										:: r_time_next_output
@@ -236,14 +233,14 @@
 			end if
 
 			!output initial grid
-			if (r_output_step >= 0.0_GRID_SR) then
+			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
                 if (cfg%l_ascii_output) then
                     call swe%ascii_output%traverse(grid)
                 else
                     call swe%xml_output%traverse(grid)
                 end if
 
-				r_time_next_output = r_time_next_output + r_output_step
+				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
             !$omp master
@@ -268,7 +265,7 @@
                 ! during the earthquake, do small time steps that include a displacement
 
                 do
-                    if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. i_time_step >= i_max_time_steps)) then
+                    if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
                         exit
                     end if
 
@@ -294,14 +291,14 @@
                     end if
 
                     !output grid
-                    if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+                    if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                         if (cfg%l_ascii_output) then
                             call swe%ascii_output%traverse(grid)
                         else
                             call swe%xml_output%traverse(grid)
                         end if
 
-                        r_time_next_output = r_time_next_output + r_output_step
+                        r_time_next_output = r_time_next_output + cfg%r_output_time_step
                     end if
                 end do
 #           endif
@@ -309,7 +306,7 @@
             !regular tsunami time steps begin after the earthquake is over
 
 			do
-				if ((r_max_time >= 0.0 .and. grid%r_time > r_max_time) .or. (i_max_time_steps >= 0 .and. i_time_step >= i_max_time_steps)) then
+				if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
 					exit
 				end if
 
@@ -328,14 +325,14 @@
                 end if
 
 				!output grid
-				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                     if (cfg%l_ascii_output) then
                         call swe%ascii_output%traverse(grid)
                     else
                         call swe%xml_output%traverse(grid)
                     end if
 
-					r_time_next_output = r_time_next_output + r_output_step
+					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if
 			end do
 
