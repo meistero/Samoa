@@ -27,7 +27,7 @@
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
 
-        real (kind = GRID_SR), parameter            :: g(2) = [0.0d0, -9.81d2]
+        real (kind = GRID_SR), parameter            :: g(2) = [0.0d0, 0.0d0]
 
 		!*********************************************
 		!Persistent Entity data (geometric association)
@@ -37,6 +37,7 @@
 		type num_node_data_pers
 			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE), rhs(_DARCY_P_NODE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_NODE_SIZE), d(_DARCY_P_NODE_SIZE), r(_DARCY_P_NODE_SIZE)
+			real (kind = GRID_SR)   :: phi(_DARCY_P_NODE_SIZE)
 
 			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_NODE_SIZE)    !< water saturation
 

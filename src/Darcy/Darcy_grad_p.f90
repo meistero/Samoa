@@ -140,7 +140,7 @@
 			!define velocity by u = k (-grad p + rho g)
 			do i = 1, _DARCY_U_SIZE
 				u(:, i) = -samoa_basis_p_gradient(samoa_basis_u_get_dof_coords(i), p)
-				u(:, i) = base_permeability * (samoa_barycentric_to_world_normal(element%transform_data, u(:, i)) + cfg%r_rho_w * g)
+				u(:, i) = base_permeability / cfg%scaling * (samoa_barycentric_to_world_normal(element%transform_data,  u(:, i)) + cfg%r_rho_w * g)
 				traversal%u_max = max(traversal%u_max, DOT_PRODUCT(u(:, i), u(:, i)))
 			end do
 

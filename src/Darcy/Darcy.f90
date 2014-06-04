@@ -155,10 +155,32 @@
                     i_error = asagi_open(cfg%afh_permeability, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
                     i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
 #               endif
+
+                associate(afh_perm => cfg%afh_permeability, afh_phi => cfg%afh_porosity)
+                    cfg%scaling = 0.5_GRID_SR * max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
+                    cfg%offset = [0.5_GRID_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm)), 0.5_GRID_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm))]
+
+                    cfg%r_pos_in = [0.0_GRID_SR, 0.0_GRID_SR]
+                    cfg%r_pos_prod = ([grid_max_x(afh_perm), grid_max_y(afh_perm)] - cfg%offset) / cfg%scaling
+
+                    if (rank_MPI == 0) then
+                        _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
+                            trim(cfg%s_permeability_file), grid_min_x(afh_perm), grid_max_x(afh_perm),  grid_min_y(afh_perm), grid_max_y(afh_perm),  grid_min_z(afh_perm), grid_max_z(afh_perm)
+
+                        _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
+                            trim(cfg%s_porosity_file), grid_min_x(afh_phi), grid_max_x(afh_phi),  grid_min_y(afh_phi), grid_max_y(afh_phi),  grid_min_z(afh_phi), grid_max_z(afh_phi)
+
+                        _log_write(1, '(" Darcy: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
+                    end if
+                end associate
+#           else
+                cfg%scaling = 1.0_GRID_SR
+                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+
+                cfg%r_pos_in = [0.0_GRID_SR, 0.0_GRID_SR]
+                cfg%r_pos_prod = [1.0_GRID_SR, 1.0_GRID_SR]
 #			endif
 
-            cfg%scaling = 1.0_GRID_SR
-            cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario

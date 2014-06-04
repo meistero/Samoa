@@ -60,6 +60,8 @@ module config
 			double precision				    :: r_phi					                        !< porosity
 			double precision				    :: r_p_in			                                !< injection well pressure
 			double precision				    :: r_p_prod			                                !< production well pressure
+			double precision			        :: r_pos_in(2)				                        !< injection well position
+			double precision			        :: r_pos_prod(2)				                    !< production well position
 #    	elif defined(_SWE)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -100,7 +102,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm_1024.nc -fpor data/darcy_benchmark/perm_1024.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-5 -phi 0.2d0 -rho_w 1.0d0 -rho_n 0.67d0 -nu_w 0.3d0 -nu_n 1.01d0 -lsolver 2 -cg_restart 256 -lse_output .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -phi 0.2d0 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d0 -nu_n 3.0d0 -lsolver 2 -cg_restart 256 -lse_output .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)

@@ -18,6 +18,7 @@
 			real (kind = GRID_SR)				    :: coords(2)
 			real (kind = GRID_SR)			        :: p
 			real (kind = GRID_SR)			        :: S
+			real (kind = GRID_SR)			        :: phi
 		end type
 
 		!> Output cell data
@@ -26,8 +27,8 @@
 			real (kind = GRID_SR)					:: u(2)
             integer (kind = GRID_SI)			    :: rank
             integer (kind = GRID_SI)			    :: section_index
-			integer (BYTE)					    :: depth
-			integer (BYTE)					    :: refinement
+			integer (BYTE)					        :: depth
+			integer (BYTE)					        :: refinement
 		end type
 
 		logical, parameter											:: l_second_order = (_DARCY_P_ORDER > 1)
@@ -52,6 +53,7 @@
         type(darcy_gv_u)										    :: gv_u
         type(darcy_gv_saturation)								    :: gv_saturation
         type(darcy_gv_r)										    :: gv_r
+        type(darcy_gv_phi)										    :: gv_phi
 
 #		define	_GT_NAME							t_darcy_xml_output_traversal
 
@@ -105,6 +107,7 @@
                         e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
                             e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('porosity', 1.0_GRID_SR, 1)
                         e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
                         e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
@@ -216,6 +219,7 @@
                     e_io = vtk%VTK_DAT_XML('node', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
                         e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
+                        e_io = vtk%VTK_VAR_XML(i_points, 'porosity', traversal%point_data%phi)
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
@@ -260,6 +264,7 @@
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)					:: p
 			real (kind = GRID_SR), dimension(2, _DARCY_U_SIZE)				:: u
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)				:: saturation
+			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)				    :: phi
 
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)					:: r_point_data_indices		!< point data indices
 			integer (kind = GRID_SI), dimension(_DARCY_P_SIZE)				:: point_data_indices		!< point data indices
@@ -268,9 +273,11 @@
 			call gv_r%read(element, r_point_data_indices)
 			call gv_u%read_from_element(element, u)
 			call gv_saturation%read(element, saturation)
+			call gv_phi%read(element, phi)
 
 			point_data_indices(:) = int(r_point_data_indices(:), kind=GRID_SI)
 			p = samoa_basis_p_dofs_to_values(p)
+			phi = samoa_basis_p_dofs_to_values(phi)
 			u(1, :) = samoa_basis_u_dofs_to_values(u(1, :))
 			u(2, :) = samoa_basis_u_dofs_to_values(u(2, :))
 			saturation = samoa_basis_flow_dofs_to_values(saturation)
@@ -287,6 +294,7 @@
 					traversal%point_data(point_data_indices(i))%coords = samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i))
 					traversal%point_data(point_data_indices(i))%p = p(i)
 					traversal%point_data(point_data_indices(i))%S = saturation(i)
+					traversal%point_data(point_data_indices(i))%phi = phi(i)
 				end forall
 
 				traversal%i_connectivity(6 * traversal%i_cell_data_index - 5 : 6 * traversal%i_cell_data_index) = point_data_indices([ 1, 2, 3, 6, 4, 5 ]) - 1
@@ -295,6 +303,7 @@
 					traversal%point_data(point_data_indices(i))%coords = samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i))
 					traversal%point_data(point_data_indices(i))%p = p(i)
 					traversal%point_data(point_data_indices(i))%S = saturation(i)
+					traversal%point_data(point_data_indices(i))%phi = phi(i)
 				end forall
 
 				traversal%i_connectivity(3 * traversal%i_cell_data_index - 2 : 3 * traversal%i_cell_data_index) = point_data_indices(1:3) - 1

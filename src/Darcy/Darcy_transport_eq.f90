@@ -80,7 +80,7 @@
 
             !Dual cells have a size of of edge_length, the maximum Eigenvalue of the system is (2 S_max u_max) / (\Phi nu) = (2 u_max) / (\Phi nu)
             !This gives an upper bound of \Delta t \leq (\Phi nu edge_length) / (2 u_max)
-            grid%r_dt = cfg%courant_number * cfg%scaling * cfg%r_phi * cfg%r_nu_w * get_edge_size(cfg%i_max_depth) / (2.0_GRID_SR * grid%u_max)
+            grid%r_dt = cfg%courant_number * cfg%r_phi * cfg%r_nu_w * cfg%scaling * get_edge_size(cfg%i_max_depth) / (2.0_GRID_SR * grid%u_max)
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
 		end subroutine
 
@@ -135,26 +135,26 @@
 
             !outflow on the right
             if (element%nodes(2)%ptr%position(1) == 1.0 .and. element%nodes(1)%ptr%position(1) == 1.0) then
-                flux(2) = flux(2) - u(1, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
-                flux(1) = flux(1) - u(1, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(2) = flux(2) - u(1, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(1) = flux(1) - u(1, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
             else if (element%nodes(2)%ptr%position(1) == 1.0 .and. element%nodes(3)%ptr%position(1) == 1.0) then
-                flux(2) = flux(2) - u(1, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
-                flux(3) = flux(3) - u(1, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(2) = flux(2) - u(1, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(3) = flux(3) - u(1, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
             else if (element%nodes(1)%ptr%position(1) == 1.0 .and. element%nodes(3)%ptr%position(1) == 1.0) then
-                flux(1) = flux(1) - u(1, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
-                flux(3) = flux(3) - u(1, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
+                flux(1) = flux(1) - u(1, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
+                flux(3) = flux(3) - u(1, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
             end if
 
             !outflow on the top
             if (element%nodes(2)%ptr%position(2) == 1.0 .and. element%nodes(1)%ptr%position(2) == 1.0) then
-                flux(2) = flux(2) - u(2, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
-                flux(1) = flux(1) - u(2, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(2) = flux(2) - u(2, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(1) = flux(1) - u(2, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
             else if (element%nodes(2)%ptr%position(2) == 1.0 .and. element%nodes(3)%ptr%position(2) == 1.0) then
-                flux(2) = flux(2) - u(2, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
-                flux(3) = flux(3) - u(2, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(2) = flux(2) - u(2, 1) * (saturation(2) * saturation(2)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
+                flux(3) = flux(3) - u(2, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size() / cfg%r_nu_w
             else if (element%nodes(1)%ptr%position(2) == 1.0 .and. element%nodes(3)%ptr%position(2) == 1.0) then
-                flux(1) = flux(1) - u(2, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
-                flux(3) = flux(3) - u(2, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
+                flux(1) = flux(1) - u(2, 1) * (saturation(1) * saturation(1)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
+                flux(3) = flux(3) - u(2, 1) * (saturation(3) * saturation(3)) * 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_hypo_size() / cfg%r_nu_w
             end if
 
 			!left and bottom boundary have symmetry conditions, so the fluxes cancel out
@@ -181,7 +181,7 @@
 			integer (kind = GRID_SI)					:: i
 
 			do i = 1, _DARCY_FLOW_NODE_SIZE
-				call post_dof_op(section, node%data_pers%saturation(i), node%data_temp%flux(i), node%data_temp%volume(i))
+				call post_dof_op(section, node%data_pers%saturation(i), node%data_pers%phi(i), node%data_temp%flux(i), node%data_temp%volume(i))
 			end do
 		end subroutine
 
@@ -193,7 +193,7 @@
 			integer (kind = GRID_SI)					:: i
 
 			if (node%position(1) > 0.0_GRID_SR .or. node%position(2) > 0.0_GRID_SR) then
-                call post_dof_op(section, node%data_pers%saturation, node%data_temp%flux, node%data_temp%volume)
+                call post_dof_op(section, node%data_pers%saturation, node%data_pers%phi, node%data_temp%flux, node%data_temp%volume)
 			end if
 		end subroutine
 
@@ -222,12 +222,12 @@
 			real (kind = GRID_SR)               								:: r_dual_edge_length
 			integer (kind = GRID_SI)											:: i
 
-			volume(:) = [0.25_GRID_SR, 0.50_GRID_SR, 0.25_GRID_SR] * element%cell%geometry%get_volume()
+			volume(:) = [0.25_GRID_SR, 0.50_GRID_SR, 0.25_GRID_SR] * cfg%scaling * cfg%scaling * element%cell%geometry%get_volume()
 
             r_lambda_w(:) = (saturation(:) * saturation(:)) / cfg%r_nu_w
 
 			r_u(:) = u(:, 1)
-			r_dual_edge_length = 0.5_GRID_SR * element%cell%geometry%get_leg_size()
+			r_dual_edge_length = 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size()
 
 			!compute an upwind flux
 
@@ -246,15 +246,16 @@
 			flux(2) = -flux(1) - flux(3)
 		end subroutine
 
-		elemental subroutine post_dof_op(section, saturation, flux, volume)
+		elemental subroutine post_dof_op(section, saturation, phi, flux, volume)
 			type(t_grid_section), intent(in)		:: section
  			real (kind = GRID_SR), intent(inout)	:: saturation
+			real (kind = GRID_SR), intent(in)		:: phi
 			real (kind = GRID_SR), intent(in)		:: flux
 			real (kind = GRID_SR), intent(in)		:: volume
 
 			real (kind = GRID_SR)					:: r_ds_dt
 
-			r_ds_dt = flux / (cfg%r_phi * volume)
+			r_ds_dt = flux / (phi * volume)
 			saturation = saturation + section%r_dt * r_ds_dt
 		end subroutine
 

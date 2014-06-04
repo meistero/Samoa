@@ -94,6 +94,17 @@
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
+	MODULE Darcy_gv_phi_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		darcy_gv_phi
+#		define _GV_TYPE				real (kind = GRID_SR)
+#		define _GV_NAME				phi
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
+
 	MODULE Darcy_gv_mat_diagonal_mod
 		use SFC_data_types
 

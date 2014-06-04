@@ -92,6 +92,18 @@ class basis_function:
                     v = p_next - p
                     bnd_int = bnd_int + Integral(sqrt(v.x ** 2 + v.y ** 2) * f.expr.subs({x:p.x + t * v.x,y:p.y + t * v.y}), (t, 0, 1))
                     p = p_next
+        elif isinstance(f.domain, tuple):
+            p1 = f.domain[0]
+            p2 = f.domain[1]
+
+            if (isinstance(f.expr, tuple)):
+                v = p2 - p1
+                bnd_int = bnd_int + Integral((v.y * f.expr[0] - v.x * f.expr[1]).subs({x:p1.x + t * v.x,y:p1.y + t * v.y}), (t, 0, 1))
+            else:
+                v = p2 - p1
+                bnd_int = bnd_int + Integral(sqrt(v.x ** 2 + v.y ** 2) * f.expr.subs({x:p1.x + t * v.x,y:p1.y + t * v.y}), (t, 0, 1))
+        else:
+            bnd_int = bnd_int + sum([boundary_integrate(basis_function(f.expr, subdomain)) for subdomain in f.domain])
 
         return bnd_int.doit()
 
@@ -204,8 +216,9 @@ def boundary_integrate(f):
     if isinstance(f, basis_function):
         return f.boundary_integrate()
     else:
-        return sum([boundary_integrate(f_sub) for f_sub in f])
-
+        #this is problematic. a boundary integral over a function
+        #is the sum of subintegrals only if the function is continuous
+        raise NotImplementedError("Boundary integral can not be split")
 
 def intersect(A, B):
     isection = decompose(intersection(A, B))
@@ -365,8 +378,20 @@ def deriv_matrices(P, Q):
     return Ax, Ay
 
 def boundary_matrices(P, Q):
-    Ax = ImmutableMatrix([[boundary_integrate(basis_function((p.expr * q.expr,0), intersect(p.domain, q.domain))) for p in P] for q in Q])
-    Ay = ImmutableMatrix([[boundary_integrate(basis_function((0,p.expr * q.expr), intersect(p.domain, q.domain))) for p in P] for q in Q])
+    one_half = Rational(1, 2)
+
+    domain = [  [(Point(1, 0), Point(one_half, one_half)), (Point(one_half, 0), Point(1, 0))],
+                [(Point(0, one_half), Point(0, 0)), (Point(0, 0), Point(one_half, 0))],
+                [(Point(one_half, one_half), Point(0, 1)), (Point(0, 1), Point(0, one_half))]
+             ]
+
+    domain = [  [(Point(one_half, one_half), Point(one_half, 0))],
+                [(Point(one_half, 0), Point(one_half, one_half)), (Point(one_half, one_half), Point(0, one_half))],
+                [(Point(0, one_half), Point(one_half, one_half))]
+             ]
+
+    Ax = ImmutableMatrix([[boundary_integrate(basis_function((p.expr * q.expr, 0), d)) for p in P] for (q, d) in zip(Q, domain)])
+    Ay = ImmutableMatrix([[boundary_integrate(basis_function((0, p.expr * q.expr), d)) for p in P] for (q, d) in zip(Q, domain)])
 
     return Ax, Ay
 
@@ -391,7 +416,6 @@ def main():
     pprint(Eq(Symbol('Bx'), Bx))
     pprint(Eq(Symbol('By'), By))
     print fcode(Bx)
-    print fcode(By)
     print fcode(By)
 
     A = stiffness_matrix(p, q)

@@ -213,26 +213,37 @@
 
 		!last touch ops
 
-		elemental subroutine node_last_touch_op(traversal, section, node)
+		subroutine node_last_touch_op(traversal, section, nodes)
  			type(t_darcy_adaption_traversal), intent(in)	    :: traversal
- 			type(t_grid_section), intent(in)				    :: section
-			type(t_node_data), intent(inout)					:: node
+ 			type(t_grid_section), intent(inout)				    :: section
+			type(t_node_data), intent(inout)					:: nodes(:)
 
-			if (all(node%position == [0.0_GRID_SR, 0.0_GRID_SR]) .or. all(node%position == [1.0_GRID_SR, 1.0_GRID_SR])) then
-				node%data_temp%is_dirichlet_boundary = .true.
-			else
-				node%data_temp%is_dirichlet_boundary = .false.
-			end if
+            integer :: i
 
-			call inner_node_last_touch_op(traversal, section, node)
+            do i = 1, size(nodes)
+                call inner_node_last_touch_op(traversal, section, nodes(i))
+
+                if (norm2(nodes(i)%position - cfg%r_pos_prod) < 1.0e-2) then
+                    nodes(i)%data_pers%p = cfg%r_p_prod
+                    nodes(i)%data_temp%is_dirichlet_boundary = .true.
+                else if(norm2(nodes(i)%position - cfg%r_pos_in) < 1.0e-2) then
+                    nodes(i)%data_pers%p = cfg%r_p_in
+                    nodes(i)%data_pers%saturation = 1.0_GRID_SR
+                    nodes(i)%data_temp%is_dirichlet_boundary = .true.
+                else
+                    nodes(i)%data_temp%is_dirichlet_boundary = .false.
+                end if
+            end do
 		end subroutine
 
-		elemental subroutine inner_node_last_touch_op(traversal, section, node)
+		subroutine inner_node_last_touch_op(traversal, section, node)
  			type(t_darcy_adaption_traversal), intent(in)    :: traversal
- 			type(t_grid_section), intent(in)			    :: section
+ 			type(t_grid_section), intent(inout)			    :: section
 			type(t_node_data), intent(inout)			    :: node
 
 			call post_dof_op(node%data_pers%saturation, node%data_temp%volume)
+
+			node%data_pers%phi = get_porosity(section, node%position)
 		end subroutine
 		!*******************************
 		!Volume and DoF operators

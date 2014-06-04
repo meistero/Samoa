@@ -116,6 +116,7 @@
 		use Darcy_gv_r_mod
 		use Darcy_gv_d_mod
 		use Darcy_gv_A_d_mod
+		use Darcy_gv_phi_mod
 		use Darcy_gv_mat_diagonal_mod
 		use Darcy_gv_is_dirichlet_boundary_mod
 		use Darcy_gv_u_mod
