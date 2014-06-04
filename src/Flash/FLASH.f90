@@ -163,18 +163,15 @@
 		!*********************************
 
 		!> Sets the initial values of the FLASH and runs the time steps
-		subroutine FLASH_run(FLASH, grid, i_max_time_steps, r_max_time, r_output_step)
+		subroutine FLASH_run(FLASH, grid)
             class(t_FLASH), intent(inout)                                 :: FLASH
 			type(t_grid), intent(inout)									:: grid
-			integer (kind = GRID_SI), intent(inout)						:: i_max_time_steps
-			real (kind = GRID_SR), intent(in)							:: r_max_time
-			real (kind = GRID_SR), intent(in)							:: r_output_step
 
 			type (t_adaptive_statistics)								:: adaption_stats_initial, adaption_stats_time_steps
 			type (t_adaptive_statistics)							    :: grid_stats_initial, grid_stats_time_steps
 			real (kind = GRID_SR)										:: r_t1, r_t2, r_t3, r_t4
 			real (kind = GRID_SR)										:: r_time_next_output
-			type(t_section_info)           	                            :: grid_info
+			type(t_grid_info)           	                            :: grid_info
 
 			!init parameters
 
@@ -195,7 +192,7 @@
 				!set numerics and check for refinement
 				call FLASH%init%traverse(grid)
 
-                grid_info = grid%get_capacity(.false.)
+                grid_info = grid%get_info(MPI_SUM, .false.)
 
                 !$omp master
                 if (rank_MPI == 0) then
@@ -203,7 +200,7 @@
                 end if
                 !$omp end master
 
-                grid_info = grid%get_capacity(.true.)
+                grid_info = grid%get_info(MPI_SUM, .true.)
 				if (FLASH%init%i_refinements_issued .le. grid_info%i_cells / 100) then
 					exit
 				endif
@@ -223,13 +220,17 @@
             !$omp end master
 
 			!output initial grid
-			if (r_output_step >= 0.0_GRID_SR) then
+			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
 				call FLASH%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + r_output_step
+				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
             !$omp master
 			!copy counters
+            call FLASH%init%reduce_stats(MPI_SUM, .true.)
+            call FLASH%adaption%reduce_stats(MPI_SUM, .true.)
+            call grid%reduce_stats(MPI_SUM, .true.)
+
 			grid_stats_initial = grid%stats
             adaption_stats_initial = FLASH%adaption%stats
 
@@ -242,7 +243,7 @@
             r_t3 = get_wtime()
 
 			do
-				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. FLASH%euler%stats%i_traversals >= i_max_time_steps)) then
+				if ((cfg%r_max_time >= 0.0 .and. grid%r_time >= cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. FLASH%euler%stats%i_traversals >= cfg%i_max_time_steps)) then
 					exit
 				end if
 
@@ -253,7 +254,7 @@
 				!do a timestep
 				call FLASH%euler%traverse(grid)
 
-                grid_info = grid%get_capacity(.false.)
+                grid_info = grid%get_info(MPI_SUM, .false.)
 
                 !$omp master
                 if (rank_MPI == 0) then
@@ -262,27 +263,23 @@
                 !$omp end master
 
 				!output grid
-				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
 					call FLASH%xml_output%traverse(grid)
-					r_time_next_output = r_time_next_output + r_output_step
+					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if
 			end do
 
 			r_t4 = get_wtime()
 
-            grid_info = grid%get_capacity(.true.)
+            grid_info = grid%get_info(MPI_SUM, .true.)
 
             !$omp master
+            call FLASH%euler%reduce_stats(MPI_SUM, .true.)
+            call FLASH%adaption%reduce_stats(MPI_SUM, .true.)
+            call grid%reduce_stats(MPI_SUM, .true.)
+
 			grid_stats_time_steps = grid%stats - grid_stats_initial
             adaption_stats_time_steps = FLASH%adaption%stats - adaption_stats_initial
-
-            call FLASH%init%stats%reduce()
-            call adaption_stats_initial%reduce()
-            call grid_stats_initial%reduce()
-
-            call FLASH%euler%stats%reduce()
-            call adaption_stats_time_steps%reduce()
-            call grid_stats_time_steps%reduce()
 
             if (rank_MPI == 0) then
                 _log_write(0, *) "FLASH: done."

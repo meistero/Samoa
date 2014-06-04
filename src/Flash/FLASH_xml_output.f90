@@ -140,7 +140,7 @@
 			type(t_section_info)                                           :: grid_info
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
 
-            grid_info = section%get_capacity()
+            grid_info = section%get_info()
 			i_cells = grid_info%i_cells
 
 			if (i_element_order > 1) then
@@ -171,7 +171,7 @@
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points, i
 			integer(4)													:: e_io
 
-            grid_info = section%get_capacity()
+            grid_info = section%get_info()
 			i_cells = grid_info%i_cells
 
 			if (i_element_order > 1) then

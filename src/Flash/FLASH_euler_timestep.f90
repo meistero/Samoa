@@ -55,7 +55,7 @@
 			type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-        grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+        grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 	!print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
 	!print *, "calculatzed Dt: ",0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max), grid%r_dt
 
@@ -135,9 +135,9 @@
       !  rep%Q(1) = Q(1)
 !#     endif
 	rep%Q = Q
-	
 
-	
+
+
 
 
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q out: ", rep%Q
@@ -338,7 +338,9 @@
 
       !_log_write(0, *) "U_max: ", section%u_max
 
-      dQ%t_dof_state = dQ%t_dof_state * (-section%r_dt / volume)
+        do i = 1, _FLASH_CELL_SIZE
+            dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-section%r_dt / volume)
+        end do
 
       _log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
     end subroutine
