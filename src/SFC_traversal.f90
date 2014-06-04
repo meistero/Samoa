@@ -139,16 +139,20 @@ MODULE SFC_traversal
 	end subroutine sfc_generic
 
 	subroutine signal_interrupt()
-        _log_write(1, '("*****************************************************")')
-        _log_write(1, '("*** Interrupt signal caught, initiating soft exit ***")')
-        _log_write(1, '("*****************************************************")')
-        !initiate a soft stop for the scenario
+        print '("*****************************************************")'
+        print '("*** Interrupt signal caught, initiating soft exit ***")'
+        print '("*****************************************************")'
 
+        !initiate a soft exit by setting all possible exit conditions to return immediately
         cfg%i_max_depth = 1
+        cfg%i_max_time_steps = 0
         cfg%r_max_time = 0.0_GRID_SR
 
 #       if defined (_DARCY)
             cfg%r_epsilon = huge(1.0_GRID_SR)
 #       endif
+
+        !clear the signal so the next time ctrl-c is pressed, the program will terminate
+        call signal(2, 0)
     end subroutine
 end MODULE SFC_traversal
