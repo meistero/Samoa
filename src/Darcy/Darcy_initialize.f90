@@ -129,7 +129,7 @@
             if (grid_min_x(cfg%afh_permeability) <= xs(1) .and. grid_min_y(cfg%afh_permeability) <= xs(2) &
                     .and. xs(1) <= grid_max_x(cfg%afh_permeability) .and. xs(2) <= grid_max_y(cfg%afh_permeability)) then
 
-                r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), 0)
+                r_base_permeability = grid_get_float_3d(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), 0.1d0, 0)
             else
                 r_base_permeability = 0.0d0
             end if
@@ -155,10 +155,10 @@
                 section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #           endif
 
-            if (grid_min_x(cfg%afh_permeability) <= xs(1) .and. grid_min_y(cfg%afh_permeability) <= xs(2) &
-                    .and. xs(1) <= grid_max_x(cfg%afh_permeability) .and. xs(2) <= grid_max_y(cfg%afh_permeability)) then
+            if (grid_min_x(cfg%afh_porosity) <= xs(1) .and. grid_min_y(cfg%afh_porosity) <= xs(2) &
+                    .and. xs(1) <= grid_max_x(cfg%afh_porosity) .and. xs(2) <= grid_max_y(cfg%afh_porosity)) then
 
-                porosity = max(1.0d-3, asagi_get_float(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), 0))
+                porosity = max(1.0d-3, grid_get_float_3d(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), 0.1d0, 0))
             else
                 porosity = 1.0d-3
             end if

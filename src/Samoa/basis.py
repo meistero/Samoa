@@ -34,6 +34,10 @@ class basis_function:
     def __repr__(self):
         return "function(%s, %s)" % (self.expr, self.domain)
 
+    def __getitem__(self, index):
+        assert(isinstance(self.expr, tuple))
+        return basis_function(self.expr[index], self.domain)
+
     def __add__(f, g):
         return f, g
 
@@ -44,18 +48,6 @@ class basis_function:
         domain = intersect(f.domain, g.domain)
 
         return basis_function(f.expr * g.expr, domain)
-
-    def dx(f):
-        x = symbols('x', real=True)
-        return basis_function(diff(f.expr, x), f.domain)
-
-    def dy(f):
-        y = symbols('y', real=True)
-        return basis_function(diff(f.expr, y), f.domain)
-
-    def diverg(F):
-        x, y = symbols('x,y', real=True)
-        return basis_function(diff(F.expr[0], x) + diff(F.expr[1], y), F.domain)
 
     def grad(f):
         x, y = symbols('x,y', real=True)
@@ -122,15 +114,6 @@ class dirac_basis_function(basis_function):
     def __rmul__(f, g):
         return f * g
 
-    def dx(f):
-        raise NotImplementedError("Derivative of Dirac function is not available")
-
-    def dy(f):
-        raise NotImplementedError("Derivative of Dirac function is not available")
-
-    def diverg(f):
-        raise NotImplementedError("Divergence of Dirac function is not available")
-
     def grad(f):
         raise NotImplementedError("Gradient of Dirac function is not available")
 
@@ -174,23 +157,14 @@ class dirac_basis_function(basis_function):
         else:
             return 0
 
-def diverg(f):
-    if isinstance(f, basis_function):
-        return f.diverg()
-    else:
-        return sum([diverg(f_sub) for f_sub in f])
+def diverg(F):
+    return grad(F[0])[0] + grad(F[1])[1]
 
 def dx(f):
-    if isinstance(f, basis_function):
-        return f.dx()
-    else:
-        return sum([dx(f_sub) for f_sub in f])
+    return grad(f)[0]
 
 def dy(f):
-    if isinstance(f, basis_function):
-        return f.dy()
-    else:
-        return sum([dy(f_sub) for f_sub in f])
+    return grad(f)[1]
 
 def grad(f):
     if isinstance(f, basis_function):
@@ -366,16 +340,24 @@ class dirac_basis(basis):
 def mass_matrix(P, Q):
     return ImmutableMatrix([[volume_integrate(p * q) for p in P] for q in Q])
 
-def stiffness_matrix(P, Q):
-    A = ImmutableMatrix([[volume_integrate(inner(grad(p), grad(q))) for p in P] for q in Q])
+def stiffness_matrix(P, Q, T=Identity(2)):
+    A_xx = ImmutableMatrix([[volume_integrate(dx(p) * dx(q)) for p in P] for q in Q])
+    A_xy = ImmutableMatrix([[volume_integrate(dx(p) * dy(q)) for p in P] for q in Q])
+    A_yx = ImmutableMatrix([[volume_integrate(dy(p) * dx(q)) for p in P] for q in Q])
+    A_yy = ImmutableMatrix([[volume_integrate(dy(p) * dy(q)) for p in P] for q in Q])
+
+    return T[0, 0] * A_xx + T[0, 1] * A_xy + T[1, 0] * A_yx + T[1, 1] * A_yy
+
+def stiffness_matrix_masked(P, Q, M):
+    A = [ImmutableMatrix([[volume_integrate(m * inner(grad(p), grad(q))) for p in P] for q in Q]) for m in M]
 
     return A
 
-def deriv_matrices(P, Q):
+def deriv_matrices(P, Q, T=Identity(2)):
     Ax = ImmutableMatrix([[volume_integrate(dx(p) * q) for p in P] for q in Q])
     Ay = ImmutableMatrix([[volume_integrate(dy(p) * q) for p in P] for q in Q])
 
-    return Ax, Ay
+    return T[0, 0] * Ax + T[0, 1] * Ay, T[1, 0] * Ax + T[1, 1] * Ay
 
 def boundary_matrices(P, Q):
     one_half = Rational(1, 2)
@@ -399,27 +381,27 @@ def main():
     T1 = Triangle((1, 0), (0, 0), (0, 1))
     T2 = Triangle((1, 0), (Rational(1,2), Rational(1,2)), (0, 0))
 
+    K = MatrixSymbol('K', 2, 2)
     p = lagrange_basis(1, T1)
-    q = fv_dual_basis(1, T1)
+    q = lagrange_basis(1, T1)
+    s = fv_dual_basis(1, T1)
 
     M = mass_matrix(p, q)
     pprint(Eq(Symbol('M'), M))
     print fcode(M)
 
-    Dx, Dy = deriv_matrices(p, q)
+    Dx, Dy = deriv_matrices(p, q, K)
     pprint(Eq(Symbol('Dx'), Dx))
     pprint(Eq(Symbol('Dy'), Dy))
     print fcode(Dx)
     print fcode(Dy)
 
-    Bx, By = boundary_matrices(p, q)
-    pprint(Eq(Symbol('Bx'), Bx))
-    pprint(Eq(Symbol('By'), By))
-    print fcode(Bx)
-    print fcode(By)
-
-    A = stiffness_matrix(p, q)
+    A = stiffness_matrix(p, q, K)
     pprint(Eq(Symbol('A'), A))
     print fcode(A)
+
+    S = stiffness_matrix_masked(p, q, s)
+    pprint(S)
+    print fcode(S)
 main()
 

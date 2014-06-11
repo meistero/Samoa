@@ -49,6 +49,7 @@ module config
  			integer					 		    :: afh_permeability			                        !< asagi file handle to permeability data
  			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
             integer			        	        :: i_lsolver			                		    !< linear solver
+            integer			        	        :: i_max_iterations			                		    !< maximum linear iterations of the solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
             logical                             :: l_lse_output                                     !< print out the linear equation system
 
@@ -102,7 +103,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -phi 0.2d0 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d0 -nu_n 3.0d0 -lsolver 2 -cg_restart 256 -lse_output .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -phi 0.2d0 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d0 -nu_n 3.0d0 -lsolver 2 -max_iter -1 -cg_restart 256 -lse_output .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -154,6 +155,7 @@ module config
 			config%r_phi = rget('samoa_phi')
 			config%r_p_in = rget('samoa_p_in')
 			config%r_p_prod = rget('samoa_p_prod')
+            config%i_max_iterations = iget('samoa_max_iter')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
             config%l_lse_output = lget('samoa_lse_output')
@@ -178,9 +180,9 @@ module config
                 PRINT '(A, I0, ": ", A, A)',  " 	-asagihints <value>     ASAGI mode (0: default, 1: pass through, 2: no mpi, 3: no mpi + small cache, 4: large grid) (value: ", config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode)), ")"
                 PRINT '(A, I0, A)',     " 	-dmin <value>           minimum grid depth (value: ", config%i_min_depth, ")"
                 PRINT '(A, I0, A)',     "	-dmax <value>           maximum grid depth (value: ", config%i_max_depth, ")"
-                PRINT '(A, I0, A)',     "	-tsteps <value>         maximum number of time steps, less than 0: not defined (value: ", config%i_max_time_steps, ")"
-                PRINT '(A, ES8.1, A)',  "	-tmax <value>           maximum simulation time in seconds, less than 0: not defined (value: ", config%r_max_time, ")"
-                PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: not defined (value: ", config%r_output_time_step, ")"
+                PRINT '(A, I0, A)',     "	-tsteps <value>         maximum number of time steps, less than 0: disabled (value: ", config%i_max_time_steps, ")"
+                PRINT '(A, ES8.1, A)',  "	-tmax <value>           maximum simulation time in seconds, less than 0: disabled (value: ", config%r_max_time, ")"
+                PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: disabled (value: ", config%r_output_time_step, ")"
                 PRINT '(A, I0, A)',     "	-threads <value>        number of OpenMP threads (value: ", config%i_threads, ")"
                 PRINT '(A, I0, A)',     "	-sections <value>       number of grid sections per OpenMP thread (value: ", config%i_sections_per_thread, ")"
                 PRINT '(A, L, A)',      "	-lbtime                 if true, load is estimated by time measurements, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
@@ -202,8 +204,9 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p_in			        injection well pressure (value: ", config%r_p_in, ")"
                     PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
+                    PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
-                    PRINT '(A, L, A)',     "	-lse_output             enable LSE output (value: ", config%l_lse_output, ")"
+                    PRINT '(A, L, A)',      "	-lse_output             enable LSE output (value: ", config%l_lse_output, ")"
 #         	    elif defined(_SWE)
                     PRINT '(A, L, A)',  "	-asciiout               turns on ascii output (value: ", config%l_ascii_output, ")"
                     PRINT '(A, I0, A)', "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
@@ -323,12 +326,12 @@ module config
 
 #		if defined(_DARCY)
             _log_write(0, '(" Darcy: permeability file: ", A)') trim(config%s_permeability_file)
-            _log_write(0, '(" Darcy: linear solver error bound: ", ES8.1)') config%r_epsilon
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
             _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
             _log_write(0, '(" Darcy: porosity: ", ES8.1)') config%r_phi
             _log_write(0, '(" Darcy: injection well pressure: ", ES8.1, ", production well pressure: ", ES8.1)') config%r_p_in, config%r_p_prod
             _log_write(0, '(" Darcy: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
+            _log_write(0, '(" Darcy: linear solver: error bound: ", ES8.1, ", max iterations: ", I0)') config%r_epsilon, config%i_max_iterations
             _log_write(0, '(" Darcy: CG restart interval: ", I0)') config%i_CG_restart
 #		elif defined(_FLASH)
             _log_write(0, '(" Flash: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)

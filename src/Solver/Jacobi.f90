@@ -311,8 +311,13 @@ MODULE _JACOBI
         !set step size to some initial value
         solver%jacobi%alpha = 1.0_GRID_SR
         r_sq_old = 1.0_GRID_SR
+        i_iteration = 0
 
-        do i_iteration = 1, huge(1_GRID_SI)
+        do
+            if (cfg%i_max_iterations .ge. 0 .and. i_iteration .ge. cfg%i_max_iterations) then
+                exit
+            end if
+
             !do a jacobi step
             call solver%jacobi%traverse(grid)
             r_sq = solver%jacobi%r_sq
@@ -339,6 +344,7 @@ MODULE _JACOBI
             end if
 
             r_sq_old = r_sq
+            i_iteration = i_iteration + 1
         end do
 
         !$omp master

@@ -763,14 +763,15 @@ MODULE _CG
         call solver%cg_exact%traverse(grid)
         r_sq = solver%cg_exact%r_sq
         r_C_r = solver%cg_exact%r_C_r
+        i_iteration = 0
         _log_write(2, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
-        do i_iteration = 0, huge(1_GRID_SI)
+        do
             !$omp master
             _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
             !$omp end master
 
-            if (r_sq < solver%max_error * solver%max_error) then
+            if ((cfg%i_max_iterations .ge. 0 .and. i_iteration .ge. cfg%i_max_iterations) .or. r_sq < solver%max_error * solver%max_error) then
                 exit
             end if
 
@@ -806,6 +807,7 @@ MODULE _CG
 
             !compute beta = r^T C r (new) / r^T C r (old)
             beta = r_C_r / r_C_r_old
+            i_iteration = i_iteration + 1
         end do
 
         !$omp master

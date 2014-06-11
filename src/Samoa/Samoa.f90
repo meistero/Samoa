@@ -41,6 +41,16 @@ MODULE Samoa
 		r_pos = td%custom_data%scaling * MATMUL(td%plotter_data%jacobian, x)
 	end function
 
+	!> Transforms a matrix from barycentric to world coordinates
+	pure function samoa_barycentric_to_world_matrix(td, m_b) result(m_w)
+		type(t_transform_data), intent(in)  :: td
+		real (kind = GRID_SR), intent(in)   :: m_b(:, :)
+		real (kind = GRID_SR)               :: m_w(2, 2)
+
+		!> computes s A x
+		m_w = td%custom_data%scaling * MATMUL(td%plotter_data%jacobian, m_b)
+	end function
+
 	!> Transforms a normal from barycentric to world coordinates (not length-preserving)
 	pure function samoa_barycentric_to_world_normal(td, x) result(r_pos)
 		type(t_transform_data), intent(in)						:: td
@@ -69,6 +79,16 @@ MODULE Samoa
 
 		!> computes 1/s A^(-1) x
 		r_pos = MATMUL(td%plotter_data%jacobian_inv, x) / td%custom_data%scaling
+	end function
+
+	!> Transforms a matrix from world to barycentric coordinates
+	pure function samoa_world_to_barycentric_matrix(td, m_w) result(m_b)
+		type(t_transform_data), intent(in)						:: td
+		real (kind = GRID_SR), intent(in)			            :: m_w(:, :)
+		real (kind = GRID_SR)					                :: m_b(2, 2)
+
+		!> computes 1/s A^(-1) x
+		m_b = MATMUL(td%plotter_data%jacobian_inv, m_w) / td%custom_data%scaling
 	end function
 
 	!> Transforms a normal from world to barycentric coordinates (not length-preserving)

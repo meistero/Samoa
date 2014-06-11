@@ -28,10 +28,20 @@
             type(t_element_base), intent(in)    :: element
             real (kind = GRID_SR), intent(out)  :: mat(_DARCY_P_SIZE, _DARCY_P_SIZE)
 
-            real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
-                reshape([ 1.0d0/2.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0/2.0d0], [_DARCY_P_SIZE, _DARCY_P_SIZE])
+#           if (_DARCY_PERM_MATRIX)
+                real (kind = GRID_SR), K(2, 2)
 
-            mat = element%cell%data_pers%permeability * mat_const
+                K = element%cell%data_pers%permeability
+
+                mat = reshape([0.5_GRID_SR * K(1,1), -0.5_GRID_SR * (K(1,1) + K(2,1)), 0.5_GRID_SR * K(2,1), &
+                            -0.5_GRID_SR * (K(1,1) + K(1,2)), 0.5_GRID_SR * (K(1,1) + K(1,2) + K(2,1) + K(2,2)), -0.5_GRID_SR * (K(2,1) + K(2,2)), &
+                            0.5_GRID_SR * K(1,2), -0.5_GRID_SR * (K(1,2) + K(2,2)), 0.5_GRID_SR * K(2,2)], [3,3])
+#           else
+                real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
+                    reshape([ 1.0d0/2.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0/2.0d0], [_DARCY_P_SIZE, _DARCY_P_SIZE])
+
+                mat = element%cell%data_pers%permeability * mat_const
+#           endif
         end subroutine
 	END MODULE
 
