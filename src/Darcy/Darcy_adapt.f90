@@ -23,6 +23,7 @@
 		type(darcy_gv_p)							:: gv_p
 		type(darcy_gv_saturation)					:: gv_saturation
 		type(darcy_gv_volume)						:: gv_volume
+		type(darcy_gv_phi)						    :: gv_phi
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
 
@@ -85,6 +86,7 @@
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)								:: p
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: saturation
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: volume
+			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: phi
 
 			!pressure
 
@@ -94,8 +96,9 @@
 			!saturation
 
 			call gv_saturation%read( src_element%t_element_base, saturation)
+			call gv_phi%read( src_element%t_element_base, phi)
 
-			volume = src_element%cell%geometry%get_volume() * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
+			volume = src_element%cell%geometry%get_volume() * phi * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
 
 			call gv_saturation%add( dest_element%t_element_base, volume * saturation)
 			call gv_volume%add( dest_element%t_element_base, volume)
@@ -117,12 +120,14 @@
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)						:: saturation_in
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE, 2)					:: saturation_out
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)						:: volume
+			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)						:: phi
 			integer																	:: i
 
 			call gv_p%read( src_element%t_element_base, p_in)
 			call gv_saturation%read( src_element%t_element_base, saturation_in)
+			call gv_phi%read( src_element%t_element_base, phi)
 
-			volume = src_element%cell%geometry%get_volume() * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
+			volume = src_element%cell%geometry%get_volume() * phi * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
 
 			do i = 1, size(refinement_path)
 				!pressure
@@ -158,6 +163,7 @@
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)								:: p_out
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: saturation_out
 			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: volume
+            real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: phi
 			integer																		:: i
 
 			!pressure
@@ -178,8 +184,9 @@
 
 			saturation_in = 0.0_GRID_SR
 			call gv_saturation%read( src_element%t_element_base, saturation_in(:, i))
+			call gv_phi%read( src_element%t_element_base, phi)
 
-			volume = src_element%cell%geometry%get_volume() * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
+			volume = src_element%cell%geometry%get_volume() * phi * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
 
 			saturation_out = [ saturation_in(1, 1) + saturation_in(2, 1), &
 				0.5_GRID_SR * (saturation_in(3, 1) + saturation_in(2, 1) + saturation_in(1, 2) + saturation_in(2, 2)), &
