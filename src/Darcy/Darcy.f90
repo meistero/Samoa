@@ -175,6 +175,9 @@
 
                         _log_write(1, '(" Darcy: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
                     end if
+
+                    _log_write(1, '(" Darcy: injection position: [", F0.2, ", ", F0.2, "], production position [", F0.2, ", ", F0.2, "]")'), cfg%r_pos_in, cfg%r_pos_prod
+
                 end associate
 #           else
                 cfg%scaling = 1.0_GRID_SR

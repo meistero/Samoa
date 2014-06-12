@@ -111,7 +111,7 @@
 
 			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 0.0d0, 0.0d0, 0.0d0], [3, 3])
 			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0d0, 0.0d0, 0.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0], [3, 3])
-			real (kind = GRID_SR)					    :: g_local(2), x(2), r_lambda_w(3), r_lambda_n(3)
+			real (kind = GRID_SR)					    :: g_local(2), pos_in(2), r_lambda_w(3), r_lambda_n(3)
 			integer                                     :: i
 
 			r_lambda_w = (saturation * saturation) / cfg%r_nu_w
@@ -122,6 +122,13 @@
 
             rhs = g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy)
             rhs = base_permeability * rhs
+
+!            pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
+!
+!            if (pos_in(1) .ge. -0.01_GRID_SR .and. pos_in(2) .ge. -0.01_GRID_SR .and. pos_in(1) + pos_in(2) .le. 1.01_GRID_SR) then
+!                 !add a source at the injection well position
+!                rhs = rhs + r_dt * cfg%r_p_in * samoa_basis_p_at(pos_in)
+!            end if
 		end subroutine
 	END MODULE
 #endif
