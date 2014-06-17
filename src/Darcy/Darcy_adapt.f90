@@ -229,17 +229,6 @@
 
             do i = 1, size(nodes)
                 call inner_node_last_touch_op(traversal, section, nodes(i))
-
-                if (norm2(nodes(i)%position - cfg%r_pos_prod) < 1.0e-2) then
-                    nodes(i)%data_pers%p = cfg%r_p_prod
-                    nodes(i)%data_temp%is_dirichlet_boundary = .true.
-                else if(norm2(nodes(i)%position - cfg%r_pos_in) < 1.0e-2) then
-                    nodes(i)%data_pers%p = cfg%r_p_in
-                    nodes(i)%data_pers%saturation = 1.0_GRID_SR
-                    nodes(i)%data_temp%is_dirichlet_boundary = .true.
-                else
-                    nodes(i)%data_temp%is_dirichlet_boundary = .false.
-                end if
             end do
 		end subroutine
 
@@ -249,7 +238,6 @@
 			type(t_node_data), intent(inout)			    :: node
 
 			call post_dof_op(node%data_pers%saturation, node%data_temp%volume)
-
 			node%data_pers%phi = get_porosity(section, node%position)
 		end subroutine
 		!*******************************

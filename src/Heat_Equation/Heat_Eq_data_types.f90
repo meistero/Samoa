@@ -25,6 +25,10 @@
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
 
+        integer, PARAMETER :: SR = GRID_SR
+        integer, PARAMETER :: SI = GRID_SI
+        integer, PARAMETER :: DI = GRID_DI
+
 		!***********************
 		!Entity data
 		!***********************

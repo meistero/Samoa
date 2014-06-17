@@ -84,18 +84,20 @@
             call darcy%error_estimate%create()
             call darcy%adaption%create()
 
+			call load_scenario(grid)
+
  			select case (cfg%i_lsolver)
                 case (0)
-                    call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR))
+                    call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
-                    call pressure_solver_cg%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_cg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
-                    call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
                 case (3)
-                    call pressure_solver_pipecg_unst%create(real(cfg%r_epsilon * cfg%r_p_in, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_pipecg_unst%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg_unst, stat=i_error); assert_eq(i_error, 0)
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 3")
@@ -110,8 +112,6 @@
 			if (l_log) then
 				_log_open_file(s_log_name)
 			endif
-
-			call load_scenario(grid)
 		end subroutine
 
 		subroutine load_scenario(grid)
@@ -177,7 +177,6 @@
                     end if
 
                     _log_write(1, '(" Darcy: injection position: [", F0.2, ", ", F0.2, "], production position [", F0.2, ", ", F0.2, "]")'), cfg%r_pos_in, cfg%r_pos_prod
-
                 end associate
 #           else
                 cfg%scaling = 1.0_GRID_SR
@@ -187,6 +186,8 @@
                 cfg%r_pos_prod = [1.0_GRID_SR, 1.0_GRID_SR]
 #			endif
 
+            cfg%r_p_in = 6.89e3_GRID_SR * cfg%r_p_in_psi
+            cfg%r_p_prod = 6.89e3_GRID_SR * cfg%r_p_prod_psi
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
@@ -367,7 +368,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0, A, I0)') " Darcy: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", LSE iterations: ", i_lse_iterations
+                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0, A, I0)') " Darcy: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), ", dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", LSE iterations: ", i_lse_iterations
                     !$omp end master
                 end if
 

@@ -162,6 +162,7 @@
 			call gv_volume%add(element, volume)
 			call gv_flux%add(element, flux)
 		end subroutine
+
 		!first touches
 
 		elemental subroutine node_first_touch_op(traversal, section, node)

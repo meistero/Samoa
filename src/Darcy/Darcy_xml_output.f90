@@ -276,7 +276,7 @@
 			call gv_phi%read(element, phi)
 
 			point_data_indices(:) = int(r_point_data_indices(:), kind=GRID_SI)
-			p = samoa_basis_p_dofs_to_values(p)
+			p = samoa_basis_p_dofs_to_values(p) / 6.89e3_GRID_SR
 			phi = samoa_basis_p_dofs_to_values(phi)
 			u(1, :) = samoa_basis_u_dofs_to_values(u(1, :))
 			u(2, :) = samoa_basis_u_dofs_to_values(u(2, :))
@@ -284,8 +284,8 @@
 
 			traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
 			traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-			traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%permeability
-			traversal%cell_data(traversal%i_cell_data_index)%u = u(:, 1)
+			traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%permeability / 9.869233e-16_SR
+			traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u(:, 1)
 			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
 			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
 

@@ -134,7 +134,7 @@ MODULE Tools_log
     use Tools_openmp
 
 	private
-	public get_wtime, log_open_file, log_close_file, g_log_file_unit, raise_error, term_color, term_reset
+	public get_wtime, log_open_file, log_close_file, g_log_file_unit, raise_error, term_color, term_reset, time_to_hrt
 
 
 	!> global file unit (there's only one log instance possible due to the lack of variadic functions and macros in Fortran,
@@ -317,6 +317,34 @@ MODULE Tools_log
 #       else
             wtime = get_wtime_internal()
 #       endif
+    end function
+
+    function time_to_hrt(time) result(str)
+        double precision, intent(in)    :: time
+        character(256)                  :: str
+
+        character(3), parameter         :: s_unit_names(7) = [character(3) :: "d", "h", "min", "s", "ms", "mus", "ns"]
+        integer , parameter             :: i_max_units = 3
+        integer (kind = 8)              :: i_unit_values(7)
+        integer                         :: i_unit, i_units
+
+        i_unit_values(1) = int(time, kind=8) / (24 * 60 * 60)
+        i_unit_values(2) = mod(int(time, kind=8) / (60 * 60), 24)
+        i_unit_values(3) = mod(int(time, kind=8) / 60, 60)
+        i_unit_values(4) = mod(int(time, kind=8), 60)
+        i_unit_values(5) = mod(int(time * 1e3, kind=8), 1000)
+        i_unit_values(6) = mod(int(time * 1e6, kind=8), 1000)
+        i_unit_values(7) = mod(int(time * 1e9, kind=8), 1000)
+
+        str = ""
+        i_units = 0
+
+        do i_unit = 1, 7
+            if (i_units < i_max_units .and. i_unit_values(i_unit) > 0) then
+                write (str, '(A, " ", I0, A)') trim(str), i_unit_values(i_unit), trim(s_unit_names(i_unit))
+                i_units = i_units + 1
+            end if
+        end do
     end function
 end MODULE
 

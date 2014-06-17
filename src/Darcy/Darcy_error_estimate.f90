@@ -143,7 +143,7 @@
 
 			l_refine_sat = r_sat_norm > 0.1_GRID_SR
 			l_coarsen_sat = r_sat_norm < 0.02_GRID_SR
-			l_coarsen_p = r_p_norm < 0.003_GRID_SR * (cfg%r_p_in - cfg%r_p_prod)
+			l_coarsen_p = r_p_norm < 0.003_GRID_SR * cfg%r_p_prod
 
 			!* refine the cell if the saturation becomes too steep
 			!* coarsen the cell if pressure and saturation are constant within a cell

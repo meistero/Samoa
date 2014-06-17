@@ -861,6 +861,11 @@ MODULE _CG
                 !$omp end master
             end if
 
+            !this is also a sufficient exit condition
+            if (r_C_r <= tiny(1.0_GRID_SR)) then
+                exit
+            end if
+
             !compute step size alpha = r^T C r / d^T A d
             alpha = r_C_r / d_u
             r_C_r_old = r_C_r

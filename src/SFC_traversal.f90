@@ -145,9 +145,9 @@ MODULE SFC_traversal
         integer :: i_status
 
 #       if defined(__GFORTRAN__)
-            i_status = signal(2, signal_interrupt)
+            !i_status = signal(2, signal_interrupt)
 #       else
-            i_status = signal(2, signal_interrupt, -1)
+            !i_status = signal(2, signal_interrupt, -1)
 #       endif
     end subroutine
 
@@ -161,9 +161,9 @@ MODULE SFC_traversal
         integer :: i_status
 
 #       if defined(__GFORTRAN__)
-            i_status = signal(i_signal, 0)
+            !i_status = signal(i_signal, 0)
 #       else
-            i_status = signal(i_signal, signal_interrupt, 0)
+            !i_status = signal(i_signal, signal_interrupt, 0)
 #       endif
     end subroutine
 

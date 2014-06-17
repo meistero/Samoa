@@ -402,6 +402,6 @@ def main():
 
     S = stiffness_matrix_masked(p, q, s)
     pprint(S)
-    print fcode(S)
+    print fcode(S[1])
 main()
 

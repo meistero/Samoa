@@ -14,8 +14,10 @@
         type num_traversal_data
         end type
 
-        type(darcy_gv_saturation)				:: gv_saturation
-        type(darcy_gv_rhs)				        :: gv_rhs
+		type(darcy_gv_saturation)				:: gv_saturation
+		type(darcy_gv_p)						:: gv_p
+		type(darcy_gv_rhs)						:: gv_rhs
+		type(darcy_gv_is_dirichlet_boundary)    :: gv_is_dirichlet
 
 #		define _GT_NAME							t_darcy_permeability_traversal
 
@@ -80,13 +82,16 @@
  			type(t_grid_section), intent(inout)						:: section
 			type(t_element_base), intent(inout), target				:: element
 
-			real (kind = GRID_SR)		:: saturation(_DARCY_FLOW_SIZE)
-			real (kind = GRID_SR)		:: rhs(_DARCY_P_SIZE)
+			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_SIZE)
+			real (kind = GRID_SR)   :: p(_DARCY_P_SIZE)
+			real (kind = GRID_SR)   :: rhs(_DARCY_P_SIZE)
+			logical		            :: is_dirichlet(_DARCY_P_SIZE)
 
 			call gv_saturation%read(element, saturation)
+			call gv_p%read(element, p)
 
 			!call element operator
-			call alpha_volume_op(element, saturation, element%cell%data_pers%base_permeability, element%cell%data_pers%permeability, rhs)
+			call alpha_volume_op(element, saturation, p, rhs, is_dirichlet, element%cell%data_pers%base_permeability, element%cell%data_pers%permeability)
 
 			call gv_rhs%add(element, rhs)
 		end subroutine
@@ -95,6 +100,12 @@
 			type(t_node_data), intent(inout)		:: local_node
  			type(t_node_data), intent(in)		    :: neighbor_node
 
+            if (any(neighbor_node%data_temp%is_dirichlet_boundary)) then
+                local_node%data_pers%p = neighbor_node%data_pers%p
+            end if
+
+			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
+			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 		end subroutine
 
@@ -102,17 +113,46 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine alpha_volume_op(element, saturation, base_permeability, permeability, rhs)
+		subroutine alpha_volume_op(element, saturation, p, rhs, is_dirichlet, base_permeability, permeability)
 			type(t_element_base), intent(inout)				                    :: element
-			real (kind = GRID_SR), intent(in)		                            :: saturation(:)
+			real (kind = GRID_SR), intent(inout)		                        :: saturation(:)
+			real (kind = GRID_SR), intent(inout)			                    :: p(:)
+			real (kind = GRID_SR), intent(out)									:: rhs(:)
+			logical, intent(out)			                                    :: is_dirichlet(:)
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 			real (kind = GRID_SR), intent(out)									:: permeability
-			real (kind = GRID_SR), intent(out)									:: rhs(:)
 
-			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 0.0d0, 0.0d0, 0.0d0], [3, 3])
-			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0d0, 0.0d0, 0.0d0, -1.0d0/8.0d0, -1.0d0/4.0d0, -1.0d0/8.0d0, 1.0d0/8.0d0, 1.0d0/4.0d0, 1.0d0/8.0d0], [3, 3])
-			real (kind = GRID_SR)					    :: g_local(2), pos_in(2), r_lambda_w(3), r_lambda_n(3)
-			integer                                     :: i
+			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR, -1.0_SR/8.0_SR, -1.0_SR/4.0_SR, -1.0_SR/8.0_SR, 0.0_SR, 0.0_SR, 0.0_SR], [3, 3])
+			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0_SR, 0.0_SR, 0.0_SR, -1.0_SR/8.0_SR, -1.0_SR/4.0_SR, -1.0_SR/8.0_SR, 1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR], [3, 3])
+			real (kind = GRID_SR)					    :: g_local(2), pos_prod(2), pos_in(2), r_lambda_w(3), r_lambda_n(3), radius
+
+            rhs(:) = 0.0_SR
+            is_dirichlet(:) = .false.
+            radius = 0.0508_SR / (cfg%scaling * element%transform_data%custom_data%scaling)
+
+            pos_prod = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_prod)
+            if (pos_prod(1) .ge. -radius .and. pos_prod(2) .ge. -radius .and. pos_prod(1) + pos_prod(2) .le. 1.0_SR + radius) then
+                !production well:
+                !set a constant pressure condition and an outflow saturation condition
+                is_dirichlet = .true.
+                p = cfg%r_p_prod
+
+                call gv_p%write(element, p)
+                call gv_is_dirichlet%add(element, is_dirichlet)
+           end if
+
+            pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
+            if (base_permeability > 0.0_SR .and. pos_in(1) .ge. -radius .and. pos_in(2) .ge. -radius .and. pos_in(1) + pos_in(2) .le. 1.0_SR + radius) then
+                !injection well:
+                !set an inflow pressure condition and a constant saturation condition
+                saturation = 1.0_SR
+                is_dirichlet = .true.
+                p = cfg%r_p_in
+                call gv_saturation%write(element, saturation)
+                call gv_p%write(element, p)
+                call gv_is_dirichlet%add(element, is_dirichlet)
+                !rhs = 0.009201_SR / (0.0508_SR * 0.0508_SR * pi * 51.816_SR * cfg%scaling) * element%transform_data%custom_data%scaling * [1.0_SR/6.0_SR, 1.0_SR/6.0_SR, 1.0_SR/6.0_SR]
+            end if
 
 			r_lambda_w = (saturation * saturation) / cfg%r_nu_w
 			r_lambda_n = (1.0_GRID_SR - saturation) * (1.0_GRID_SR - saturation) / cfg%r_nu_n
@@ -120,15 +160,10 @@
 			permeability = base_permeability * dot_product([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR], r_lambda_w + r_lambda_n)
             g_local = samoa_world_to_barycentric_normal(element%transform_data, g)
 
-            rhs = g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy)
-            rhs = base_permeability * rhs
+            rhs = rhs + base_permeability * ( &
+                g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + &
+                g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy))
 
-!            pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
-!
-!            if (pos_in(1) .ge. -0.01_GRID_SR .and. pos_in(2) .ge. -0.01_GRID_SR .and. pos_in(1) + pos_in(2) .le. 1.01_GRID_SR) then
-!                 !add a source at the injection well position
-!                rhs = rhs + r_dt * cfg%r_p_in * samoa_basis_p_at(pos_in)
-!            end if
 		end subroutine
 	END MODULE
 #endif
