@@ -4,10 +4,14 @@ paraview.simple._DisableFirstRenderCameraReset()
 
 darcy = GetActiveSource()
 
+Threshold2 = Threshold()
+Threshold2.Scalars = ['CELLS', 'permeability']
+Threshold2.ThresholdRange = [1e-08,1e20]
+
 DataRepresentation0 = GetDisplayProperties(darcy)
 DataRepresentation0.Visibility = 0
 
-RenderView1 = CreateRenderView()
+RenderView1 = GetRenderView()
 RenderView1.InteractionMode = '3D'
 RenderView1.ViewTime = 0.0
 RenderView1.CameraFocalPoint = [0.5, 0.5, 0.0]
@@ -16,9 +20,9 @@ a1_pressure_PiecewiseFunction = CreatePiecewiseFunction( Points=[0.0, 0.0, 0.5, 
 
 a1_saturation_PiecewiseFunction = CreatePiecewiseFunction( Points=[0.0, 0.0, 0.5, 0.0, 1.0, 1.0, 0.5, 0.0] )
 
-a1_pressure_PVLookupTable = GetLookupTableForArray( "pressure", 1, Discretize=1, RGBPoints=[0.0, 0.0, 0.0, 1.0, 1000000.0, 1.0, 0.0, 0.0], UseLogScale=0, VectorComponent=0, NanColor=[0.4980392156862745, 0.4980392156862745, 0.4980392156862745], NumberOfTableValues=16, EnableOpacityMapping=0, ColorSpace='HSV', IndexedLookup=0, VectorMode='Magnitude', ScalarOpacityFunction=a1_pressure_PiecewiseFunction, HSVWrap=0, ScalarRangeInitialized=1.0, AllowDuplicateScalars=1, Annotations=[], LockScalarRange=1 )
+a1_pressure_PVLookupTable = GetLookupTableForArray( "pressure", 1, NanColor=[1.0, 1.0, 0.0], RGBPoints=[5007.231157965089, 0.3176470588235294, 0.3411764705882353, 0.43137254901960786, 5645.436319215898, 0.0, 0.0, 1.0, 6283.641480466708, 0.0, 1.0, 1.0, 6884.305161643941, 0.0, 1.0, 0.0, 7522.51032289475, 1.0, 1.0, 0.0, 8160.7154841455595, 1.0, 0.0, 0.0, 8761.379165322793, 0.8784313725490196, 0.0, 1.0], ColorSpace='RGB' )
 
-a1_saturation_PVLookupTable = GetLookupTableForArray( "saturation", 1, Discretize=1, RGBPoints=[0.0, 0.3176470588235294, 0.3411764705882353, 0.43137254901960786, 0.17, 0.0, 0.0, 1.0, 0.34, 0.0, 1.0, 1.0, 0.5, 0.0, 1.0, 0.0, 0.67, 1.0, 1.0, 0.0, 0.84, 1.0, 0.0, 0.0, 1.0, 0.8784313725490196, 0.0, 1.0], UseLogScale=0, VectorComponent=0, NanColor=[1.0, 1.0, 0.0], NumberOfTableValues=256, EnableOpacityMapping=0, ColorSpace='RGB', IndexedLookup=0, VectorMode='Magnitude', ScalarOpacityFunction=a1_saturation_PiecewiseFunction, HSVWrap=0, ScalarRangeInitialized=1.0, AllowDuplicateScalars=0, Annotations=[], LockScalarRange=0 )
+a1_saturation_PVLookupTable = GetLookupTableForArray( "saturation", 1, NanColor=[0.4980392156862745, 0.4980392156862745, 0.4980392156862745], RGBPoints=[0.1, 0.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0], UseLogScale=0, ColorSpace='HSV', AllowDuplicateScalars=1 )
 
 ScalarBarWidgetRepresentation1 = CreateScalarBar( Title='pressure', Position2=[0.13, 0.5], TitleOpacity=1.0, TitleShadow=0, AutomaticLabelFormat=1, TitleFontSize=12, TitleColor=[0.0, 0.0, 0.0], AspectRatio=20.0, NumberOfLabels=5, ComponentTitle='', Resizable=1, TitleFontFamily='Arial', Visibility=0, LabelFontSize=12, LabelFontFamily='Arial', TitleItalic=0, Selectable=0, LabelItalic=0, Enabled=0, LabelColor=[0.0, 0.0, 0.0], Position=[0.87, 0.25], LabelBold=0, UseNonCompositedRenderer=1, LabelOpacity=1.0, TitleBold=0, LabelFormat='%-#6.3g', Orientation='Vertical', LabelShadow=0, LookupTable=a1_pressure_PVLookupTable, Repositionable=1 )
 GetRenderView().Representations.append(ScalarBarWidgetRepresentation1)

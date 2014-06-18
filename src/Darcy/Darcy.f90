@@ -158,10 +158,10 @@
                 i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
 
                 associate(afh_perm => cfg%afh_permeability, afh_phi => cfg%afh_porosity)
-                    cfg%scaling = 0.5_GRID_SR * max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
-                    cfg%offset = [0.5_GRID_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm)), 0.5_GRID_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm))]
+                    cfg%scaling = max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
+                    cfg%offset = [0.5_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm) - cfg%scaling), 0.5_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm) - cfg%scaling)]
 
-                    cfg%r_pos_in = [0.0_GRID_SR, 0.0_GRID_SR]
+                    cfg%r_pos_in = ([0.0_GRID_SR, 0.0_GRID_SR] - cfg%offset) / cfg%scaling
                     cfg%r_pos_prod = ([grid_max_x(afh_perm), grid_max_y(afh_perm)] - cfg%offset) / cfg%scaling
 
                     if (rank_MPI == 0) then
@@ -278,7 +278,7 @@
                 end if
 
                 grid_info%i_cells = grid%get_cells(MPI_SUM, .true.)
-				if (darcy%init_saturation%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
+				if (darcy%init_saturation%i_refinements_issued .le. 0) then
 					exit
 				endif
 

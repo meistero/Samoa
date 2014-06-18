@@ -257,7 +257,7 @@
 			!call element operator
 			call alpha_volume_op(traversal, element, saturation, p, rhs, is_dirichlet, element%cell%data_pers%base_permeability, element%cell%data_pers%permeability)
 
-			!call gv_rhs%add(element, rhs)
+			call gv_rhs%add(element, rhs)
 		end subroutine
 
 		elemental subroutine node_merge_op(local_node, neighbor_node)
@@ -307,11 +307,12 @@
 
             saturation(:) = 0.0_SR
             rhs(:) = 0.0_SR
-            is_dirichlet(:) = .false.
+            l_refine_initial = .false.
 
             radius = 0.0508_SR / (cfg%scaling * element%transform_data%custom_data%scaling)
 
-            pos_prod = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_prod)
+            pos_prod = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
+            pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
             if (pos_prod(1) .ge. -radius .and. pos_prod(2) .ge. -radius .and. pos_prod(1) + pos_prod(2) .le. 1.0_SR + radius) then
                 l_refine_initial = .true.
 
@@ -331,13 +332,9 @@
                 !injection well:
                 !set an inflow pressure condition and a constant saturation condition
                 saturation = 1.0_SR
-                is_dirichlet = .true.
-                p = cfg%r_p_in
-
                 call gv_saturation%write(element, saturation)
-                call gv_p%write(element, p)
-                call gv_is_dirichlet%add(element, is_dirichlet)
-                !rhs = 0.009201_SR / (0.0508_SR * 0.0508_SR * pi * 51.816_SR) * element%transform_data%custom_data%scaling * [1.0_SR/6.0_SR, 1.0_SR/6.0_SR, 1.0_SR/6.0_SR]
+
+                rhs(:) = 0.009201_SR / 51.816_SR * min(1.0_SR, 1.0_SR / (0.0508_SR * 0.0508_SR * pi) * ((cfg%scaling * element%transform_data%custom_data%scaling) ** 2)) * [1.0_SR/6.0_SR, 1.0_SR/6.0_SR, 1.0_SR/6.0_SR]
             end if
 
 			!compute permeability

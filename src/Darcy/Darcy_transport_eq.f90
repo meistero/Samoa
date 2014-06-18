@@ -122,6 +122,7 @@
 			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: saturation
 			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: flux
 			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: volume
+			real (kind = GRID_SR)                                   :: pos_in(2), radius
 
 			integer :: i
 			real(kind = GRID_SR) :: u_dot_n
