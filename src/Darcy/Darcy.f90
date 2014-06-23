@@ -90,6 +90,8 @@
 			call date_and_time(s_date, s_time)
 			write (darcy%vtk_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
 			write (darcy%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
+            write (darcy%point_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
+
 			write (s_log_name, '(A, A)') TRIM(darcy%vtk_output%s_file_stamp), ".log"
 
 			if (l_log) then

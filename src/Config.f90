@@ -37,7 +37,15 @@ module config
         logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by cell count
         logical                                 :: l_split_sections                                 !< if true, MPI load balancing may split sections, if false sections are treated as atomic units
         logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
-
+	
+	!------------------------------------------------------Jaclyn: 3 variables added
+	logical 				:: l_gridoutput			!< grid output on/offset
+	character(512)				:: s_testpoints			!< test points off / points
+	double precision, allocatable		:: r_testpoints(:,:)		!< array for the testpoints
+	logical					:: l_pointoutput
+	
+	
+	
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
 
 #    	if defined(_DARCY)
@@ -83,23 +91,24 @@ module config
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
-        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -lbtime .false. -lbsplit .false. -lbserial .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4 -threads ", omp_get_max_threads()
-
+        write(arguments, '(A, I0)') "-v .false. --version .false. -h .false. --help .false. -lbtime .false. -lbsplit .false. -lbserial .false. -asagihints 2 -asciiout_width 60 -asciiout .false. -gridoutput .false. -stestpoints '' -noprint .false. -sections 4 -threads ", omp_get_max_threads()
+	!-------------------------Jaclyn: defaults for gridoutput and stestpoints added
+	
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0d1 -tout -1.0 -fperm data/darcy_benchmark/perm.nc -p0 1.0d6 -epsilon 1.0d-5 -rho 0.2d0 -k_rel 1.5d0 -lsolver 2 -cg_restart 256"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 14 -tsteps -1 -tmax 2.0d1 -tout 0.1 -fperm data/darcy_benchmark/perm.nc -p0 1.0d6 -epsilon 1.0d-5 -rho 0.2d0 -k_rel 1.5d0 -lsolver 2 -cg_restart 256"
 #    	elif defined(_HEAT_EQ)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout -1.0"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0 -tout 0.05"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout 10.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout -1.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 3600.0 -tout 10.0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
 #    	elif defined(_TESTS)
             write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
 #    	elif defined(_GENERIC)
-            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0"
+            write(arguments, '(A, A)') trim(arguments), "  -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout 0.5"
 #    	else
 #           error No scenario selected!
 #    	endif
@@ -124,6 +133,19 @@ module config
         config%i_asagi_mode = iget('samoa_asagihints')
         config%l_ascii_output = lget('samoa_asciiout')
         config%i_ascii_width = iget('samoa_asciiout_width')
+        
+        !--------------------------Jaclyn: read in l_grid_output and stestpoints
+        config%l_gridoutput = lget('samoa_gridoutput')
+        config%s_testpoints = sget('samoa_stestpoints', 512)
+        
+	!--------------------------Jaclyn: process stestpoints
+	if (len(trim(config%s_testpoints)) .ne. 2) then		
+		config%l_pointoutput = .true.
+		call parse_testpoints(config)
+	else
+		config%l_pointoutput = .false.		
+	end if    
+        
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
@@ -162,7 +184,9 @@ module config
                 PRINT '(A, L, A)',     "	-lbtime                 if true, load is estimated by time measurements, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
                 PRINT '(A, L, A)',     "	-lbsplit                if true, MPI load balancing may split sections, if false sections are treated as atomic units (value: ", config%l_split_sections, ")"
                 PRINT '(A, L, A)',     "	-lbserial               if true, MPI load balancing is serialized, if false a distributed algorithm is used (value: ", config%l_serial_lb, ")"
-
+		PRINT '(A, L, A)',     "	-gridoutput             turns on grid output (value: ", config%l_gridoutput, ")"
+		PRINT '(A, A, A)',     "	-stestpoints            test specific points (sepereate coordinates with space, sperate coordinate-pairs using comma only, zero before point required, no exponential notation allowed, floating point notation required), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", config%s_testpoints, ")"
+                
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
                     PRINT '(A, ES8.1, A)',  "	-epsilon			    linear solver error bound (value: ", config%r_epsilon, ")"
@@ -322,5 +346,150 @@ module config
 #		endif
 
         _log_write(0, "()")
+    end subroutine
+
+    subroutine parse_testpoints(config)
+	class(t_config), intent(inout)          :: config	
+
+	!local variables
+	logical					:: l_wrong_format, l_point, l_comma, l_space, l_number_pre, l_number_post, l_sign, l_ycoord
+        integer          			:: i, i_error, points, j, coordstart(50,2), k, counter
+        character(512)                          :: checkstring
+
+	! check for correctness		
+	l_wrong_format = .false.
+	checkstring = config%s_testpoints
+	
+	l_sign = .true.
+	l_number_pre = .true.
+	l_number_post = .false.
+	l_space = .false.
+	l_comma = .false.
+	l_point = .false.
+	l_ycoord = .false.
+
+	counter = len(trim(config%s_testpoints))
+
+	do while ((l_wrong_format .eqv. .false.) .and. (counter > 0))
+		if ((l_sign .eqv. .true.) .and. (checkstring(1:1) == "-")) then			
+			! sign ('-' only)			
+			checkstring = checkstring (2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .false.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.		
+		else if ((l_number_pre .eqv. .true.) .and. &
+		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. & 
+	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. & 
+		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
+		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
+		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
+			! number before the point
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .false.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .true.
+		else if ((l_number_post .eqv. .true.) .and. &
+		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. & 
+	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. & 
+		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
+		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
+		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
+			! number behind the point
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .false.
+			l_number_post = .true.
+			l_sign = .false.
+			l_space = .true.
+			l_comma = .true.
+			l_point = .false.
+		else if ((l_point .eqv. .true.) .and. (checkstring(1:1) == ".")) then
+			! point
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .false.
+			l_number_post = .true.
+			l_sign = .false.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.
+		else if ((l_comma .eqv. .true.) .and. (l_ycoord .eqv. .true.) &
+		    .and. (checkstring(1:1) == ",")) then 	
+			! comma
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .true.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.
+			l_ycoord = .false.
+		else if ((l_space .eqv. .true.) .and. (l_ycoord .eqv. .false.) &
+		   .and. (checkstring(1:1) == " ")) then
+			! space
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .true.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.	
+			l_ycoord = .true.	
+		else
+			write (*,'(A,$)') 'Position with wrong symbol (counting from the end):'			
+			write (*,*) counter
+			l_wrong_format = .true.
+		end if
+	end do
+	
+	try((.not. l_wrong_format), 'Error in submitted testpoints')
+	
+	!-----------------------Jaclyn: convert stestpoints (string) to r_testpoints (real array)
+	points = 0
+	!k = 1
+	if (l_wrong_format .eqv. .false.) then
+	    points = 1
+	    coordstart(1,1) = 1
+	    do j=1, len(trim(config%s_testpoints))
+		if (config%s_testpoints(j:j) == " ") then
+			coordstart(points,2) = j+1
+		end if
+		if (config%s_testpoints(j:j) == ",") then
+		    points = points + 1
+		    coordstart(points,1) = j+1
+		end if
+	    end do
+		    
+	    allocate (config%r_testpoints(points,2), stat = i_error) assert_eq(i_error,0) 
+	    
+		!uncomment the following do to check if starts of coordinates are correctly detected
+		!do j=1, points
+		!	write (*,*) coordstart(j,1)
+		!	write (*,*) coordstart(j,2)
+		!end do
+	     do j=1, points
+			read(unit=config%s_testpoints(coordstart(j,1):), fmt=*) config%r_testpoints(j,1)
+			read(unit=config%s_testpoints(coordstart(j,2):), fmt=*) config%r_testpoints(j,2)
+	     end do
+	
+		!uncomment the following do to check if testpoints are correctly saved in the double precision array
+		!write (*,*) 'testpoints read:'		
+		!do j=1,  size(config%r_testpoints,dim=1)
+		!	write (*,*) config%r_testpoints(j,1)
+		!	write (*,*) config%r_testpoints(j,2)
+		!end do			
+		    
+	end if
+
     end subroutine
 end module

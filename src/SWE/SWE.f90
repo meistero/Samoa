@@ -16,6 +16,7 @@
 		use SWE_output
 		use SWE_xml_output
 		use SWE_ascii_output
+		use SWE_point_output
 		use SWE_euler_timestep
 
 		use Samoa_swe
@@ -31,6 +32,7 @@
             type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
             type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
+	    type(t_swe_point_output_traversal)	    :: point_output
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
@@ -57,6 +59,7 @@
 			call date_and_time(s_date, s_time)
 			write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (swe%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
+            write (swe%point_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (s_log_name, '(A, A)') TRIM(swe%xml_output%s_file_stamp), ".log"
 
 			if (l_log) then
@@ -223,9 +226,13 @@
 			if (r_output_step >= 0.0_GRID_SR) then
                 if (cfg%l_ascii_output) then
                     call swe%ascii_output%traverse(grid)
-                else
+                end if
+		if(cfg%l_gridoutput) then
                     call swe%xml_output%traverse(grid)
                 end if
+		if (cfg%l_pointoutput) then
+		    call swe%point_output%traverse(grid)
+		end if
 
 				r_time_next_output = r_time_next_output + r_output_step
 			end if
@@ -280,10 +287,14 @@
                     !output grid
                     if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                         if (cfg%l_ascii_output) then
-                            call swe%ascii_output%traverse(grid)
-                        else
-                            call swe%xml_output%traverse(grid)
-                        end if
+        	            call swe%ascii_output%traverse(grid)
+        	        end if
+			if(cfg%l_gridoutput) then
+        	            call swe%xml_output%traverse(grid)
+        	        end if
+			if (cfg%l_pointoutput) then
+			    call swe%point_output%traverse(grid)
+			end if
 
                         r_time_next_output = r_time_next_output + r_output_step
                     end if
@@ -314,10 +325,14 @@
 				!output grid
 				if (r_output_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                     if (cfg%l_ascii_output) then
-                        call swe%ascii_output%traverse(grid)
-                    else
-                        call swe%xml_output%traverse(grid)
+             	       call swe%ascii_output%traverse(grid)
+               	    end if
+		    if(cfg%l_gridoutput) then
+                    	call swe%xml_output%traverse(grid)
                     end if
+		    if (cfg%l_pointoutput) then
+		    	call swe%point_output%traverse(grid)
+		    end if
 
 					r_time_next_output = r_time_next_output + r_output_step
 				end if

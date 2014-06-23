@@ -63,6 +63,7 @@ f90_sources = [
 "SWE/SWE_xml_output.f90",
 "SWE/ascii_output_view.f90",
 "SWE/ascii_output_model.f90",
+"SWE/SWE_point_output.f90",
 "SWE/SWE_euler_timestep.f90",
 "SWE/SWE_adapt.f90",
 "geoclaw/c_bind_riemannsolvers.f90",
