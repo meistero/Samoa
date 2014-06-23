@@ -74,7 +74,8 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			node%data_pers%rhs = 0.0d0
+			node%data_pers%rhs = 0.0_SR
+			node%data_temp%is_dirichlet_boundary = .false.
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
