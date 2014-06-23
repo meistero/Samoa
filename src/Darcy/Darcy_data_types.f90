@@ -41,7 +41,6 @@
 		type num_node_data_pers
 			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE), rhs(_DARCY_P_NODE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_NODE_SIZE), d(_DARCY_P_NODE_SIZE), r(_DARCY_P_NODE_SIZE)
-			real (kind = GRID_SR)   :: phi(_DARCY_P_NODE_SIZE)
 
 			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_NODE_SIZE)    !< water saturation
 
@@ -83,6 +82,7 @@
 
 			real (kind = GRID_SR)   :: base_permeability
 			real (kind = GRID_SR)   :: permeability
+            real (kind = GRID_SR)   :: porosity
 		END type
 
 		!*********************************************

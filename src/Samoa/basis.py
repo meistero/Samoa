@@ -396,7 +396,7 @@ def main():
     print fcode(Dx)
     print fcode(Dy)
 
-    A = stiffness_matrix(p, q, K)
+    A = stiffness_matrix(p, q)
     pprint(Eq(Symbol('A'), A))
     print fcode(A)
 

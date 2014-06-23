@@ -78,7 +78,6 @@
 			integer										:: i
 
 			call pressure_pre_dof_op(real(cfg%r_p_prod, GRID_SR), node%data_pers%p, node%data_pers%r, node%data_pers%d, node%data_pers%A_d)
-            node%data_pers%phi = get_porosity(section, node%position)
 		end subroutine
 
 		!*******************************
@@ -90,11 +89,9 @@
 			type(t_element_base), intent(in)									:: element
 			real (kind = GRID_SR), intent(out)									:: base_permeability
 
-			real (kind = GRID_SR), dimension(2)									:: pos
-
-			!set base permeability
-			base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]), element%cell%geometry%i_depth / 2_SI)
-		end subroutine
+			element%cell%data_pers%base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]), element%cell%geometry%i_depth / 2_GRID_SI)
+			element%cell%data_pers%porosity = get_porosity(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]))
+ 		end subroutine
 
 		function get_base_permeability(section, x, lod) result(r_base_permeability)
  			type(t_grid_section), intent(inout)					:: section
@@ -148,9 +145,9 @@
             if (grid_min_x(cfg%afh_porosity) <= xs(1) .and. grid_min_y(cfg%afh_porosity) <= xs(2) &
                     .and. xs(1) <= grid_max_x(cfg%afh_porosity) .and. xs(2) <= grid_max_y(cfg%afh_porosity)) then
 
-                porosity = max(1.0d-3, grid_get_float_3d(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), 0.1_SR, 0))
+                porosity = max(0.0d0, grid_get_float_3d(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), 0.1_SR, 0))
             else
-                porosity = 1.0d-3
+                porosity = 0.0d0
             end if
 
 #           if defined(_ASAGI_TIMING)
@@ -305,7 +302,6 @@
 
             !set boundary conditions and source terms
 
-            saturation(:) = 0.0_SR
             rhs(:) = 0.0_SR
             l_refine_initial = .false.
 

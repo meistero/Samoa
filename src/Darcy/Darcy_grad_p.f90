@@ -12,7 +12,7 @@
 		use Samoa_darcy
 
         type num_traversal_data
-			real (kind = GRID_SR)				:: u_max					!< global maximum of u
+			real (kind = GRID_SR)				:: r_dt					!< global minimum time step
         end type
 
 		type(darcy_gv_p)						:: gv_p
@@ -93,15 +93,15 @@
 			type(t_darcy_grad_p_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							:: grid
 
-			call reduce(grid%u_max, traversal%children%u_max, MPI_MAX, .true.)
-			grid%u_max = sqrt(grid%u_max)
+			call reduce(grid%r_dt, traversal%children%r_dt, MPI_MIN, .true.)
+			grid%r_dt = cfg%courant_number * cfg%r_nu_w * cfg%scaling * grid%r_dt
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
   			type(t_darcy_grad_p_traversal), intent(inout)		:: traversal
  			type(t_grid_section), intent(inout)				    :: section
 
-			traversal%u_max = 0.0_GRID_SR
+			traversal%r_dt = huge(1.0_SR)
 		end subroutine
 
 		!*******************************
@@ -136,12 +136,17 @@
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 
 			integer (kind = GRID_SI)											:: i
+			real (kind = SR)    :: u_norm
 
 			!define velocity by u = k (-grad p + rho g)
 			do i = 1, _DARCY_U_SIZE
 				u(:, i) = -samoa_basis_p_gradient(samoa_basis_u_get_dof_coords(i), p)
 				u(:, i) = base_permeability / cfg%scaling * (samoa_barycentric_to_world_normal(element%transform_data,  u(:, i)) + cfg%r_rho_w * g)
-				traversal%u_max = max(traversal%u_max, DOT_PRODUCT(u(:, i), u(:, i)))
+
+				u_norm = norm2(u(:, i))
+				if (u_norm > 0.0_SR .and. element%cell%data_pers%porosity > 0.0_SR) then
+                    traversal%r_dt = min(traversal%r_dt, element%cell%data_pers%porosity * element%cell%geometry%get_leg_size() / (2.0_SR * u_norm))
+                end if
 			end do
 
 			!compute DoFs from the values of u

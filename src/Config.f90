@@ -58,7 +58,6 @@ module config
 			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase
 			double precision				    :: r_rho_w		                                    !< density of the wetting phase
 			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase
-			double precision				    :: r_phi					                        !< porosity
 			double precision				    :: r_p_in			                                !< injection well pressure
 			double precision				    :: r_p_in_psi			                            !< injection well pressure
 			double precision				    :: r_p_prod			                                !< production well pressure
@@ -106,7 +105,7 @@ module config
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
             !-p_in 9.2d-3
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -phi 0.2d0 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lse_output .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lse_output .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -155,7 +154,6 @@ module config
 			config%r_nu_n = rget('samoa_nu_n')
 			config%r_rho_w = rget('samoa_rho_w')
 			config%r_rho_n = rget('samoa_rho_n')
-			config%r_phi = rget('samoa_phi')
 			config%r_p_in_psi = rget('samoa_p_in')
 			config%r_p_prod_psi = rget('samoa_p_prod')
             config%i_max_iterations = iget('samoa_max_iter')
@@ -203,7 +201,6 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " 1 / (Pa s))"
                     PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, " kg / m^3)"
-                    PRINT '(A, ES8.1, A)',  "	-phi				    porosity (value: ", config%r_phi, ")"
                     PRINT '(A, ES8.1, A)',  "	-p_in			        injection well pressure (value: ", config%r_p_in_psi, " psi)"
                     PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod_psi, " psi)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
@@ -328,10 +325,9 @@ module config
         _log_write(0, '(" Scenario: courant number: ", F0.3)'), config%courant_number
 
 #		if defined(_DARCY)
-            _log_write(0, '(" Darcy: permeability file: ", A)') trim(config%s_permeability_file)
+            _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
             _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
-            _log_write(0, '(" Darcy: porosity: ", ES8.1)') config%r_phi
             _log_write(0, '(" Darcy: injection well pressure: ", ES8.1, ", production well pressure: ", ES8.1)') config%r_p_in, config%r_p_prod
             _log_write(0, '(" Darcy: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
             _log_write(0, '(" Darcy: linear solver: error bound: ", ES8.1, ", max iterations: ", I0)') config%r_epsilon, config%i_max_iterations
