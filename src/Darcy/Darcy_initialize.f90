@@ -56,7 +56,7 @@
 
 			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)								:: p
 
-			call alpha_volume_op(section, element, element%cell%data_pers%base_permeability)
+			call alpha_volume_op(section, element, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
 		end subroutine
 
 		subroutine node_first_touch_op(traversal, section, nodes)
@@ -84,13 +84,14 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine alpha_volume_op(section, element, base_permeability)
+		subroutine alpha_volume_op(section, element, base_permeability, porosity)
  			type(t_grid_section), intent(inout)							:: section
 			type(t_element_base), intent(in)									:: element
 			real (kind = GRID_SR), intent(out)									:: base_permeability
+			real (kind = GRID_SR), intent(out)									:: porosity
 
-			element%cell%data_pers%base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]), element%cell%geometry%i_depth / 2_GRID_SI)
-			element%cell%data_pers%porosity = get_porosity(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]))
+			base_permeability = get_base_permeability(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]), element%cell%geometry%i_depth / 2_GRID_SI)
+			porosity = get_porosity(section, samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]))
  		end subroutine
 
 		function get_base_permeability(section, x, lod) result(r_base_permeability)
