@@ -855,7 +855,7 @@ MODULE _CG
                 r_C_r = solver%cg_exact%r_C_r
 
                 !$omp master
-                if (iand(i_iteration, z'3ff') == z'3ff') then
+                if (rank_MPI == 0 .and. iand(i_iteration, z'3ff') == z'3ff') then
                     _log_write(1, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
                 end if
                 !$omp end master

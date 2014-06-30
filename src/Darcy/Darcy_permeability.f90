@@ -140,7 +140,7 @@
 
                 call gv_p%write(element, p)
                 call gv_is_dirichlet%add(element, is_dirichlet)
-           end if
+            end if
 
             pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
             if (base_permeability > 0.0_SR .and. pos_in(1) .ge. -radius .and. pos_in(2) .ge. -radius .and. pos_in(1) + pos_in(2) .le. 1.0_SR + radius) then

@@ -161,7 +161,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)				:: node
 
-            if (any(abs(node%position - 0.5_SR) == 0.5_SR)) then
+            if (any(node%data_temp%is_dirichlet_boundary)) then
                 !do a saturation update with divergence correction
                 call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_temp%volume, node%data_pers%d)
             else
@@ -246,13 +246,13 @@
 			n = n / norm2(n)
 			u_dot_n = dot_product(n, u)
 			flux(1) = (lambda_w(2) * max(u_dot_n, 0.0_GRID_SR) + lambda_w(1) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
-			diverg(1) = ((lambda_w(2) + lambda_n(2)) * max(u_dot_n, 0.0_GRID_SR) + (lambda_w(1) + lambda_n(1)) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
+			diverg(1) = dot_product([0.25_SR, 0.5_SR, 0.25_SR], lambda_w(:) + lambda_n(:)) * u_dot_n * r_dual_edge_length
 
 			n = samoa_barycentric_to_world_normal(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR])
 			n = n / norm2(n)
 			u_dot_n = dot_product(n, u)
 			flux(3) = (lambda_w(2) * max(u_dot_n, 0.0_GRID_SR) + lambda_w(3) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
-			diverg(3) = ((lambda_w(2) + lambda_n(2)) * max(u_dot_n, 0.0_GRID_SR) + (lambda_w(1) + lambda_n(1)) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
+			diverg(3) = dot_product([0.25_SR, 0.5_SR, 0.25_SR], lambda_w(:) + lambda_n(:)) * u_dot_n * r_dual_edge_length
 
 			flux(2) = -flux(1) - flux(3)
 			diverg(2) = -diverg(1) - diverg(3)
