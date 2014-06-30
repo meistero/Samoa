@@ -90,7 +90,7 @@
 
 #           if defined(_ASAGI)
                 if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
-                    grid%r_dt = min(grid%r_dt, 0.1_GRID_SR/15.0_GRID_SR * grid_max_z(cfg%afh_bathymetry))
+                    grid%r_dt = min(grid%r_dt, grid_delta_z(cfg%afh_bathymetry))
                 end if
 #           endif
 
