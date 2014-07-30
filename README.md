@@ -9,7 +9,7 @@ Website: [Samoa](https://github.com/meistero/Samoa)
 1. Prerequisites
 2. Installation
  1. SuperMUC
- 2. Linux Cluster
+ 2. Linux Cluster and MAC Cluster
 3. Execution
 
 ## Prerequisites
