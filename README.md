@@ -10,6 +10,7 @@ Website: [Samoa](https://github.com/meistero/Samoa)
 2. Installation
  1. SuperMUC
  2. Linux Cluster
+ 3. Compilation
 3. Execution
 
 ## Prerequisites
@@ -68,7 +69,7 @@ once without MT support and once with MT support. Rename the single-threaded lib
 
 At this point, you should be able to compile ASAGI and sam(oa)².
 
-###
+### Compilation
 
 After installing all the prerequisites, create a directory (named samoa_dir here) and execute the following steps:
 
@@ -85,4 +86,8 @@ Typical settings are:
     scons asagi_dir=<asagi_dir> compiler=intel target=debug scenario=swe -j<threads>
 
 Executables will be created in the directory samoa_dir/bin and should be run from samoa_dir.
+
+## Execution
+
+For execution parameters refer to the online help by calling the executable with '-h' or '--help'.
 
