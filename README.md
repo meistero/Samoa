@@ -53,11 +53,20 @@ Additionally, in order to compile and run ASAGI and sam(oa)² on the SuperMUC th
 sam(oa)² supports both multithreaded and single-threaded MPI. Both ASAGI and sam(oa)² must link to the same respective libraries, thus it is necessary to compile ASAGI twice:
 once without MT support and once with MT support. Rename the single-threaded library to "libasagi_nomt.so" and the multi-threaded library to "libasagi.so".
 
-At this point, you should be able to compile sam(oa)².
+At this point, you should be able to compile ASAGI and sam(oa)².
 
-### Linux Cluster
+### Linux Cluster and MAC Cluster
 
-NYI
+The following modules should be load before compiling ASAGI and samoa on the Linux and MAC clusters
+
+    module unload gcc python
+    module load git cmake netcdf gcc/4.7 python/2.7.5
+    module load gnuplot
+
+sam(oa)² supports both multithreaded and single-threaded MPI. Both ASAGI and sam(oa)² must link to the same respective libraries, thus it is necessary to compile ASAGI twice:
+once without MT support and once with MT support. Rename the single-threaded library to "libasagi_nomt.so" and the multi-threaded library to "libasagi.so".
+
+At this point, you should be able to compile ASAGI and sam(oa)².
 
 ###
 
