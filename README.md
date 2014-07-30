@@ -58,7 +58,7 @@ At this point, you should be able to compile ASAGI and sam(oa)².
 
 ### Linux Cluster and MAC Cluster
 
-The following modules should be load before compiling ASAGI and samoa on the Linux and MAC clusters
+The following modules should be load before compiling ASAGI and sam(oa)² on the Linux and MAC clusters
 
     module unload gcc python
     module load git cmake netcdf gcc/4.7 python/2.7.5
