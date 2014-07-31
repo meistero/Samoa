@@ -290,7 +290,7 @@
 			select case (i_element_order)
 				case (2)
 					forall (i = 1 : 6)
-						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i))
+						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)) + cfg%offset
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%h = t_basis_Q_eval(r_test_points(:, i), Q%h)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%b = t_basis_Q_eval(r_test_points(:, i), Q%b)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%p(1) = t_basis_Q_eval(r_test_points(:, i), Q%p(1))
@@ -300,7 +300,7 @@
 					traversal%i_point_data_index = traversal%i_point_data_index + 6
 				case (1)
 					forall (i = 1 : 3)
-						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i))
+						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)) + cfg%offset
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%h = t_basis_Q_eval(r_test_points(:, i), Q%h)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%b = t_basis_Q_eval(r_test_points(:, i), Q%b)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%p(1) = t_basis_Q_eval(r_test_points(:, i), Q%p(1))
@@ -310,7 +310,7 @@
 					traversal%i_point_data_index = traversal%i_point_data_index + 3
 				case (0)
 					forall (i = 1 : 3)
-						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i))
+						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)) + cfg%offset
 					end forall
 
 					traversal%i_point_data_index = traversal%i_point_data_index + 3
