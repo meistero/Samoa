@@ -226,7 +226,7 @@
                 r_testpoints(i,5) = h
                 r_testpoints(i,6) = b
                 r_testpoints(i,7) = 1   !count how often a cell has been calculated
-                r_testpoints(i,8) = section%r_time
+                r_testpoints(i,8) = section%r_time / 86400 + 70.240278
 	
 			end if
 		end do
