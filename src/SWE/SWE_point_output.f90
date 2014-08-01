@@ -212,7 +212,7 @@
 
 		call gv_Q%read(element, Q)
 
-        epsvec = [0.0001, 0.0]
+        epsvec = [0.001, 0.0]
         epsvec = samoa_world_to_barycentric_vector(element%transform_data, epsvec)
         eps = sqrt(epsvec(1)**2 + epsvec(2)**2)       
 
