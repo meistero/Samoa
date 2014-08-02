@@ -86,9 +86,9 @@ unset output
 
 plot for [n=1:64] "darcy.plt" every ::4 u (\$3 == n ? \$5 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
 
-set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX + 4, GPVAL_DATA_Y_MAX nohead ls 999
-set y2tics 0;
-set y2tics add ("node" GPVAL_DATA_Y_MAX) font ",20"
+#set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX + 4, GPVAL_DATA_Y_MAX nohead ls 999
+#set y2tics 0;
+#set y2tics add ("node" GPVAL_DATA_Y_MAX) font ",20"
 
 plot for [n=1:64] "darcy.plt" u (\$3 == n ? \$5 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
 
@@ -96,8 +96,8 @@ set output '| ps2pdf - darcy_elem_rel_hist.pdf'
 set yrange [0:GPVAL_DATA_Y_MAX]
 set y2range [0:GPVAL_DATA_Y_MAX]
 
-set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX, GPVAL_DATA_Y_MAX nohead ls 999
-set y2tics add ("core" GPVAL_DATA_Y_MAX)
+#set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX, GPVAL_DATA_Y_MAX nohead ls 999
+#set y2tics add ("core" GPVAL_DATA_Y_MAX)
 replot
 
 #*****
@@ -113,9 +113,9 @@ set y2range [0:*]
 
 plot for [n=1:64] "swe.plt" every ::4 u (\$3 == n? \$4 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
 
-set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX + 4, GPVAL_DATA_Y_MAX nohead ls 999
-set y2tics 0;
-set y2tics add ("node" GPVAL_DATA_Y_MAX) font ",20"
+#set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX + 4, GPVAL_DATA_Y_MAX nohead ls 999
+#set y2tics 0;
+#set y2tics add ("node" GPVAL_DATA_Y_MAX) font ",20"
 
 plot for [n=1:64] "swe.plt" u (\$3 == n? \$4 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
 
@@ -123,7 +123,7 @@ set output '| ps2pdf - swe_cells_rel_hist.pdf'
 set yrange [0:GPVAL_DATA_Y_MAX]
 set y2range [0:GPVAL_DATA_Y_MAX]
 
-set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX, GPVAL_DATA_Y_MAX nohead ls 999
-set y2tics add ("core" GPVAL_DATA_Y_MAX)
+#set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX, GPVAL_DATA_Y_MAX nohead ls 999
+#set y2tics add ("core" GPVAL_DATA_Y_MAX)
 replot
 EOT
