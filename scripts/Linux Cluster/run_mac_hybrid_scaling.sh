@@ -15,10 +15,10 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-#scons config=mac.py scenario=darcy -j4 &
-#scons config=mac.py scenario=swe -j4 &
+scons config=mac.py scenario=darcy -j4 &
+scons config=mac.py scenario=swe -j4 &
 
-#wait %1 %2
+wait %1 %2
 
 echo "Running scenarios..."
 
@@ -32,7 +32,7 @@ do
 	do
 		for cores in 1 2 4 8 16
 		do
-			processes=$(( ($cores - 1) / 8 + 1 ))
+			processes=$(( ($cores - 1) / 32 + 1 ))
 			threads=$(( $cores / $processes )) 
 
 			script="scripts/cache/run_mac"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"

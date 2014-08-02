@@ -78,6 +78,46 @@ end type
 
 contains
 
+!helper functions
+
+function alloc_wrapper(i_elements) result(data)
+    integer*8, intent(in)       :: i_elements
+    _T, pointer                 :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        i_data = KMP_CALLOC(i_elements, sizeof(dummy))
+        c_ptr_data = transfer(i_data, c_ptr_data)
+        call C_F_POINTER(c_ptr_data, data, [i_elements])
+#   else
+	    integer     :: i_error
+
+        allocate(data(i_elements), stat = i_error); assert_eq(i_error, 0)
+#   endif
+end function
+
+subroutine free_wrapper(data)
+    _T, pointer, intent(inout)  :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        c_ptr_data = c_loc(data)
+        i_data = transfer(c_ptr_data, i_data)
+        call KMP_FREE(i_data)
+#   else
+	    integer     :: i_error
+
+        deallocate(data, stat = i_error); assert_eq(i_error, 0)
+#   endif
+end subroutine
+
+
 !construction/destruction
 
 !> resizes a self-managed stream
@@ -91,22 +131,24 @@ subroutine resize_by_value(stream, i_elements)
     assert(.not. associated(stream%elements) .or. associated(stream%elements, stream%elements_alloc))
 
 	if (associated(stream%elements)) then
-        allocate(elements_temp(i_elements), stat = i_error); assert_eq(i_error, 0)
+        elements_temp => alloc_wrapper(i_elements)
 
         if (stream%is_forward()) then
             elements_temp(1 : min(i_elements, size(stream%elements))) = stream%elements_alloc
-            deallocate(stream%elements_alloc, stat = i_error); assert_eq(i_error, 0)
             stream%elements => elements_temp
         else
             elements_temp(max(1, i_elements - size(stream%elements) + 1) : i_elements) = stream%elements_alloc
-            deallocate(stream%elements_alloc, stat = i_error); assert_eq(i_error, 0)
             stream%elements => elements_temp(i_elements : 1 : -1)
         end if
+
+        call free_wrapper(stream%elements_alloc)
 
         stream%elements_alloc => elements_temp
     else
         assert(.not. associated(stream%elements_alloc))
-        allocate(stream%elements_alloc(i_elements), stat = i_error); assert_eq(i_error, 0)
+
+        stream%elements_alloc => alloc_wrapper(i_elements)
+
         stream%elements => stream%elements_alloc
     end if
 end subroutine
@@ -122,7 +164,7 @@ subroutine resize_auto(stream)
         call stream%resize(size(stream%elements) + _CHUNK_SIZE)
     else
         assert(.not. associated(stream%elements_alloc))
-        allocate(stream%elements_alloc(_CHUNK_SIZE), stat = i_error); assert_eq(i_error, 0)
+        stream%elements_alloc => alloc_wrapper(_CHUNK_SIZE)
     end if
 
 	stream%elements => stream%elements_alloc
@@ -134,7 +176,7 @@ subroutine clear(stream)
 	integer                                         :: i_error
 
     if (associated(stream%elements_alloc)) then
-        deallocate(stream%elements_alloc, stat = i_error); assert_eq(i_error, 0)
+        call free_wrapper(stream%elements_alloc)
     end if
 
     nullify(stream%elements)
@@ -275,13 +317,13 @@ function merge_streams(stream1, stream2) result(stream)
 	type(_CNT)              					:: stream               !< stream objects
 
 	_T, pointer					                :: elements_temp(:)
-	integer                                     :: total_size, i_error
+	integer*8                                   :: total_size
 
     !merge array parts
     total_size = size(stream1%elements) + size(stream2%elements)
 
     if (total_size > 0) then
-        allocate(elements_temp(total_size), stat = i_error); assert_eq(i_error, 0)
+        elements_temp => alloc_wrapper(total_size)
 
         if (associated(stream1%elements)) then
             elements_temp(1 : size(stream1%elements)) = stream1%elements

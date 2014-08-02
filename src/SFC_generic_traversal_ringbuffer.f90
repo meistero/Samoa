@@ -296,8 +296,8 @@ subroutine traverse(traversal, grid)
             traversal%children(i_section)%stats%r_computation_time = -get_wtime()
 #       endif
 
-        call pre_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
-        call traverse_section(traversal%threads(i_thread), traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+        call pre_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        call traverse_section_wrapper(traversal%threads(i_thread), traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
 
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
             call send_mpi_boundary(grid%sections%elements_alloc(i_section))
@@ -338,7 +338,7 @@ subroutine traverse(traversal, grid)
     do i_section = i_first_local_section, i_last_local_section
         assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time - get_wtime()
-        call post_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        call post_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
     end do
 
@@ -373,6 +373,65 @@ subroutine traverse(traversal, grid)
 
     traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
     grid%threads%elements(i_thread)%stats%t_statistics = grid%threads%elements(i_thread)%stats%t_statistics + thread_stats
+end subroutine
+
+subroutine traverse_section_wrapper(thread_traversal, traversal, thread, section)
+	type(t_thread_data), intent(inout)	                :: thread_traversal
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_thread), intent(inout)					:: thread
+	type(t_grid_section), intent(inout)					:: section
+
+	type(t_thread_data), target :: thread_traversal_local
+	type(_GT)	                :: traversal_local
+	type(t_grid_thread)			:: thread_local
+	type(t_grid_section)		:: section_local
+
+    thread_traversal_local = thread_traversal
+    traversal_local = traversal
+    thread_local = thread
+    section_local = section
+
+    call create_ringbuffer(thread_traversal_local%elements)
+    thread_traversal_local%p_current_element => thread_traversal_local%elements(1)
+
+    call traverse_section(thread_traversal_local, traversal_local, thread_local, section_local)
+
+    thread_traversal = thread_traversal_local
+    traversal = traversal_local
+    thread = thread_local
+    section = section_local
+end subroutine
+
+subroutine pre_traversal_wrapper(traversal, section)
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    section_local = section
+
+    call pre_traversal(traversal_local, section_local)
+
+    traversal = traversal_local
+    section = section_local
+end subroutine
+
+subroutine post_traversal_wrapper(traversal, section)
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    section_local = section
+
+    call post_traversal(traversal_local, section_local)
+
+    traversal = traversal_local
+    section = section_local
 end subroutine
 
 !> Generic iterative traversal subroutine

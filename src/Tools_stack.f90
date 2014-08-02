@@ -59,15 +59,52 @@ end type _CNT
 
 contains
 
+!helper functions
+
+function alloc_wrapper(i_elements) result(data)
+    integer*8, intent(in)       :: i_elements
+    _T, pointer                 :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        i_data = KMP_CALLOC(i_elements, sizeof(dummy))
+        c_ptr_data = transfer(i_data, c_ptr_data)
+        call C_F_POINTER(c_ptr_data, data, [i_elements])
+#   else
+	    integer     :: i_error
+
+        allocate(data(i_elements), stat = i_error); assert_eq(i_error, 0)
+#   endif
+end function
+
+subroutine free_wrapper(data)
+    _T, pointer, intent(inout)  :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        c_ptr_data = c_loc(data)
+        i_data = transfer(c_ptr_data, i_data)
+        call KMP_FREE(i_data)
+#   else
+	    integer     :: i_error
+
+        deallocate(data, stat = i_error); assert_eq(i_error, 0)
+#   endif
+end subroutine
+
 !> Creates a new stack
 subroutine create(stack, i_capacity)
 	class(_CNT), intent(inout)					:: stack					!< stack object
 	integer (kind = GRID_SI), intent(in)		:: i_capacity				!< stack capacity
 
-	integer (kind = GRID_SI)					:: i_error
-
     assert(.not. associated(stack%elements))
-	allocate(stack%elements(i_capacity), stat = i_error); assert_eq(i_error, 0)
+	stack%elements => alloc_wrapper(int(i_capacity, 8))
 
 	stack%i_current_element = 0
 end subroutine create
@@ -76,10 +113,8 @@ end subroutine create
 subroutine destroy(stack)
 	class(_CNT), intent(inout)					:: stack					!< stack object
 
-	integer (kind = GRID_SI)					:: i_error
-
 	assert(associated(stack%elements))
-	deallocate(stack%elements, stat = i_error); assert_eq(i_error, 0)
+	call free_wrapper(stack%elements)
 end subroutine
 
 !array access
