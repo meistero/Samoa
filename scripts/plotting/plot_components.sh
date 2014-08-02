@@ -60,6 +60,7 @@ done
 sort -t" " -n -k 1,1 darcy.plt -o darcy.plt
 sort -t" " -n -k 1,1 swe.plt -o swe.plt
 
+#for example, use '2~4p;3~4p' to print every 2nd and 3rd of 4 lines
 if [ -n "$2" ]; then
     echo "#Component breakdown filtered using sed -n $2" > darcy.plt.tmp
     echo "#Component breakdown filtered using sed -n $2" > swe.plt.tmp
