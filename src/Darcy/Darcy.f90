@@ -258,7 +258,7 @@
 				call darcy%init_saturation%traverse(grid)
 
                 if (cfg%l_lse_output) then
-                    !call darcy%lse_output%traverse(grid)
+                    call darcy%lse_output%traverse(grid)
                 end if
 
 				!solve pressure equation

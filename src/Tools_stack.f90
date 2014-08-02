@@ -70,7 +70,7 @@ subroutine create(stack, i_capacity)
 	allocate(stack%elements(i_capacity), stat = i_error); assert_eq(i_error, 0)
 
 	stack%i_current_element = 0
-end subroutine create
+end subroutine
 
 !> Destroys the stack
 subroutine destroy(stack)

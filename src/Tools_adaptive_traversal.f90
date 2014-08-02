@@ -352,9 +352,9 @@
 
 			p_plotter_data => element%transform_data%plotter_data
 
-			forall (i = 1 : 3)
+			do i = 1, 3
                 element%edges(i)%ptr%transform_data => p_plotter_data%edges(i)
-            end forall
+            end do
 #		endif
 	end subroutine
 

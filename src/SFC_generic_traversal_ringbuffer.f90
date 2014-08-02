@@ -376,7 +376,6 @@ subroutine traverse(traversal, grid)
 end subroutine
 
 !> Generic iterative traversal subroutine
-!> @author Oliver Meister
 subroutine traverse_section(thread_traversal, traversal, thread, section)
 	type(t_thread_data), target, intent(inout)	        :: thread_traversal
 	type(_GT), target, intent(inout)	                :: traversal
