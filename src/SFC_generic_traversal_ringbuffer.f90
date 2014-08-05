@@ -70,6 +70,10 @@ type, extends(num_traversal_data) :: _GT
 
     contains
 
+    procedure, pass :: assign => gt_assign
+
+    generic :: assignment(=) => assign
+
     procedure, pass :: create
     procedure, pass :: destroy
     procedure, pass :: traverse
@@ -77,6 +81,18 @@ type, extends(num_traversal_data) :: _GT
 end type
 
 contains
+
+subroutine gt_assign(gt1, gt2)
+    class(_GT), intent(inout) :: gt1
+    class(_GT), intent(in) :: gt2
+
+    gt1%num_traversal_data = gt2%num_traversal_data
+    gt1%stats = gt2%stats
+    gt1%mpi_node_type = gt2%mpi_node_type
+    gt1%mpi_edge_type = gt2%mpi_edge_type
+    
+    !pointers are not copied, they must be set manually
+end subroutine
 
 subroutine reduce_stats(traversal, mpi_op, global)
     class(_GT)              :: traversal

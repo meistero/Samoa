@@ -156,9 +156,9 @@
             write(pout_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_pointoutput_", traversal%i_output_iteration, ".txt"
 
             open(unit=out_unit, file=pout_file_name, action="write", status="replace")
-                write(out_unit, *) "x, y, z, p(1), p(2), h, b, processed, time"
+                write(out_unit, "(A)") "x, y, z, p(1), p(2), h, b, processed, time"
                 do i=1, size(r_testpoints, dim=1)
-                    write(out_unit, *) cfg%r_testpoints(i,1), ",", cfg%r_testpoints(i,2), ",", dble(0.0), ",", r_testpoints(i,3), ",", r_testpoints(i,4), ",", r_testpoints(i,5), ",", r_testpoints(i,6), ",", r_testpoints(i,7), ",", r_testpoints(i,8)
+                    write(out_unit, "(8(F0.15,A),F0.15)") cfg%r_testpoints(i,1), ",", cfg%r_testpoints(i,2), ",", dble(0.0), ",", r_testpoints(i,3), ",", r_testpoints(i,4), ",", r_testpoints(i,5), ",", r_testpoints(i,6), ",", r_testpoints(i,7), ",", r_testpoints(i,8)
                 end do
             close(out_unit)
         end if
