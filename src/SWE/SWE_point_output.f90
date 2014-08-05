@@ -208,16 +208,20 @@
 		integer (kind = GRID_SI)							:: i,j
 		type(t_state), dimension(_SWE_CELL_SIZE)			:: Q
 		type(t_state), dimension(6)							:: Q_test
-		double precision 						:: h, b, p(2), local_coord(2)
+		double precision 						:: h, b, p(2), local_coord(2), epsvec(2), eps
 
 		call gv_Q%read(element, Q)
+
+        epsvec = [0.001, 0.0]
+        epsvec = samoa_world_to_barycentric_vector(element%transform_data, epsvec)
+        eps = sqrt(epsvec(1)**2 + epsvec(2)**2)       
 
 		do i=1, size(r_testpoints, dim=1)
 			!check ob koordinaten in aktueller zelle
 			local_coord = samoa_world_to_barycentric_point(element%transform_data, [r_testpoints(i,1), r_testpoints(i,2)])
-			if (local_coord(1) >= 0.0_GRID_SR .and. local_coord(2) >= 0.0_GRID_SR .and. local_coord(1) + local_coord(2) <= 1.0_GRID_SR) then
+			if (local_coord(1) + eps >= 0.0_GRID_SR .and. local_coord(2) + eps >= 0.0_GRID_SR .and. local_coord(1) + local_coord(2) - 2*eps <= 1.0_GRID_SR) then
 				h = dble(t_basis_Q_eval(local_coord, Q%h))			!insert transformed coordinates
-            			b = dble(t_basis_Q_eval(local_coord, Q%b))			
+            	b = dble(t_basis_Q_eval(local_coord, Q%b))			
 				p(1) = dble(t_basis_Q_eval(local_coord, Q%p(1)))			!insert transformed coordinates, gives world coordinates
 				p(2) = dble(t_basis_Q_eval(local_coord, Q%p(2)))				
 				
@@ -226,7 +230,7 @@
                 r_testpoints(i,5) = h
                 r_testpoints(i,6) = b
                 r_testpoints(i,7) = 1   !count how often a cell has been calculated
-                r_testpoints(i,8) = section%r_time
+                r_testpoints(i,8) = section%r_time / 86400 + 70.240278 !time unit: days since start of year - for comparison with buoy data
 	
 			end if
 		end do
