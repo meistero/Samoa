@@ -15,6 +15,8 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
+partition=snb
+
 scons config=mac.py scenario=darcy openmp=noomp -j4 &
 scons config=mac.py scenario=swe openmp=noomp -j4 &
 
@@ -38,6 +40,7 @@ do
 			script="scripts/cache/run_mac"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
 			cat "$script_dir/run_mac_template.sh" > $script
 
+            sed -i 's=$partition='$partition'=g' $script
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script
 			sed -i 's=$processes='$processes'=g' $script

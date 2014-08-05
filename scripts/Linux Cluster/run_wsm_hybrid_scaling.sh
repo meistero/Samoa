@@ -32,7 +32,7 @@ for asagimode in 2
 do
 	for sections in 1
 	do
-		for cores in 1 2 4 8 16 32
+		for cores in 8 16 32
 		do
 			processes=$(( ($cores - 1) / 32 + 1 ))
 			threads=$(( $cores / $processes )) 

@@ -40,6 +40,7 @@ do
 			script="scripts/cache/run_mac"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
 			cat "$script_dir/run_mac_template.sh" > $script
 
+            sed -i 's=$partition='$partition'=g' $script
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script
 			sed -i 's=$processes='$processes'=g' $script
