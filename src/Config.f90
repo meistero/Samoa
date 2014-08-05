@@ -32,21 +32,19 @@ module config
         logical			                        :: l_log                                            !< if true, a log file is used
         integer (kind = selected_int_kind(1))   :: i_min_depth, i_max_depth			                !< minimum and maximum scenario depth
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
-        integer                                 :: i_ascii_width                                    !< width of the ascii output
-        logical                                 :: l_ascii_output                                   !< ascii output on/off
         logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by counting entities
         double precision                        :: r_cell_weight                                    !< cell weight for the count-based load estimate
         double precision                        :: r_boundary_weight                                !< boundary weight for the count-based load estimate
         logical                                 :: l_split_sections                                 !< if true, MPI load balancing may split sections, if false sections are treated as atomic units
         logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
 	
-	logical 				:: l_gridoutput			!< grid output on/offset
-	character(512)				:: s_testpoints			!< test points off / points
-	double precision, allocatable		:: r_testpoints(:,:)		!< array for the testpoints
-	logical					:: l_pointoutput
-	
-	
-	
+	    logical 				                :: l_gridoutput			                            !< grid output on/off
+        logical                                 :: l_ascii_output                                   !< ascii output on/off
+        integer                                 :: i_ascii_width                                    !< width of the ascii output
+	    logical					                :: l_pointoutput                                    !< test points output on/off
+	    character(512)				            :: s_testpoints			                            !< test points input string
+	    double precision, pointer		        :: r_testpoints(:,:)		                        !< test points array
+
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
 
@@ -196,7 +194,7 @@ module config
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
 
         		PRINT '(A, L, A)',     "	-gridoutput             turns on grid output (value: ", config%l_gridoutput, ")"
-        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (sepereate coordinates with space, sperate coordinate-pairs using comma only, zero before point required, no exponential notation allowed, floating point notation required), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", config%s_testpoints, ")"
+        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", config%s_testpoints, ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
@@ -485,7 +483,7 @@ module config
 		end if
 	    end do
 		    
-	    allocate (config%r_testpoints(points,2), stat = i_error) assert_eq(i_error,0) 
+	    allocate (config%r_testpoints(points,2), stat = i_error); assert_eq(i_error,0) 
 	    
 		!uncomment the following do to check if starts of coordinates are correctly detected
 		!do j=1, points
