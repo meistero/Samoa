@@ -6,7 +6,7 @@
 #SBATCH -o /home/hpc/pr63so/di56dop/Samoa/$output_dir/run$postfix_p$processes_t$threads_s$sections_a$asagimode.%j.%N.out
 #SBATCH -D /home/hpc/pr63so/di56dop/Samoa
 #SBATCH -J samoa
-#SBATCH --partition=snb
+#SBATCH --partition=$partition
 #SBATCH --get-user-env
 #SBATCH --ntasks=$processes
 #SBATCH --cpus-per-task=$threads

@@ -4,7 +4,7 @@
 # This program is licensed under the GPL, for details see the file LICENSE
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Mac_Hybrid_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Snb_MPI_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
@@ -15,8 +15,8 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-scons config=mac.py scenario=darcy -j4 &
-scons config=mac.py scenario=swe -j4 &
+scons config=mac.py scenario=darcy openmp=noomp -j4 &
+scons config=mac.py scenario=swe openmp=noomp -j4 &
 
 wait %1 %2
 
@@ -24,16 +24,16 @@ echo "Running scenarios..."
 
 class=test
 limit=02:00:00
-postfix=
+postfix=_noomp
 
 for asagimode in 2
 do
-	for sections in 1
+	for sections in 8
 	do
 		for cores in 1 2 4 8 16
 		do
-			processes=$(( ($cores - 1) / 32 + 1 ))
-			threads=$(( $cores / $processes )) 
+			processes=$cores
+			threads=1
 
 			script="scripts/cache/run_mac"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
 			cat "$script_dir/run_mac_template.sh" > $script
