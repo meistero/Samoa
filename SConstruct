@@ -69,6 +69,7 @@ vars.AddVariables(
   EnumVariable( 'asagi', 'ASAGI support', 'standard',
                 allowed_values=('noasagi', 'standard', 'numa')
               ),
+
   BoolVariable( 'asagi_timing', 'switch on timing of all ASAGI calls', False),
 
   PathVariable( 'asagi_dir', 'ASAGI directory', '../ASAGI'),
@@ -83,6 +84,10 @@ vars.AddVariables(
 
   EnumVariable( 'debug_level', 'debug output level', '1',
                 allowed_values=('0', '1', '2', '3', '4', '5', '6', '7')
+              ),
+
+  EnumVariable( 'machine', 'target machine', 'host',
+                allowed_values=('SSE4.2', 'AVX', 'host')
               ),
 
   BoolVariable( 'library', 'build samoa as a library', False),
@@ -267,6 +272,15 @@ elif env['target'] == 'release':
 #In case the Intel compiler is active, add a vectorization report (can gnu do this too?)
 if env['compiler'] == 'intel':
   env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
+
+#Set target machine (currently Intel only. Feel free to add GNU options if needed)
+if env['compiler'] == 'intel':
+  if env['machine'] == 'host':
+    env['F90FLAGS'] += ' -xHost'
+  elif env['machine'] == 'SSE4.2':
+    env['F90FLAGS'] += ' -xSSE4.2'
+  elif env['machine'] == 'AVX':
+    env['F90FLAGS'] += ' -xAVX'
 
 #Enable or disable assertions
 if env['assertions']:
