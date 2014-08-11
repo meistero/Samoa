@@ -89,7 +89,7 @@ function alloc_wrapper(i_elements) result(data)
         type(c_ptr)                                     :: c_ptr_data
         _T                                              :: dummy
 
-        i_data = KMP_CALLOC(i_elements, sizeof(dummy))
+        i_data = KMP_MALLOC(i_elements * sizeof(dummy))
         c_ptr_data = transfer(i_data, c_ptr_data)
         call C_F_POINTER(c_ptr_data, data, [i_elements])
 #   else

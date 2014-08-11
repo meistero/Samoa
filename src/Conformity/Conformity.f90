@@ -212,7 +212,7 @@ module Conformity
                 !$omp task default(shared) firstprivate(i_section) mergeable
 #           endif
 
-            call initial_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+            call initial_conformity_traversal_wrapper(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
             call grid%sections%elements_alloc(i_section)%reverse()
 
 #           if defined(_OPENMP_TASKS)
@@ -233,12 +233,12 @@ module Conformity
     subroutine update_conformity_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
+
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
         type(t_statistics)                  :: thread_stats
 
  		_log_write(3, '(3X, A)') "Update conformity traversal:"
 
-        i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
         thread_stats%r_traversal_time = -get_wtime()
@@ -256,7 +256,7 @@ module Conformity
 
             !do a conformity traversal only if it is required
             do while (.not. grid%sections%elements_alloc(i_section)%l_conform)
-                call update_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+                call update_conformity_traversal_wrapper(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
                 call grid%sections%elements_alloc(i_section)%reverse()
             end do
 
@@ -293,14 +293,12 @@ module Conformity
     subroutine empty_traversal(conformity, grid)
 		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
+
         integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i
         type(t_statistics)                  :: thread_stats
 
-        double precision :: r_time
-
  		_log_write(3, '(3X, A)') "Empty traversal:"
 
-        i_thread = 1 + omp_get_thread_num()
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
         thread_stats%r_traversal_time = -get_wtime()
@@ -315,7 +313,7 @@ module Conformity
 
             !do an empty traversal if the section is backwards
             if (grid%sections%elements_alloc(i_section)%cells%is_forward() .neqv. grid%sections%is_forward()) then
-                call empty_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+                call empty_traversal_wrapper(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
                 call grid%sections%elements_alloc(i_section)%reverse()
             end if
 
@@ -347,6 +345,57 @@ module Conformity
         _log_write(3, '(4X, A, I0, A, 2(X, I0), A, 2(X, I0))') "Estimate for #cells: ", grid%dest_cells, ", stack red:", grid%min_dest_stack(RED), grid%max_dest_stack(RED), ", stack green:", grid%min_dest_stack(GREEN), grid%max_dest_stack(GREEN)
     end subroutine
 
+    !************************
+    !NUMA wrapper functions
+    !************************
+
+    subroutine initial_conformity_traversal_wrapper(thread, section)
+		type(t_grid_thread), intent(inout)      :: thread
+		type(t_grid_section), intent(inout)     :: section
+
+		type(t_grid_thread)					    :: thread_local
+		type(t_grid_section)				    :: section_local
+
+        thread_local = thread
+        section_local = section
+
+        call initial_conformity_traversal_section(thread_local, section_local)
+
+        thread = thread_local
+        section = section_local
+    end subroutine
+
+    subroutine update_conformity_traversal_wrapper(thread, section)
+		type(t_grid_thread), intent(inout)      :: thread
+		type(t_grid_section), intent(inout)     :: section
+
+		type(t_grid_thread)					    :: thread_local
+		type(t_grid_section)				    :: section_local
+
+        thread_local = thread
+        section_local = section
+
+        call update_conformity_traversal_section(thread_local, section_local)
+
+        thread = thread_local
+        section = section_local
+    end subroutine
+
+    subroutine empty_traversal_wrapper(thread, section)
+		type(t_grid_thread), intent(inout)      :: thread
+		type(t_grid_section), intent(inout)     :: section
+
+		type(t_grid_thread)					    :: thread_local
+		type(t_grid_section)				    :: section_local
+
+        thread_local = thread
+        section_local = section
+
+        call empty_traversal_section(thread_local, section_local)
+
+        thread = thread_local
+        section = section_local
+    end subroutine
     !************************
     !initial conformity traversal
     !************************

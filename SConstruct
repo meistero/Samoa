@@ -181,7 +181,7 @@ if env['openmp'] != 'noomp':
     env['F90FLAGS'] += ' -D_OPENMP_TASKS -D_OPENMP_TASKS_ADAPTIVITY'
 
   if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -openmp -D_KMP_ALLOC'
+    env['F90FLAGS'] += ' -openmp'
     env['LINKFLAGS'] += ' -openmp'
   elif env['compiler'] == 'gnu':
     env['F90FLAGS'] += ' -fopenmp'
