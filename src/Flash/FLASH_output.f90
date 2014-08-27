@@ -34,7 +34,7 @@
             integer (kind = GRID_SI)								:: i_cell_data_index
         end type
 
-		integer, PARAMETER											:: i_element_order = 0
+		integer, PARAMETER											:: i_element_order = 1
 
 		type(t_gv_Q)												:: gv_Q
 
@@ -193,6 +193,9 @@
 			type(t_state), dimension(6)							:: Q_test
 
 			call gv_Q%read(element, Q)
+			if (element%transform_data%plotter_data%orientation <1) then
+				Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
+			endif
 
 			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
 			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement

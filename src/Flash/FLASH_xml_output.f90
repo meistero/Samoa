@@ -274,6 +274,9 @@
 			type(t_state), dimension(6)							:: Q_test
 
 			call gv_Q%read(element, Q)
+			if (element%transform_data%plotter_data%orientation <1) then
+				Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
+			endif
 
             traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
             traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index

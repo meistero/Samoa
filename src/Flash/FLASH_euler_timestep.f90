@@ -135,9 +135,9 @@
 !#     else
       !  rep%Q(1) = Q(1)
 !#     endif
-forall (i = 1 : _FLASH_CELL_SIZE)
-	rep%Q(i) = Q(i)
-end forall
+	forall (i = 1 : _FLASH_CELL_SIZE)
+		rep%Q(i) = Q(i)
+	end forall
 
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q out: ", rep%Q
     end function
