@@ -135,7 +135,9 @@
 !#     else
       !  rep%Q(1) = Q(1)
 !#     endif
-	rep%Q = Q
+	forall (i = 1 : _FLASH_CELL_SIZE)
+		rep%Q(i) = Q(i)
+	end forall
 
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q out: ", rep%Q
     end function
@@ -166,15 +168,19 @@
       REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE)   :: r_h_l, r_hv_l, r_hu_l, &
                                                                    r_h_r, r_hv_r, r_hu_r
+      integer(kind = GRID_SI)                                   :: i
 
       r_minh_r = 1
       r_minh_l = 1
-      r_h_l  = rep1%Q(:)%h
-      r_hu_l = rep1%Q(:)%p(1)
-      r_hv_l = rep1%Q(:)%p(2)
-      r_h_r  = rep2%Q(:)%h
-      r_hu_r = rep2%Q(:)%p(1)
-      r_hv_r = rep2%Q(:)%p(2)
+
+	forall (i = 1 : _FLASH_CELL_SIZE)
+	      r_h_l(i)  = rep1%Q(i)%h
+	      r_hu_l(i) = rep1%Q(i)%p(1)
+	      r_hv_l(i) = rep1%Q(i)%p(2)
+	      r_h_r(i) = rep2%Q(i)%h
+	      r_hu_r(i) = rep2%Q(i)%p(1)
+	      r_hv_r(i)= rep2%Q(i)%p(2)
+	end forall
 
       !_log_write(0, *) "normal: ", edge%transform_data%normal
       _log_write(6, '(3X, A)') "FLASH skeleton op:"
@@ -185,14 +191,15 @@
                               _FLASH_CELL_SIZE, _FLASH_EDGE_QUAD_SIZE, r_gqwei, r_gMinvpsi, &
                               r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep2%Q(1)%b)
 
-      update1%flux(:)%h    = -r_rhs_l(:,1)
-      update1%flux(:)%p(1) = -r_rhs_l(:,2)
-      update1%flux(:)%p(2) = -r_rhs_l(:,3)
+     forall (i = 1 : _FLASH_CELL_SIZE)
+      update1%flux(i)%h    = -r_rhs_l(i,1)
+      update1%flux(i)%p(1) = -r_rhs_l(i,2)
+      update1%flux(i)%p(2) = -r_rhs_l(i,3)
 
-      update2%flux(:)%h    =  r_rhs_r(:,1)
-      update2%flux(:)%p(1) =  r_rhs_r(:,2)
-      update2%flux(:)%p(2) =  r_rhs_r(:,3)
-
+      update2%flux(i)%h    =  r_rhs_r(i,1)
+      update2%flux(i)%p(1) =  r_rhs_r(i,2)
+      update2%flux(i)%p(2) =  r_rhs_r(i,3)
+      end forall
 	update1%flux(:)%max_wave_speed = max_wave_speed
 	update2%flux(:)%max_wave_speed = max_wave_speed
       _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 1 out: ", update1%flux
@@ -228,27 +235,30 @@
       REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
       REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE)   :: r_h_l, r_hv_l, r_hu_l, &
                                                                    r_h_r, r_hv_r, r_hu_r
+	integer(kind = GRID_SI)                                   :: i
 
       bnd_rep = t_state(0.0, [0.0, 0.0],0.0, [0.0, 0.0], rep%Q(1)%b)
       r_minh_r = 1
       r_minh_l = 1
-      r_h_l  = rep%Q(:)%h
-      r_hu_l = rep%Q(:)%p(1)
-      r_hv_l = rep%Q(:)%p(2)
-      r_h_r  = rep%Q(:)%h
-      r_hu_r = rep%Q(:)%p(1)
-      r_hv_r = rep%Q(:)%p(2)
+ forall (i = 1 : _FLASH_CELL_SIZE)
+      r_h_l(i)  = rep%Q(i)%h
+      r_hu_l(i) = rep%Q(i)%p(1)
+      r_hv_l(i) = rep%Q(i)%p(2)
+      r_h_r(i)  = rep%Q(i)%h
+      r_hu_r(i) = rep%Q(i)%p(1)
+      r_hv_r(i) = rep%Q(i)%p(2)
+end forall
 
       !_log_write(0, *) "BOUNDARY normal: ", edge%transform_data%normal
 
       call compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed,edge%transform_data%normal, r_minh_l, r_minh_r, &
                               _FLASH_CELL_SIZE, _FLASH_EDGE_QUAD_SIZE, r_gqwei, r_gMinvpsi, &
                               r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep%Q(1)%b)
-
-      update%flux(:)%h    = -r_rhs_l(:,1)
-      update%flux(:)%p(1) = -r_rhs_l(:,2)
-      update%flux(:)%p(2) = -r_rhs_l(:,3)
-
+forall (i = 1 : _FLASH_CELL_SIZE)
+      update%flux(i)%h    = -r_rhs_l(i,1)
+      update%flux(i)%p(1) = -r_rhs_l(i,2)
+      update%flux(i)%p(2) = -r_rhs_l(i,3)
+end forall
       update%flux(:)%max_wave_speed = max_wave_speed
 
     end subroutine
