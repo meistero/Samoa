@@ -85,7 +85,7 @@
 
     !> Cell update, this would typically be a flux function
     type num_cell_update
-      type(t_update), DIMENSION(_FLASH_EDGE_SIZE)               :: flux     !< cell update
+      type(t_update), DIMENSION(_FLASH_CELL_SIZE)               :: flux     !< cell update
     end type
 
     !*************************
