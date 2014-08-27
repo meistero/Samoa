@@ -267,24 +267,24 @@
       real(kind = GRID_SR)                                      :: volume, dQ_norm, edge_lengths(3)
       integer (kind = 1)                                        :: depth
 
-      fluxes = [update1%flux, update2%flux, update3%flux]
-
-      _log_write(6, '(3X, A)') "FLASH cell update op:"
-      _log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
-      _log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
-      _log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
-
-      volume       = element%cell%geometry%get_volume()
-      edge_lengths = element%cell%geometry%get_edge_sizes()
-
-      dQ%h    = sum(edge_lengths * fluxes%h)
-      dQ%p(1) = sum(edge_lengths * fluxes%p(1))
-      dQ%p(2) = sum(edge_lengths * fluxes%p(2))
-      dQ%b    = 0.0_GRID_SR
-
-      dQ%h_old    = sum(edge_lengths * fluxes%h)
-      dQ%p_old(1) = sum(edge_lengths * fluxes%p(1))
-      dQ%p_old(2) = sum(edge_lengths * fluxes%p(2))
+!       fluxes = [update1%flux, update2%flux, update3%flux]
+!
+!       _log_write(6, '(3X, A)') "FLASH cell update op:"
+!       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
+!       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
+!       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
+!
+!       volume       = element%cell%geometry%get_volume()
+!       edge_lengths = element%cell%geometry%get_edge_sizes()
+!
+!       dQ%h    = sum(edge_lengths * fluxes%h)
+!       dQ%p(1) = sum(edge_lengths * fluxes%p(1))
+!       dQ%p(2) = sum(edge_lengths * fluxes%p(2))
+!       dQ%b    = 0.0_GRID_SR
+!
+!       dQ%h_old    = sum(edge_lengths * fluxes%h)
+!       dQ%p_old(1) = sum(edge_lengths * fluxes%p(1))
+!       dQ%p_old(2) = sum(edge_lengths * fluxes%p(2))
 
       !set refinement condition
 
@@ -309,7 +309,7 @@
 
 !       call volume_op(section, element, eflux)
 
-      call gv_Q%add(element, dQ)
+!       call gv_Q%add(element, dQ)
 
     end subroutine
 
