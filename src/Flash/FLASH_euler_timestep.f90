@@ -55,7 +55,7 @@
 			type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-        grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+!         grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
         grid%r_dt = 1e-3!0.45_GRID_SR * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 	!print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
 	!print *, "calculatzed Dt: ",0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max), grid%r_dt
