@@ -780,7 +780,6 @@ module SFC_edge_traversal
         integer (kind = BYTE), intent(in)			    :: i_color
 
         integer (KIND = GRID_SI)                        :: i_comm, i_pass
-        integer (KIND = GRID_SI)                        :: i_first_edge, i_first_node, i_last_edge, i_last_node
         type(t_comm_interface), pointer                 :: comm, comm_2
         type(t_grid_section), pointer				    :: section_2
 
@@ -824,6 +823,26 @@ module SFC_edge_traversal
                     assert_eq(size(comm%p_neighbor_nodes), comm%i_nodes)
                 end if
             end do
+        end do
+    end subroutine
+
+    subroutine delete_comm_neighbor_data(section, i_color)
+        type(t_grid_section),target, intent(inout)	    :: section
+        integer (kind = BYTE), intent(in)			    :: i_color
+
+        integer (KIND = GRID_SI)                        :: i_comm
+        type(t_comm_interface), pointer                 :: comm
+
+        _log_write(4, '(4X, A, I0)') "set neighbor data: section ", section%index
+        _log_write(4, '(4X, A, A, A)') "Neighbors (", trim(color_to_char(i_color)), "):"
+
+        do i_comm = 1, section%comms(i_color)%get_size()
+            comm => section%comms(i_color)%elements(i_comm)
+            assert_eq(section%index, comm%local_section)
+
+            _log_write(4, '(6X, (A))') trim(comm%to_string())
+
+            call comm%destroy_buffer()
         end do
     end subroutine
 
@@ -1372,6 +1391,13 @@ module SFC_edge_traversal
                 _log_write(2, '(4X, "load balancing: exit, we have something, but do not give nor get anything")')
                 return
 	        end if
+
+            !Delete all buffers
+	        do i_section = i_first_local_section, i_last_local_section
+	            do i_color = RED, GREEN
+                    call delete_comm_neighbor_data(grid%sections%elements_alloc(i_section), i_color)
+	            end do
+	        end do
 
 	        !$omp single
 	        if (grid%sections%get_size() > 0) then
@@ -2200,15 +2226,6 @@ module SFC_edge_traversal
                             l_reverse_section_list = .true.
                         end if
                 end select
-
-                !nullify invalid pointers to neighbor edges and nodes
-                do i_color = RED, GREEN
-                    do i_comm = 1, section%comms(i_color)%get_size()
-                        section%comms(i_color)%elements(i_comm)%l_buffer_allocated = .false.
-                        nullify(section%comms(i_color)%elements(i_comm)%p_neighbor_edges)
-                        nullify(section%comms(i_color)%elements(i_comm)%p_neighbor_nodes)
-                    end do
-                end do
 
 	            assert_eq(section%cells%elements(1)%get_previous_edge_type(), OLD_BND)
 	            assert(section%cells%is_forward() .eqv. section%boundary_edges(RED)%is_forward())
