@@ -114,12 +114,18 @@
             call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
             !array of point arrays for gather
-            if (rank_MPI == 0) then     
+            if (rank_MPI == 0) then
+                if (associated(big_points_array)) then
+        	        deallocate(big_points_array)
+    	        end if     
                 allocate (big_points_array(size(r_testpoints,dim=1),size(r_testpoints,dim=2),size_MPI), stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-pointmatrix"
                 end if
-            else 
+            else
+                if (associated(dummy_points)) then
+        	        deallocate(dummy_points)
+              	end if 
 	            allocate (dummy_points(1,1,1), stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-pointmatrix"
