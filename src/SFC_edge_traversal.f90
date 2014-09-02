@@ -289,7 +289,7 @@ module SFC_edge_traversal
 
         type(t_int64_list), save, allocatable           :: neighbor_min_distances_red(:), neighbor_min_distances_green(:)
         type(t_integer_list), save                      :: src_neighbor_list_red, src_neighbor_list_green
-        integer                                         :: i_error
+        integer                                         :: i_comm, i_error
 
         _log_write(4, '(X, A)') "update neighbors:"
 
@@ -313,6 +313,14 @@ module SFC_edge_traversal
 
         !$omp single
 #		if defined(_MPI)
+            do i_comm = 1, size(neighbor_min_distances_red)
+                call neighbor_min_distances_red(i_comm)%clear()
+            end do
+
+            do i_comm = 1, size(neighbor_min_distances_green)
+                call neighbor_min_distances_green(i_comm)%clear()
+            end do
+
         	deallocate(neighbor_min_distances_red, stat = i_error); assert_eq(i_error, 0)
         	deallocate(neighbor_min_distances_green, stat = i_error); assert_eq(i_error, 0)
 #		endif
