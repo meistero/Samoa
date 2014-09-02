@@ -106,7 +106,7 @@
         integer                         :: i_error, i, j, k, alloc_err
 		integer(4)			:: i_rank, i_section, e_io
 		logical                         :: l_exists
-    	double precision, pointer				:: dummy_points(:,:,:) !groesse/dimension auf null setzen
+    	double precision, pointer				:: dummy_points(:,:,:) => null() !groesse/dimension auf null setzen
     	double precision, pointer 				:: big_points_array(:,:,:) => null()
         integer                                 :: counter = 1
 
