@@ -95,12 +95,12 @@ module config
 
         write(arguments, '(A)') "-v .false. --version .false. -h .false. --help .false."
         write(arguments, '(A, A)') trim(arguments),   " -lbtime .false. -lbsplit .false. -lbserial .false. -lbcellweight 1.0d0 -lbbndweight 0.0d0"
-        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -asciiout_width 60 -asciiout .false. -gridoutput .false. -stestpoints '' -noprint .false. -sections 4"
+        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -asciioutput_width 60 -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
         write(arguments, '(A, A, I0)') trim(arguments), " -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm.nc -p0 1.0d6 -epsilon 1.0d-5 -rho 0.2d0 -k_rel 1.5d0 -lsolver 2 -cg_restart 256 -lse_output .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_benchmark/perm.nc -p0 1.0d6 -epsilon 1.0d-5 -rho 0.2d0 -k_rel 1.5d0 -lsolver 2 -cg_restart 256 -lseoutput .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -138,10 +138,10 @@ module config
         config%l_serial_lb = lget('samoa_lbserial')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
-        config%l_ascii_output = lget('samoa_asciiout')
-        config%i_ascii_width = iget('samoa_asciiout_width')
+        config%l_ascii_output = lget('samoa_asciioutput')
+        config%i_ascii_width = iget('samoa_asciioutput_width')
         config%courant_number = rget('samoa_courant')
-        config%l_gridoutput = lget('samoa_gridoutput')
+        config%l_gridoutput = lget('samoa_xmloutput')
         config%s_testpoints = sget('samoa_stestpoints', 512)
         
 	if (len(trim(config%s_testpoints)) .ne. 2) then		
@@ -159,7 +159,7 @@ module config
 			config%r_p0 = rget('samoa_p0')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
-            config%l_lse_output = lget('samoa_lse_output')
+            config%l_lse_output = lget('samoa_lseoutput')
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
@@ -193,8 +193,8 @@ module config
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
 
-        		PRINT '(A, L, A)',     "	-gridoutput             turns on grid output (value: ", config%l_gridoutput, ")"
-        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", config%s_testpoints, ")"
+        		PRINT '(A, L, A)',     "	-xmloutput              [usage of -tout required] turns on grid output (value: ", config%l_gridoutput, ")"
+        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
@@ -204,10 +204,10 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p0			            initial boundary pressure difference (value: ", config%r_p0, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
-                    PRINT '(A, L, A)',     "	-lse_output             enable LSE output (value: ", config%l_lse_output, ")"
+                    PRINT '(A, L, A)',     "	-lseoutput             enable LSE output (value: ", config%l_lse_output, ")"
 #         	    elif defined(_SWE)
-                    PRINT '(A, L, A)',  "	-asciiout               turns on ascii output (value: ", config%l_ascii_output, ")"
-                    PRINT '(A, I0, A)', "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
+                    PRINT '(A, L, A)',  "	-asciioutput               [usage of -tout required] turns on ascii output (value: ", config%l_ascii_output, ")"
+                    PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #         	    elif defined(_FLASH)
