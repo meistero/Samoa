@@ -593,9 +593,8 @@ MODULE SFC_data_types
 	!**********************************
 
 	subroutine init_transform_data()
-		type(t_cell_transform_data), pointer				:: p_cell_data
 		type(t_edge_transform_data), pointer				:: p_edge_data
-		integer (kind = BYTE)									:: i_plotter_type, i
+		integer (kind = BYTE)							    :: i_plotter_type, i, j
 		integer                                             :: i_error
 		real (kind = GRID_SR)								:: r_angle
 		real (kind = GRID_SR), dimension(2, 3)				:: edge_vectors, edge_normals
@@ -605,75 +604,75 @@ MODULE SFC_data_types
 
         do i_plotter_type = -8, 8
             if (i_plotter_type .ne. 0) then
-                p_cell_data => ref_plotter_data(i_plotter_type)
-                !p_cell_data%plotter_type = i_plotter_type
+               associate(p_cell_data => ref_plotter_data(i_plotter_type))
+                    !p_cell_data%plotter_type = i_plotter_type
 
-                !set rotation angle
-                r_angle = PI / 4.0_GRID_SR * real(abs(i_plotter_type), GRID_SR)
+                    !set rotation angle
+                    r_angle = PI / 4.0_GRID_SR * real(abs(i_plotter_type), GRID_SR)
 
-                if (i_plotter_type > 0) then
-                    p_cell_data%orientation = 1
-                    p_cell_data%jacobian = reshape([cos(r_angle), sin(r_angle), -sin(r_angle), cos(r_angle)], [2, 2])
-                else if (i_plotter_type < 0) then
-                    p_cell_data%orientation = -1
-                    p_cell_data%jacobian = reshape([-sin(r_angle), cos(r_angle), cos(r_angle), sin(r_angle)], [2, 2])
-                end if
-
-                !round values to nearest whole numbers
-                !(the matrices should contain only whole numbers, these can be represented as reals without numerical error)
-                if (iand(abs(i_plotter_type), 1) == 0) then
-                    p_cell_data%jacobian = anint(p_cell_data%jacobian)
-                else
-                    p_cell_data%jacobian = anint(sqrt(2.0_GRID_SR) * p_cell_data%jacobian)
-                end if
-
-                p_cell_data%det_jacobian = p_cell_data%jacobian(1, 1) * p_cell_data%jacobian(2, 2) - p_cell_data%jacobian(1, 2) * p_cell_data%jacobian(2, 1)
-                p_cell_data%jacobian_inv = 1.0_GRID_SR / p_cell_data%det_jacobian * reshape([ p_cell_data%jacobian(2, 2), -p_cell_data%jacobian(2, 1), -p_cell_data%jacobian(1, 2), p_cell_data%jacobian(1, 1) ], [ 2, 2 ])
-
-                _log_write(7, '(X, A)') "jacobian: "
-                _log_write(7, '(2X, 2(F0.4, X), /, 2X, 2(F0.4, X))') p_cell_data%jacobian
-                _log_write(7, '(X, A)') "inverse: "
-                _log_write(7, '(2X, 2(F0.4, X), /, 2X, 2(F0.4, X))') p_cell_data%jacobian_inv
-                _log_write(7, '(X, A)') "determinant: "
-                _log_write(7, '(2X, F0.4)') p_cell_data%det_jacobian
-
-                edge_vectors(:, 1) = matmul(p_cell_data%jacobian, [0.0_GRID_SR, 1.0_GRID_SR])
-                edge_vectors(:, 2) = matmul(p_cell_data%jacobian, [1.0_GRID_SR, -1.0_GRID_SR])
-                edge_vectors(:, 3) = matmul(p_cell_data%jacobian, [-1.0_GRID_SR, 0.0_GRID_SR])
-
-                edge_normals(:, 1) = matmul([-1.0_GRID_SR, 0.0_GRID_SR], p_cell_data%jacobian_inv)
-                edge_normals(:, 2) = matmul([1.0_GRID_SR, 1.0_GRID_SR], p_cell_data%jacobian_inv)
-                edge_normals(:, 3) = matmul([0.0_GRID_SR, -1.0_GRID_SR], p_cell_data%jacobian_inv)
-
-                do i = 1, 3
-                    p_edge_data => p_cell_data%edges(i)
-                    p_edge_data%index = i
-
-                    if (edge_vectors(2, i) == 0.0_GRID_SR) then
-                        p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 0.0_GRID_SR]))
-                    else if (edge_vectors(1, i) == 0.0_GRID_SR) then
-                        p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [0.0_GRID_SR, 1.0_GRID_SR]))
-                    else if (edge_vectors(1, i) - edge_vectors(2, i) == 0.0_GRID_SR) then
-                        p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 1.0_GRID_SR]))
-                    else if (edge_vectors(1, i) + edge_vectors(2, i) == 0.0_GRID_SR) then
-                        p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, -1.0_GRID_SR]))
-                    else
-                        !something's wrong
-                        assert(.false.)
+                    if (i_plotter_type > 0) then
+                        p_cell_data%orientation = 1
+                        p_cell_data%jacobian = reshape([cos(r_angle), sin(r_angle), -sin(r_angle), cos(r_angle)], [2, 2])
+                    else if (i_plotter_type < 0) then
+                        p_cell_data%orientation = -1
+                        p_cell_data%jacobian = reshape([-sin(r_angle), cos(r_angle), cos(r_angle), sin(r_angle)], [2, 2])
                     end if
 
-                    edge_vectors(:, i) = real(p_edge_data%orientation, GRID_SR) * edge_vectors(:, i)
-                    edge_normals(:, i) = 1.0_GRID_SR / sqrt(dot_product(edge_normals(:, i), edge_normals(:, i))) * edge_normals(:, i)
+                    !round values to nearest whole numbers
+                    !(the matrices should contain only whole numbers, these can be represented as reals without numerical error)
+                    forall (i = 1:2, j = 1:2)
+                        p_cell_data%jacobian(j, i) = aint(1.5_GRID_SR * p_cell_data%jacobian(j, i), kind=GRID_SR)
+                    end forall
 
-#	    			if defined(_USE_SKELETON_OP)
-                        p_edge_data%normal = edge_normals(:, i)
-#	    			endif
+                    p_cell_data%det_jacobian = p_cell_data%jacobian(1, 1) * p_cell_data%jacobian(2, 2) - p_cell_data%jacobian(1, 2) * p_cell_data%jacobian(2, 1)
+                    p_cell_data%jacobian_inv = 1.0_GRID_SR / p_cell_data%det_jacobian * reshape([ p_cell_data%jacobian(2, 2), -p_cell_data%jacobian(2, 1), -p_cell_data%jacobian(1, 2), p_cell_data%jacobian(1, 1) ], [ 2, 2 ])
 
-                    _log_write(7, '(X, A, I0)') "edge: ", p_edge_data%index
-                    _log_write(7, '(2X, A, I0)') "orientation: ", p_edge_data%orientation
-                    _log_write(7, '(2X, A, 2(F0.4, 1X))') "vector: ", edge_vectors(:, i)
-                    _log_write(7, '(2X, A, 2(F0.4, 1X))') "normal: ", edge_normals(:, i)
-                end do
+                    _log_write(7, '(X, "jacobian: ")')
+                    _log_write(7, '(2X, 2(F0.4, X), /, 2X, 2(F0.4, X))') p_cell_data%jacobian
+                    _log_write(7, '(X, "inverse: ")')
+                    _log_write(7, '(2X, 2(F0.4, X), /, 2X, 2(F0.4, X))') p_cell_data%jacobian_inv
+                    _log_write(7, '(X, "determinant: ")')
+                    _log_write(7, '(2X, F0.4)') p_cell_data%det_jacobian
+                    _log_write(7, '()')
+
+                    edge_vectors(:, 1) = matmul(p_cell_data%jacobian, [0.0_GRID_SR, 1.0_GRID_SR])
+                    edge_vectors(:, 2) = matmul(p_cell_data%jacobian, [1.0_GRID_SR, -1.0_GRID_SR])
+                    edge_vectors(:, 3) = matmul(p_cell_data%jacobian, [-1.0_GRID_SR, 0.0_GRID_SR])
+
+                    edge_normals(:, 1) = matmul([-1.0_GRID_SR, 0.0_GRID_SR], p_cell_data%jacobian_inv)
+                    edge_normals(:, 2) = matmul([1.0_GRID_SR, 1.0_GRID_SR], p_cell_data%jacobian_inv)
+                    edge_normals(:, 3) = matmul([0.0_GRID_SR, -1.0_GRID_SR], p_cell_data%jacobian_inv)
+
+                    do i = 1, 3
+                        p_edge_data => p_cell_data%edges(i)
+                        p_edge_data%index = i
+
+                        if (edge_vectors(2, i) == 0.0_GRID_SR) then
+                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 0.0_GRID_SR]))
+                        else if (edge_vectors(1, i) == 0.0_GRID_SR) then
+                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [0.0_GRID_SR, 1.0_GRID_SR]))
+                        else if (edge_vectors(1, i) - edge_vectors(2, i) == 0.0_GRID_SR) then
+                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 1.0_GRID_SR]))
+                        else if (edge_vectors(1, i) + edge_vectors(2, i) == 0.0_GRID_SR) then
+                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, -1.0_GRID_SR]))
+                        else
+                            !something's wrong
+                            assert(.false.)
+                        end if
+
+                        edge_vectors(:, i) = real(p_edge_data%orientation, GRID_SR) * edge_vectors(:, i)
+                        edge_normals(:, i) = 1.0_GRID_SR / sqrt(dot_product(edge_normals(:, i), edge_normals(:, i))) * edge_normals(:, i)
+
+#	    			    if defined(_USE_SKELETON_OP)
+                            p_edge_data%normal = edge_normals(:, i)
+#	    			    endif
+
+                        _log_write(7, '(X, A, I0)') "edge: ", p_edge_data%index
+                        _log_write(7, '(2X, A, I0)') "orientation: ", p_edge_data%orientation
+                        _log_write(7, '(2X, A, 2(F0.4, 1X))') "vector: ", edge_vectors(:, i)
+                        _log_write(7, '(2X, A, 2(F0.4, 1X))') "normal: ", edge_normals(:, i)
+                    end do
+                end associate
             end if
         end do
 	end subroutine
