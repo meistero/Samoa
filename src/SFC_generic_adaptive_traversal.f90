@@ -287,7 +287,7 @@ subroutine traverse_in_place(traversal, grid)
 
     thread_stats%r_load_balancing_time = -get_wtime()
 #	if !defined(_GT_INPUT_DEST)
-	    !exchange grid sections with neighbors if the destination grid will not be balanced
+	    !exchange grid sections with neighbors
 		call distribute_load(grid, 0.0)
 #	endif
     thread_stats%r_load_balancing_time = thread_stats%r_load_balancing_time + get_wtime()
