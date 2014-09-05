@@ -16,7 +16,7 @@
 
 
 	type(t_gv_Q)				:: gv_Q
-        type(ascy)                              :: ascii
+        type(data_for_ascii)                              :: ascii
 
 #		define _GT_NAME								t_swe_ascii_output_traversal
 
@@ -38,7 +38,7 @@
 			type(t_grid), intent(inout)							        :: grid
 
             try (cfg%i_ascii_width >= 2, "Invalid ascii output width")
-            ascii = create_ascy(cfg%i_ascii_width, (cfg%i_ascii_width/2), 0.001_GRID_SR, [1.0_GRID_SR, -1.0_GRID_SR], [0.0_GRID_SR, 1.0_GRID_SR])
+            ascii = create_data_for_ascii(cfg%i_ascii_width, (cfg%i_ascii_width/2), 0.001_GRID_SR, [1.0_GRID_SR, -1.0_GRID_SR], [0.0_GRID_SR, 1.0_GRID_SR])
 
 	end subroutine
 
@@ -50,8 +50,8 @@
         character (len = 64)				:: s_file_name
 	integer(4)					:: i_rank, i_section, e_io
 	logical                                         :: l_exists
-	type(bhshs), pointer				:: dummy_ascii(:,:,:) !groesse/dimension auf null setzen
-	type(bhshs), pointer 				:: big_matrix_array(:,:,:) => null()
+	type(bath_height_data), pointer				:: dummy_ascii(:,:,:) => null() !groesse/dimension auf null setzen
+	type(bath_height_data), pointer 				:: big_matrix_array(:,:,:) => null()
 
 #           if defined(_MPI)
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
@@ -109,6 +109,11 @@
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to deallocate rank-0-ascii"
                 end if
+            else
+                deallocate (dummy_ascii, stat = alloc_err)
+                if (alloc_err > 0) then
+                    write(*,'(A)') "Error when trying to deallocate rank-X-dummy-ascii"
+                end if
             end if
 
 #	    endif
@@ -162,7 +167,7 @@
             coords2 = samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 0.0_GRID_SR])
             coords3 = samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR])
 
-            call fill_sao(ascii, coords1, coords2, coords3, h, b, traversal%min_water, traversal%max_water, traversal%avg_water)
+            call fill_ascii(ascii, coords1, coords2, coords3, h, b, traversal%min_water, traversal%max_water, traversal%avg_water)
             traversal%min_water = min(h, traversal%min_water)
             traversal%max_water = max(h, traversal%max_water)
             traversal%avg_water = traversal%avg_water + h
