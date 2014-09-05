@@ -10,7 +10,7 @@
 		implicit none
 
         type num_traversal_data
-            double precision                :: max_water, min_water, avg_water
+            real (kind = GRID_SR)           :: max_water, min_water, avg_water
             integer                         :: cells
         end type
 
@@ -38,8 +38,8 @@
 			type(t_grid), intent(inout)							        :: grid
 
             try (cfg%i_ascii_width >= 2, "Invalid ascii output width")
-            ascii = create_ascy(cfg%i_ascii_width, (cfg%i_ascii_width/2), dble(0.001), dble([1.0, -1.0]), dble([0.0, 1.0]))
-            
+            ascii = create_ascy(cfg%i_ascii_width, (cfg%i_ascii_width/2), 0.001_GRID_SR, [1.0_GRID_SR, -1.0_GRID_SR], [0.0_GRID_SR, 1.0_GRID_SR])
+
 	end subroutine
 
         subroutine post_traversal_grid_op(traversal, grid)
@@ -67,24 +67,24 @@
             ascii%h_max = traversal%max_water
             ascii%h_avg = traversal%avg_water
 
-#           if defined(_MPI)            
-            
-            if (rank_MPI == 0) then     
+#           if defined(_MPI)
+
+            if (rank_MPI == 0) then
                 allocate (big_matrix_array(size(ascii%mat,dim=1),size(ascii%mat,dim=2),size_MPI), stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-ascii"
                 end if
-            else 
+            else
 	      allocate (dummy_ascii(1,1,1), stat = alloc_err)
               if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-ascii"
               end if
 	      big_matrix_array => dummy_ascii
-            end if           
-            
+            end if
+
             call MPI_gather(ascii%mat(1,1), sizeof(ascii%mat), MPI_BYTE, &
-              big_matrix_array(1,1,1), sizeof(ascii%mat), MPI_BYTE, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0) 
-            
+              big_matrix_array(1,1,1), sizeof(ascii%mat), MPI_BYTE, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+
             if (rank_MPI == 0) then
                 do i=2, (size_MPI)
                     do j=1, size(ascii%mat,dim=1)
@@ -96,23 +96,23 @@
                     end do
                 end do
 
-#           endif     
-              
+#           endif
+
                 call print_it(ascii)
 
-#           if defined(_MPI)                
-                
+#           if defined(_MPI)
+
             end if
-            
-            if (rank_MPI == 0) then     
+
+            if (rank_MPI == 0) then
                 deallocate (big_matrix_array, stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to deallocate rank-0-ascii"
                 end if
             end if
 
-#	    endif            
-            
+#	    endif
+
         end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -125,7 +125,7 @@
 
             traversal%min_water = huge(1.0_GRID_SR)
             traversal%max_water = -huge(1.0_GRID_SR)
-            traversal%avg_water = 0
+            traversal%avg_water = 0.0_GRID_SR
             traversal%cells = info%i_cells
 
 		end subroutine
@@ -148,19 +148,19 @@
 			!local variables
 
 			type(t_state), dimension(_SWE_CELL_SIZE)			:: Q
-            double precision, dimension(2)                      :: coords1, coords2, coords3
-            double precision :: h,b
+            real (kind = GRID_SR), dimension(2)                      :: coords1, coords2, coords3
+            real (kind = GRID_SR) :: h,b
 
             call gv_Q%read(element, Q)
 
             ! height, bathymetry
-            h = dble(t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%h))
-            b = dble(t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%b))
+            h = t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%h)
+            b = t_basis_Q_eval([1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR], Q%b)
 
             !coordinates of the cell corners
-            coords1 = dble(samoa_barycentric_to_world_point(element%transform_data, [1.0_GRID_SR, 0.0_GRID_SR]))
-            coords2 = dble(samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 0.0_GRID_SR]))
-            coords3 = dble(samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR]))
+            coords1 = samoa_barycentric_to_world_point(element%transform_data, [1.0_GRID_SR, 0.0_GRID_SR])
+            coords2 = samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 0.0_GRID_SR])
+            coords3 = samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR])
 
             call fill_sao(ascii, coords1, coords2, coords3, h, b, traversal%min_water, traversal%max_water, traversal%avg_water)
             traversal%min_water = min(h, traversal%min_water)

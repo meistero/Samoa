@@ -1,17 +1,18 @@
 MODULE ascii_output
+    use SFC_data_types
 
     implicit none
 
     type bhshs
-        double precision            :: b                        ! bathymetry
-        double precision            :: h_sum                    ! sum up all water heights for the representing symbol
+        real (kind = GRID_SR)            :: b                        ! bathymetry
+        real (kind = GRID_SR)            :: h_sum                    ! sum up all water heights for the representing symbol
         integer                     :: h_summands               ! count the summed heights -> average height is computed later
     end type
 
     type ascy
         type(bhshs), allocatable    :: mat (:,:)                ! matrix to save the above values for alle symbols
-        double precision            :: eps, s(2), a(2)          ! epsilon to declare flat water; scaling and offset for coordinate transformation
-        double precision            :: h_avg, h_min, h_max      ! average, minimal and maximal water height
+        real (kind = GRID_SR)            :: eps, s(2), a(2)          ! epsilon to declare flat water; scaling and offset for coordinate transformation
+        real (kind = GRID_SR)            :: h_avg, h_min, h_max      ! average, minimal and maximal water height
     end type
 
     public
@@ -20,7 +21,7 @@ MODULE ascii_output
 
 function create_ascy(dim_x, dim_y, eps, s, a) result (ascii)
     integer             :: dim_x, dim_y
-    double precision    :: eps, s(2), a(2)
+    real (kind = GRID_SR)    :: eps, s(2), a(2)
 
     type(ascy)          :: ascii
     integer             :: ascy_err, i, j
@@ -38,8 +39,8 @@ function create_ascy(dim_x, dim_y, eps, s, a) result (ascii)
     ! setting the base values for the whole matrix
     do i=1, size(ascii%mat,dim=2)
         do j=1, size(ascii%mat,dim=1)
-            ascii%mat(j,i)%b = dble(0.0)
-            ascii%mat(j,i)%h_sum = dble(0.0)
+            ascii%mat(j,i)%b = 0.0_GRID_SR
+            ascii%mat(j,i)%h_sum = 0.0_GRID_SR
             ascii%mat(j,i)%h_summands = 0
         end do
     end do
@@ -48,8 +49,8 @@ function create_ascy(dim_x, dim_y, eps, s, a) result (ascii)
     ascii%eps = eps
     ascii%s = s
     ascii%a = a
-    ascii%h_min = huge(1.0)
-    ascii%h_max = -huge(1.0)
+    ascii%h_min = huge(1.0_GRID_SR)
+    ascii%h_max = -huge(1.0_GRID_SR)
     ascii%h_avg = 0
 
 end function
@@ -57,8 +58,8 @@ end function
 !when traversing the grid, call the following function from inside a cell to
 ! transfer its data to the simplified ascii output matrix.
 subroutine fill_sao(sao_values_mat, coords1, coords2, coords3, h, b, min, max, avg)
-    double precision, dimension(2)      :: coords1, coords2, coords3    ! world-coordinates of the cells corners, with 1~(0,0)
-    double precision, intent(in)        :: h, b, min, max, avg          ! water height, bathymetry, min height, max height, avg height
+    real (kind = GRID_SR), dimension(2)      :: coords1, coords2, coords3    ! world-coordinates of the cells corners, with 1~(0,0)
+    real (kind = GRID_SR), intent(in)        :: h, b, min, max, avg          ! water height, bathymetry, min height, max height, avg height
     type(ascy), intent(inout)           :: sao_values_mat
 
     integer, dimension(2)               :: sao_coords1, sao_coords2, sao_coords3           ! coords of the corresponding ascii matrix cell
@@ -155,17 +156,17 @@ function which_ascii(sao_values_mat, j, i)  result(symb)
 
     type(bhshs)      :: basevalues
     character        :: symb
-    double precision :: loc_h_avg, loc_b_avg
+    real (kind = GRID_SR) :: loc_h_avg, loc_b_avg
 
     basevalues = sao_values_mat%mat(j,i)
 
     if (basevalues%h_summands > 0) then
         !compute local average water height
-        loc_h_avg = basevalues%h_sum / dble(basevalues%h_summands)
-        loc_b_avg = basevalues%b / dble(basevalues%h_summands)
+        loc_h_avg = basevalues%h_sum / real(basevalues%h_summands, GRID_SR)
+        loc_b_avg = basevalues%b / real(basevalues%h_summands, GRID_SR)
         if (loc_b_avg<0) then
             if (loc_h_avg>sao_values_mat%eps) then
-                if (loc_h_avg>((sao_values_mat%h_max) / dble(2.0))) then
+                if (loc_h_avg>((sao_values_mat%h_max) / 2.0_GRID_SR)) then
                     symb = '^'                ! Major wave
                 else
                     symb = '~'                ! Minor wave
@@ -178,7 +179,7 @@ function which_ascii(sao_values_mat, j, i)  result(symb)
                 end if
             end if
         else
-            if (loc_b_avg < dble(0.25) .and. loc_b_avg > -dble(0.25)) then
+            if (loc_b_avg < 0.25_GRID_SR .and. loc_b_avg > -0.25_GRID_SR) then
                 if (loc_h_avg>sao_values_mat%eps) then
                     symb = 'X'                ! Wave hits land = highest priority
                 else
@@ -203,8 +204,8 @@ subroutine reset(sao_values_mat)
 
     do i=1, size(sao_values_mat%mat,dim=2)
         do j=1, size(sao_values_mat%mat,dim=1)
-            sao_values_mat%mat(j,i)%b = dble(-5.0)
-            sao_values_mat%mat(j,i)%h_sum = dble(0.0)
+            sao_values_mat%mat(j,i)%b = -5.0_GRID_SR
+            sao_values_mat%mat(j,i)%h_sum = 0.0_GRID_SR
             sao_values_mat%mat(j,i)%h_summands = 0
         end do
     end do
