@@ -93,8 +93,8 @@ MODULE SFC_node_traversal
 		type(fine_triangle)							:: second_cell = fine_triangle(i_entity_types = LAST_NEW_BND, i_depth = 0, &
             refinement = 0, i_plotter_type = -6, i_turtle_type = H, i_color_edge_color = RED)
 
-        double precision, parameter                 :: first_coords(2, 3) = reshape([[0, 0], [1, 0], [1, 1]], shape(first_coords))
-        double precision, parameter                 :: second_coords(2, 3) = reshape([[1, 1], [0, 1], [0, 0]], shape(second_coords))
+        real (kind = GRID_SR), parameter            :: first_coords(2, 3) = reshape([[0.0_GRID_SR, 0.0_GRID_SR], [1.0_GRID_SR, 0.0_GRID_SR], [1.0_GRID_SR, 1.0_GRID_SR]], shape(first_coords))
+        real (kind = GRID_SR), parameter            :: second_coords(2, 3) = reshape([[1.0_GRID_SR, 1.0_GRID_SR], [0.0_GRID_SR, 1.0_GRID_SR], [0.0_GRID_SR, 0.0_GRID_SR]], shape(second_coords))
 
         integer :: i
 
@@ -121,13 +121,13 @@ MODULE SFC_node_traversal
 		type(t_grid_thread), intent(inout)			                    :: thread
 		type(t_grid_section), intent(inout)								:: section
 		type(fine_triangle), intent(in)                                 :: cell
-		double precision, intent(in)								    :: coords(2, 3)
+        real (kind = GRID_SR), intent(in)							    :: coords(2, 3)
 		integer                                                         :: levels
 
 		!local variables
 		type(t_cell_stream_data), pointer								:: p_cell_data
 		type(fine_triangle)								                :: first_cell, second_cell
-		double precision								                :: first_coords(2, 3), second_coords(2, 3)
+		real (kind = GRID_SR)								            :: first_coords(2, 3), second_coords(2, 3)
 
 		if (levels == 0) then
 			p_cell_data => section%cells%next()
@@ -136,8 +136,8 @@ MODULE SFC_node_traversal
 			call sfc_init(thread, section, p_cell_data, coords)
 		else
 			call create_child_cells(cell, first_cell, second_cell)
-			first_coords = reshape([coords(:, 1), 0.5 * (coords(:, 1) + coords(:, 3)), coords(:, 2)], shape(first_coords))
-			second_coords = reshape([coords(:, 2), 0.5 * (coords(:, 1) + coords(:, 3)), coords(:, 3)], shape(second_coords))
+			first_coords = reshape([coords(:, 1), 0.5_GRID_SR * (coords(:, 1) + coords(:, 3)), coords(:, 2)], shape(first_coords))
+			second_coords = reshape([coords(:, 2), 0.5_GRID_SR * (coords(:, 1) + coords(:, 3)), coords(:, 3)], shape(second_coords))
 
 			call sfc_init_recursion(thread, section, first_cell, first_coords, levels - 1)
 			call sfc_init_recursion(thread, section, second_cell, second_coords, levels - 1)
@@ -148,7 +148,7 @@ MODULE SFC_node_traversal
 		type(t_grid_thread), intent(inout)			                    :: thread
 		type(t_grid_section), intent(inout)								:: section
 		type(t_cell_stream_data), intent(inout)							:: cell_data
-		double precision, intent(in)									            :: coords(2, 3)
+		real (kind = GRID_SR), intent(in)								:: coords(2, 3)
 
 		integer (kind = BYTE)                                              :: edge_depths(3)
 
