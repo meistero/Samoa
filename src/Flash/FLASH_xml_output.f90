@@ -165,7 +165,7 @@
 
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
 			integer (1), dimension(:), allocatable						:: i_types
-			integer (kind = GRID_SI), dimension(:), allocatable			:: i_connectivity
+			integer (kind = GRID_SI), dimension(:), allocatable			:: i_connectivity, i_tmp
 			real (kind = GRID_SR), dimension(:, :), allocatable			:: r_velocity
 			real (kind = GRID_SR), dimension(:), allocatable			:: r_empty
             type(t_vtk_writer)                                          :: vtk
@@ -189,6 +189,7 @@
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_velocity(2, max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
+      allocate(i_tmp(i_cells), stat = i_error); assert_eq(i_error, 0)
 
 			r_empty = 0.0_GRID_SR
 
@@ -214,42 +215,55 @@
 #               warning VTK output does not work for quad precision
 #           else
                 e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
-                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+                e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-                    e_io = vtk%VTK_CON_XML(i_cells, i_connectivity, i_offsets, i_types)
+                e_io = vtk%VTK_CON_XML(i_cells, i_connectivity, i_offsets, i_types)
 
-                    e_io = vtk%VTK_DAT_XML('node', 'OPEN')
-                        if (i_element_order > 0) then
-                            e_io = vtk%VTK_VAR_XML(i_points, 'water height', traversal%point_data%Q%h)
-                            e_io = vtk%VTK_VAR_XML(i_points, 'bathymetry', traversal%point_data%Q%b)
+                e_io = vtk%VTK_DAT_XML('node', 'OPEN')
+                if (i_element_order > 0) then
+                    e_io = vtk%VTK_VAR_XML(i_points, 'water height', traversal%point_data%Q%h)
+                    e_io = vtk%VTK_VAR_XML(i_points, 'bathymetry', traversal%point_data%Q%b)
 
-                            r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-                            r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-                            e_io = vtk%VTK_VAR_XML(i_points, 'velocity',  r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
-                        end if
-                    e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
+                    r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+                    r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+                    e_io = vtk%VTK_VAR_XML(i_points, 'velocity',  r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+                end if
+                e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
-                    e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
-                        if (i_element_order == 0) then
-                            e_io = vtk%VTK_VAR_XML(i_cells, 'water height', traversal%cell_data%Q%h)
-                            e_io = vtk%VTK_VAR_XML(i_cells, 'bathymetry', traversal%cell_data%Q%b)
+                e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
+                if (i_element_order == 0) then
+                    e_io = vtk%VTK_VAR_XML(i_cells, 'water height', traversal%cell_data%Q%h)
+                    e_io = vtk%VTK_VAR_XML(i_cells, 'bathymetry', traversal%cell_data%Q%b)
 
-                            r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
-                            r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
-                            e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
-                        end if
+                    r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+                    r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+                    e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
+                end if
 
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', traversal%cell_data%refinement)
-                    e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
+                forall (i = 1 : i_cells)
+                  i_tmp(i) = traversal%cell_data(i)%rank
+                end forall
+                e_io = vtk%VTK_VAR_XML(i_cells, 'rank', i_tmp)
+                forall (i = 1 : i_cells)
+                  i_tmp(i) = traversal%cell_data(i)%section_index
+                end forall
+                e_io = vtk%VTK_VAR_XML(i_cells, 'section index', i_tmp)
+                forall (i = 1 : i_cells)
+                  i_tmp(i) = traversal%cell_data(i)%depth
+                end forall
+                e_io = vtk%VTK_VAR_XML(i_cells, 'depth', i_tmp)
+                forall (i = 1 : i_cells)
+                  i_tmp(i) = traversal%cell_data(i)%refinement
+                end forall
+                e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', i_tmp)
+                e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
 
-                    e_io = vtk%VTK_GEO_XML()
+                e_io = vtk%VTK_GEO_XML()
                 e_io = vtk%VTK_END_XML()
 #           endif
 
-			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
+			deallocate(i_tmp, stat = i_error); assert_eq(i_error, 0)
+      deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_connectivity, stat = i_error); assert_eq(i_error, 0)
 			deallocate(r_velocity, stat = i_error); assert_eq(i_error, 0)
