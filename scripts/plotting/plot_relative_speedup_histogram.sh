@@ -44,55 +44,86 @@ for file in swe*.log; do
 	echo -n $processes $threads $sections" "  >> "swe.plt"
 	    
 	grep -E "r0.*Cell update throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
+	grep -E "r0.*Flux solver throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	echo -n $flags >> "swe.plt"
 	echo ""  >> "swe.plt"
 done
 
-sort -t" " -n -k 3,3 -k 1,1 -k 2,2 -k 5,5 darcy.plt -o darcy.plt
-sort -t" " -n -k 3,3 -k 1,1 -k 2,2 -k 4,4 swe.plt -o swe.plt
+sort -t" " -n -k 3,3 -k 1,1 -k 2,2 darcy.plt -o darcy.plt
+sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 
 gnuplot &> /dev/null << EOT
 
-set terminal postscript enhanced color font ',30'
-set xlabel "Threads"
-set ylabel "Mio. Elements per sec."
-set key left top
+set terminal postscript enhanced color font ',30' size 11, 7
+set xlabel "Cores"
+set ylabel "Mio. Elements per sec. per core"
+set key below font ",20" spacing 1.0 width -2
 
 title(n) = sprintf("%d section(s)", n)
 
-set style line 1 lt 2 lw 8 lc rgb "black"
+set style line 999 lt 2 lw 4 lc rgb "black"
 
-set for [n=2:64] style line n lt 1 lw 8
+set for [n=1:64] style line n lt 1 lw 4
+set style line 1 lc rgb "cyan"
 set style line 2 lc rgb "orange"
 set style line 4 lc rgb "magenta"
 set style line 8 lc rgb "red"
 set style line 16 lc rgb "blue"
 set style line 32 lc rgb "green"
 
+set style data histogram
+set style histogram rowstacked
+set style fill solid border 0
+set boxwidth 0.75
+set xtics rotate
+
 #*******
 # Darcy
 #*******
 
 set title "Darcy element throughput - time steps"
-set xrange [0:*]
-set yrange [0:*]
-set output '| ps2pdf - darcy_overhead.pdf'
+unset output
 
-plot "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls 1 w linespoints t title(n), \
-	"darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls 2 w linespoints t title(n), \
-	"darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls 3 w linespoints t title(n)
-		
+plot for [n=1:64] "darcy.plt" every ::4 u (\$3 == n ? \$5 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
+
+set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX + 4, GPVAL_DATA_Y_MAX nohead ls 999
+set y2tics 0;
+set y2tics add ("node" GPVAL_DATA_Y_MAX) font ",20"
+
+plot for [n=1:64] "darcy.plt" u (\$3 == n ? \$5 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
+
+set output '| ps2pdf - darcy_elem_rel_hist.pdf'
+set yrange [0:GPVAL_DATA_Y_MAX]
+set y2range [0:GPVAL_DATA_Y_MAX]
+
+set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX, GPVAL_DATA_Y_MAX nohead ls 999
+set y2tics add ("core" GPVAL_DATA_Y_MAX)
+replot
 
 #*****
 # SWE
 #*****
 
-set title "SWE flux solver throughput"
-set xrange [0:*]
-set yrange [0:*]
-set output '| ps2pdf - swe_overhead.pdf'
+set title "SWE cell update throughput"
+unset output
 
-plot "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls 1 w linespoints t title(n), \
-	"swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls 2 w linespoints t title(n), \
-	"swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls 3 w linespoints t title(n)
+unset arrow
+set yrange [0:*]
+set y2range [0:*]
+
+plot for [n=1:64] "swe.plt" every ::4 u (\$3 == n? \$4 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
+
+set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX + 4, GPVAL_DATA_Y_MAX nohead ls 999
+set y2tics 0;
+set y2tics add ("node" GPVAL_DATA_Y_MAX) font ",20"
+
+plot for [n=1:64] "swe.plt" u (\$3 == n? \$4 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
+
+set output '| ps2pdf - swe_cells_rel_hist.pdf'
+set yrange [0:GPVAL_DATA_Y_MAX]
+set y2range [0:GPVAL_DATA_Y_MAX]
+
+set arrow from -1, GPVAL_DATA_Y_MAX to GPVAL_X_MAX, GPVAL_DATA_Y_MAX nohead ls 999
+set y2tics add ("core" GPVAL_DATA_Y_MAX)
+replot
 EOT

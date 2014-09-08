@@ -67,65 +67,65 @@ MODULE SFC_traversal
 
 			!$omp parallel copyin(cfg)
 			call tests_run(grid, cfg%i_max_time_steps)
+            call grid%destroy()
 			!$omp end parallel
 
 			call tests_destroy(grid, cfg%l_log)
-            call grid%destroy()
 #		elif defined (_HEAT_EQ)
             !create initial grid
             call init_grid(grid)
 			call heat_eq_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
 			!$omp parallel copyin(cfg)
-			call heat_eq_run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call heat_eq_run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+            call grid%destroy()
 			!$omp end parallel
 
 			call heat_eq_destroy(grid, cfg%l_log)
-            call grid%destroy()
 #		elif defined(_DARCY)
             !create initial grid
             call init_grid(grid)
 			call darcy%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call darcy%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call darcy%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+            call grid%destroy()
 			!$omp end parallel
 
 			call darcy%destroy(grid, cfg%l_log)
-            call grid%destroy()
 #		elif defined(_SWE)
             !create initial grid
             call init_grid(grid)
 			call swe%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call swe%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call swe%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+            call grid%destroy()
 			!$omp end parallel
 
 			call swe%destroy(grid, cfg%l_log)
-            call grid%destroy()
 #		elif defined(_FLASH)
             !create initial grid
             call init_grid(grid)
 			call flash%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call flash%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call flash%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+            call grid%destroy()
 			!$omp end parallel
 
 			call flash%destroy(grid, cfg%l_log)
-            call grid%destroy()
 #		elif defined(_NUMA)
             !create initial grid
             call init_grid(grid)
 			call numa%create(grid, cfg%l_log)
 
             !$omp parallel copyin(cfg)
-			call numa%run(grid, cfg%i_max_time_steps, cfg%r_max_time, cfg%r_output_time_step)
+			call numa%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+            call grid%destroy()
 			!$omp end parallel
 
 			call numa%destroy(grid, cfg%l_log)
-            call grid%destroy()
 #		elif defined(_GENERIC)
             !this scenario is a special case - grid and parallel execution are managed on its own
 

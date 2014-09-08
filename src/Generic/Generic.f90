@@ -54,7 +54,7 @@
 		!> Creates all required runtime objects for the scenario
 		subroutine generic_create(generic, l_log)
             class(t_generic)                                              :: generic
-			logical (kind = GRID_SL), intent(in)						:: l_log
+			logical , intent(in)						:: l_log
 
 			!local variables
 			character (len = 64)										:: s_log_name, s_date, s_time
@@ -72,7 +72,7 @@
 		!> Destroys all required runtime objects for the scenario
 		subroutine generic_destroy(generic, l_log)
             class(t_generic)                  :: generic
-			logical (kind = GRID_SL)		:: l_log
+			logical 		:: l_log
 
 			if (l_log) then
 				_log_close_file()
@@ -124,7 +124,7 @@
             !init MPI and element transformation data
 
             call omp_set_num_threads(1);
-            call init_MPI()
+            call init_mpi()
             call init_transform_data()
 
             !init grid
@@ -177,7 +177,7 @@
 
             assert_ge(size(grids), handle)
 
-            i_sections = size(grids(handle)%sections%elements_alloc)
+            i_sections = grids(handle)%sections%get_size()
 
             if (allocated(grids(handle)%c_sections)) then
                 if (size(grids(handle)%c_sections) .ne. i_sections) then

@@ -8,8 +8,7 @@
 export KMP_AFFINITY="granularity=core,compact,1"
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/$(date +"%Y-%m-%d_%H-%M-%S")_OpenMP_Scaling
-script_dir=$(dirname $0)
+output_dir=output/Helium_OpenMP_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
 
 mkdir -p $output_dir
 mkdir -p scripts
@@ -20,7 +19,11 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-./make_tests.sh MPI=NO
+
+scons config=supermuc.py scenario=darcy openmp=noomp -j4 &
+scons config=supermuc.py scenario=swe openmp=noomp -j4 &
+
+wait %1 %2
 
 echo "Running scenarios..."
 

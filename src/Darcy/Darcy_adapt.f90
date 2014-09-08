@@ -26,7 +26,7 @@
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
 
-#		if (_DARCY_U_EDGE_SIZE > 0 .or. _DARCY_FLOW_EDGE_SIZE > 0)
+#		if (_DARCY_U_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
 #			define _GT_EDGES
 #		endif
 
@@ -41,8 +41,36 @@
 #		define _GT_INNER_NODE_LAST_TOUCH_OP			inner_node_last_touch_op
 
 #		define _GT_NODE_MERGE_OP				    node_merge_op
+#		define _GT_EDGE_MPI_TYPE
 
 #		include "SFC_generic_adaptive_traversal.f90"
+
+        subroutine create_edge_mpi_type(mpi_edge_type)
+            integer, intent(out)            :: mpi_edge_type
+
+            type(t_edge_data)               :: edge
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(edge)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(edge), extent)
+
+                call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
 
 		!******************
 		!Geometry operators

@@ -9,13 +9,6 @@
 
     PUBLIC
 
-    !> number of basis functions nonzero on a specific edge
-# if (_FLASH_ORDER == 0)
-#define _GPSINONZERO  1
-# else if (_FLASH_ORDER == 1)
-#define _GPSINONZERO  2
-# endif
-
     !> barycentric coordinates of element/face DOFs
     REAL (KIND = GRID_SR), DIMENSION(3, _FLASH_CELL_SIZE)                     :: r_edofcoo
     !> barycentric coordinates wrt edge of edge quadrature points
@@ -23,9 +16,9 @@
     !> weights for quadrature rule corresponding to edge quadrature points
     REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE)                   :: r_gqwei
     !> basis function evaluations at edge quadrature points
-    REAL (KIND = GRID_SR), DIMENSION(_GPSINONZERO, _FLASH_EDGE_QUAD_SIZE)     :: r_gpsi
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE, _FLASH_EDGE_QUAD_SIZE) :: r_gpsi
     !> nonzero basis function indices for reference edge
-    INTEGER (KIND = GRID_SI), DIMENSION(_GPSINONZERO)                         :: i_gpsiidx
+    INTEGER (KIND = GRID_SI), DIMENSION(_FLASH_EDGE_SIZE)                     :: i_gpsiidx
     !> barycentric coordinates of element/face quadrature points
     REAL (KIND = GRID_SR), DIMENSION(3, _FLASH_CELL_QUAD_SIZE)                :: r_equadcoo
     !> weights for the quadrature rule corresponding to the element quadrature points
@@ -40,6 +33,9 @@
     REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE, _FLASH_CELL_SIZE)      :: r_evander
     !> inverse Vandermonde matrix
     REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE, _FLASH_CELL_SIZE)      :: r_einvvander
+    !> index to get dof order according to cell orientation
+    INTEGER (KIND = GRID_SI), DIMENSION(_FLASH_CELL_SIZE, 2)                  :: i_reflect
+
 
     !< COMPUTED MATICES:
     !> inverse mass matrix
@@ -85,6 +81,9 @@
 
       r_einvvander(:,1) = (/ 1.0 /)
 
+      i_reflect(:,1)    = (/ 1 /)
+      i_reflect(:,2)    = (/ 1 /)
+
 # else if (_FLASH_ORDER == 1)
 
       r_edofcoo(:,1)    = (/ 1.00000000000000e+00 , 0.00000000000000e+00 , 0.00000000000000e+00 /)
@@ -129,10 +128,19 @@
       r_einvvander(:,2) = (/-1.66666666666667e-01 ,-1.66666666666667e-01 , 3.33333333333333e-01 /)
       r_einvvander(:,3) = (/-2.88675134594813e-01 , 2.88675134594813e-01 , 0.00000000000000e+00 /)
 
+      i_reflect(:,1)    = (/ 1 , 2 , 3 /)
+      i_reflect(:,2)    = (/ 1 , 3 , 2 /)
+
 # endif
 
+      ! some corrections since we use different reference elements in Stormflash2d and Samoa
       r_gqwei     = r_gqwei / 2.0_GRID_SR
-      r_eqwei     = r_eqwei / 2.0_GRID_SR
+!       r_eqwei     = r_eqwei / 2.0_GRID_SR
+!       r_Dxi       = r_Dxi   * 2.0_GRID_SR
+!       r_Deta      = r_Deta  * 2.0_GRID_SR
+      ! Note Stefan: maybe r_evander and r_einvvander have also to adjusted
+
+      ! compute transformed basis functions
       r_edpsidxi  = MATMUL(r_Dxi , r_epsi)
       r_edpsideta = MATMUL(r_Deta, r_epsi)
       r_emassinv  = MATMUL(r_evander, TRANSPOSE(r_evander))

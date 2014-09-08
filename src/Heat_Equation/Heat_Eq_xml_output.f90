@@ -22,8 +22,8 @@
 		!> Output cell data
 		type t_output_cell_data
 			real (kind = GRID_SR)									:: heat_conductivity
-			integer (kind = 1)										:: depth
-			integer (kind = 1)										:: refinement
+			integer (kind = BYTE)										:: depth
+			integer (kind = BYTE)										:: refinement
 		END type t_output_cell_data
 
 
@@ -69,7 +69,7 @@
 
 			_log_write(1, '(A, I0)') " Heat Eq: output step ", i_output_iteration
 
-            grid_info = grid%get_capacity()
+            grid_info = grid%get_info()
 			i_cells = grid_info%i_cells
 
 			if (l_second_order) then
@@ -99,7 +99,7 @@
 			character (len = 64)										:: s_file_name
 			integer(4)													:: e_io, i
 
-            grid_info = grid%get_capacity()
+            grid_info = grid%get_info()
 			i_cells = grid_info%i_cells
 
 			if (l_second_order) then

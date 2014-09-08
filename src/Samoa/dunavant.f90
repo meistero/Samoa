@@ -2,9 +2,6 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
-
-#include "Compilation_control.f90"
-
 subroutine dunavant_degree ( rule, degree )
 
 !*****************************************************************************80

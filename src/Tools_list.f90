@@ -28,7 +28,7 @@
 #define _CNT					_CNT_TYPE_NAME
 #define _T						_CNT_DATA_TYPE
 
-PRIVATE add_element, add_after, resize, remove_at, clear, merge, reverse, to_string, is_forward
+PRIVATE add_element, add_after, resize, remove_at, clear, merge, reverse, to_string, is_forward, get_size
 
 type _CNT
 	_T, pointer                 :: elements(:) => null(), elements_alloc(:) => null()
@@ -45,6 +45,7 @@ type _CNT
 	procedure, pass             :: reverse
 	procedure, pass             :: to_string
 	procedure, pass             :: is_forward
+	procedure, pass             :: get_size
 
 	generic :: add => add_after, add_element
 	generic :: remove => remove_at
@@ -82,7 +83,7 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
     if (present(i_count_arg)) then
         i_count = i_count_arg
     else
-        i_count = min(i_elements, size(list%elements_alloc))
+        i_count = min(i_elements, list%get_size())
     end if
 
     if (associated(list%elements)) then
@@ -124,7 +125,7 @@ subroutine add_after(list, i_current_element, element)
         elements_temp(i_current_element + 1) = element
         elements_temp(i_current_element + 2 : ) = list%elements_alloc(i_current_element + 1 : )
 
-        if (size(list%elements_alloc) > 0) then
+        if (associated(list%elements_alloc)) then
             deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
         else
             nullify(list%elements_alloc)
@@ -200,7 +201,7 @@ function merge(list1, list2) result(list)
     end if
 end function
 
-elemental subroutine reverse(list)
+subroutine reverse(list)
 	class(_CNT), intent(inout)		        :: list						!< list object
 
 	_T, dimension(:), pointer				:: elements_temp
@@ -213,7 +214,7 @@ elemental subroutine reverse(list)
 
     list%forward = .not. list%forward
 
-    if (size(list%elements) > 1) then
+    if (list%get_size() > 1) then
         assert_pure((loc(list%elements(1)) < loc(list%elements(size(list%elements)))) .eqv. list%forward)
     end if
 end subroutine
@@ -225,7 +226,7 @@ subroutine clear(list)
 	if (associated(list%elements)) then
         nullify(list%elements)
 
-        if (size(list%elements_alloc) > 0) then
+        if (associated(list%elements_alloc)) then
             deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
         else
             nullify(list%elements_alloc)
@@ -237,7 +238,7 @@ elemental function to_string(list) result(str)
 	class(_CNT), intent(in)						:: list
 	character (len = 32)						:: str
 
-	write(str, '(A, I0)') "elements: ", size(list%elements)
+	write(str, '(A, I0)') "elements: ", list%get_size()
 end function
 
 function is_forward(list)
@@ -245,6 +246,18 @@ function is_forward(list)
     logical                     :: is_forward
 
     is_forward = list%forward
+end function
+
+!> Returns the size of the list
+pure function get_size(list) result(i_elements)
+	class(_CNT), intent(in)     :: list						!< list object
+    integer (kind = GRID_SI)    :: i_elements
+
+    if (.not. associated(list%elements)) then
+        i_elements = 0
+    else
+        i_elements = size(list%elements)
+    end if
 end function
 
 #undef _CNT_DATA_TYPE

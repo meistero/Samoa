@@ -1,3 +1,0 @@
-#!/bin/bash
-llq | grep $USER | cut -d " " -f 1 | tr "\n" " "
-

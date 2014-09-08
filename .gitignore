@@ -1,9 +1,10 @@
 ASAGI
 bin
 data
-scripts
+scripts/cache
 output
 doxygen
 Samoa.layout
-.sconsign*
+Samoa.cbp
+.sconsign.dblite
 *~

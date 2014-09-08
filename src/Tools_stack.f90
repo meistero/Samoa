@@ -15,7 +15,6 @@
 !> where
 !>
 !> @item _CNT_DATA_TYPE				Any derived type, base data type for the container
-!> @item _CNT_CHUNK_SIZE			Any positive integer, sets the capacity of the vector chunks for vector-type stacks
 !> @item _CNT_TYPE_NAME				Container type name, will be used prefix for all operations
 !>
 !> The resulting container is defined as <container_name>, the chunk as <container_name>_chunk, methods as <container_name>_<method>
@@ -29,8 +28,8 @@
 #define _CNT					_CNT_TYPE_NAME
 #define _T						_CNT_DATA_TYPE
 
-PRIVATE create, destroy, is_empty, push_element, push_pointer, pop_element, pop_pointer, current_pointer, to_string
-!PRIVATE push_elements, pop_elements
+private
+public _CNT
 
 !define a common interface for all derived types
 
@@ -46,32 +45,66 @@ type _CNT
 	procedure, pass :: is_empty
 	procedure, pass :: reset
 
-	procedure, private, pass :: push_element
-	!procedure, private, pass :: push_elements
-	procedure, private, pass :: pop_element
-	!procedure, private, pass :: pop_elements
-	procedure, private, pass :: push_pointer
-	procedure, private, pass :: current_pointer
-	procedure, private, pass :: pop_pointer
+	procedure, pass :: push_data => push_element
+	procedure, pass :: pop_data => pop_element
+	!procedure, pass :: push_elements
+	!procedure, pass :: pop_elements
+
+	procedure, pass :: push => push_pointer
+	procedure, pass :: current => current_pointer
+	procedure, pass :: pop => pop_pointer
 
 	procedure, pass :: to_string
-
-	generic :: push => push_element, push_pointer!, push_elements
-	generic :: current => current_pointer
-	generic :: pop => pop_element, pop_pointer!, pop_elements
 end type _CNT
 
 contains
+
+!helper functions
+
+function alloc_wrapper(i_elements) result(data)
+    integer*8, intent(in)       :: i_elements
+    _T, pointer                 :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        i_data = KMP_MALLOC(i_elements * sizeof(dummy))
+        c_ptr_data = transfer(i_data, c_ptr_data)
+        call C_F_POINTER(c_ptr_data, data, [i_elements])
+#   else
+	    integer     :: i_error
+
+        allocate(data(i_elements), stat = i_error); assert_eq(i_error, 0)
+#   endif
+end function
+
+subroutine free_wrapper(data)
+    _T, pointer, intent(inout)  :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        c_ptr_data = c_loc(data)
+        i_data = transfer(c_ptr_data, i_data)
+        call KMP_FREE(i_data)
+#   else
+	    integer     :: i_error
+
+        deallocate(data, stat = i_error); assert_eq(i_error, 0)
+#   endif
+end subroutine
 
 !> Creates a new stack
 subroutine create(stack, i_capacity)
 	class(_CNT), intent(inout)					:: stack					!< stack object
 	integer (kind = GRID_SI), intent(in)		:: i_capacity				!< stack capacity
 
-	integer (kind = GRID_SI)					:: i_error
-
     assert(.not. associated(stack%elements))
-	allocate(stack%elements(i_capacity), stat = i_error); assert_eq(i_error, 0)
+	stack%elements => alloc_wrapper(int(i_capacity, 8))
 
 	stack%i_current_element = 0
 end subroutine create
@@ -80,10 +113,8 @@ end subroutine create
 subroutine destroy(stack)
 	class(_CNT), intent(inout)					:: stack					!< stack object
 
-	integer (kind = GRID_SI)					:: i_error
-
 	assert(associated(stack%elements))
-	deallocate(stack%elements, stat = i_error); assert_eq(i_error, 0)
+	call free_wrapper(stack%elements)
 end subroutine
 
 !array access

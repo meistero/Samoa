@@ -26,16 +26,125 @@ module Conformity
     private
     public t_conformity
 
+    type :: t_thread_data
+        type(t_statistics)  :: stats
+    end type
+
     type t_conformity
-        type(t_statistics_list)      :: children_stats
-        type(t_statistics)           :: stats
+        type(t_thread_data), pointer    :: threads(:) => null()
+        type(t_statistics)              :: stats
+        integer                         :: mpi_node_type, mpi_edge_type
 
         contains
 
-        procedure, pass     :: check => conformity_check
+        procedure, pass :: create
+        procedure, pass :: check => conformity_check
+        procedure, pass :: reduce_stats
+        procedure, pass :: destroy
     end type
 
+#   if defined(__GFORTRAN__)
+#       define add_edges(x)                         merge(2,1,x)
+#   else
+        integer(kind = GRID_SI), parameter	        :: add_edges(.true. : .false.) = [2, 1]
+#   endif
+
     contains
+
+    subroutine reduce_stats(conformity, mpi_op, global)
+        class(t_conformity)     :: conformity
+        integer, intent(in)     :: mpi_op
+        logical, intent(in)     :: global
+
+        if (associated(conformity%threads)) then
+            call conformity%stats%reduce(conformity%threads(:)%stats, mpi_op)
+        end if
+
+        if (global) then
+            call conformity%stats%reduce(mpi_op)
+        end if
+    end subroutine
+
+    subroutine create_node_mpi_type(mpi_node_type)
+        integer, intent(out)            :: mpi_node_type
+
+        type(t_node_data)               :: node
+        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+
+            disps(1) = 0
+            disps(2) = sizeof(node)
+
+            types(1) = MPI_LB
+            types(2) = MPI_UB
+
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(node), extent)
+
+            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(0, extent)
+#       endif
+    end subroutine
+
+    subroutine create_edge_mpi_type(mpi_edge_type)
+        integer, intent(out)            :: mpi_edge_type
+
+        type(t_edge_data)               :: edge
+        integer                         :: blocklengths(3), types(3), disps(3), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 3
+            blocklengths(3) = 1
+
+            disps(1) = 0
+            disps(2) = loc(edge%refine) - loc(edge)
+            disps(3) = sizeof(edge)
+
+            types(1) = MPI_LB
+            types(2) = MPI_LOGICAL
+            types(3) = MPI_UB
+
+            call MPI_Type_struct(3, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(edge), extent)
+
+            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(3*4, extent)
+#       endif
+    end subroutine
+
+    subroutine create(conformity)
+        class(t_conformity) :: conformity
+
+        call create_node_mpi_type(conformity%mpi_node_type)
+        call create_edge_mpi_type(conformity%mpi_edge_type)
+    end subroutine
+
+    subroutine destroy(conformity)
+        class(t_conformity) :: conformity
+        integer             :: i_error
+
+#       if defined(_MPI)
+            call MPI_Type_free(conformity%mpi_node_type, i_error); assert_eq(i_error, 0)
+#       endif
+
+#       if defined(_MPI)
+            call MPI_Type_free(conformity%mpi_edge_type, i_error); assert_eq(i_error, 0)
+#       endif
+
+        if (associated(conformity%threads)) then
+            deallocate(conformity%threads, stat = i_error); assert_eq(i_error, 0)
+        end if
+    end subroutine
 
 	!*******************
 	!conformity check
@@ -46,16 +155,16 @@ module Conformity
 		class(t_conformity), intent(inout)   :: conformity
 		type(t_grid), intent(inout)         :: grid
 
-		integer (kind = GRID_SI)							    :: i_traversals
+		integer (kind = GRID_SI)		    :: i_traversals
+        integer                             :: i_error
 
 		_log_write(3, "(2X, A)") "Check conformity..."
 
-
-        if (.not. associated(conformity%children_stats%elements) .or. size(conformity%children_stats%elements) .ne. size(grid%sections%elements_alloc)) then
+        if (.not. associated(conformity%threads)) then
             !$omp barrier
 
             !$omp single
-            call conformity%children_stats%resize(size(grid%sections%elements_alloc))
+            allocate(conformity%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
             !$omp end single
         end if
 
@@ -77,11 +186,6 @@ module Conformity
         !do empty traversals where necessary in order to align the traversal directions
         call empty_traversal(conformity, grid)
 
-		!$omp single
-        call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
-        call conformity%stats%reduce(conformity%children_stats%elements)
-        !$omp end single
-
  		_log_write(2, "(2X, I0, A)") i_traversals, " conformity traversal(s) performed."
 	end subroutine
 
@@ -90,136 +194,208 @@ module Conformity
     !************************
 
     subroutine initial_conformity_traversal(conformity, grid)
-		type(t_conformity), intent(inout)   :: conformity
+		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)	        :: grid
-        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i_thread
+
+        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
+        type(t_statistics)                  :: thread_stats
 
 		_log_write(3, "(3X, A)") "Initial conformity traversal:"
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        associate(stats => conformity%children_stats%elements(i_first_local_section : i_last_local_section))
-            stats%r_traversal_time = stats%r_traversal_time - omp_get_wtime()
-            stats%r_computation_time = stats%r_computation_time - omp_get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-                !$omp task if(omp_tasks) default(shared) firstprivate(i_section) private(i_thread) mergeable
-                i_thread = 1 + omp_get_thread_num()
-                call initial_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                call grid%sections%elements_alloc(i_section)%reverse()
+        do i_section = i_first_local_section, i_last_local_section
+#           if defined(_OPENMP_TASKS)
+                !$omp task default(shared) firstprivate(i_section) mergeable
+#           endif
+
+            call initial_conformity_traversal_wrapper(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+            call grid%sections%elements_alloc(i_section)%reverse()
+
+#           if defined(_OPENMP_TASKS)
                 !$omp end task
-            end do
+#           endif
+        end do
 
+#       if defined(_OPENMP_TASKS)
             !$omp taskwait
+#       endif
 
-            stats%r_computation_time = stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
 
-            stats%r_traversal_time = stats%r_traversal_time + omp_get_wtime()
-        end associate
+        conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
     end subroutine
 
     subroutine update_conformity_traversal(conformity, grid)
-		type(t_conformity), intent(inout)   :: conformity
+		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
 
-        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i_thread
+        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section
+        type(t_statistics)                  :: thread_stats
 
  		_log_write(3, '(3X, A)') "Update conformity traversal:"
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        associate(stats => conformity%children_stats%elements(i_first_local_section : i_last_local_section))
-            stats%r_traversal_time = stats%r_traversal_time - omp_get_wtime()
-            stats%r_computation_time = stats%r_computation_time - omp_get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-                assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-                call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
+        do i_section = i_first_local_section, i_last_local_section
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
+        end do
+
+        do i_section = i_first_local_section, i_last_local_section
+#           if defined(_OPENMP_TASKS)
+                !$omp task default(shared) firstprivate(i_section) mergeable
+#           endif
+
+            !do a conformity traversal only if it is required
+            do while (.not. grid%sections%elements_alloc(i_section)%l_conform)
+                call update_conformity_traversal_wrapper(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+                call grid%sections%elements_alloc(i_section)%reverse()
             end do
 
-            do i_section = i_first_local_section, i_last_local_section
-                !$omp task if(omp_tasks) default(shared) firstprivate(i_section) private(i_thread) mergeable
-                i_thread = 1 + omp_get_thread_num()
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=conformity%mpi_node_type)
 
-                !do a conformity traversal only if it is required
-                do while (.not. grid%sections%elements_alloc(i_section)%l_conform)
-                    call update_conformity_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                    call grid%sections%elements_alloc(i_section)%reverse()
-                end do
-
-                call send_mpi_boundary(grid%sections%elements_alloc(i_section))
+#           if defined(_OPENMP_TASKS)
                 !$omp end task
-            end do
+#           endif
+        end do
 
+#       if defined(_OPENMP_TASKS)
             !$omp taskwait
+#       endif
 
-            stats%r_computation_time = stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
-            stats%r_sync_time = stats%r_sync_time - omp_get_wtime()
-            call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity)
-            stats%r_sync_time = stats%r_sync_time + omp_get_wtime()
+        thread_stats%r_sync_time = -get_wtime()
+        call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity, mpi_node_type_optional=conformity%mpi_node_type)
+        thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
-            stats%r_barrier_time = stats%r_barrier_time - omp_get_wtime()
+        thread_stats%r_barrier_time = -get_wtime()
 
-            !$omp single
-            call reduce(grid%l_conform, grid%sections%elements%l_conform, MPI_LAND, .true.)
-            !$omp end single
+        !$omp single
+        call reduce(grid%l_conform, grid%sections%elements_alloc%l_conform, MPI_LAND, .true.)
+        !$omp end single
 
-            stats%r_barrier_time = stats%r_barrier_time + omp_get_wtime()
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
 
-            stats%r_traversal_time = stats%r_traversal_time + omp_get_wtime()
-        end associate
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+
+        conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
     end subroutine
 
     subroutine empty_traversal(conformity, grid)
-		type(t_conformity), intent(inout)   :: conformity
+		class(t_conformity), intent(inout)  :: conformity
         type(t_grid), intent(inout)         :: grid
 
-        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i_thread
+        integer (kind = GRID_SI)            :: i_section, i_first_local_section, i_last_local_section, i
+        type(t_statistics)                  :: thread_stats
 
  		_log_write(3, '(3X, A)') "Empty traversal:"
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        associate(stats => conformity%children_stats%elements(i_first_local_section : i_last_local_section))
-            stats%r_traversal_time = stats%r_traversal_time - omp_get_wtime()
-            stats%r_computation_time = stats%r_computation_time - omp_get_wtime()
+        thread_stats%r_traversal_time = -get_wtime()
+        thread_stats%r_computation_time = -get_wtime()
 
-            do i_section = i_first_local_section, i_last_local_section
-                !$omp task if(omp_tasks) default(shared) firstprivate(i_section) private(i_thread) mergeable
-                i_thread = 1 + omp_get_thread_num()
-                assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+        do i_section = i_first_local_section, i_last_local_section
+#           if defined(_OPENMP_TASKS)
+                !$omp task default(shared) firstprivate(i_section) mergeable
+#           endif
 
-                !do an empty traversal if the section is backwards
-                if (grid%sections%elements_alloc(i_section)%cells%is_forward() .neqv. grid%sections%is_forward()) then
-                    call empty_traversal_section(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                    call grid%sections%elements_alloc(i_section)%reverse()
-                end if
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+
+            !do an empty traversal if the section is backwards
+            if (grid%sections%elements_alloc(i_section)%cells%is_forward() .neqv. grid%sections%is_forward()) then
+                call empty_traversal_wrapper(grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+                call grid%sections%elements_alloc(i_section)%reverse()
+            end if
+
+#           if defined(_OPENMP_TASKS)
                 !$omp end task
-            end do
+#           endif
+        end do
 
+#       if defined(_OPENMP_TASKS)
             !$omp taskwait
+#       endif
 
-            stats%r_computation_time = stats%r_computation_time + omp_get_wtime()
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
-            call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%estimate_load()
+        thread_stats%r_barrier_time = -get_wtime()
 
-            stats%r_barrier_time = stats%r_barrier_time - omp_get_wtime()
+        !$omp barrier
 
-            !$omp barrier
+        !$omp single
+        call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
+        !$omp end single
 
-            !$omp single
-            call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
-            !$omp end single
+        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
 
-            stats%r_barrier_time = stats%r_barrier_time + omp_get_wtime()
+        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
 
-            stats%r_traversal_time = stats%r_traversal_time + omp_get_wtime()
-        end associate
+        conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
 
         _log_write(3, '(4X, A, I0, A, 2(X, I0), A, 2(X, I0))') "Estimate for #cells: ", grid%dest_cells, ", stack red:", grid%min_dest_stack(RED), grid%max_dest_stack(RED), ", stack green:", grid%min_dest_stack(GREEN), grid%max_dest_stack(GREEN)
     end subroutine
 
+    !************************
+    !NUMA wrapper functions
+    !************************
+
+    subroutine initial_conformity_traversal_wrapper(thread, section)
+		type(t_grid_thread), intent(inout)      :: thread
+		type(t_grid_section), intent(inout)     :: section
+
+		type(t_grid_thread)					    :: thread_local
+		type(t_grid_section)				    :: section_local
+
+        thread_local = thread
+        section_local = section
+
+        call initial_conformity_traversal_section(thread_local, section_local)
+
+        thread = thread_local
+        section = section_local
+    end subroutine
+
+    subroutine update_conformity_traversal_wrapper(thread, section)
+		type(t_grid_thread), intent(inout)      :: thread
+		type(t_grid_section), intent(inout)     :: section
+
+		type(t_grid_thread)					    :: thread_local
+		type(t_grid_section)				    :: section_local
+
+        thread_local = thread
+        section_local = section
+
+        call update_conformity_traversal_section(thread_local, section_local)
+
+        thread = thread_local
+        section = section_local
+    end subroutine
+
+    subroutine empty_traversal_wrapper(thread, section)
+		type(t_grid_thread), intent(inout)      :: thread
+		type(t_grid_section), intent(inout)     :: section
+
+		type(t_grid_thread)					    :: thread_local
+		type(t_grid_section)				    :: section_local
+
+        thread_local = thread
+        section_local = section
+
+        call empty_traversal_section(thread_local, section_local)
+
+        thread = thread_local
+        section = section_local
+    end subroutine
     !************************
     !initial conformity traversal
     !************************
@@ -240,8 +416,8 @@ module Conformity
 
 		i_dest_stack = section%start_dest_stack
 
-        if (size(section%cells%elements) > 0) then
-            assert_ge(size(section%cells%elements), 2)
+        if (section%cells%get_size() > 0) then
+            assert_ge(section%cells%get_size(), 2)
 
             !process first element
             p_cell_data => section%cells%next()
@@ -286,7 +462,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -294,7 +469,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
 		next_edge%refine = .false.
 		next_edge%coarsen = .true.
@@ -317,7 +492,7 @@ module Conformity
             .and. (color_edge_geometry%refine .eqv. color_edge%t_edge_geometry%refine) &
             .and. (color_edge_geometry%coarsen .eqv. color_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 
 		call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
@@ -332,7 +507,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -340,7 +514,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 		call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
 		next_edge%refine = .false.
@@ -364,7 +538,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(section%max_dest_stack, i_dest_stack)
 
 		call cell%reverse_inner()
@@ -377,7 +551,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_edge_data), pointer					:: color_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -385,7 +558,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-        color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+        color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		next_edge%refine = .false.
 		next_edge%coarsen = .true.
@@ -408,7 +581,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 
 		call cell%reverse_inner()
@@ -421,7 +594,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_edge_data), pointer					:: color_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -429,7 +601,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+		color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		next_edge%refine = .false.
 		next_edge%coarsen = .true.
@@ -452,7 +624,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-		i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+		i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(section%max_dest_stack, i_dest_stack)
 
 		call cell%reverse_inner()
@@ -465,8 +637,7 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
-		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer(BYTE)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer					:: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -488,22 +659,22 @@ module Conformity
 
 		select case(i_color_edge_type)
 			case (OLD)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
 				color_edge_geometry = color_edge%t_edge_geometry
 			case (NEW)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 				call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
 				color_edge%refine = .false.
 				color_edge%coarsen = .true.
 			case (OLD_BND)
-				color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 				color_edge%refine = .false.
 				color_edge%coarsen = .true.
 			case (NEW_BND)
-				color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 				color_edge%refine = .false.
 				color_edge%coarsen = .true.
@@ -545,15 +716,15 @@ module Conformity
                     .and. (color_edge_geometry%refine .eqv. color_edge%refine) &
                     .and. (color_edge_geometry%coarsen .eqv. color_edge%coarsen)
 
-				i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+				i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
             case (OLD_BND)
-				i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+				i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(section%min_dest_stack, i_dest_stack)
 			case (NEW, NEW_BND)
-                i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+                i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
                 section%max_dest_stack = max(section%max_dest_stack, i_dest_stack)
 		end select
 
@@ -586,8 +757,8 @@ module Conformity
 
 		i_dest_stack = section%start_dest_stack
 
-        if (size(section%cells%elements) > 0) then
-            assert_ge(size(section%cells%elements), 2)
+        if (section%cells%get_size() > 0) then
+            assert_ge(section%cells%get_size(), 2)
 
             !process first element
             p_cell_data => section%cells%next()
@@ -632,7 +803,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -640,7 +810,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
 		color_edge_geometry = color_edge%t_edge_geometry
@@ -661,7 +831,7 @@ module Conformity
             .and. (color_edge_geometry%refine .eqv. color_edge%t_edge_geometry%refine) &
             .and. (color_edge_geometry%coarsen .eqv. color_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 
 		call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
@@ -676,7 +846,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	                :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	        :: previous_edge, next_edge
 		type(t_edge_data), pointer					        :: color_edge
 		type(t_edge_geometry)	                            :: previous_edge_geometry
@@ -684,7 +853,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 		call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
@@ -703,7 +872,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 
 		call cell%reverse_inner()
@@ -716,7 +885,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	:: previous_edge, next_edge
 		type(t_edge_data), pointer					:: color_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry
@@ -724,7 +892,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-        color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+        color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
 
@@ -742,7 +910,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
         section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 
 		call cell%reverse_inner()
@@ -755,7 +923,6 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	            :: add_edges(-1 : 0) = [2, 1]
 		type(t_crossed_edge_stream_data), pointer	    :: previous_edge, next_edge
 		type(t_edge_data), pointer					    :: color_edge
 		type(t_edge_geometry)	                        :: previous_edge_geometry
@@ -763,7 +930,7 @@ module Conformity
 		previous_edge => section%crossed_edges_in%current()
 		next_edge => section%crossed_edges_in%next()
 
-		color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+		color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
 		previous_edge_geometry = previous_edge%t_edge_geometry
 
@@ -781,7 +948,7 @@ module Conformity
             .and. (previous_edge_geometry%refine .eqv. previous_edge%t_edge_geometry%refine) &
             .and. (previous_edge_geometry%coarsen .eqv. previous_edge%t_edge_geometry%coarsen)
 
-        i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+        i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
         section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 
 		call cell%reverse_inner()
@@ -794,8 +961,7 @@ module Conformity
 		integer (kind = GRID_SI), intent(inout)     :: i_dest_stack(RED : GREEN)
 
 		!local variables
-		integer(kind = GRID_SI), parameter	        :: add_edges(-1 : 0) = [2, 1]
-		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer(BYTE)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer				    :: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer   :: previous_edge, next_edge
 		type(t_edge_geometry)	                    :: previous_edge_geometry, color_edge_geometry
@@ -814,14 +980,14 @@ module Conformity
 
 		select case(i_color_edge_type)
 			case (OLD)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 
                 color_edge_geometry = color_edge%t_edge_geometry
  			case (NEW)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 				call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 			case (OLD_BND, NEW_BND)
-				color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 		end select
 
 		select case(i_next_edge_type)
@@ -858,15 +1024,15 @@ module Conformity
                     .and. (color_edge_geometry%refine .eqv. color_edge%t_edge_geometry%refine) &
                     .and. (color_edge_geometry%coarsen .eqv. color_edge%t_edge_geometry%coarsen)
 
-                i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+                i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
             case (OLD_BND)
-                i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) - add_edges(color_edge%refine)
+                i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) - add_edges(color_edge%refine)
                 section%min_dest_stack = min(i_dest_stack, section%min_dest_stack)
 			case (NEW, NEW_BND)
-				i_dest_stack(cell%l_color_edge_color) = i_dest_stack(cell%l_color_edge_color) + add_edges(color_edge%refine)
+				i_dest_stack(cell%i_color_edge_color) = i_dest_stack(cell%i_color_edge_color) + add_edges(color_edge%refine)
                 section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 		end select
 
@@ -875,7 +1041,6 @@ module Conformity
                 i_dest_stack = i_dest_stack + [1, 2]
                 section%max_dest_stack = max(i_dest_stack, section%max_dest_stack)
 		end select
-
 
 		call cell%reverse()
 	end subroutine
@@ -892,8 +1057,8 @@ module Conformity
 		! local variables
 		type(t_cell_stream_data), pointer			:: p_cell_data
 
-        if (size(section%cells%elements) > 0) then
-            assert_ge(size(section%cells%elements), 2)
+        if (section%cells%get_size() > 0) then
+            assert_ge(section%cells%get_size(), 2)
 
             !process first element
             p_cell_data => section%cells%next()
@@ -936,7 +1101,7 @@ module Conformity
 		type(t_edge_data), pointer					:: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 		call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
 
         call cell%reverse_refinement()
@@ -953,7 +1118,7 @@ module Conformity
 		type(t_edge_data), pointer					                        :: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-		color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+		color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 		call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 
         call cell%reverse_refinement()
@@ -970,7 +1135,7 @@ module Conformity
 		type(t_edge_data), pointer					:: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-        color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+        color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
         call cell%reverse_refinement()
 		call cell%reverse_inner()
@@ -986,7 +1151,7 @@ module Conformity
 		type(t_edge_data), pointer					                        :: color_edge
 
 		next_edge => section%crossed_edges_in%next()
-		color_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+		color_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 
         call cell%reverse_refinement()
 		call cell%reverse_inner()
@@ -998,7 +1163,7 @@ module Conformity
 		type(fine_triangle), intent(inout)			:: cell
 
 		!local variables
-		integer(kind = 1)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
+		integer(BYTE)							:: i_previous_edge_type, i_color_edge_type, i_next_edge_type
 		type(t_edge_data), pointer				    :: color_edge, p_boundary_edge
 		type(t_crossed_edge_stream_data), pointer   :: next_edge
 
@@ -1011,13 +1176,13 @@ module Conformity
 
 		select case(i_color_edge_type)
 			case (OLD)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%pop()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%pop()
 				call section%color_edges_out%write(color_edge%t_color_edge_stream_data)
  			case (NEW)
-				color_edge => thread%edges_stack(cell%l_color_edge_color)%push()
+				color_edge => thread%edges_stack(cell%i_color_edge_color)%push()
 				call section%color_edges_in%read(color_edge%t_color_edge_stream_data)
 			case (OLD_BND, NEW_BND)
-				p_boundary_edge => section%boundary_edges(cell%l_color_edge_color)%next()
+				p_boundary_edge => section%boundary_edges(cell%i_color_edge_color)%next()
 		end select
 
 		select case(i_next_edge_type)
@@ -1160,7 +1325,7 @@ module Conformity
         type(t_global_data), intent(inout)	    :: grid_data
         type(t_global_data), intent(inout)		:: section_data(:)
 
-		integer (kind = 1)					    :: i_color
+		integer (BYTE)					        :: i_color
 
         call reduce(grid_data%dest_cells, section_data%dest_cells, MPI_SUM, .false.)
 

@@ -10,38 +10,34 @@
 !> @author Oliver Meister
 
 !multiple levels of indirection are necessary to properly resolve the names
-#define _CONC2(X, Y)			X ## _ ## Y
-#define _PREFIX(P, X)			_CONC2(P, X)
-#define _GT_(X)					_PREFIX(_GT_NAME, X)
-
 #define _GT						_GT_NAME
 
 !if no dedicated inner operators exists, use the default operators
-#if defined(_GT_ELEMENT_OP) .and. .not. defined(_GT_INNER_ELEMENT_OP)
+#if defined(_GT_ELEMENT_OP) && !defined(_GT_INNER_ELEMENT_OP)
 #	define _GT_INNER_ELEMENT_OP		        _GT_ELEMENT_OP
 #endif
 
-#if defined(_GT_EDGE_FIRST_TOUCH_OP) .and. .not. defined(_GT_INNER_EDGE_FIRST_TOUCH_OP)
+#if defined(_GT_EDGE_FIRST_TOUCH_OP) && !defined(_GT_INNER_EDGE_FIRST_TOUCH_OP)
 #	define _GT_INNER_EDGE_FIRST_TOUCH_OP	_GT_EDGE_FIRST_TOUCH_OP
 #endif
 
-#if defined(_GT_EDGE_LAST_TOUCH_OP) .and. .not. defined(_GT_INNER_EDGE_LAST_TOUCH_OP)
+#if defined(_GT_EDGE_LAST_TOUCH_OP) && !defined(_GT_INNER_EDGE_LAST_TOUCH_OP)
 #	define _GT_INNER_EDGE_LAST_TOUCH_OP		_GT_EDGE_LAST_TOUCH_OP
 #endif
 
-#if defined(_GT_EDGE_REDUCE_OP) .and. .not. defined(_GT_INNER_EDGE_REDUCE_OP)
+#if defined(_GT_EDGE_REDUCE_OP) && !defined(_GT_INNER_EDGE_REDUCE_OP)
 #	define _GT_INNER_EDGE_REDUCE_OP		    _GT_EDGE_REDUCE_OP
 #endif
 
-#if defined(_GT_NODE_FIRST_TOUCH_OP) .and. .not. defined(_GT_INNER_NODE_FIRST_TOUCH_OP)
+#if defined(_GT_NODE_FIRST_TOUCH_OP) && !defined(_GT_INNER_NODE_FIRST_TOUCH_OP)
 #	define _GT_INNER_NODE_FIRST_TOUCH_OP	_GT_NODE_FIRST_TOUCH_OP
 #endif
 
-#if defined(_GT_NODE_LAST_TOUCH_OP) .and. .not. defined(_GT_INNER_NODE_LAST_TOUCH_OP)
+#if defined(_GT_NODE_LAST_TOUCH_OP) && !defined(_GT_INNER_NODE_LAST_TOUCH_OP)
 #	define _GT_INNER_NODE_LAST_TOUCH_OP		_GT_NODE_LAST_TOUCH_OP
 #endif
 
-#if defined(_GT_NODE_REDUCE_OP) .and. .not. defined(_GT_INNER_NODE_REDUCE_OP)
+#if defined(_GT_NODE_REDUCE_OP) && !defined(_GT_INNER_NODE_REDUCE_OP)
 #	define _GT_INNER_NODE_REDUCE_OP		    _GT_NODE_REDUCE_OP
 #endif
 
@@ -61,32 +57,88 @@ type, extends(t_element_base) :: t_traversal_element
 	type(t_traversal_element), pointer					    :: previous, next							!< pointer to previous and next traversal element in the ringbuffer
 end type
 
-type, extends(num_traversal_data) :: t_section_data
-	type(t_statistics)										:: stats, current_stats
-end type
-
 type, extends(num_traversal_data) :: t_thread_data
     type(t_traversal_element), dimension(8)     			:: elements									!< Element ring buffer (must contain at least 8 elements, because transfer nodes can be referenced back up to 8 elements)
-    type(t_traversal_element), pointer						:: p_current_element => null()				!< Current element
+	type(t_statistics)										:: stats
 end type
 
-type, extends(t_section_data) :: _GT
-    type(_GT), pointer                                      :: children_alloc(:) => null(), children(:) => null()			!< section data
+type, extends(num_traversal_data) :: _GT
+    type(_GT), pointer                                      :: children(:) => null()			!< section data
+    type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
+    type(t_statistics)                                      :: stats
+    integer                                                 :: mpi_node_type, mpi_edge_type
 
     contains
 
-    procedure, pass :: traverse => traverse_grid
-    final :: finalize
+    procedure, pass :: assign => gt_assign
+
+    generic :: assignment(=) => assign
+
+    procedure, pass :: create
+    procedure, pass :: destroy
+    procedure, pass :: traverse
+    procedure, pass :: reduce_stats
 end type
 
 contains
 
-subroutine finalize(traversal)
-    type(_GT)       :: traversal
+subroutine gt_assign(gt1, gt2)
+    class(_GT), intent(inout) :: gt1
+    class(_GT), intent(in) :: gt2
+
+    gt1%num_traversal_data = gt2%num_traversal_data
+    gt1%stats = gt2%stats
+    gt1%mpi_node_type = gt2%mpi_node_type
+    gt1%mpi_edge_type = gt2%mpi_edge_type
+    
+    !pointers are not copied, they must be set manually
+end subroutine
+
+subroutine reduce_stats(traversal, mpi_op, global)
+    class(_GT)              :: traversal
+    integer, intent(in)     :: mpi_op
+    logical, intent(in)     :: global
+
+    if (associated(traversal%threads)) then
+        call traversal%stats%reduce(traversal%threads(:)%stats, mpi_op)
+    end if
+
+    if (global) then
+        call traversal%stats%reduce(mpi_op)
+    end if
+end subroutine
+
+subroutine create(traversal)
+    class(_GT)      :: traversal
 	integer         :: i_error
 
-    if (associated(traversal%children_alloc)) then
-        deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
+#    if defined(_GT_NODE_MPI_TYPE)
+        call create_node_mpi_type(traversal%mpi_node_type)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE)
+        call create_edge_mpi_type(traversal%mpi_edge_type)
+#    endif
+end subroutine
+
+subroutine destroy(traversal)
+    class(_GT)      :: traversal
+	integer         :: i_error
+
+#    if defined(_GT_NODE_MPI_TYPE) && defined(_MPI)
+        call MPI_Type_free(traversal%mpi_node_type, i_error); assert_eq(i_error, 0)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE) && defined(_MPI)
+        call MPI_Type_free(traversal%mpi_edge_type, i_error); assert_eq(i_error, 0)
+#    endif
+
+    if (associated(traversal%children)) then
+        deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
+    end if
+
+    if (associated(traversal%threads)) then
+        deallocate(traversal%threads, stat = i_error); assert_eq(i_error, 0)
     end if
 end subroutine
 
@@ -121,7 +173,7 @@ function node_merge_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     l_conform = .true.
 end function
 
-function edge_write_op(local_edges, neighbor_edges) result(l_conform)
+function edge_write_wrapper_op(local_edges, neighbor_edges) result(l_conform)
     type(t_edge_data), intent(inout)    :: local_edges
     type(t_edge_data), intent(in)       :: neighbor_edges
     logical                             :: l_conform
@@ -130,13 +182,17 @@ function edge_write_op(local_edges, neighbor_edges) result(l_conform)
     assert(.not. local_edges%owned_locally)
     assert(neighbor_edges%owned_locally)
 
-    local_edges%data_pers = neighbor_edges%data_pers
-    local_edges%data_temp = neighbor_edges%data_temp
+#   if defined(_GT_EDGE_WRITE_OP)
+        call _GT_EDGE_WRITE_OP(local_edges, neighbor_edges)
+#   else
+        local_edges%data_pers = neighbor_edges%data_pers
+        local_edges%data_temp = neighbor_edges%data_temp
+#   endif
 
     l_conform = .true.
 end function
 
-function node_write_op(local_nodes, neighbor_nodes) result(l_conform)
+function node_write_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     type(t_node_data), intent(inout)    :: local_nodes
     type(t_node_data), intent(in)       :: neighbor_nodes
     logical                             :: l_conform
@@ -146,12 +202,15 @@ function node_write_op(local_nodes, neighbor_nodes) result(l_conform)
     assert(.not. local_nodes%owned_locally)
     assert(neighbor_nodes%owned_locally)
 
-    local_nodes%data_pers = neighbor_nodes%data_pers
-    local_nodes%data_temp = neighbor_nodes%data_temp
+#   if defined(_GT_NODE_WRITE_OP)
+        call _GT_NODE_WRITE_OP(local_nodes, neighbor_nodes)
+#   else
+        local_nodes%data_pers = neighbor_nodes%data_pers
+        local_nodes%data_temp = neighbor_nodes%data_temp
+#   endif
 
     l_conform = .true.
 end function
-
 
 !*****************************************************************
 ! Generic traversal
@@ -159,145 +218,242 @@ end function
 
 !> Generic iterative traversal subroutine
 !> @author Oliver Meister
-subroutine traverse_grid(traversal, grid)
+subroutine traverse(traversal, grid)
 	class(_GT), intent(inout)	                        :: traversal
-	class(t_grid), intent(inout)					    :: grid
+	type(t_grid), intent(inout)					        :: grid
 
-	integer (kind = GRID_SI)                            :: i_section, i_thread, i_first_local_section, i_last_local_section
+	integer (kind = GRID_SI)                            :: i_section, i_first_local_section, i_last_local_section
 	integer (kind = GRID_SI)                            :: i_error
-	type(t_thread_data), target, save					:: thread_traversal
-	!$omp threadprivate(thread_traversal)
 
-    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(grid%sections%elements_alloc)) then
+	type(t_thread_data), save                           :: thread_traversal
+	integer (kind = GRID_SI), save                      :: i_thread
+	!$omp threadprivate(thread_traversal, i_thread)
+
+    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. grid%sections%get_size()) then
         !$omp barrier
 
         !$omp single
-        if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < size(grid%sections%elements_alloc)) then
-            if (associated(traversal%children_alloc)) then
-                deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
-            end if
-
-            allocate(traversal%children_alloc(max(omp_get_num_threads() * cfg%i_sections_per_thread, size(grid%sections%elements_alloc))), stat = i_error); assert_eq(i_error, 0)
+        if (associated(traversal%children)) then
+            deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
         end if
 
-        traversal%children => traversal%children_alloc(1 : size(grid%sections%elements_alloc))
+        allocate(traversal%children(grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
         !$omp end single
     end if
 
-    if (.not. associated(thread_traversal%p_current_element)) then
+    if (.not. associated(traversal%threads)) then
+        !$omp barrier
+
+        !$omp single
+        allocate(traversal%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
+        !$omp end single
+
+        i_thread = 1 + omp_get_thread_num()
         call create_ringbuffer(thread_traversal%elements)
-        thread_traversal%p_current_element => thread_traversal%elements(1)
     end if
+
+    assert_eq(size(traversal%threads), omp_get_max_threads())
 
     call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-    associate(traversals => traversal%children(i_first_local_section : i_last_local_section), sections => grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
-        traversals%current_stats%r_traversal_time = -omp_get_wtime()
+    thread_traversal%stats = t_statistics()
 
-#       if defined(_ASAGI_TIMING)
-            sections%stats%r_asagi_time = 0.0
-            traversals%current_stats%r_asagi_time = 0.0
-#       endif
+    thread_traversal%stats%r_traversal_time = -get_wtime()
 
-        traversals%current_stats%r_barrier_time = -omp_get_wtime()
+#   if defined(_ASAGI_TIMING)
+        grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
+#   endif
 
-        !$omp single
-        call pre_traversal_grid(traversal, grid)
-        !$omp end single nowait
+    thread_traversal%stats%r_barrier_time = -get_wtime()
 
-        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
+    select type (traversal)
+        type is (_GT)
+            !$omp single
+            call pre_traversal_grid(traversal, grid)
+            !$omp end single nowait
+        class default
+            assert(.false.)
+    end select
 
-        traversals%current_stats%r_computation_time = 0.0
+    thread_traversal%stats%r_barrier_time = thread_traversal%stats%r_barrier_time + get_wtime()
 
-#       if defined(_GT_SKELETON_OP)
-            traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time - omp_get_wtime()
-
-            do i_section = i_first_local_section, i_last_local_section
-                assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-
-                call boundary_skeleton(traversal%children(i_section), grid%sections%elements_alloc(i_section))
-            end do
-
-            traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
-#       endif
-
-        !$omp barrier
-
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time - omp_get_wtime()
-
-        do i_section = i_first_local_section, i_last_local_section
-            call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
-        end do
-
-        do i_section = i_first_local_section, i_last_local_section
-            !$omp task if(omp_tasks) default(shared) firstprivate(i_section) private(i_thread) mergeable
-                i_thread = 1 + omp_get_thread_num()
-                call pre_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
-                call traverse_section(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-                call send_mpi_boundary(grid%sections%elements_alloc(i_section))
-            !$omp end task
-        end do
-
-        !$omp taskwait
-
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
-
-        call grid%reverse()
-
-        !sync and call post traversal operator
-        traversals%current_stats%r_sync_time = -omp_get_wtime()
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
-        traversals%current_stats%r_sync_time = traversals%current_stats%r_sync_time + omp_get_wtime()
-
-        !call post traversal operator
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time - omp_get_wtime()
-
+#   if defined(_GT_SKELETON_OP)
         do i_section = i_first_local_section, i_last_local_section
             assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-            call post_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+
+            traversal%children(i_section)%stats%r_computation_time = -get_wtime()
+            call boundary_skeleton(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+            traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
         end do
-
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
-
-        !$omp barrier
-
-        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time - omp_get_wtime()
-
-        !$omp single
-        call post_traversal_grid(traversal, grid)
-        !$omp end single
-
-        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
-        traversals%current_stats%r_traversal_time = traversals%current_stats%r_traversal_time + omp_get_wtime()
-
-       	!HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
-#       if defined(_ASAGI_TIMING)
-            traversals%current_stats%r_asagi_time = dble(i_last_local_section - i_first_local_section + 1) * sections%stats%r_asagi_time
-#       endif
-
-        call set_stats(traversals, sections)
-    end associate
+#   endif
 
     !$omp barrier
 
-    !$omp single
-        call traversal%current_stats%reduce(traversal%children%current_stats)
-        traversal%stats = traversal%stats + traversal%current_stats
-        grid%stats = grid%stats + traversal%current_stats
-    !$omp end single
+    do i_section = i_first_local_section, i_last_local_section
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
+#       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
+    end do
+
+    do i_section = i_first_local_section, i_last_local_section
+#       if defined(_OPENMP_TASKS)
+            !$omp task default(shared) firstprivate(i_section) mergeable
+#       endif
+
+#       if defined(_GT_SKELETON_OP)
+            traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time - get_wtime()
+#       else
+            traversal%children(i_section)%stats%r_computation_time = -get_wtime()
+#       endif
+
+        call pre_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        call traverse_section_wrapper(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section))
+#       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
+
+        traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
+
+#       if defined(_OPENMP_TASKS)
+            !$omp end task
+#       endif
+    end do
+
+#   if defined(_OPENMP_TASKS)
+        !$omp taskwait
+#   endif
+
+    !sync and call post traversal operator
+    thread_traversal%stats%r_sync_time = -get_wtime()
+#   if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
+#   elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type)
+#   elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
+#   else
+        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal%mpi_edge_type)
+#   endif
+    thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
+
+    !call post traversal operator
+
+    do i_section = i_first_local_section, i_last_local_section
+        assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+        traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time - get_wtime()
+        call post_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
+    end do
+
+    call grid%reverse()
+
+    !$omp barrier
+
+    thread_traversal%stats%r_barrier_time = thread_traversal%stats%r_barrier_time - get_wtime()
+
+    select type (traversal)
+        type is (_GT)
+            !$omp single
+            call post_traversal_grid(traversal, grid)
+            !$omp end single
+        class default
+            assert(.false.)
+    end select
+
+    thread_traversal%stats%r_barrier_time = thread_traversal%stats%r_barrier_time + get_wtime()
+    thread_traversal%stats%r_traversal_time = thread_traversal%stats%r_traversal_time + get_wtime()
+
+#   if defined(_ASAGI_TIMING)
+        !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that stats belongs to the section and not the traversal
+        thread_traversal%stats%r_asagi_time = sum(grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time)
+#   endif
+
+    do i_section = i_first_local_section, i_last_local_section
+        call set_stats_counters(traversal%children(i_section)%stats, grid%sections%elements_alloc(i_section))
+        grid%sections%elements_alloc(i_section)%stats%t_statistics = grid%sections%elements_alloc(i_section)%stats%t_statistics + traversal%children(i_section)%stats
+        thread_traversal%stats = thread_traversal%stats + traversal%children(i_section)%stats
+    end do
+
+    traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_traversal%stats
+    grid%threads%elements(i_thread)%stats%t_statistics = grid%threads%elements(i_thread)%stats%t_statistics + thread_traversal%stats
+end subroutine
+
+subroutine traverse_section_wrapper(thread_traversal, traversal, thread, section)
+	type(t_thread_data), intent(inout)	                :: thread_traversal
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_thread), intent(inout)					:: thread
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_thread)			:: thread_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    thread_local = thread
+    section_local = section
+
+    call traverse_section(thread_traversal, traversal_local, thread_local, section_local)
+
+    traversal = traversal_local
+    thread = thread_local
+    section = section_local
+end subroutine
+
+subroutine pre_traversal_wrapper(traversal, section)
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    section_local = section
+
+    call pre_traversal(traversal_local, section_local)
+
+    traversal = traversal_local
+    section = section_local
+end subroutine
+
+subroutine post_traversal_wrapper(traversal, section)
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    section_local = section
+
+    call post_traversal(traversal_local, section_local)
+
+    traversal = traversal_local
+    section = section_local
 end subroutine
 
 !> Generic iterative traversal subroutine
 !> @author Oliver Meister
 subroutine traverse_section(thread_traversal, traversal, thread, section)
 	type(t_thread_data), target, intent(inout)	        :: thread_traversal
-	class(_GT), target, intent(inout)	                :: traversal
+	type(_GT), target, intent(inout)	                :: traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 
 	! local variables
-	integer (kind = GRID_SI)							:: i
-	type(t_traversal_element), pointer					:: p_next_element
+	integer (kind = GRID_SI)							:: i, i_current_element, i_next_element
 
 #	if (_DEBUG_LEVEL > 4)
 		_log_write(5, '(2X, A)') "section input state :"
@@ -312,48 +468,46 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 		_log_write(6, '(A)') ""
 #	endif
 
-	if (size(section%cells%elements) > 0) then
-        assert_ge(size(section%cells%elements), 2)
-		call init(section, thread_traversal%p_current_element)
+	if (section%cells%get_size() > 0) then
+        assert_ge(section%cells%get_size(), 2)  
+ 		call init(section, thread_traversal%elements(1))
 
 		!process first element
-        p_next_element => thread_traversal%p_current_element%next
-        call init(section, p_next_element)
-        call leaf(traversal, thread, section, thread_traversal%p_current_element)
-        thread_traversal%p_current_element => p_next_element
+        call init(section, thread_traversal%elements(2))
+        call leaf(traversal, thread, section, thread_traversal%elements(1))
+
+        i_current_element = 2
 
 		do
-			select case (thread_traversal%p_current_element%cell%geometry%i_entity_types)
+            i_next_element = mod(i_current_element, 8) + 1
+
+			select case (thread_traversal%elements(i_current_element)%cell%geometry%i_entity_types)
 				case (INNER_OLD)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-					call old_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+					call old_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 				case (INNER_NEW)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-					call new_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+					call new_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 				case (INNER_OLD_BND)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-                    call old_bnd_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+                    call old_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 				case (INNER_NEW_BND)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-                    call new_bnd_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+                    call new_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
                 case default
                     !this should happen only for the last element
                     exit
 			end select
 
-			thread_traversal%p_current_element => p_next_element
+			i_current_element = i_next_element
 		end do
 
 		!process last element
-        call leaf(traversal, thread, section, thread_traversal%p_current_element)
+        call leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 	end if
 
 #	if (_DEBUG_LEVEL > 4)
@@ -484,9 +638,15 @@ end subroutine
 #undef _GT_EDGE_FIRST_TOUCH_OP
 #undef _GT_EDGE_LAST_TOUCH_OP
 #undef _GT_EDGE_REDUCE_OP
+#undef _GT_EDGE_MPI_TYPE
+#undef _GT_EDGE_MERGE_OP
+#undef _GT_EDGE_WRITE_OP
 #undef _GT_NODE_FIRST_TOUCH_OP
 #undef _GT_NODE_LAST_TOUCH_OP
 #undef _GT_NODE_REDUCE_OP
+#undef _GT_NODE_MPI_TYPE
+#undef _GT_NODE_MERGE_OP
+#undef _GT_NODE_WRITE_OP
 #undef _GT_INNER_EDGE_FIRST_TOUCH_OP
 #undef _GT_INNER_EDGE_LAST_TOUCH_OP
 #undef _GT_INNER_EDGE_REDUCE_OP
@@ -495,8 +655,6 @@ end subroutine
 #undef _GT_INNER_NODE_REDUCE_OP
 #undef _GT_ELEMENT_OP
 #undef _GT_INNER_ELEMENT_OP
-#undef _GT_EDGE_MERGE_OP
-#undef _GT_NODE_MERGE_OP
 #undef _GT_PRE_TRAVERSAL_OP
 #undef _GT_POST_TRAVERSAL_OP
 #undef _GT_PRE_TRAVERSAL_GRID_OP

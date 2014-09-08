@@ -2,18 +2,17 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#include "Compilation_control.f90"
+
 #define _CG							            _solver
 #define _CG_USE								    _solver_use
 
-#define _CONC2(X, Y)							X ## _ ## Y
-#define _PREFIX(P, X)							_CONC2(P, X)
-#define _T_CG								    _PREFIX(t, _CG)
-#define _CG_(X)									_PREFIX(_CG, X)
-#define _T_CG_(X)								_PREFIX(t, _CG_(X))
+#define _PREFIX3(P, X)							_conc3(P,_,X)
+#define _T_CG								    _PREFIX3(t,_CG)
+#define _CG_(X)									_PREFIX3(_CG,X)
+#define _T_CG_(X)								_PREFIX3(t,_CG_(X))
 
 #define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
-
-#include "Compilation_control.f90"
 
 MODULE _CG_(1)
     use SFC_edge_traversal
@@ -152,7 +151,7 @@ MODULE _CG_(1)
         type(t_grid_section), intent(in)		        :: section
         type(t_node_data), intent(in)				    :: node
 
-        integer (kind = 1)					            :: i
+        integer (kind = BYTE)					            :: i
         real(kind = GRID_SR)                            :: d(_gv_node_size)
         real(kind = GRID_SR)                            :: u(_gv_node_size)
 
@@ -272,8 +271,21 @@ MODULE _CG_(2)
         type(_T_CG_(2_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .true.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        integer                                                     :: i_error
+        double precision                                            :: reduction_set(2)
+
+        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+
+        reduction_set(1) = traversal%r_C_r
+        reduction_set(2) = traversal%r_sq
+
+#       if defined(_MPI)
+            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
+
+        traversal%r_C_r = reduction_set(1)
+        traversal%r_sq = reduction_set(2)
     end subroutine
 
     pure subroutine pre_traversal_op(traversal, section)
@@ -495,8 +507,21 @@ MODULE _CG_(exact)
         type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .true.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        integer                                                     :: i_error
+        double precision                                            :: reduction_set(2)
+
+        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+
+        reduction_set(1) = traversal%r_C_r
+        reduction_set(2) = traversal%r_sq
+
+#       if defined(_MPI)
+            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
+
+        traversal%r_C_r = reduction_set(1)
+        traversal%r_sq = reduction_set(2)
     end subroutine
 
     subroutine pre_traversal_op(traversal, section)
@@ -677,30 +702,44 @@ MODULE _CG
 
     type, extends(t_linear_solver)      :: _T_CG
         real (kind = GRID_SR)           :: max_error
+        integer (kind = GRID_SI)        :: i_restart_interval
         type(_T_CG_(1_traversal))       :: cg1
         type(_T_CG_(2_traversal))       :: cg2
         type(_T_CG_(exact_traversal))   :: cg_exact
 
         contains
 
+        procedure, pass :: create
+        procedure, pass :: destroy
         procedure, pass :: solve
+        procedure, pass :: reduce_stats
     end type
-
-    interface _T_CG
-        module procedure init_solver
-    end interface
 
     private
     public _T_CG
 
     contains
 
-    function init_solver(max_error) result(solver)
-        real (kind = GRID_SR)   :: max_error
-        type(_T_CG) :: solver
+    subroutine create(solver, max_error, i_restart_interval)
+        class(_T_CG), intent(inout)             :: solver
+        real (kind = GRID_SR), intent(in)       :: max_error
+        integer (kind = GRID_SI), intent(in)    :: i_restart_interval
 
         solver%max_error = max_error
-    end function
+        solver%i_restart_interval = i_restart_interval
+
+        call solver%cg1%create()
+        call solver%cg2%create()
+        call solver%cg_exact%create()
+    end subroutine
+
+    subroutine destroy(solver)
+        class(_T_CG), intent(inout)             :: solver
+
+        call solver%cg1%destroy()
+        call solver%cg2%destroy()
+        call solver%cg_exact%destroy()
+    end subroutine
 
     !> Solves a linear equation system using a CG solver
     !> \returns		number of iterations performed
@@ -710,7 +749,6 @@ MODULE _CG
 
         integer (kind = GRID_SI)		        :: i_iteration
         real (kind = GRID_SR)			        :: r_sq, d_u, r_C_r, r_C_r_old, alpha, beta
-        integer (kind = GRID_SI), parameter     :: i_residual_correction_step = 256
 
         !$omp master
         _log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
@@ -740,15 +778,12 @@ MODULE _CG
             solver%cg1%beta = beta
             call solver%cg1%traverse(grid)
             d_u = solver%cg1%d_u
-            _log_write(2, '(4X, A, ES17.10)') "d A d: ", d_u
-
-            !compute step size alpha = r^T C r / d^T A d
-            alpha = r_C_r / d_u
-            r_C_r_old = r_C_r
+            _log_write(2, '(4X, A, ES17.10)') "d^T A d: ", d_u
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-            if (imod(i_iteration + 1, i_residual_correction_step) == 0) then
+            if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
+                r_C_r = solver%cg_exact%r_C_r
 
                 !$omp master
                 if (iand(i_iteration, z'3ff') == z'3ff') then
@@ -756,6 +791,10 @@ MODULE _CG
                 end if
                 !$omp end master
             end if
+
+            !compute step size alpha = r^T C r / d^T A d
+            alpha = r_C_r / d_u
+            r_C_r_old = r_C_r
 
             !second step: apply unknowns update (alpha * d) and residual update (alpha * A d)
             solver%cg2%alpha = alpha
@@ -774,6 +813,17 @@ MODULE _CG
         solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg_exact%stats
         !$omp end master
     end function
+
+    subroutine reduce_stats(solver, mpi_op, global)
+        class(_T_CG), intent(inout)   :: solver
+        integer, intent(in)             :: mpi_op
+        logical                         :: global
+
+        call solver%cg1%reduce_stats(mpi_op, global)
+        call solver%cg2%reduce_stats(mpi_op, global)
+        call solver%cg_exact%reduce_stats(mpi_op, global)
+        solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg_exact%stats
+    end subroutine
 END MODULE
 
 #undef _solver

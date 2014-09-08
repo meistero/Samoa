@@ -28,22 +28,19 @@
 #define _CNT					_CNT_TYPE_NAME
 #define _T						_CNT_DATA_TYPE
 
-#if .not. defined _CHUNK_SIZE
+#if !defined(_CHUNK_SIZE)
 #   define _CHUNK_SIZE 1_8
 #endif
 
-PUBLIC
-PRIVATE resize_by_value, resize_auto, clear, attach, unattach, trim_stream, merge_streams
-PRIVATE reset_stream, reverse_stream, current_element, next_element
-PRIVATE read_element, read_elements, write_element, write_elements, add_element
-PRIVATE to_string, get_c_pointer, is_forward
+private
+public _CNT
 
 !array implementation
 
 type _CNT
-	_T, pointer					:: elements(:) => null()		!< element array
-	_T, pointer					:: elements_alloc(:) => null()	!< element array in allocation order
-	integer*8                   :: i_current_element = 0		!< stream current element
+	_T, pointer				    :: elements(:) => null()		!< element array
+	_T, pointer				    :: elements_alloc(:) => null()	!< element array in allocation order
+	integer(kind = GRID_DI)     :: i_current_element = 0		!< stream current element
 
 	contains
 
@@ -60,6 +57,7 @@ type _CNT
 	procedure, pass :: reverse => reverse_stream
 	procedure, pass :: get_c_pointer => get_stream_c_pointer
 	procedure, pass :: is_forward
+	procedure, pass :: get_size
 
 	procedure, private, pass :: current_element
 	procedure, private, pass :: next_element
@@ -80,6 +78,46 @@ end type
 
 contains
 
+!helper functions
+
+function alloc_wrapper(i_elements) result(data)
+    integer*8, intent(in)       :: i_elements
+    _T, pointer                 :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        i_data = KMP_MALLOC(i_elements * sizeof(dummy))
+        c_ptr_data = transfer(i_data, c_ptr_data)
+        call C_F_POINTER(c_ptr_data, data, [i_elements])
+#   else
+	    integer     :: i_error
+
+        allocate(data(i_elements), stat = i_error); assert_eq(i_error, 0)
+#   endif
+end function
+
+subroutine free_wrapper(data)
+    _T, pointer, intent(inout)  :: data(:)
+
+#   if defined(_KMP_ALLOC)
+	    integer (kind = KMP_POINTER_KIND)               :: i_data
+        type(c_ptr)                                     :: c_ptr_data
+        _T                                              :: dummy
+
+        c_ptr_data = c_loc(data)
+        i_data = transfer(c_ptr_data, i_data)
+        call KMP_FREE(i_data)
+#   else
+	    integer     :: i_error
+
+        deallocate(data, stat = i_error); assert_eq(i_error, 0)
+#   endif
+end subroutine
+
+
 !construction/destruction
 
 !> resizes a self-managed stream
@@ -93,21 +131,24 @@ subroutine resize_by_value(stream, i_elements)
     assert(.not. associated(stream%elements) .or. associated(stream%elements, stream%elements_alloc))
 
 	if (associated(stream%elements)) then
-        allocate(elements_temp(i_elements), stat = i_error); assert_eq(i_error, 0)
+        elements_temp => alloc_wrapper(i_elements)
 
         if (stream%is_forward()) then
             elements_temp(1 : min(i_elements, size(stream%elements))) = stream%elements_alloc
-            deallocate(stream%elements_alloc, stat = i_error); assert_eq(i_error, 0)
             stream%elements => elements_temp
         else
             elements_temp(max(1, i_elements - size(stream%elements) + 1) : i_elements) = stream%elements_alloc
-            deallocate(stream%elements_alloc, stat = i_error); assert_eq(i_error, 0)
             stream%elements => elements_temp(i_elements : 1 : -1)
         end if
 
+        call free_wrapper(stream%elements_alloc)
+
         stream%elements_alloc => elements_temp
     else
-        allocate(stream%elements_alloc(i_elements), stat = i_error); assert_eq(i_error, 0)
+        assert(.not. associated(stream%elements_alloc))
+
+        stream%elements_alloc => alloc_wrapper(i_elements)
+
         stream%elements => stream%elements_alloc
     end if
 end subroutine
@@ -122,7 +163,8 @@ subroutine resize_auto(stream)
 	if (associated(stream%elements)) then
         call stream%resize(size(stream%elements) + _CHUNK_SIZE)
     else
-        allocate(stream%elements_alloc(_CHUNK_SIZE), stat = i_error); assert_eq(i_error, 0)
+        assert(.not. associated(stream%elements_alloc))
+        stream%elements_alloc => alloc_wrapper(_CHUNK_SIZE)
     end if
 
 	stream%elements => stream%elements_alloc
@@ -134,7 +176,7 @@ subroutine clear(stream)
 	integer                                         :: i_error
 
     if (associated(stream%elements_alloc)) then
-        deallocate(stream%elements_alloc, stat = i_error); assert_eq(i_error, 0)
+        call free_wrapper(stream%elements_alloc)
     end if
 
     nullify(stream%elements)
@@ -175,7 +217,7 @@ function current_element(stream) result(p_data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	p_data => stream%elements(stream%i_current_element)
 end function
@@ -189,7 +231,7 @@ function next_element(stream) result(p_data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	p_data => stream%elements(stream%i_current_element)
 end function
@@ -203,7 +245,7 @@ subroutine read_element(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	data = stream%elements(stream%i_current_element)
 end subroutine
@@ -217,7 +259,7 @@ subroutine read_elements(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, size(data))
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	data = stream%elements(stream%i_current_element - size(data) + 1 : stream%i_current_element)
 end subroutine
@@ -231,7 +273,7 @@ subroutine write_element(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element) = data
 end subroutine
@@ -245,7 +287,7 @@ subroutine write_elements(stream, data)
 
 	!check for overflow
 	assert_ge(stream%i_current_element, size(data))
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element - size(data) + 1 : stream%i_current_element) = data
 end subroutine
@@ -258,30 +300,30 @@ subroutine add_element(stream, data)
 	stream%i_current_element = stream%i_current_element + 1
 
 	!resize if necessary
-	if (stream%i_current_element > size(stream%elements)) then
+	if (stream%i_current_element > stream%get_size()) then
         call stream%resize_auto()
     end if
 
     !check for overflow
 	assert_ge(stream%i_current_element, 1)
-	assert_le(stream%i_current_element, size(stream%elements))
+	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element) = data
 end subroutine
 
-!> Merges two a self-managed streams
+!> Merges two self-managed streams
 function merge_streams(stream1, stream2) result(stream)
 	class(_CNT), intent(in)					    :: stream1, stream2     !< stream objects
 	type(_CNT)              					:: stream               !< stream objects
 
 	_T, pointer					                :: elements_temp(:)
-	integer                                     :: total_size, i_error
+	integer*8                                   :: total_size
 
     !merge array parts
     total_size = size(stream1%elements) + size(stream2%elements)
 
     if (total_size > 0) then
-        allocate(elements_temp(total_size), stat = i_error); assert_eq(i_error, 0)
+        elements_temp => alloc_wrapper(total_size)
 
         if (associated(stream1%elements)) then
             elements_temp(1 : size(stream1%elements)) = stream1%elements
@@ -291,6 +333,8 @@ function merge_streams(stream1, stream2) result(stream)
             elements_temp(total_size - size(stream2%elements) + 1 : total_size) = stream2%elements
         end if
 
+        assert(.not. associated(stream%elements))
+        assert(.not. associated(stream%elements_alloc))
         stream%elements_alloc => elements_temp
         stream%elements => elements_temp
     end if
@@ -301,7 +345,7 @@ elemental subroutine reverse_stream(stream)
 
 	_T, pointer					                :: elements_temp(:)
 
-	elements_temp => stream%elements(size(stream%elements) : 1 : -1)
+	elements_temp => stream%elements(stream%get_size() : 1 : -1)
 
 	stream%elements => elements_temp
 	stream%i_current_element = 0
@@ -317,10 +361,10 @@ elemental function to_string(stream) result(str)
 	class(_CNT), intent(in)						:: stream					!< stream object
 	character (len = 32)						:: str
 
-	if (size(stream%elements) > 0) then
-		write(str, '(A, I0, A, I0)') "elements: ", size(stream%elements), " current: ", stream%i_current_element
+	if (stream%get_size() > 0) then
+		write(str, '(A, I0, A, I0)') "elements: ", stream%get_size(), " current: ", stream%i_current_element
 	else
-		write(str, '(A, I0)') "elements: ", size(stream%elements)
+		write(str, '(A, I0)') "elements: ", stream%get_size()
 	endif
 end function
 
@@ -329,17 +373,30 @@ function is_forward(stream)
     logical                     :: is_forward
 
     assert(associated(stream%elements))
-    assert_ge(size(stream%elements), 1)
+    assert_ge(stream%get_size(), 1)
 
     is_forward = loc(stream%elements(1)) .le. loc(stream%elements(size(stream%elements)))
 end function
 
-function get_stream_c_pointer(stream) result(ptr)
-	class(_CNT), intent(inout)					:: stream					!< stream object
-	_T, pointer					                :: ptr
+!> Returns the size of the list
+pure function get_size(stream) result(i_elements)
+	class(_CNT), intent(in)     :: stream						!< list object
+    integer (kind = GRID_SI)    :: i_elements
 
-    if (.not. associated(stream%elements) .or. size(stream%elements) .eq. 0) then
-        ptr => null()
+    if (.not. associated(stream%elements)) then
+        i_elements = 0
+    else
+        i_elements = size(stream%elements)
+    end if
+end function
+
+function get_stream_c_pointer(stream) result(ptr)
+	class(_CNT), intent(in)					    :: stream					!< stream object
+	_T, pointer					                :: ptr
+	_T, target  :: dummy
+
+    if (stream%get_size() .eq. 0) then
+        ptr => dummy
     else if (stream%is_forward()) then
         ptr => stream%elements(1)
     else

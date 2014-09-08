@@ -29,7 +29,7 @@
             real (kind = GRID_SR), intent(out)  :: mat(_DARCY_P_SIZE, _DARCY_P_SIZE)
 
             real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
-            [[ 1.0d0/2.0d0, -1.0d0/2.0d0, 0], [-1.0d0/2.0d0, 1, -1.0d0/2.0d0], [0, -1.0d0/2.0d0, 1.0d0/2.0d0]]
+                reshape([ 1.0d0/2.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0/2.0d0], [_DARCY_P_SIZE, _DARCY_P_SIZE])
 
             mat = element%cell%data_pers%permeability * mat_const
         end subroutine
@@ -45,7 +45,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_p
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				p
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -56,7 +56,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_r
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				r
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -67,7 +67,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_d
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				d
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -78,7 +78,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_A_d
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				A_d
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -89,7 +89,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_mat_diagonal
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				mat_diagonal
-#		define _GV_PERSISTENT		.false.
+#		define _GV_PERSISTENT		0
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -100,7 +100,8 @@
 #		define _GV_TYPE_NAME		darcy_gv_is_dirichlet_boundary
 #		define _GV_TYPE				logical
 #		define _GV_NAME				is_dirichlet_boundary
-#		define _GV_PERSISTENT		.false.
+#		define _GV_PERSISTENT		0
+#		define _GV_ADD_OP			.or.
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -123,7 +124,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_u
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				u
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -147,7 +148,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_saturation
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				saturation
-#		define _GV_PERSISTENT		.true.
+#		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -158,7 +159,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_flux
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				flux
-#		define _GV_PERSISTENT		.false.
+#		define _GV_PERSISTENT		0
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
@@ -169,7 +170,7 @@
 #		define _GV_TYPE_NAME		darcy_gv_volume
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				volume
-#		define _GV_PERSISTENT		.false.
+#		define _GV_PERSISTENT		0
 
 #		include "Tools_grid_variable.f90"
 	END MODULE

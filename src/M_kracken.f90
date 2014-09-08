@@ -24,13 +24,13 @@ module M_kracken_dictionary
 !         being used as a command line parser. In particular, some might
 !         want to change:
 !          ic=30          ! number of entries in language dictionary
-!          IPvalue=255    ! ilength of verb value
+!          IPvalue=1024   ! ilength of verb value
 
       implicit none
 
-      integer, parameter,public :: IPverb=20                          ! ilength of verb
-      integer, parameter,public :: IPvalue=255                        ! ilength of verb value
-      integer, parameter,public :: ic=30                              ! number of entries in language dictionary
+      integer, parameter,public :: IPverb=40                          ! ilength of verb
+      integer, parameter,public :: IPvalue=2048                        ! ilength of verb value
+      integer, parameter,public :: ic=60                              ! number of entries in language dictionary
       integer, parameter,public :: k_int = SELECTED_INT_kind(9)       ! integer*4
       integer, parameter,public :: k_dbl = SELECTED_real_kind(15,300) ! real*8
       !=================================================================--------
@@ -39,10 +39,13 @@ module M_kracken_dictionary
       character (len=IPverb),dimension(ic),public  ::    ix2=" " ! string variable names
       integer(kind=k_int),dimension(ic),public :: ivalue=0       ! significant lengths of string variable values
       !================================================================---------
-end module M_kracken_dictionary
+end module
 
 module M_kracken
+   use M_kracken_dictionary ! dictionary for Language routines
+
    implicit none
+
    private
 
    ! subroutineS:
@@ -50,7 +53,7 @@ module M_kracken
    public :: string_to_real    ! returns real value from numeric character string NOT USING CALCULATOR
    public :: kracken           ! define command and default parameter values
    public :: delim             ! parse a string and store tokens into an array
-   
+
    private :: parse_two        ! convenient call to parse() -- define defaults, then process user input
    private :: parse            ! parse user command and store tokens into Language Dictionary
    private :: store            ! replace dictionary name's value (if allow=add add name if necessary)
@@ -64,7 +67,7 @@ module M_kracken
    public :: iget    ! fetch integer value of name VERB_NAME from the language dictionary
    public :: lget    ! fetch logical value of name VERB_NAME from the language dictionary
    public :: sget    ! fetch string  value of name VERB_NAME from the language dictionary.
-   
+
    private :: igets  ! return the subscript value of a string when given it's name
    private :: uppers ! uppers: return copy of string converted to uppercase
 
@@ -77,7 +80,6 @@ subroutine retrev(name,val,len,ier)
 !     Copyright(c) 1989 John S. Urban   all rights reserved
 !@(#) retrieve token value from Language Dictionary when given NAME
 
-      use M_kracken_dictionary ! dictionary for Language routines
 
 
       character(len=*),intent(in)  ::  name
@@ -144,7 +146,7 @@ end subroutine string_to_real
 !=======================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()(
 !=======================================================================
-function rget(keyword) 
+function rget(keyword)
 ! @(#) given keyword, fetch single real value from the language dictionary (zero on error)
 
    real                ::  rget
@@ -168,7 +170,7 @@ end function rget
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()(
 !=======================================================================
 
-function iget(keyword) 
+function iget(keyword)
 ! @(#) given keyword, fetch single integer value from the language dictionary (zero on error)
 
    integer                      ::  iget
@@ -190,13 +192,13 @@ end function iget
 !=======================================================================
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()(
 !=======================================================================
-function lget (keyword) 
+function lget (keyword)
 ! @(#) given keyword, fetch single logical value from the language dictionary (zero on error)
 
    logical                      ::  lget
-   
+
    character(len=*),intent(in)  ::  keyword
-   
+
    character(len=255)           ::  value
    integer                      ::  len
    integer                      ::  ier
@@ -302,7 +304,7 @@ subroutine parse(verb,string,allow)
 !     values may be in double quotes if they contain -alphameric, a #
 !     signifies rest of line is a comment, adjacent double quotes put
 !     one double quote into value, processing ends when an unquoted
-!     semi-colon or end of string is encountered. 
+!     semi-colon or end of string is encountered.
 !     the variable name for the first value is verb_init (often verb_oo)
 !     call it once to give defaults
 !     call it again and vars without values are set to null strings
@@ -312,7 +314,6 @@ subroutine parse(verb,string,allow)
 !
 !     if ileave is 0, leave double quotes where you find them; else if 1
 !     remove them. Normally, they should be removed
-      use M_kracken_dictionary
 !=========================================================================
 ! @(#) for left-over command string for Language routines
 !     optionally needed if you are going to allow multiple commands on a line
@@ -481,8 +482,6 @@ subroutine store(name1,value1,allow1,ier)
 !
 !@(#) replace dictionary name's value (if allow=add add name if necessary)
 
-      use M_kracken_dictionary
-
       character(len=*),intent(in)        ::  name1
       character(len=*),intent(in)        ::  value1
       character(len=*),intent(in)        ::  allow1
@@ -568,8 +567,6 @@ subroutine bounce(varnam,index,ixn,ier,mssge)
 !     It is assumed all variable names are lexically greater
 !     than a blank string.
 
-      use M_kracken_dictionary
-
       character(len=*),intent(in)                     ::  varnam
       integer,intent(out)                             ::  index
       !character(len=IPverb),dimension(ic),intent(in)  ::  ixn
@@ -631,8 +628,6 @@ subroutine add_string(newnam,nchars,index,ier)
 !=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 !@(#) Add new string name to Language Library dictionary
 
-      use M_kracken_dictionary
-
 !     maximum number of string variables to be stored
       character(len=*),intent(in)       ::  newnam
       integer,intent(in)                ::  nchars
@@ -678,8 +673,6 @@ function igets(chars0)
 !     Copyright(c) 1989 John S. Urban   all rights reserved
 !@(#) return the subscript value of a string when given it's name
 !     WARNING: only request value of names known to exist
-
-      use M_kracken_dictionary ! dictionary for Language routines
 
       character(len=*),intent(in)        ::  chars0
 
@@ -886,7 +879,7 @@ subroutine get_command_arguments(string,istring_len,istatus)
       istring_len=len_trim(string)
    endif
 
-   return 
+   return
 
 end subroutine get_command_arguments
 !=======================================================================--------
@@ -905,8 +898,8 @@ function uppers(linei,ilen) result (string)
 
       character(len=1) :: let
       integer ::  ilet
-      integer ::  iout 
-      integer ::  i10 
+      integer ::  iout
+      integer ::  i10
 
       iout=1
       string=" "
@@ -942,8 +935,6 @@ function sget(name,ilen) result (string)
 !     This routine trusts that the desired name exists. A blank
 !     is returned if the name is not in the dictionary
 
-      use M_kracken_dictionary ! dictionary for Language routines
-
       character(len=*),intent(in)  ::  name    !  name to look up in dictionary
       integer,intent(in)           ::  ilen    !  length of returned output string
       character(len=ilen)          ::  string
@@ -963,4 +954,4 @@ end function sget
 !=======================================================================--------
 !()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()()
 !=======================================================================--------
-end module M_kracken
+end module

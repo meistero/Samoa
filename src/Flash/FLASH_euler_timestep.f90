@@ -275,7 +275,7 @@ end forall
       type(t_update)                                            :: eflux
       type(t_state), dimension(_FLASH_CELL_SIZE)                :: dQ
       real(kind = GRID_SR)                                      :: volume, dQ_norm, edge_lengths(3)
-      integer (kind = 1)                                        :: depth
+      integer (kind = 1)                                        :: depth, i_dof
 
 !       fluxes = [update1%flux, update2%flux, update3%flux]
 !
@@ -283,10 +283,10 @@ end forall
 !       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
 !       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
 !       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
-!
-!       volume       = element%cell%geometry%get_volume()
-!       edge_lengths = element%cell%geometry%get_edge_sizes()
-!
+
+      volume       = element%cell%geometry%get_volume()
+      edge_lengths = element%cell%geometry%get_edge_sizes()
+
 !       dQ%h    = sum(edge_lengths * fluxes%h)
 !       dQ%p(1) = sum(edge_lengths * fluxes%p(1))
 !       dQ%p(2) = sum(edge_lengths * fluxes%p(2))
@@ -313,7 +313,9 @@ end forall
 
       !_log_write(0, *) "U_max: ", section%u_max
 
-      dQ%t_dof_state = dQ%t_dof_state * (-section%r_dt / volume)
+      forall (i_dof = 1 : _FLASH_CELL_SIZE)
+          dQ(i_dof)%t_dof_state = dQ(i_dof)%t_dof_state * (-section%r_dt / volume)
+      end forall
 
       _log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
 
@@ -422,8 +424,8 @@ end forall
 !-------------**************_____________****************_______________****************----------------------
 !					YOU WERE HERE!
 	max_wave_speed = 0
-	vL = DOT_PRODUCT(r_normal, r_hu_l / (r_h_l - b))
-	max_wave_speed = sqrt(g * (r_h_l(1) - b)) + sqrt(vL * vL)
+! 	vL = DOT_PRODUCT(r_normal, r_hu_l / (r_h_l - b))
+! 	max_wave_speed = sqrt(g * (r_h_l(1) - b)) + sqrt(vL * vL)
 
       END DO edge_dof_loop
     END DO edge_quad_loop

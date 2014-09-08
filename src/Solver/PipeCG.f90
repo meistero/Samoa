@@ -2,19 +2,17 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#include "Compilation_control.f90"
+
 #define _CG							            _solver
 #define _CG_USE								    _solver_use
 
-#define _CONC2(X, Y)							X ## _ ## Y
-#define _PREFIX(P, X)							_CONC2(P, X)
-#define _T_CG								    _PREFIX(t, _CG)
-#define _CG_(X)									_PREFIX(_CG, X)
-#define _T_CG_(X)								_PREFIX(t, _CG_(X))
+#define _PREFIX3(P, X)							_conc3(P,_,X)
+#define _T_CG								    _PREFIX3(t,_CG)
+#define _CG_(X)									_PREFIX3(_CG,X)
+#define _T_CG_(X)								_PREFIX3(t,_CG_(X))
 
 #define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
-
-#include "Compilation_control.f90"
-
 
 MODULE _CG_(step)
     use SFC_edge_traversal
@@ -29,8 +27,8 @@ MODULE _CG_(step)
         real (kind = GRID_SR)				    :: v_u					    !< v^T * u
         real (kind = GRID_SR)					:: r_sq						!< r^2
 
-#       if .not. defined(_solver_unstable)
-            real (kind = GRID_SR)				    :: r_u					    !< r^T * u
+#       if !defined(_solver_unstable)
+            real (kind = GRID_SR)				:: r_u					    !< r^T * u
 #       endif
     end type
 
@@ -79,8 +77,72 @@ MODULE _CG_(step)
 #		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
+#		define _GT_NODE_WRITE_OP		        node_write_op
+
+!#		define _GT_NODE_MPI_TYPE
+#		define _GT_EDGE_MPI_TYPE
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+    subroutine create_node_mpi_type(mpi_node_type)
+        integer, intent(out)    :: mpi_node_type
+
+        type(t_node_data)               :: node
+        integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+            blocklengths(3) = 1
+            blocklengths(4) = 1
+
+            disps(1) = 0
+            disps(2) = loc(node%data_pers%A_d) - loc(node)
+            disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
+            disps(4) = sizeof(node)
+
+            types(1) = MPI_LB
+            types(2) = MPI_DOUBLE_PRECISION
+            types(3) = MPI_DOUBLE_PRECISION
+            types(4) = MPI_UB
+
+            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(node), extent)
+
+            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(16, extent)
+#       endif
+    end subroutine
+
+    subroutine create_edge_mpi_type(mpi_edge_type)
+        integer, intent(out)            :: mpi_edge_type
+
+        type(t_edge_data)               :: edge
+        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+
+            disps(1) = 0
+            disps(2) = sizeof(edge)
+
+            types(1) = MPI_LB
+            types(2) = MPI_UB
+
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(edge), extent)
+
+            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(0, extent)
+#       endif
+    end subroutine
 
     subroutine pre_traversal_grid_op(traversal, grid)
         type(_T_CG_(step_traversal)), intent(inout)					:: traversal
@@ -94,13 +156,36 @@ MODULE _CG_(step)
         type(_T_CG_(step_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .true.)
-        call reduce(traversal%v_u, traversal%children%v_u, MPI_SUM, .true.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        integer                                                     :: i_error
+        double precision                                            :: reduction_set(4)
 
-#       if .not. defined(_solver_unstable)
-            call reduce(traversal%r_u, traversal%children%r_u, MPI_SUM, .true.)
+        call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .false.)
+        call reduce(traversal%v_u, traversal%children%v_u, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+
+        reduction_set(1) = traversal%d_u
+        reduction_set(2) = traversal%v_u
+        reduction_set(3) = traversal%r_sq
+
+#       if !defined(_solver_unstable)
+            call reduce(traversal%r_u, traversal%children%r_u, MPI_SUM, .false.)
+
+            reduction_set(4) = traversal%r_u
+
+#           if defined(_MPI)
+                call mpi_allreduce(MPI_IN_PLACE, reduction_set, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           endif
+
+            traversal%r_u = reduction_set(4)
+#       else
+#           if defined(_MPI)
+                call mpi_allreduce(MPI_IN_PLACE, reduction_set, 3, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           endif
 #       endif
+
+        traversal%d_u = reduction_set(1)
+        traversal%v_u = reduction_set(2)
+        traversal%r_sq = reduction_set(3)
     end subroutine
 
     pure subroutine pre_traversal_op(traversal, section)
@@ -111,7 +196,7 @@ MODULE _CG_(step)
         traversal%v_u = 0.0_GRID_SR
         traversal%r_sq = 0.0_GRID_SR
 
-#       if .not. defined(_solver_unstable)
+#       if !defined(_solver_unstable)
             traversal%r_u = 0.0_GRID_SR
 #       endif
     end subroutine
@@ -133,17 +218,10 @@ MODULE _CG_(step)
         real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
 #       if defined(_DARCY)
-            !HACK: unfortunately the optimizer produces wrong code if r and d are managed by the grid variable classes,
+            !HACK: unfortunately the optimizer produces wrong code if some variables are managed by the grid variable classes,
             !so we have to use direct access here
 
-            call gv_x%read(node, x)
-            call gv_v%read(node, v)
-
-            call pre_dof_op(traversal%alpha, traversal%beta, x, node%data_pers%r, node%data_pers%d, v, trace_A)
-
-            call gv_x%write(node, x)
-            call gv_v%write(node, v)
-            call gv_trace_A%write(node, trace_A)
+            call pre_dof_op(traversal%alpha, traversal%beta, node%data_pers%p, node%data_pers%r, node%data_pers%d, node%data_pers%A_d, node%data_temp%mat_diagonal)
 #       else
             call gv_x%read(node, x)
             call gv_r%read(node, r)
@@ -246,7 +324,7 @@ MODULE _CG_(step)
         call gv_trace_A%read(node, trace_A)
 
         do i = 1, _gv_node_size
-#           if .not. defined(_solver_unstable)
+#           if !defined(_solver_unstable)
                 call reduce_dof_op(traversal%d_u, traversal%r_u, traversal%v_u, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
 #           else
                 call reduce_dof_op(traversal%d_u, traversal%d_u, traversal%v_u, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
@@ -254,7 +332,7 @@ MODULE _CG_(step)
         end do
     end subroutine
 
-    elemental subroutine node_merge_op(local_node, neighbor_node)
+    pure subroutine node_merge_op(local_node, neighbor_node)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
@@ -266,6 +344,22 @@ MODULE _CG_(step)
 
         call gv_trace_A%read(neighbor_node, trace_A)
         call gv_trace_A%add(local_node, trace_A)
+    end subroutine
+
+    pure subroutine node_write_op(local_node, neighbor_node)
+        type(t_node_data), intent(inout)			    :: local_node
+        type(t_node_data), intent(in)				    :: neighbor_node
+
+        real(kind = GRID_SR)                            :: v(_gv_node_size)
+        real(kind = GRID_SR)                            :: trace_A(_gv_node_size)
+
+        assert_pure(neighbor_node%data_temp%mat_diagonal(1) .ge. local_node%data_temp%mat_diagonal(1))
+
+        call gv_v%read(neighbor_node, v)
+        call gv_v%write(local_node, v)
+
+        call gv_trace_A%read(neighbor_node, trace_A)
+        call gv_trace_A%write(local_node, trace_A)
     end subroutine
 
     !*******************************
@@ -309,7 +403,7 @@ MODULE _CG_(step)
         v_u = v_u + (v * v * trace_A)
         r_sq = r_sq + (r * r)
 
-#       if .not. defined(_solver_unstable)
+#       if !defined(_solver_unstable)
             r_u = r_u + (r * v * trace_A)
 #       endif
     end subroutine
@@ -370,8 +464,72 @@ MODULE _CG_(exact)
 #		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
+#		define _GT_NODE_WRITE_OP		        node_write_op
+
+!#		define _GT_NODE_MPI_TYPE
+#		define _GT_EDGE_MPI_TYPE
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+    subroutine create_node_mpi_type(mpi_node_type)
+        integer, intent(out)            :: mpi_node_type
+
+        type(t_node_data)               :: node
+        integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+            blocklengths(3) = 1
+            blocklengths(4) = 1
+
+            disps(1) = 0
+            disps(2) = loc(node%data_pers%r) - loc(node)
+            disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
+            disps(4) = sizeof(node)
+
+            types(1) = MPI_LB
+            types(2) = MPI_DOUBLE_PRECISION
+            types(3) = MPI_DOUBLE_PRECISION
+            types(4) = MPI_UB
+
+            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(node), extent)
+
+            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(16, extent)
+#       endif
+    end subroutine
+
+    subroutine create_edge_mpi_type(mpi_edge_type)
+        integer, intent(out)            :: mpi_edge_type
+
+        type(t_edge_data)               :: edge
+        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#       if defined(_MPI)
+            blocklengths(1) = 1
+            blocklengths(2) = 1
+
+            disps(1) = 0
+            disps(2) = sizeof(edge)
+
+            types(1) = MPI_LB
+            types(2) = MPI_UB
+
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(sizeof(edge), extent)
+
+            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+            assert_eq(0, extent)
+#       endif
+    end subroutine
 
     subroutine pre_traversal_grid_op(traversal, grid)
         type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
@@ -379,11 +537,24 @@ MODULE _CG_(exact)
     end subroutine
 
     subroutine post_traversal_grid_op(traversal, grid)
-        type(_T_CG_(exact_traversal)), intent(inout)					:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)			    :: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .true.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        integer                                                     :: i_error
+        double precision                                            :: reduction_set(2)
+
+        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+
+        reduction_set(1) = traversal%r_C_r
+        reduction_set(2) = traversal%r_sq
+
+#       if defined(_MPI)
+            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
+
+        traversal%r_C_r = reduction_set(1)
+        traversal%r_sq = reduction_set(2)
     end subroutine
 
     subroutine pre_traversal_op(traversal, section)
@@ -507,7 +678,7 @@ MODULE _CG_(exact)
         end do
     end subroutine
 
-    elemental subroutine node_merge_op(local_node, neighbor_node)
+    pure subroutine node_merge_op(local_node, neighbor_node)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
@@ -515,10 +686,26 @@ MODULE _CG_(exact)
         real (kind = GRID_SR) :: trace_A(_gv_node_size)
 
         call gv_r%read(neighbor_node, r)
-        call gv_trace_A%read(neighbor_node, trace_A)
-
         call gv_r%add(local_node, r)
+
+        call gv_trace_A%read(neighbor_node, trace_A)
         call gv_trace_A%add(local_node, trace_A)
+    end subroutine
+
+    pure subroutine node_write_op(local_node, neighbor_node)
+        type(t_node_data), intent(inout)			    :: local_node
+        type(t_node_data), intent(in)				    :: neighbor_node
+
+        real (kind = GRID_SR) :: r(_gv_node_size)
+        real (kind = GRID_SR) :: trace_A(_gv_node_size)
+
+        assert_pure(neighbor_node%data_temp%mat_diagonal(1) .ge. local_node%data_temp%mat_diagonal(1))
+
+        call gv_r%read(neighbor_node, r)
+        call gv_r%write(local_node, r)
+
+        call gv_trace_A%read(neighbor_node, trace_A)
+        call gv_trace_A%write(local_node, trace_A)
     end subroutine
 
     !*******************************
@@ -563,29 +750,41 @@ MODULE _CG
 
     type, extends(t_linear_solver)      :: _T_CG
         real (kind = GRID_SR)           :: max_error
+        integer (kind = GRID_SI)        :: i_restart_interval
         type(_T_CG_(step_traversal))    :: cg_step
         type(_T_CG_(exact_traversal))   :: cg_exact
 
         contains
 
+        procedure, pass :: create
+        procedure, pass :: destroy
         procedure, pass :: solve
+        procedure, pass :: reduce_stats
     end type
-
-    interface _T_CG
-        module procedure init_solver
-    end interface
 
     private
     public _T_CG
 
     contains
 
-    function init_solver(max_error) result(solver)
-        real (kind = GRID_SR)   :: max_error
-        type(_T_CG) :: solver
+    subroutine create(solver, max_error, i_restart_interval)
+        class(_T_CG), intent(inout)             :: solver
+        real (kind = GRID_SR), intent(in)       :: max_error
+        integer (kind = GRID_SI), intent(in)    :: i_restart_interval
+
+        call solver%cg_step%create()
+        call solver%cg_exact%create()
 
         solver%max_error = max_error
-    end function
+        solver%i_restart_interval = i_restart_interval
+    end subroutine
+
+    subroutine destroy(solver)
+        class(_T_CG), intent(inout)             :: solver
+
+        call solver%cg_step%destroy()
+        call solver%cg_exact%destroy()
+    end subroutine
 
     !> Solves a linear equation system using a CG solver
     !> \returns		number of iterations performed
@@ -595,12 +794,6 @@ MODULE _CG
 
         integer (kind = GRID_SI)			    :: i_iteration
         real (kind = GRID_SR)				    :: r_sq, d_u, r_u, v_u, r_C_r, r_C_r_old, alpha, beta
-
-#       if .not. defined(_solver_unstable)
-            integer (kind = GRID_SI), parameter :: i_residual_correction_step = 256
-#       else
-            integer (kind = GRID_SI), parameter :: i_residual_correction_step = 16
-#       endif
 
         !$omp master
         _log_write(3, '(2X, A, ES14.7)') "CG solver, max residual error:", solver%max_error
@@ -635,13 +828,12 @@ MODULE _CG
             d_u = solver%cg_step%d_u
             v_u = solver%cg_step%v_u
 
-#           if .not. defined(_solver_unstable)
+#           if !defined(_solver_unstable)
                 r_u = solver%cg_step%r_u
 #           endif
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-
-            if (imod(i_iteration + 1, i_residual_correction_step) == 0) then
+            if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
                 r_sq = solver%cg_exact%r_sq
                 r_C_r = solver%cg_exact%r_C_r
@@ -654,29 +846,38 @@ MODULE _CG
             end if
 
             !compute step size alpha = r^T C r / d^T A d
+            alpha = r_C_r / d_u
             r_C_r_old = r_C_r
-            alpha = r_C_r_old / d_u
 
-#           if .not. defined(_solver_unstable)
+#           if !defined(_solver_unstable)
                 !requires 2 reductions, but can afford residual correction every 256 iterations
-                r_C_r = r_C_r_old - alpha * (2.0_GRID_SR * r_u - alpha * v_u)
+                r_C_r = r_C_r_old + alpha * (alpha * v_u - 2.0_GRID_SR * r_u)
 #           else
-                !requires 1 reduction, but requires residual correction every 16 iterations
+                !requires 1 reduction, but also residual correction every 16 iterations
                 r_C_r = alpha * alpha * v_u - r_C_r_old
 #           endif
 
             !compute beta = r^T C r (new) / r^T C r (old)
             beta = r_C_r / r_C_r_old
 
-            _log_write(2, '(4X, A, ES17.10)') "d A d: ", d_u
+            _log_write(2, '(4X, A, ES17.10)') "d^T A d: ", d_u
             _log_write(2, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
         end do
 
         !$omp master
         _log_write(2, '(2X, A, T24, I0)') "CG iterations:", i_iteration
-        solver%stats = solver%cg_step%stats + solver%cg_exact%stats
         !$omp end master
     end function
+
+    subroutine reduce_stats(solver, mpi_op, global)
+        class(_T_CG), intent(inout)     :: solver
+        integer, intent(in)             :: mpi_op
+        logical                         :: global
+
+        call solver%cg_step%reduce_stats(mpi_op, global)
+        call solver%cg_exact%reduce_stats(mpi_op, global)
+        solver%stats = solver%cg_step%stats + solver%cg_exact%stats
+    end subroutine
 END MODULE
 
 #undef _solver

@@ -2,75 +2,15 @@ try: paraview.simple
 except: from paraview.simple import *
 paraview.simple._DisableFirstRenderCameraReset()
 
+darcy = GetActiveSource()
+
+DataRepresentation0 = GetDisplayProperties(darcy)
+DataRepresentation0.Visibility = 0
+
 RenderView1 = CreateRenderView()
 RenderView1.InteractionMode = '3D'
-RenderView1.LightSpecularColor = [1.0, 1.0, 1.0]
-RenderView1.UseOutlineForLODRendering = 0
-RenderView1.KeyLightAzimuth = 10.0
-RenderView1.UseTexturedBackground = 0
-RenderView1.UseLight = 0
-RenderView1.CameraPosition = [0.5, 0.5, 2.7320508075688776]
-RenderView1.FillLightKFRatio = 3.0
-RenderView1.Background2 = [0.0, 0.0, 0.165]
-RenderView1.FillLightAzimuth = -10.0
-RenderView1.LODResolution = 0.5
-RenderView1.BackgroundTexture = []
-RenderView1.InteractionMode = '2D'
-RenderView1.StencilCapable = 1
-RenderView1.LightIntensity = 1.0
+RenderView1.ViewTime = 0.0
 RenderView1.CameraFocalPoint = [0.5, 0.5, 0.0]
-RenderView1.ImageReductionFactor = 2
-RenderView1.CameraViewAngle = 30.0
-RenderView1.CameraParallelScale = 0.571419922251881
-RenderView1.EyeAngle = 2.0
-RenderView1.HeadLightKHRatio = 3.0
-RenderView1.StereoRender = 0
-RenderView1.KeyLightIntensity = 0.75
-RenderView1.BackLightAzimuth = 110.0
-RenderView1.OrientationAxesInteractivity = 0
-RenderView1.UseInteractiveRenderingForSceenshots = 0
-RenderView1.UseOffscreenRendering = 0
-RenderView1.Background = [1.0, 1.0, 1.0]
-RenderView1.UseOffscreenRenderingForScreenshots = 0
-RenderView1.NonInteractiveRenderDelay = 0.0
-RenderView1.CenterOfRotation = [0.5, 0.5, 0.0]
-RenderView1.CameraParallelProjection = 0
-RenderView1.CompressorConfig = 'vtkSquirtCompressor 0 3'
-RenderView1.HeadLightWarmth = 0.5
-RenderView1.MaximumNumberOfPeels = 4
-RenderView1.LightDiffuseColor = [1.0, 1.0, 1.0]
-RenderView1.StereoType = 'Red-Blue'
-RenderView1.DepthPeeling = 1
-RenderView1.BackLightKBRatio = 3.5
-RenderView1.StereoCapableWindow = 1
-RenderView1.CameraViewUp = [0.0, 1.0, 0.0]
-RenderView1.LightType = 'HeadLight'
-RenderView1.LightAmbientColor = [1.0, 1.0, 1.0]
-RenderView1.RemoteRenderThreshold = 3.0
-RenderView1.CacheKey = 19.0
-RenderView1.UseCache = 0
-RenderView1.KeyLightElevation = 50.0
-RenderView1.CenterAxesVisibility = 0
-RenderView1.MaintainLuminance = 0
-RenderView1.StillRenderImageReductionFactor = 1
-RenderView1.BackLightWarmth = 0.5
-RenderView1.FillLightElevation = -75.0
-RenderView1.MultiSamples = 0
-RenderView1.FillLightWarmth = 0.4
-RenderView1.AlphaBitPlanes = 1
-RenderView1.LightSwitch = 1
-RenderView1.OrientationAxesVisibility = 0
-RenderView1.CameraClippingRange = [2.704730299493189, 2.7730315696824106]
-RenderView1.BackLightElevation = 0.0
-RenderView1.ViewTime = 19.0
-RenderView1.OrientationAxesOutlineColor = [1.0, 1.0, 1.0]
-RenderView1.LODThreshold = 5.0
-RenderView1.CollectGeometryThreshold = 100.0
-RenderView1.UseGradientBackground = 0
-RenderView1.KeyLightWarmth = 0.6
-RenderView1.OrientationAxesLabelColor = [0.0, 0.0, 0.0]
-
-darcy_20130127_145639_ = XMLUnstructuredGridReader( guiName="darcy_20130127_145639_*", PointArrayStatus=['pressure', 'saturation'], CellArrayStatus=['permeability', 'velocity', 'grid depth', 'refinement flag'], FileName=['/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_0.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_1.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_2.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_3.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_4.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_5.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_6.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_7.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_8.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_9.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_10.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_11.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_12.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_13.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_14.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_15.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_16.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_17.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_18.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_19.vtu', '/home/meistero/Desktop/Samoa/output/darcy_20130127_145639_20.vtu'] )
 
 a1_pressure_PiecewiseFunction = CreatePiecewiseFunction( Points=[0.0, 0.0, 0.5, 0.0, 1000000.0, 1.0, 0.5, 0.0] )
 

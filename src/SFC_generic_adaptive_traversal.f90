@@ -10,13 +10,9 @@
 !> @author Oliver Meister
 
 !multiple levels of indirection are necessary to properly resolve the names
-#define _CONC2(X, Y)			X ## _ ## Y
-#define _PREFIX(P, X)			_CONC2(P, X)
-#define _GT_(X)					_PREFIX(_GT_NAME, X)
-
 #define _GT						_GT_NAME
 
-#if defined(_GT_INNER_EDGE_FIRST_TOUCH_OP) .or. defined(_GT_INNER_NODE_FIRST_TOUCH_OP)
+#if defined(_GT_INNER_EDGE_FIRST_TOUCH_OP) || defined(_GT_INNER_NODE_FIRST_TOUCH_OP)
 #	error "No inner first touch operators are allowed for adaptive traversal!"
 #endif
 
@@ -29,19 +25,19 @@
 #endif
 
 !if no dedicated inner operators exists, use the default operators
-#if defined(_GT_EDGE_LAST_TOUCH_OP) .and. .not. defined(_GT_INNER_EDGE_LAST_TOUCH_OP)
+#if defined(_GT_EDGE_LAST_TOUCH_OP) && !defined(_GT_INNER_EDGE_LAST_TOUCH_OP)
 #	define _GT_INNER_EDGE_LAST_TOUCH_OP		_GT_EDGE_LAST_TOUCH_OP
 #endif
 
-#if defined(_GT_NODE_LAST_TOUCH_OP) .and. .not. defined(_GT_INNER_NODE_LAST_TOUCH_OP)
+#if defined(_GT_NODE_LAST_TOUCH_OP) && !defined(_GT_INNER_NODE_LAST_TOUCH_OP)
 #	define _GT_INNER_NODE_LAST_TOUCH_OP		_GT_NODE_LAST_TOUCH_OP
 #endif
 
-#if defined(_GT_EDGE_REDUCE_OP) .and. .not. defined(_GT_INNER_EDGE_REDUCE_OP)
+#if defined(_GT_EDGE_REDUCE_OP) && !defined(_GT_INNER_EDGE_REDUCE_OP)
 #	define _GT_INNER_EDGE_REDUCE_OP		    _GT_EDGE_REDUCE_OP
 #endif
 
-#if defined(_GT_NODE_REDUCE_OP) .and. .not. defined(_GT_INNER_NODE_REDUCE_OP)
+#if defined(_GT_NODE_REDUCE_OP) && !defined(_GT_INNER_NODE_REDUCE_OP)
 #	define _GT_INNER_NODE_REDUCE_OP		    _GT_NODE_REDUCE_OP
 #endif
 
@@ -69,10 +65,6 @@ type, extends(t_element_base) :: t_refinement_element
 	type(fine_triangle)									    :: cell_geometry_storage
 end type
 
-type, extends(num_traversal_data) :: t_section_data
-	type(t_adaptive_statistics)								:: stats, current_stats
-end type
-
 type, extends(num_traversal_data) :: t_thread_data
 	type(t_refinement_element), dimension(2)				:: refinement_elements					!< Temporary refinement elements
 
@@ -80,25 +72,78 @@ type, extends(num_traversal_data) :: t_thread_data
     type(t_traversal_element), dimension(11)        		:: dest_elements						!< Output element ring buffer (must be 11, because transfer nodes can be referenced back up to 8 + 3 new refinement elements)
 
     type(t_traversal_element), pointer						:: p_src_element => null(), p_dest_element => null()        !< Current source and destination element
+
+	type(t_adaptive_statistics)								:: stats
 end type
 
-type, extends(t_section_data) :: _GT
-    type(_GT), pointer                                      :: children_alloc(:) => null(), children(:) => null()			!< section data
+type, extends(num_traversal_data) :: _GT
+    type(_GT), pointer                                      :: children(:) => null()			!< section data
+    type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
+	type(t_adaptive_statistics)								:: stats
+    type(t_conformity)                                      :: conformity
+    integer                                                 :: mpi_node_type, mpi_edge_type
 
     contains
 
+    procedure, pass :: create
+    procedure, pass :: destroy
     procedure, pass :: traverse => traverse_in_place
-    final :: finalize
+    procedure, pass :: reduce_stats
 end type
 
 contains
 
-subroutine finalize(traversal)
-    type(_GT)       :: traversal
+subroutine reduce_stats(traversal, mpi_op, global)
+    class(_GT)              :: traversal
+    integer, intent(in)     :: mpi_op
+    logical, intent(in)     :: global
+
+    if (associated(traversal%threads)) then
+        call traversal%stats%reduce(traversal%threads(:)%stats, mpi_op)
+    end if
+
+    if (global) then
+        call traversal%stats%reduce(mpi_op)
+    end if
+
+    call traversal%conformity%reduce_stats(mpi_op, global)
+end subroutine
+
+subroutine create(traversal)
+    class(_GT)      :: traversal
 	integer         :: i_error
 
-    if (associated(traversal%children_alloc)) then
-        deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
+	call traversal%conformity%create()
+
+#    if defined(_GT_NODE_MPI_TYPE)
+        call create_node_mpi_type(traversal%mpi_node_type)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE)
+        call create_edge_mpi_type(traversal%mpi_edge_type)
+#    endif
+end subroutine
+
+subroutine destroy(traversal)
+    class(_GT)      :: traversal
+	integer         :: i_error
+
+	call traversal%conformity%destroy()
+
+#    if defined(_GT_NODE_MPI_TYPE) && defined(_MPI)
+        call MPI_Type_free(traversal%mpi_node_type, i_error); assert_eq(i_error, 0)
+#    endif
+
+#    if defined(_GT_EDGE_MPI_TYPE) && defined(_MPI)
+        call MPI_Type_free(traversal%mpi_edge_type, i_error); assert_eq(i_error, 0)
+#    endif
+
+    if (associated(traversal%children)) then
+        deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
+    end if
+
+    if (associated(traversal%threads)) then
+        deallocate(traversal%threads, stat = i_error); assert_eq(i_error, 0)
     end if
 end subroutine
 
@@ -134,7 +179,7 @@ function node_merge_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     l_conform = .true.
 end function
 
-function edge_write_op(local_edges, neighbor_edges) result(l_conform)
+function edge_write_wrapper_op(local_edges, neighbor_edges) result(l_conform)
     type(t_edge_data), intent(inout)    :: local_edges
     type(t_edge_data), intent(in)       :: neighbor_edges
     logical                             :: l_conform
@@ -143,13 +188,17 @@ function edge_write_op(local_edges, neighbor_edges) result(l_conform)
     assert(.not. local_edges%owned_locally)
     assert(neighbor_edges%owned_locally)
 
-    local_edges%data_pers = neighbor_edges%data_pers
-    local_edges%data_temp = neighbor_edges%data_temp
+#   if defined(_GT_EDGE_WRITE_OP)
+        call _GT_EDGE_WRITE_OP(local_edges, neighbor_edges)
+#   else
+        local_edges%data_pers = neighbor_edges%data_pers
+        local_edges%data_temp = neighbor_edges%data_temp
+#   endif
 
     l_conform = .true.
 end function
 
-function node_write_op(local_nodes, neighbor_nodes) result(l_conform)
+function node_write_wrapper_op(local_nodes, neighbor_nodes) result(l_conform)
     type(t_node_data), intent(inout)    :: local_nodes
     type(t_node_data), intent(in)       :: neighbor_nodes
     logical                             :: l_conform
@@ -159,8 +208,12 @@ function node_write_op(local_nodes, neighbor_nodes) result(l_conform)
     assert(.not. local_nodes%owned_locally)
     assert(neighbor_nodes%owned_locally)
 
-    local_nodes%data_pers = neighbor_nodes%data_pers
-    local_nodes%data_temp = neighbor_nodes%data_temp
+#   if defined(_GT_NODE_WRITE_OP)
+        call _GT_NODE_WRITE_OP(local_nodes, neighbor_nodes)
+#   else
+        local_nodes%data_pers = neighbor_nodes%data_pers
+        local_nodes%data_temp = neighbor_nodes%data_temp
+#   endif
 
     l_conform = .true.
 end function
@@ -175,39 +228,40 @@ subroutine traverse_in_place(traversal, grid)
 	class(_GT), target, intent(inout)	                :: traversal
 	type(t_grid), intent(inout)							:: grid
 
+	integer                                             :: i_error
 	type(t_grid), save							        :: grid_temp
-    type(t_conformity), save                            :: conformity
+	type(t_adaptive_statistics)                         :: thread_stats
 
-    !no traversal on empty grids
-    !$omp barrier
-
-    !$omp single
-    traversal%current_stats%r_integrity_time = -omp_get_wtime()
-    !$omp end single
-
-    call conformity%check(grid)
-
-    !$omp single
-    traversal%current_stats%r_integrity_time = traversal%current_stats%r_integrity_time + omp_get_wtime()
-
-    traversal%current_stats%r_load_balancing_time = -omp_get_wtime()
-    !$omp end single
-
-#	if .not. defined(_GT_INPUT_DEST)
-	    !exchange grid sections with neighbors if the destination grid will not be balanced
-		call distribute_load(grid, 0.01)
+    if (.not. associated(traversal%threads)) then
         !$omp barrier
-#	endif
 
-    !$omp single
-    traversal%current_stats%r_load_balancing_time = traversal%current_stats%r_load_balancing_time + omp_get_wtime()
+        !$omp single
+        allocate(traversal%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
+        !$omp end single
 
-    traversal%current_stats%r_allocation_time = -omp_get_wtime()
-    !$omp end single
+    	assert(.not. associated(traversal%threads(i_thread)%p_dest_element))
+
+    	!create ringbuffers and temporary elements
+		call create_ringbuffer(traversal%threads(i_thread)%src_elements)
+		call create_ringbuffer(traversal%threads(i_thread)%dest_elements)
+		call create_refinement_element(traversal%threads(i_thread)%refinement_elements)
+
+		traversal%threads(i_thread)%p_src_element => traversal%threads(i_thread)%src_elements(1)
+		traversal%threads(i_thread)%p_dest_element => traversal%threads(i_thread)%dest_elements(1)
+    end if
+
+    assert_eq(size(traversal%threads), omp_get_max_threads())
 
     !$omp barrier
 
-    call rebalance_grid(grid, grid_temp)
+    thread_stats%r_integrity_time = -get_wtime()
+    call traversal%conformity%check(grid)
+    thread_stats%r_integrity_time = thread_stats%r_integrity_time + get_wtime()
+
+    !$omp barrier
+
+    thread_stats%r_allocation_time = -get_wtime()
+    call create_destination_grid(grid, grid_temp)
 
     !if necessary, reverse order to match source and destination grid
     if (.not. grid%sections%is_forward()) then
@@ -217,11 +271,8 @@ subroutine traverse_in_place(traversal, grid)
         !$omp barrier
     end if
 
-    assert_eq(grid%sections%is_forward(), grid_temp%sections%is_forward())
-
-    !$omp single
-    traversal%current_stats%r_allocation_time = traversal%current_stats%r_allocation_time + omp_get_wtime()
-    !$omp end single
+    assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
+    thread_stats%r_allocation_time = thread_stats%r_allocation_time + get_wtime()
 
     !refine grid
     call traverse_out_of_place(traversal, grid, grid_temp)
@@ -233,6 +284,16 @@ subroutine traverse_in_place(traversal, grid)
     !$omp single
     call grid_temp%move(grid)
     !$omp end single
+
+    thread_stats%r_load_balancing_time = -get_wtime()
+#	if !defined(_GT_INPUT_DEST)
+	    !exchange grid sections with neighbors
+		call distribute_load(grid, 0.0)
+#	endif
+    thread_stats%r_load_balancing_time = thread_stats%r_load_balancing_time + get_wtime()
+
+    traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
+    grid%threads%elements(i_thread)%stats = grid%threads%elements(i_thread)%stats + thread_stats
 end subroutine
 
 !> Generic adaptive grid traversal
@@ -258,193 +319,232 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	class(_GT), intent(inout)	                            :: traversal
 	type(t_grid), intent(inout)								:: src_grid, dest_grid
 
-	type(t_grid_section), target							:: src_section
 	type(t_grid_section), pointer							:: dest_section
-    integer (kind = GRID_SI)			                    :: i_thread, i_src_section, i_dest_section, i_first_local_section, i_last_local_section
-    integer (kind = GRID_SI)			                    :: i_src_cell
+    integer (kind = GRID_SI)			                    :: i_dest_section, i_first_local_section, i_last_local_section
 	integer                                                 :: i_error
-	integer (kind = 1)										:: i_color
-	type(t_thread_data), target, save						:: thread_traversal
-	!$omp threadprivate(thread_traversal)
+	integer (kind = BYTE)								    :: i_color
+	type(t_adaptive_statistics)                             :: thread_stats
 
-    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. size(dest_grid%sections%elements)) then
+    integer (kind = GRID_SI), save			                :: i_src_section, i_src_cell
+	type(t_grid_section), target, save					    :: src_section
+	!$omp threadprivate(i_src_section, i_src_cell, src_section)
+
+    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. dest_grid%sections%get_size()) then
 		!$omp barrier
 
 		!$omp single
-        if (.not. associated(traversal%children_alloc) .or. size(traversal%children_alloc) < size(dest_grid%sections%elements)) then
-            if (associated(traversal%children_alloc)) then
-                deallocate(traversal%children_alloc, stat = i_error); assert_eq(i_error, 0)
-            end if
-
-            allocate(traversal%children_alloc(max(omp_get_num_threads() * cfg%i_sections_per_thread, size(dest_grid%sections%elements))), stat = i_error); assert_eq(i_error, 0)
+        if (associated(traversal%children)) then
+            deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
         end if
 
-        traversal%children => traversal%children_alloc(1 : size(dest_grid%sections%elements))
+        allocate(traversal%children(dest_grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
     	!$omp end single
     end if
 
-	if (.not. associated(thread_traversal%p_src_element)) then
-		assert(.not. associated(thread_traversal%p_dest_element))
-
-    	!create ringbuffers and temporary elements
-		call create_ringbuffer(thread_traversal%src_elements)
-		call create_ringbuffer(thread_traversal%dest_elements)
-		call create_refinement_element(thread_traversal%refinement_elements)
-
-		thread_traversal%p_src_element => thread_traversal%src_elements(1)
-		thread_traversal%p_dest_element => thread_traversal%dest_elements(1)
-	end if
-
-    i_thread = 1 + omp_get_thread_num()
     call dest_grid%get_local_sections_in_traversal_order(i_first_local_section, i_last_local_section)
 
-    associate(traversals => traversal%children(i_first_local_section : i_last_local_section), dest_sections => dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section))
-        traversals%current_stats%r_traversal_time = -omp_get_wtime()
+    thread_stats%r_traversal_time = -get_wtime()
 
-#       if defined(_ASAGI_TIMING)
-            dest_sections%stats%r_asagi_time = 0.0
-            traversals%current_stats%r_asagi_time = 0.0
+#   if defined(_ASAGI_TIMING)
+        dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
+        thread_stats%r_asagi_time = 0.0
+#   endif
+
+    thread_stats%r_barrier_time = -get_wtime()
+
+    select type (traversal)
+        type is (_GT)
+            !$omp single
+            call pre_traversal_grid_dest(traversal, dest_grid)
+
+            call prefix_sum(src_grid%sections%elements%last_dest_cell, src_grid%sections%elements%dest_cells)
+            call prefix_sum(dest_grid%sections%elements%last_dest_cell, dest_grid%sections%elements%dest_cells)
+            !$omp end single
+        class default
+            assert(.false.)
+    end select
+
+    thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+
+    !call pre traversal operator
+    thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
+
+    do i_dest_section = i_first_local_section, i_last_local_section
+        dest_section => dest_grid%sections%elements(i_dest_section)
+
+        call pre_traversal_dest(traversal%children(i_dest_section), dest_section)
+    end do
+
+    thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+
+    !traversal
+
+    if (src_grid%sections%get_size() > 0) then
+        !make an initial guess for the first source section and the first source cell
+        i_src_section = max(1, min(src_grid%sections%get_size(), &
+            1 + ((i_first_local_section - 1) * src_grid%sections%get_size()) / dest_grid%sections%get_size()))
+        i_src_cell = 0
+    end if
+
+    thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
+
+    !traverse all destination sections
+    do i_dest_section = i_first_local_section, i_last_local_section
+#       if defined(_OPENMP_TASKS_ADAPTIVITY)
+            !$omp task default(shared) firstprivate(i_dest_section) private(dest_section) mergeable
 #       endif
 
-        traversals%current_stats%r_barrier_time = -omp_get_wtime()
+        dest_section => dest_grid%sections%elements(i_dest_section)
 
-        !$omp single
-        call pre_traversal_grid_dest(traversal, dest_grid)
-
-        call prefix_sum(src_grid%sections%elements%last_dest_cell, src_grid%sections%elements%dest_cells)
-        call prefix_sum(dest_grid%sections%elements%last_dest_cell, dest_grid%sections%elements%dest_cells)
-        !$omp end single
-
-        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
-
-        traversals%current_stats%r_computation_time = -omp_get_wtime()
-
-        !call pre traversal operator
-        do i_dest_section = i_first_local_section, i_last_local_section
-            dest_section => dest_grid%sections%elements(i_dest_section)
-
-            call pre_traversal_dest(traversal%children(i_dest_section), dest_section)
-        end do
-
-        !traversal
-
-        if (i_last_local_section .ge. i_first_local_section) then
-            dest_section => dest_grid%sections%elements(i_first_local_section)
-
+        if (i_src_cell .ne. dest_section%last_dest_cell - dest_section%dest_cells + 1) then
             !find the source section that contains the first cell of the first destination section
-            i_src_section = 1 + ((i_first_local_section - 1) * size(src_grid%sections%elements)) / size(dest_grid%sections%elements)
-            i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
+            if (i_src_cell .eq. 0 .or. &
+                i_src_cell .ge. dest_section%last_dest_cell - dest_section%dest_cells + 5 .or. &
+                src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells) then
 
-            do while (src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells .gt. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_section = i_src_section - 1
-                assert_le(i_src_section, size(src_grid%sections%elements))
-                i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-            end do
+                do while (src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells .gt. dest_section%last_dest_cell - dest_section%dest_cells)
+                    i_src_section = i_src_section - 1
+                    assert_ge(i_src_section, 1)
+                end do
 
-            do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_section = i_src_section + 1
-                assert_le(i_src_section, size(src_grid%sections%elements))
-                i_src_cell = src_grid%sections%elements(i_src_section)%last_dest_cell - src_grid%sections%elements(i_src_section)%dest_cells + 1
-            end do
+                do while (src_grid%sections%elements(i_src_section)%last_dest_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
+                    i_src_section = i_src_section + 1
+                    assert_le(i_src_section, src_grid%sections%get_size())
+                end do
 
-            src_section = src_grid%sections%elements(i_src_section)
+                src_section = src_grid%sections%elements(i_src_section)
+                i_src_cell = src_section%last_dest_cell - src_section%dest_cells + 1
+            end if
 
-            !traverse all unnecessary elements of the first source section with an empty traversal
+            !traverse all unnecessary elements of the source section with an empty traversal
             do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_cell = i_src_cell + empty_leaf(thread_traversal, traversal%children(i_first_local_section), src_grid%threads%elements(i_thread), src_section)
+                i_src_cell = i_src_cell + empty_leaf(traversal%threads(i_thread), traversal%children(i_src_section), src_grid%threads%elements(i_thread), src_section)
             end do
         end if
 
-        !traverse all destination sections
-        do i_dest_section = i_first_local_section, i_last_local_section
-            dest_section => dest_grid%sections%elements(i_dest_section)
-
-#           if _DEBUG_LEVEL > 4
-                _log_write(5, '(2X, A)') "destination section initial state :"
-                call dest_section%print()
-#           endif
-
-            !traverse all source sections that overlap with the destination section
-            do while (i_src_cell .le. dest_section%last_dest_cell)
-                assert_le(i_src_section, size(src_grid%sections%elements))
-                assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
-
-                !traverse all elements
-                do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
-                    i_src_cell = i_src_cell + leaf(thread_traversal, traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
-                end do
-
-                if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < size(src_grid%sections%elements)) then
-                    i_src_section = i_src_section + 1
-                    src_section = src_grid%sections%elements(i_src_section)
-                end if
-            end do
-
-#    		if defined(_GT_CELL_TO_EDGE_OP)
-                thread_traversal%p_dest_element%previous%next_edge_data%rep = _GT_CELL_TO_EDGE_OP(thread_traversal%p_dest_element%previous%t_element_base, thread_traversal%p_dest_element%previous%next_edge_data)
-#    	    endif
-
-            thread_traversal%p_dest_element%previous%next_edge_data%remove = .false.
-
-            call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, thread_traversal%p_dest_element%previous%next_edge_data)
-        end do
-
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
-
-        traversals%current_stats%r_update_distances_time = -omp_get_wtime()
-        call update_distances(dest_grid)
-        traversals%current_stats%r_update_distances_time = traversals%current_stats%r_update_distances_time + omp_get_wtime()
-
-        !$omp single
-        assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
-        !$omp end single nowait
-
-        !update communication info
-        traversals%current_stats%r_update_neighbors_time = -omp_get_wtime()
-        call update_neighbors(src_grid, dest_grid)
-        traversals%current_stats%r_update_neighbors_time = traversals%current_stats%r_update_neighbors_time + omp_get_wtime()
-
-        !$omp barrier
-
-        traversals%current_stats%r_sync_time = -omp_get_wtime()
-
-        do i_dest_section = i_first_local_section, i_last_local_section
-            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
-            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
-        end do
-
-        !sync and call post traversal operator
-        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_op, node_write_op)
-        traversals%current_stats%r_sync_time = traversals%current_stats%r_sync_time + omp_get_wtime()
-
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time - omp_get_wtime()
-
-        do i_dest_section = i_first_local_section, i_last_local_section
-            call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
-        end do
-
-        traversals%current_stats%r_computation_time = traversals%current_stats%r_computation_time + omp_get_wtime()
-
-        !$omp barrier
-
-        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time - omp_get_wtime()
-
-        !$omp single
-        call post_traversal_grid_dest(traversal, dest_grid)
-        !$omp end single
-
-        traversals%current_stats%r_barrier_time = traversals%current_stats%r_barrier_time + omp_get_wtime()
-        traversals%current_stats%r_traversal_time = traversals%current_stats%r_traversal_time + omp_get_wtime()
-
-        !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that current_stats belongs to the section and not the traversal
-#       if defined(_ASAGI_TIMING)
-            traversals%current_stats%r_asagi_time = dble(i_last_local_section - i_first_local_section + 1) * dest_sections%stats%r_asagi_time
+#       if _DEBUG_LEVEL > 4
+            _log_write(5, '(2X, A)') "destination section initial state :"
+            call dest_section%print()
 #       endif
 
-        call set_stats_dest(traversals, dest_sections)
-    end associate
+        !traverse all source sections that overlap with the destination section
+        do while (i_src_cell .le. dest_section%last_dest_cell)
+            assert_le(i_src_section, src_grid%sections%get_size())
+            assert_ge(i_src_cell, src_section%last_dest_cell - src_section%dest_cells + 1)
+
+            !traverse all elements
+            do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
+                i_src_cell = i_src_cell + leaf(traversal%threads(i_thread), traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
+            end do
+
+            if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < src_grid%sections%get_size()) then
+                i_src_section = i_src_section + 1
+                src_section = src_grid%sections%elements(i_src_section)
+            end if
+        end do
+
+#	    if defined(_GT_CELL_TO_EDGE_OP)
+            traversal%threads(i_thread)%p_dest_element%previous%next_edge_data%rep = _GT_CELL_TO_EDGE_OP(traversal%threads(i_thread)%p_dest_element%previous%t_element_base, traversal%threads(i_thread)%p_dest_element%previous%next_edge_data)
+#       endif
+
+        traversal%threads(i_thread)%p_dest_element%previous%next_edge_data%remove = .false.
+
+        call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, traversal%threads(i_thread)%p_dest_element%previous%next_edge_data)
+
+#       if defined(_OPENMP_TASKS_ADAPTIVITY)
+            !$omp end task
+#       endif
+    end do
+
+#   if defined(_OPENMP_TASKS_ADAPTIVITY)
+        !$omp taskwait
+#   endif
+
+    thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+
+    thread_stats%r_update_distances_time = -get_wtime()
+    call update_distances(dest_grid)
+    thread_stats%r_update_distances_time = thread_stats%r_update_distances_time + get_wtime()
+
+    !$omp single
+    assert_veq(decode_distance(dest_grid%t_global_data%min_distance), decode_distance(src_grid%t_global_data%min_distance))
+    !$omp end single nowait
+
+    !update communication info
+    thread_stats%r_update_neighbors_time = -get_wtime()
+    call update_neighbors(src_grid, dest_grid)
+    thread_stats%r_update_neighbors_time = thread_stats%r_update_neighbors_time + get_wtime()
 
     !$omp barrier
+
+    thread_stats%r_sync_time = -get_wtime()
+
+    do i_dest_section = i_first_local_section, i_last_local_section
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section))
+#       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_node_type_optional=traversal%mpi_node_type)
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+            call send_mpi_boundary(dest_grid%sections%elements(i_dest_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
+    end do
+
+    !sync and call post traversal operator
+#   if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
+#   elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type)
+#   elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
+#   else
+        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#   endif
+
+    thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+
+    thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
+
+    do i_dest_section = i_first_local_section, i_last_local_section
+        call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
+    end do
+
+    thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+
+    !$omp barrier
+
+    thread_stats%r_barrier_time = thread_stats%r_barrier_time - get_wtime()
+
+    select type (traversal)
+        type is (_GT)
+            !$omp single
+            call post_traversal_grid_dest(traversal, dest_grid)
+            !$omp end single
+        class default
+            assert(.false.)
+    end select
+
+    thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+    thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+
+    !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that stats belongs to the section and not the traversal
+#   if defined(_ASAGI_TIMING)
+        thread_stats%r_asagi_time = sum(dest_grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time)
+#   endif
+
+    do i_dest_section = i_first_local_section, i_last_local_section
+        call set_stats_counters_dest(traversal%children(i_dest_section)%stats%t_statistics, dest_grid%sections%elements_alloc(i_dest_section))
+        dest_grid%sections%elements_alloc(i_dest_section)%stats = dest_grid%sections%elements_alloc(i_dest_section)%stats + traversal%children(i_dest_section)%stats
+        thread_stats = thread_stats + traversal%children(i_dest_section)%stats
+    end do
+
+    traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
+    dest_grid%threads%elements(i_thread)%stats = dest_grid%threads%elements(i_thread)%stats + thread_stats
 
 #   if defined(_GT_OUTPUT_SRC)
         call src_grid%reverse()
@@ -452,11 +552,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
 	call dest_grid%reverse()
 
-    !$omp single
-        call traversal%current_stats%reduce(traversal%children%current_stats)
-        traversal%stats = traversal%stats + traversal%current_stats
-        dest_grid%stats = dest_grid%stats + traversal%current_stats
-    !$omp end single
+    !$omp barrier
 end subroutine
 
 function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section, dest_section) result(i_dest_cells)
@@ -479,7 +575,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call init_src_element(src_section, thread_traversal%p_src_element%next)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				call create_parent_cell(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_src_element%next%cell%geometry, thread_traversal%p_dest_element%cell%geometry)
 #			endif
 
@@ -487,7 +583,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%nodes(2)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
 				thread_traversal%p_dest_element%nodes(3)%ptr%position = 2.0_GRID_SR * thread_traversal%p_src_element%nodes(2)%ptr%position - thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -500,7 +596,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
 
@@ -515,7 +611,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 			i_dest_cells = 1
 		case (0)
 			!transfer
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				call copy_cell(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_dest_element%cell%geometry)
 #			endif
 
@@ -523,7 +619,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				do i = 1, 3
 					thread_traversal%p_dest_element%nodes(i)%ptr%position = thread_traversal%p_src_element%nodes(i)%ptr%position
 				end do
@@ -544,7 +640,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call init_dest_element(dest_section, p_dest_element_2)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				call create_child_cells(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_dest_element%cell%geometry, p_dest_element_2%cell%geometry)
 #			endif
 
@@ -552,7 +648,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 				thread_traversal%p_dest_element%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
@@ -563,7 +659,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_2%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
 
@@ -584,7 +680,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 			call init_dest_element(dest_section, p_dest_element_2)
 			call init_dest_element(dest_section, p_dest_element_3)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				call create_child_cells(thread_traversal%p_src_element%cell%geometry, thread_traversal%refinement_elements(1)%cell%geometry, p_dest_element_3%cell%geometry)
 				call create_child_cells(thread_traversal%refinement_elements(1)%cell%geometry, thread_traversal%p_dest_element%cell%geometry, p_dest_element_2%cell%geometry)
 #			endif
@@ -593,7 +689,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
 				thread_traversal%p_dest_element%nodes(3)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
@@ -604,7 +700,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_2%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
 #			endif
 
@@ -613,7 +709,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_3%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
 
@@ -634,7 +730,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 			call init_dest_element(dest_section, p_dest_element_2)
 			call init_dest_element(dest_section, p_dest_element_3)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				call create_child_cells(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_dest_element%cell%geometry, thread_traversal%refinement_elements(1)%cell%geometry)
 				call create_child_cells(thread_traversal%refinement_elements(1)%cell%geometry, p_dest_element_2%cell%geometry, p_dest_element_3%cell%geometry)
 #			endif
@@ -643,7 +739,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 				thread_traversal%p_dest_element%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
@@ -654,7 +750,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_2%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 #			endif
 
@@ -663,7 +759,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_3%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
 
@@ -686,7 +782,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 			call init_dest_element(dest_section, p_dest_element_3)
 			call init_dest_element(dest_section, p_dest_element_4)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				call create_child_cells(thread_traversal%p_src_element%cell%geometry, thread_traversal%refinement_elements(1)%cell%geometry, thread_traversal%refinement_elements(2)%cell%geometry)
 				call create_child_cells(thread_traversal%refinement_elements(1)%cell%geometry, thread_traversal%p_dest_element%cell%geometry, p_dest_element_2%cell%geometry)
 				call create_child_cells(thread_traversal%refinement_elements(2)%cell%geometry, p_dest_element_3%cell%geometry, p_dest_element_4%cell%geometry)
@@ -696,7 +792,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
 				thread_traversal%p_dest_element%nodes(3)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
@@ -707,7 +803,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_2%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
 #			endif
 
@@ -716,7 +812,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_3%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 #			endif
 
@@ -725,7 +821,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
 
-#			if .not. defined(_GT_INPUT_DEST)
+#			if !defined(_GT_INPUT_DEST)
 				p_dest_element_4%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
 
@@ -798,7 +894,7 @@ subroutine copy_cell(src_cell, dest_cell)
 
 	dest_cell = src_cell
 
-	call dest_cell%set_edge_types(OLD, iand(1, src_cell%get_color_edge_type()), NEW)
+	call dest_cell%set_edge_types(int(OLD, 1), iand(1_1, src_cell%get_color_edge_type()), int(NEW, 1))
 
 #	if (_DEBUG_LEVEL > 5)
 		_log_write(4, '(A, A)') "  src        (in): ", src_cell%to_string()
@@ -810,9 +906,9 @@ subroutine create_parent_cell(first_child_cell, second_child_cell, parent_cell)
 	type(fine_triangle), intent(in)						:: first_child_cell, second_child_cell
 	type(fine_triangle), intent(inout)					:: parent_cell
 
-	integer(kind = 1), dimension(-8:8), parameter 	    :: i_plotter_parent_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
-	integer(kind = 1)			 						:: i_color_edge_type
-	integer(kind = 1)								 	:: i
+	integer(kind = BYTE), dimension(-8:8), parameter 	    :: i_plotter_parent_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
+	integer(kind = BYTE)			 						:: i_color_edge_type
+	integer(kind = BYTE)								 	:: i
 
 	!the parent turtle grammar type can be computed by a simple xor (it's not a symmetrical operator though, so check if the order is correct)
 	parent_cell%i_turtle_type = ieor(first_child_cell%i_turtle_type, second_child_cell%i_turtle_type)
@@ -824,14 +920,14 @@ subroutine create_parent_cell(first_child_cell, second_child_cell, parent_cell)
 
 	select case (parent_cell%i_turtle_type)
 		case (K)
-			parent_cell%l_color_edge_color = second_child_cell%l_color_edge_color
-			i_color_edge_type = iand(1, second_child_cell%get_color_edge_type())
+			parent_cell%i_color_edge_color = second_child_cell%i_color_edge_color
+			i_color_edge_type = iand(1_BYTE, second_child_cell%get_color_edge_type())
 		case (V, H)
-			parent_cell%l_color_edge_color = first_child_cell%l_color_edge_color
-			i_color_edge_type = iand(1, first_child_cell%get_color_edge_type())
+			parent_cell%i_color_edge_color = first_child_cell%i_color_edge_color
+			i_color_edge_type = iand(1_BYTE, first_child_cell%get_color_edge_type())
 	end select
 
-	call parent_cell%set_edge_types(OLD, i_color_edge_type, NEW)
+	call parent_cell%set_edge_types(int(OLD, 1), i_color_edge_type, int(NEW, 1))
 
 #	if (_DEBUG_LEVEL > 5)
 		_log_write(5, '(A, A)') "  1st child  (in): ", first_child_cell%to_string()
@@ -844,10 +940,10 @@ subroutine create_child_cells(parent_cell, first_child_cell, second_child_cell)
 	type(fine_triangle), intent(in)						:: parent_cell
 	type(fine_triangle), intent(inout)					:: first_child_cell, second_child_cell
 
-	integer(kind = 1), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
-	integer(kind = 1), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
-	integer(kind = 1)			 						:: i_color_edge_type
-	integer(kind = 1)								 	:: i
+	integer(kind = BYTE), dimension(3, 2), parameter		:: i_turtle_child_type = reshape([ H, H, V, V, K, K ], [ 3, 2 ])
+	integer(kind = BYTE), dimension(-8:8), parameter 	    :: i_plotter_child_type = [ 3, 2, 1, 8, 7, 6, 5, 4,     0,  -6, -7, -8, -1, -2, -3, -4, -5 ]
+	integer(kind = BYTE)			 						:: i_color_edge_type
+	integer(kind = BYTE)								 	:: i
 
 	first_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 1)
 	second_child_cell%i_turtle_type = i_turtle_child_type(parent_cell%i_turtle_type, 2)
@@ -865,20 +961,20 @@ subroutine create_child_cells(parent_cell, first_child_cell, second_child_cell)
 
 	select case (parent_cell%i_turtle_type)
 		case (K)
-			call first_child_cell%set_edge_types(OLD, NEW, NEW)
-			call second_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
-			first_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
-			second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+			call first_child_cell%set_edge_types(int(OLD, 1), int(NEW, 1), int(NEW, 1))
+			call second_child_cell%set_edge_types(int(OLD, 1), i_color_edge_type, int(NEW, 1))
+			first_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
+			second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
 	 	case (V)
-			call first_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
-			call second_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
-			first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
-			second_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
+			call first_child_cell%set_edge_types(int(OLD, 1), i_color_edge_type, int(NEW, 1))
+			call second_child_cell%set_edge_types(int(OLD, 1), i_color_edge_type, int(NEW, 1))
+			first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
+			second_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
 	 	case (H)
-			call first_child_cell%set_edge_types(OLD, i_color_edge_type, NEW)
-			call second_child_cell%set_edge_types(OLD, OLD, NEW)
-			first_child_cell%l_color_edge_color = parent_cell%l_color_edge_color
-			second_child_cell%l_color_edge_color = .not. parent_cell%l_color_edge_color
+			call first_child_cell%set_edge_types(int(OLD, 1), i_color_edge_type, int(NEW, 1))
+			call second_child_cell%set_edge_types(int(OLD, 1), int(OLD, 1), int(NEW, 1))
+			first_child_cell%i_color_edge_color = parent_cell%i_color_edge_color
+			second_child_cell%i_color_edge_color = RED + GREEN - parent_cell%i_color_edge_color
 	end select
 
 #	if (_DEBUG_LEVEL > 5)
@@ -961,18 +1057,18 @@ subroutine read_dest_element(traversal, thread, section, element)
     integer (kind = GRID_SI)                        :: i_empty
 
     if (element%i_cell == 1) then
-        call element%cell%geometry%set_previous_edge_type(OLD_BND)
+        call element%cell%geometry%set_previous_edge_type(int(OLD_BND, 1))
     end if
 
     select case (element%cell%geometry%get_color_edge_type())
         case (OLD)
-            if(thread%indices_stack(element%cell%geometry%l_color_edge_color)%is_empty()) then
-                call element%cell%geometry%set_color_edge_type(OLD_BND)
+            if(thread%indices_stack(element%cell%geometry%i_color_edge_color)%is_empty()) then
+                call element%cell%geometry%set_color_edge_type(int(OLD_BND, 1))
             else
-                call thread%indices_stack(element%cell%geometry%l_color_edge_color)%pop(i_empty)
+                call thread%indices_stack(element%cell%geometry%i_color_edge_color)%pop_data(i_empty)
             end if
         case (NEW)
-            call thread%indices_stack(element%cell%geometry%l_color_edge_color)%push(element%i_cell)
+            call thread%indices_stack(element%cell%geometry%i_color_edge_color)%push_data(element%i_cell)
     end select
 
 	call read_dest(traversal, thread, section, element)
@@ -1022,17 +1118,21 @@ end subroutine
 #undef _GT_EDGE_FIRST_TOUCH_OP
 #undef _GT_EDGE_LAST_TOUCH_OP
 #undef _GT_EDGE_REDUCE_OP
+#undef _GT_EDGE_MPI_TYPE
+#undef _GT_EDGE_MERGE_OP
+#undef _GT_EDGE_WRITE_OP
 #undef _GT_NODE_FIRST_TOUCH_OP
 #undef _GT_NODE_LAST_TOUCH_OP
 #undef _GT_NODE_REDUCE_OP
+#undef _GT_NODE_MPI_TYPE
+#undef _GT_NODE_MERGE_OP
+#undef _GT_NODE_WRITE_OP
 #undef _GT_INNER_EDGE_FIRST_TOUCH_OP
 #undef _GT_INNER_EDGE_LAST_TOUCH_OP
 #undef _GT_INNER_EDGE_REDUCE_OP
 #undef _GT_INNER_NODE_FIRST_TOUCH_OP
 #undef _GT_INNER_NODE_LAST_TOUCH_OP
 #undef _GT_INNER_NODE_REDUCE_OP
-#undef _GT_EDGE_MERGE_OP
-#undef _GT_NODE_MERGE_OP
 #undef _GT_PRE_TRAVERSAL_GRID_OP
 #undef _GT_POST_TRAVERSAL_GRID_OP
 #undef _GT_PRE_TRAVERSAL_OP

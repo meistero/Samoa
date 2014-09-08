@@ -2,18 +2,17 @@
 ! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 ! This program is licensed under the GPL, for details see the file LICENSE
 
+#include "Compilation_control.f90"
+
 #define _JACOBI								    _solver
 #define _JACOBI_USE								_solver_use
 
-#define _CONC2(X, Y)							X ## _ ## Y
-#define _PREFIX(P, X)							_CONC2(P, X)
-#define _T_JACOBI								_PREFIX(t, _JACOBI)
-#define _JACOBI_(X)								_PREFIX(_JACOBI, X)
-#define _T_JACOBI_(X)							_PREFIX(t, _JACOBI_(X))
+#define _PREFIX3(P, X)							_conc3(P,_,X)
+#define _T_JACOBI								_PREFIX3(t,_JACOBI)
+#define _JACOBI_(X)								_PREFIX3(_JACOBI,X)
+#define _T_JACOBI_(X)							_PREFIX3(t,_JACOBI_(X))
 
 #define _gv_size								(3 * _gv_node_size + 3 * _gv_edge_size + _gv_cell_size)
-
-#include "Compilation_control.f90"
 
 MODULE _JACOBI_(1)
     use SFC_edge_traversal
@@ -269,24 +268,31 @@ MODULE _JACOBI
 
         contains
 
+        procedure, pass :: create
+        procedure, pass :: destroy
         procedure, pass :: solve
+        procedure, pass :: reduce_stats
     end type
-
-    interface _T_JACOBI
-        module procedure init_solver
-    end interface
 
     private
     public _T_JACOBI
 
     contains
 
-    function init_solver(max_error) result(solver)
-        real (kind = GRID_SR)   :: max_error
-        type(_T_JACOBI) :: solver
+    subroutine create(solver, max_error)
+        class(_T_JACOBI), intent(inout) :: solver
+        real (kind = GRID_SR)           :: max_error
 
         solver%max_error = max_error
-    end function
+
+        call solver%jacobi%create()
+    end subroutine
+
+    subroutine destroy(solver)
+        class(_T_JACOBI), intent(inout) :: solver
+
+        call solver%jacobi%destroy()
+    end subroutine
 
     !> Solves a poisson equation using a Jacobi solver
     !> \returns		number of iterations performed
@@ -307,13 +313,23 @@ MODULE _JACOBI
         r_sq_old = 1.0_GRID_SR
 
         do i_iteration = 1, huge(1_GRID_SI)
-            !$omp master
-            _log_write(2, '(A, I0, A, F7.4, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
-            !$omp end master
-
             !do a jacobi step
             call solver%jacobi%traverse(grid)
             r_sq = solver%jacobi%r_sq
+
+            if (iand(i_iteration, z'3ff') == z'3ff') then
+                !$omp master
+                _log_write(1, '(A, I0, A, F0.10, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
+                !$omp end master
+            else
+                !$omp master
+                _log_write(2, '(A, I0, A, F0.10, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
+                !$omp end master
+            end if
+
+            if (sqrt(r_sq) < solver%max_error) then
+                exit
+            end if
 
             !adjust step size
             if (r_sq > r_sq_old) then
@@ -322,19 +338,24 @@ MODULE _JACOBI
                 solver%jacobi%alpha = solver%jacobi%alpha + 0.0001_GRID_SR
             end if
 
-            if (sqrt(r_sq) < solver%max_error) then
-                exit
-            end if
-
             r_sq_old = r_sq
         end do
 
         !$omp master
-        _log_write(3, '(A, T30, I0)') "  Jacobi iterations:", i_iteration
-        solver%stats = solver%jacobi%stats
+        _log_write(2, '(A, T30, I0)') "  Jacobi iterations:", i_iteration
         !$omp end master
     end function
+
+    subroutine reduce_stats(solver, mpi_op, global)
+        class(_T_JACOBI), intent(inout)   :: solver
+        integer, intent(in)             :: mpi_op
+        logical                         :: global
+
+        call solver%jacobi%reduce_stats(mpi_op, global)
+        solver%stats = solver%jacobi%stats
+    end subroutine
 END MODULE
 
 #undef _solver
 #undef _solver_use
+#undef _PREFIX

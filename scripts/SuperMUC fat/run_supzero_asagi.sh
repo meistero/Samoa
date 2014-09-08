@@ -2,12 +2,11 @@
 # Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 # This program is licensed under the GPL, for details see the file LICENSE
 
-
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/$(date +"%Y-%m-%d_%H-%M-%S")_Fat_ASAGI
-script_dir=$(dirname $0)
+output_dir=output/Fat_ASAGI_$(date +"%Y-%m-%d_%H-%M-%S")
+script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
 mkdir -p scripts
@@ -16,8 +15,11 @@ echo "CPU(s) detected : "$cpus
 echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
-make darcy ASAGI=NUMA
-make swe ASAGI=NUMA
+
+scons config=supermuc.py scenario=darcy -j4 &
+scons config=supermuc.py scenario=swe -j4 &
+
+wait %1 %2
 
 echo "Running scenarios..."
 
@@ -35,8 +37,8 @@ do
 			threads=$concurrency
 			nodes=$(( ($processes * $threads - 1) / 40 + 1 ))
 
-			script="scripts/run_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-			cat run_supzero_template.sh > $script
+			script="scripts/cache/run_fat"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
+			cat "$script_dir/run_supzero_template.sh" > $script
 
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script

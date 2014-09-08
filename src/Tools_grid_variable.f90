@@ -44,6 +44,10 @@
 #	define _GV_SUBSET							data_temp
 #endif
 
+#if !defined(_GV_ADD_OP)
+#   define _GV_ADD_OP       +
+#endif
+
 #define _GV_ACCESS_E(name, entity, subset)		entity%subset%name
 #define _GV_ACCESS(entity)						_GV_ACCESS_E(_GV_NAME, entity, _GV_SUBSET)
 
@@ -99,21 +103,33 @@ pure subroutine add_node(xn, xl)
     _GV_TYPE, intent(inout)	:: xn(*)
     _GV_TYPE, intent(in)	:: xl(*)
 
-    xn(1:_GV_NODE_SIZE) = xn(1:_GV_NODE_SIZE) + xl(1:_GV_NODE_SIZE)
+    integer :: i
+
+    forall (i = 1:_GV_NODE_SIZE)
+        xn(i) = xn(i) _GV_ADD_OP xl(i)
+    end forall
 end subroutine
 
 pure subroutine add_edge(xe, xl)
     _GV_TYPE, intent(inout)	:: xe(*)
     _GV_TYPE, intent(in)	:: xl(*)
 
-    xe(1:_GV_EDGE_SIZE) = xe(1:_GV_EDGE_SIZE) + xl(1:_GV_EDGE_SIZE)
+    integer :: i
+
+    forall (i = 1:_GV_EDGE_SIZE)
+        xe(i) = xe(i) _GV_ADD_OP xl(i)
+    end forall
 end subroutine
 
 pure subroutine add_cell(xc, xl)
     _GV_TYPE, intent(inout)	:: xc(*)
     _GV_TYPE, intent(in)	:: xl(*)
 
-    xc(1:_GV_CELL_SIZE) = xc(1:_GV_CELL_SIZE) + xl(1:_GV_CELL_SIZE)
+    integer :: i
+
+    forall (i = 1:_GV_CELL_SIZE)
+        xc(i) = xc(i) _GV_ADD_OP xl(i)
+    end forall
 end subroutine
 
 !********************************
@@ -300,4 +316,4 @@ end subroutine
 #undef _GV_TYPE
 #undef _GV_NAME
 #undef _GV_PERSISTENT
-
+#undef _GV_ADD_OP

@@ -15,8 +15,10 @@
 #@ class = $class
 #@ network.MPI = sn_all,not_shared,us
 #@ initialdir = $(home)/Desktop/Samoa
-#@ output = $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.$(jobid).out
-#@ error =  $output_dir/run_p$processes_t$threads_s$sections_a$asagimode.$(jobid).err
+#@ output = $output_dir/run$postfix_p$processes_t$threads_s$sections_a$asagimode.$(jobid).out
+#@ error =  $output_dir/run$postfix_p$processes_t$threads_s$sections_a$asagimode.$(jobid).err
+#@ energy_policy_tag = samoa_energy_tag
+#@ minimize_time_to_solution = yes
 #@ queue
 
 . /etc/profile 2>/dev/null
@@ -31,10 +33,10 @@ echo "  Sections: "$sections
 echo "  ASAGI mode: "$asagimode
 
 echo "  Running Darcy..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -dmin 23 -dmax 33 -tsteps 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -dmin 26 -dmax 40 -tsteps 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
 echo "  Running SWE..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -dmin 8 -dmax 26 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 

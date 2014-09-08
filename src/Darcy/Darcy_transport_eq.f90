@@ -21,7 +21,7 @@
 
 #		define _GT_NAME							t_darcy_transport_eq_traversal
 
-#		if (_DARCY_U_EDGE_SIZE > 0 .or. _DARCY_FLOW_EDGE_SIZE > 0)
+#		if (_DARCY_U_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
 #			define _GT_EDGES
 #		endif
 
@@ -38,7 +38,36 @@
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 
+#		define _GT_EDGE_MPI_TYPE
+
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+        subroutine create_edge_mpi_type(mpi_edge_type)
+            integer, intent(out)            :: mpi_edge_type
+
+            type(t_edge_data)               :: edge
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(edge)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(edge), extent)
+
+                call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
 
 		!*******************************
 		!Geometry operators
@@ -48,7 +77,9 @@
 			type(t_darcy_transport_eq_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            grid%r_dt = cfg%r_rho * get_edge_size(cfg%i_max_depth) / (cfg%r_rel_permeability * 2.0_GRID_SR * sqrt(grid%u_max))
+            !Dual cells have a size of of edge_length, the maximum Eigenvalue of the system is 2 / \Rho S_max K_rel u_max = 2 / \Rho K_rel u_max
+            !This gives an upper bound of \Delta t \leq (\Rho edge_length) / (2 K_rel u_max)
+            grid%r_dt = cfg%courant_number * cfg%scaling * cfg%r_rho * get_edge_size(cfg%i_max_depth) / (2.0_GRID_SR * cfg%r_rel_permeability * grid%u_max)
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
 		end subroutine
 
@@ -148,9 +179,9 @@
 			volume(1) = 0.50_GRID_SR * volume(2)
 			volume(3) = 0.50_GRID_SR * volume(2)
 
-			forall (i = 1 : 3)
+			do i = 1, 3
 				r_lambda_w(i) = cfg%r_rel_permeability * (saturation(i) * saturation(i))
-			end forall
+			end do
 
 			r_u = u(:, 1)
 			r_dual_edge_length = 0.5_GRID_SR * element%cell%geometry%get_leg_size()

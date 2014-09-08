@@ -7,17 +7,25 @@
 
 #if defined(_DARCY)
 	MODULE Darcy_data_types
+		implicit none
+
 		PUBLIC
 
 		!data precision
+#       if defined(_SINGLE_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0e0)
+#       elif defined(_DOUBLE_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0d0)
+#       elif defined(_QUAD_PRECISION)
+            integer, PARAMETER :: GRID_SR = kind(1.0q0)
+#       else
+#           error "No floating point precision is chosen!"
+#       endif
 
-		integer, PARAMETER :: GRID_SR = selected_real_kind(14,40)
-		integer, PARAMETER :: GRID_DR = selected_real_kind(28,80)
-
+		integer, PARAMETER :: BYTE = selected_int_kind(1)
+		integer, PARAMETER :: SHORT = selected_int_kind(4)
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
-
-		integer, PARAMETER :: GRID_SL = 1
 
 		!*********************************************
 		!Persistent Entity data (geometric association)
@@ -28,28 +36,43 @@
 			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_NODE_SIZE), d(_DARCY_P_NODE_SIZE), r(_DARCY_P_NODE_SIZE)
 
-			real (kind = GRID_SR)   :: u(2, _DARCY_U_NODE_SIZE)
 			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_NODE_SIZE)    !< water saturation
+
+#           if (_DARCY_U_NODE_SIZE > 0)
+			real (kind = GRID_SR)   :: u(2, _DARCY_U_NODE_SIZE)
+#           endif
 		END type
 
 		!> persistent, scenario specific data on an edge
 		type num_edge_data_pers
+#           if (_DARCY_P_EDGE_SIZE > 0)
 			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_EDGE_SIZE), d(_DARCY_P_EDGE_SIZE), r(_DARCY_P_EDGE_SIZE)
+#           endif
 
-			real (kind = GRID_SR)   :: u(2, _DARCY_U_EDGE_SIZE)		        !< velocity
+#           if (_DARCY_FLOW_EDGE_SIZE > 0)
 			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_EDGE_SIZE)    !< water saturation
+#           endif
 
-			real (kind = GRID_SR)   :: r_dummy(2)
+#           if (_DARCY_U_EDGE_SIZE > 0)
+			real (kind = GRID_SR)   :: u(2, _DARCY_U_EDGE_SIZE)		        !< velocity
+#           endif
 		END type
 
 		!> persistent, scenario specific data on a cell
 		type num_cell_data_pers
+#           if (_DARCY_P_CELL_SIZE > 0)
 			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE)
 			real (kind = GRID_SR)   :: A_d(_DARCY_P_CELL_SIZE), d(_DARCY_P_CELL_SIZE), r(_DARCY_P_CELL_SIZE)
+#           endif
 
-			real (kind = GRID_SR)   :: u(2, _DARCY_U_CELL_SIZE)			    !< velocity
+#           if (_DARCY_FLOW_CELL_SIZE > 0)
 			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_CELL_SIZE)    !< water saturation
+#           endif
+
+#           if (_DARCY_U_CELL_SIZE > 0)
+			real (kind = GRID_SR)   :: u(2, _DARCY_U_CELL_SIZE)			    !< velocity
+#           endif
 
 			real (kind = GRID_SR)   :: base_permeability
 			real (kind = GRID_SR)   :: permeability
@@ -71,24 +94,28 @@
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)
 		type num_edge_data_temp
+#           if (_DARCY_P_EDGE_SIZE > 0)
 			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: r
 			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: mat_diagonal
+#           endif
 
+#           if (_DARCY_FLOW_EDGE_SIZE > 0)
 			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_EDGE_SIZE)		:: flux
 			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_EDGE_SIZE)		:: volume
-
-			real (kind = GRID_SR)										:: r_dummy
+#           endif
 		END type num_edge_data_temp
 
 		!> temporary, scenario specific data on a cell (deleted after each traversal)
 		type num_cell_data_temp
+#           if (_DARCY_P_CELL_SIZE > 0)
 			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: r
 			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: mat_diagonal
+#           endif
 
+#           if (_DARCY_FLOW_CELL_SIZE > 0)
 			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_CELL_SIZE)		:: flux
 			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_CELL_SIZE)		:: volume
-
-			real (kind = GRID_SR)										:: r_dummy
+#           endif
 		END type num_cell_data_temp
 
 		!*************************

@@ -20,7 +20,7 @@
 
 #		define _GT_NAME							t_darcy_grad_p_traversal
 
-#		if (_DARCY_P_EDGE_SIZE > 0 .or. _DARCY_FLOW_EDGE_SIZE > 0)
+#		if (_DARCY_P_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
 #			define _GT_EDGES
 #		endif
 
@@ -30,13 +30,71 @@
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
 #		define _GT_ELEMENT_OP					element_op
 
+#		define _GT_NODE_MPI_TYPE
+#		define _GT_EDGE_MPI_TYPE
+
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+        subroutine create_node_mpi_type(mpi_node_type)
+            integer, intent(out)            :: mpi_node_type
+
+            type(t_node_data)               :: node
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(node)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(node), extent)
+
+                call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
+
+        subroutine create_edge_mpi_type(mpi_edge_type)
+            integer, intent(out)            :: mpi_edge_type
+
+            type(t_edge_data)               :: edge
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(edge)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(edge), extent)
+
+                call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
 			type(t_darcy_grad_p_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							:: grid
 
 			call reduce(grid%u_max, traversal%children%u_max, MPI_MAX, .true.)
+			grid%u_max = sqrt(grid%u_max)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)

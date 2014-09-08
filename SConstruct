@@ -23,13 +23,20 @@ vars.AddVariables(
 )
 
 env = Environment(variables=vars)
+
+#Set config variables from config file if it exists
+
 if 'config' in env:
   vars = Variables(env['config'])
+else:
+  vars = Variables()
+
+#Add config variables
 
 vars.AddVariables(
-  PathVariable( 'build_dir', 'build directory', 'bin/', PathVariable.PathIsDirCreate),
-
   PathVariable( 'config', 'build configuration file', None, PathVariable.PathIsFile),
+
+  PathVariable( 'build_dir', 'build directory', 'bin/', PathVariable.PathIsDirCreate),
 
   EnumVariable( 'scenario', 'target scenario', 'darcy',
                 allowed_values=('darcy', 'swe', 'generic', 'flash') #, 'heat_eq', 'tests')
@@ -39,7 +46,7 @@ vars.AddVariables(
                 allowed_values=('lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
               ),
 
-  EnumVariable( 'compiler', 'used compiler', 'intel',
+  EnumVariable( 'compiler', 'choice of compiler', 'intel',
                 allowed_values=('intel', 'gnu')
               ),
 
@@ -50,7 +57,7 @@ vars.AddVariables(
   BoolVariable( 'assertions', 'enable run-time assertions', False),
 
   EnumVariable( 'openmp', 'OpenMP mode', 'tasks',
-                allowed_values=('noomp', 'notasks', 'tasks')
+                allowed_values=('noomp', 'notasks', 'tasks', 'adaptive_tasks')
               ),
 
   EnumVariable( 'mpi', 'MPI support', 'default',
@@ -62,6 +69,7 @@ vars.AddVariables(
   EnumVariable( 'asagi', 'ASAGI support', 'standard',
                 allowed_values=('noasagi', 'standard', 'numa')
               ),
+
   BoolVariable( 'asagi_timing', 'switch on timing of all ASAGI calls', False),
 
   PathVariable( 'asagi_dir', 'ASAGI directory', '../../ASAGI'),
@@ -78,12 +86,19 @@ vars.AddVariables(
                 allowed_values=('0', '1', '2', '3', '4', '5', '6', '7')
               ),
 
+  EnumVariable( 'machine', 'target machine', 'host',
+                allowed_values=('SSE4.2', 'AVX', 'host')
+              ),
+
   BoolVariable( 'library', 'build samoa as a library', False),
 )
 
 # set environment
-env = Environment(ENV = {'PATH': os.environ['PATH']},
-        variables=vars)
+if 'INTEL_LICENSE_FILE' in os.environ:
+    env = Environment(ENV = {'PATH': os.environ['PATH'], 'INTEL_LICENSE_FILE': os.environ['INTEL_LICENSE_FILE']}, variables=vars)
+else:
+    env = Environment(ENV = {'PATH': os.environ['PATH']}, variables=vars)
+
 
 # handle unknown, maybe misspelled variables
 unknownVariables = vars.UnknownVariables()
@@ -99,18 +114,19 @@ if unknownVariables:
 # precompiler, compiler and linker flags
 #
 
-env['F90PATH'] = '.'
+env['F90PATH'] = ['.', os.path.abspath('src/Samoa/')]
 env['LINKFLAGS'] = ''
 
-# If MPI is active, set compilation flags
+# Choose compiler
 if env['compiler'] == 'intel':
   fc = 'ifort'
-  env['F90FLAGS'] = '-implicitnone -nologo -fpp -Isrc/Samoa/ -allow nofpp-comments'
+  env['F90FLAGS'] = '-implicitnone -nologo -fpp -allow nofpp-comments'
 elif  env['compiler'] == 'gnu':
   fc = 'gfortran'
-  env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none -Isrc/Samoa/'
+  env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none'
   env.SetDefault(openmp = 'notasks')
 
+# If MPI is active, use the mpif90 wrapper for compilation
 if env['mpi'] == 'default':
   env['F90'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
   env['LINK'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
@@ -131,6 +147,7 @@ elif env['mpi'] == 'nompi':
   env['F90'] = fc
   env['LINK'] = fc
 
+# set scenario with preprocessor macros
 if env['scenario'] == 'darcy':
   env['F90FLAGS'] += ' -D_DARCY'
   env.SetDefault(asagi = 'standard')
@@ -156,17 +173,13 @@ elif env['scenario'] == 'tests':
   env.SetDefault(asagi = 'noasagi')
   env.SetDefault(library = False)
 
-if env['openmp'] == 'tasks':
-  if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -openmp -D_OPENMP_TASKS'
-    env['LINKFLAGS'] += ' -openmp'
-  elif env['compiler'] == 'gnu':
-    print "******************************************************"
-    print "Warning: gnu compiler currently does not support tasks"
-    print "******************************************************"
-    env['F90FLAGS'] += ' -fopenmp -D_OPENMP_TASKS'
-    env['LINKFLAGS'] += ' -fopenmp'
-elif env['openmp'] == 'notasks':
+#set compilation flags for OpenMP
+if env['openmp'] != 'noomp':
+  if env['openmp'] == 'tasks':
+    env['F90FLAGS'] += ' -D_OPENMP_TASKS'
+  elif env['openmp'] == 'adaptive_tasks':
+    env['F90FLAGS'] += ' -D_OPENMP_TASKS -D_OPENMP_TASKS_ADAPTIVITY'
+
   if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -openmp'
     env['LINKFLAGS'] += ' -openmp'
@@ -174,9 +187,16 @@ elif env['openmp'] == 'notasks':
     env['F90FLAGS'] += ' -fopenmp'
     env['LINKFLAGS'] += ' -fopenmp'
 
+    if env['openmp'] != 'notasks':
+      print "******************************************************"
+      print "Warning: gnu compiler currently does not support tasks"
+      print "******************************************************"
+
+#set compilation flags and preprocessor macros for the ASAGI library
 if env['asagi'] != 'noasagi':
-  env['F90FLAGS'] += ' -D_ASAGI -I' + env['asagi_dir'] + '/include'
-  env['LINKFLAGS'] += ' -Wl,--rpath,' + env['asagi_dir']
+  env.Append(F90PATH = os.path.abspath(env['asagi_dir'] + '/include'))
+  env['F90FLAGS'] += ' -D_ASAGI'
+  env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir'])
   env.Append(LIBPATH = env['asagi_dir'])
 
   if env['asagi'] == 'numa':
@@ -187,6 +207,7 @@ if env['asagi'] != 'noasagi':
   else:
     env.Append(LIBS = ['asagi'])
 
+#Enable or disable timing of ASAGI calls
 if env['asagi_timing']:
   env['F90FLAGS'] += ' -D_ASAGI_TIMING'
 
@@ -194,6 +215,7 @@ if env['asagi_timing']:
     print "Error: asagi_timing must not be set if asagi is not active"
     Exit(-1)
 
+#Choose a flux solver for the SWE scenario
 if env['swe_solver'] == 'lf':
   env['F90FLAGS'] += ' -D_SWE_LF'
 elif env['swe_solver'] == 'lfbath':
@@ -207,6 +229,7 @@ elif env['swe_solver'] == 'fwave':
 elif env['swe_solver'] == 'aug_riemann':
   env['F90FLAGS'] += ' -D_SWE_AUG_RIEMANN'
 
+#Choose a floating point precision
 if env['precision'] == 'single':
   env['F90FLAGS'] += ' -D_SINGLE_PRECISION'
 elif env['precision'] == 'double':
@@ -214,6 +237,7 @@ elif env['precision'] == 'double':
 elif env['precision'] == 'quad':
   env['F90FLAGS'] += ' -D_QUAD_PRECISION'
 
+#Choose a compilation target
 if env['target'] == 'debug':
   env.SetDefault(debug_level = '3')
   env.SetDefault(assertions = True)
@@ -242,22 +266,39 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -fast -fno-alias -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += '  -Ofast -fwhole-program -march=native -malign-double -funroll-loops -fno-protect-parens -flto'
-    env['LINKFLAGS'] += ' -Ofast -fwhole-program -flto'
+    env['F90FLAGS'] += '  -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['LINKFLAGS'] += ' -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
 
+#In case the Intel compiler is active, add a vectorization report (can gnu do this too?)
 if env['compiler'] == 'intel':
   env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
 
+#Set target machine (currently Intel only. Feel free to add GNU options if needed)
+if env['compiler'] == 'intel':
+  if env['machine'] == 'host':
+    env['F90FLAGS'] += ' -xHost'
+  elif env['machine'] == 'SSE4.2':
+    env['F90FLAGS'] += ' -xSSE4.2'
+  elif env['machine'] == 'AVX':
+    env['F90FLAGS'] += ' -xAVX'
+
+#Enable or disable assertions
 if env['assertions']:
   env['F90FLAGS'] += ' -D_ASSERT'
 
+#Enable or disable checks for Fortran 2008 standard compliance
 if env['standard']:
-  env['F90FLAGS'] += ' -std'
+  if env['compiler'] == 'intel':
+    env['F90FLAGS'] += ' -stand f08'
+  elif  env['compiler'] == 'gnu':
+    env['F90FLAGS'] += ' -std=f2008 -Wtabs'
 
+#Create a shared library instead of an executable
 if env['library']:
   env['F90FLAGS'] += ' -fpic'
   env['LINKFLAGS'] += ' -fpic -shared'
 
+#Set debug output level
 env['F90FLAGS'] += ' -D_DEBUG_LEVEL=' + env['debug_level']
 
 # generate help text
@@ -299,6 +340,7 @@ if env['library']:
 build_dir = env['build_dir']
 object_dir = build_dir + 'build_'+ program_name + '/'
 
+#set module directory (same as build directory)
 if env['compiler'] == 'intel':
   env.Append(F90FLAGS = ' -module ' + object_dir)
 elif env['compiler'] == 'gnu':
@@ -309,7 +351,7 @@ env['FORTRAN'] = env['F90']
 env['FORTRANFLAGS'] = env['F90FLAGS']
 env['FORTRANPATH'] = env['F90PATH']
 
-# get the object files
+# get a list of object files from SConscript
 env.obj_files = []
 
 Export('env')
@@ -318,4 +360,3 @@ Import('env')
 
 # build the program
 env.Program(build_dir + program_name, env.obj_files)
-

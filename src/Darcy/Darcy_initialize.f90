@@ -80,7 +80,7 @@
 			integer										:: i
 
 			do i = 1, _DARCY_P_NODE_SIZE
-				call pressure_pre_dof_op(cfg%r_p0, node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
+				call pressure_pre_dof_op(real(cfg%r_p0, GRID_SR), node%position, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i))
 			end do
 		end subroutine
 
@@ -115,17 +115,17 @@
 #			if defined(_ASAGI)
 
 #               if defined(_ASAGI_TIMING)
-                    section%stats%r_asagi_time = section%stats%r_asagi_time - omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #               endif
 
 #               if defined(_ASAGI_NUMA)
-                	r_base_permeability = asagi_get_float(cfg%afh_permeability, xs(1), xs(2), 0)
+                	r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), 0)
 #				else
-                	r_base_permeability = asagi_get_float(cfg%afh_permeability, xs(1), xs(2), lod)
+                	r_base_permeability = asagi_get_float(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), lod)
 #				endif
 
 #               if defined(_ASAGI_TIMING)
-                    section%stats%r_asagi_time = section%stats%r_asagi_time + omp_get_wtime()
+                    section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
 #               endif
 #			else
 				r_base_permeability = -7.0e-8_GRID_SR * (t_noise_2D((/ 10.0_GRID_SR * xs(1) - 2.0_GRID_SR, 10.0_GRID_SR * xs(2) /), lod, 0.2_GRID_SR) + 0.7_GRID_SR - 4.0_GRID_SR * xs(2) * (1.0_GRID_SR - xs(2))) + 0.5e-8_GRID_SR
@@ -163,7 +163,7 @@
 
 #		define	_GT_NAME						t_darcy_init_saturation_traversal
 
-#		if (_DARCY_P_EDGE_SIZE > 0 .or. _DARCY_FLOW_EDGE_SIZE > 0)
+#		if (_DARCY_P_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
 #			define _GT_EDGES
 #		endif
 
@@ -211,7 +211,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			integer (kind = 1)					:: i
+			integer :: i
 
 			do i = 1, _DARCY_FLOW_NODE_SIZE
 				call flow_pre_dof_op(node%position, node%data_pers%saturation(i))
@@ -265,7 +265,7 @@
 
 			real (kind = GRID_SR)												:: r_lambda_n, r_lambda_w
 			integer (kind = GRID_SI)											:: i_depth
-			logical (kind = GRID_SL)											:: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
+			logical 											:: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
 
 			!compute permeability
 

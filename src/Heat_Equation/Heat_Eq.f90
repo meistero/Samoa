@@ -32,7 +32,7 @@
 		!> Creates all required runtime objects for the scenario
 		subroutine heat_eq_create(grid, l_log, i_asagi_mode)
 			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL)									:: l_log
+			logical 									:: l_log
 			integer														:: i_asagi_mode
 
 			!local variables
@@ -40,7 +40,7 @@
 			real(kind = GRID_SR)										:: r_m
 			type(t_transform_data)										:: dummy_transform_data
 			CHARACTER(64)												:: s_format_string, s_log_name, s_date, s_time
-            integer(kind = 1)                                           :: i, j
+            integer(kind = BYTE)                                           :: i, j
 
 			!open log file
 			call date_and_time(s_date, s_time)
@@ -112,7 +112,7 @@
 		!> Destroys all required runtime objects for the scenario
 		subroutine heat_eq_destroy(grid, l_log)
 			type(t_grid), intent(inout)									:: grid
-			logical (kind = GRID_SL)		:: l_log
+			logical 		:: l_log
 
 			if (l_log) then
 				_log_close_file()
@@ -178,7 +178,7 @@
 			_log_write(0, *) "Heat_Eq: setting initial values and a priori refinement.."
 			_log_write(0, *) ""
 
-			r_t1 = omp_get_wtime()
+			r_t1 = get_wtime()
 
 			grid%r_time = 0.0_GRID_SR
 			r_time_next_output = 0.0_GRID_SR
@@ -194,7 +194,7 @@
 				!set numerics and check for refinement
 				call heat_eq_init_traversal(grid)
 
-                grid_info = grid%get_capacity()
+                grid_info = grid%get_info()
                 !$omp master
 				_log_write(1, "(A, I0, A, I0, A)") " Heat_Eq: ", i_adaptions_initial, " adaptions, ", grid_info%i_cells, " cells"
                 !$omp end master
@@ -209,12 +209,12 @@
 				i_adaptions_initial = i_adaptions_initial + 1
 			end do
 
-			r_t2 = omp_get_wtime()
+			r_t2 = get_wtime()
 
 			_log_write(0, *) "Heat_Eq: done."
 			_log_write(0, *) ""
 
-            grid_info = grid%get_capacity()
+            grid_info = grid%get_info()
 			call grid_info%print()
 
 			!output initial grid
@@ -238,7 +238,7 @@
 			_log_write(0, *) "Heat_Eq: running time steps.."
 			_log_write(0, *) ""
 
-			r_t3 = omp_get_wtime()
+			r_t3 = get_wtime()
 
 			do
 				if ((r_max_time >= 0.0 .and. grid%r_time >= r_max_time) .or. (i_max_time_steps >= 0 .and. i_time_step >= i_max_time_steps)) then
@@ -256,7 +256,7 @@
 				call heun_timestep_traversal(grid)
 				grid%r_time = grid%r_time + grid%r_dt
 
-                grid_info = grid%get_capacity()
+                grid_info = grid%get_info()
 				_log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " Heat_Eq: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
 
 				!output grid
@@ -268,7 +268,7 @@
 				i_time_step = i_time_step + 1
 			end do
 
-			r_t4 = omp_get_wtime()
+			r_t4 = get_wtime()
 
 			_log_write(0, *) "Heat_Eq: done."
 			_log_write(0, *) ""
@@ -291,7 +291,7 @@
 			_log_write(0, '(A, T34, F10.4, A)') " Total time:", (r_t2 - r_t1) + (r_t4 - r_t3), " s"
 			_log_write(0, *) "---"
 
-            grid_info = grid%get_capacity()
+            grid_info = grid%get_info()
 			call grid_info%print()
 		end subroutine
 	END MODULE Heat_Eq

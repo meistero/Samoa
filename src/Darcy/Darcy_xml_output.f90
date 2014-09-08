@@ -15,19 +15,19 @@
 
 		!> Output point data
 		type t_output_point_data
-			real (kind = GRID_SR), dimension(2)						:: coords
-			real (kind = GRID_SR)									:: p
-			real (kind = GRID_SR)									:: S
+			real (kind = GRID_SR)				    :: coords(2)
+			real (kind = GRID_SR)			        :: p
+			real (kind = GRID_SR)			        :: S
 		end type
 
 		!> Output cell data
 		type t_output_cell_data
-			real (kind = GRID_SR)									:: permeability
-			real (kind = GRID_SR), dimension(2)						:: u
-            integer (kind = GRID_SI)								:: rank
-            integer (kind = GRID_SI)								:: section_index
-			integer (kind = 1)										:: depth
-			integer (kind = 1)										:: refinement
+			real (kind = GRID_SR)			        :: permeability
+			real (kind = GRID_SR)					:: u(2)
+            integer (kind = GRID_SI)			    :: rank
+            integer (kind = GRID_SI)			    :: section_index
+			integer (BYTE)					    :: depth
+			integer (BYTE)					    :: refinement
 		end type
 
 		logical, parameter											:: l_second_order = (_DARCY_P_ORDER > 1)
@@ -38,7 +38,7 @@
             integer (kind = GRID_SI), allocatable			        :: i_connectivity(:)
             character(len=64)							            :: s_file_stamp
 
-            integer (kind = GRID_SI)								:: i_output_iteration
+            integer (kind = GRID_SI)								:: i_output_iteration = 0
             integer (kind = GRID_SI)								:: i_point_data_index
             integer (kind = GRID_SI)								:: i_cell_data_index
         end type
@@ -68,7 +68,7 @@
 
 #		define	_GT_ELEMENT_OP						element_op
 
-#		define _GT_NODE_FIRST_TOUCH_OP			    node_first_touch_op
+#		define  _GT_NODE_FIRST_TOUCH_OP			    node_first_touch_op
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -96,39 +96,42 @@
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-            if (rank_MPI == 0) then
-                write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                if (rank_MPI == 0) then
+                    write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+                    e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
+                        e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
+                            e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
+                        e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
-                e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
-                    e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
-                        e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
-                    e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
+                        e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
+                            e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+                            e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
+                            e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
+                            e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
+                            e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
+                        e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
 
-                    e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 1)
-                        e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
-                        e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
-                        e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
-                        e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
-                        e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
-                    e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
+                        e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
 
-                    e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
+                        do i_rank = 0, size_MPI
+                            do i_section = 1, omp_get_max_threads() * cfg%i_sections_per_thread * 2
+                                write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
+                                inquire(file = s_file_name, exist = l_exists)
 
-                    do i_rank = 0, size_MPI
-                        do i_section = 1, omp_get_max_threads() * cfg%i_sections_per_thread * 2
-                            write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
-                            inquire(file = s_file_name, exist = l_exists)
-
-                            if (l_exists) then
-                                write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
-                                e_io = vtk%VTK_GEO_XML(s_file_name)
-                            end if
+                                if (l_exists) then
+                                    write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
+                                    e_io = vtk%VTK_GEO_XML(s_file_name)
+                                end if
+                            end do
                         end do
-                    end do
-                e_io = vtk%VTK_END_XML()
-            end if
+                    e_io = vtk%VTK_END_XML()
+                end if
+#           endif
 
             traversal%i_output_iteration = traversal%i_output_iteration + 1
 		end subroutine
@@ -140,7 +143,7 @@
 			type(t_section_info)                                        :: grid_info
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
 
-            grid_info = section%get_capacity()
+            grid_info = section%get_info()
 			i_cells = grid_info%i_cells
 
 			if (l_second_order) then
@@ -151,8 +154,8 @@
 				allocate(traversal%i_connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
 			end if
 
-			allocate(traversal%cell_data(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(traversal%point_data(i_points), stat = i_error); assert_eq(i_error, 0)
+			allocate(traversal%cell_data(i_cells), stat = i_error); assert_eq(i_error, 0)
 
 			traversal%i_cell_data_index = 1
 			traversal%i_point_data_index = 1
@@ -171,7 +174,7 @@
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
 			integer(4)													:: e_io, i
 
-            grid_info = section%get_capacity()
+            grid_info = section%get_info()
 			i_cells = grid_info%i_cells
 
 			if (l_second_order) then
@@ -184,7 +187,7 @@
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 
-			r_empty = 0.0_GRID_SR
+			r_empty(:) = 0.0_GRID_SR
 
 			if (l_second_order) then
 				i_types = 22_1
@@ -202,27 +205,31 @@
 
 			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
-			e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
-				e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                e_io = vtk%VTK_INI_XML('binary', traversal%s_file_stamp, 'UnstructuredGrid')
+                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-				e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
+                    e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
 
-				e_io = vtk%VTK_DAT_XML('node', 'OPEN')
-					e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
-					e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
-				e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
+                    e_io = vtk%VTK_DAT_XML('node', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
+                        e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
+                    e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
-				e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
-					e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
-					e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
-					e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', traversal%cell_data%refinement)
-				e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
+                    e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', traversal%cell_data%refinement)
+                    e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
 
-				e_io = vtk%VTK_GEO_XML()
-			e_io = vtk%VTK_END_XML()
+                    e_io = vtk%VTK_GEO_XML()
+                e_io = vtk%VTK_END_XML()
+#           endif
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
@@ -262,7 +269,7 @@
 			call gv_u%read_from_element(element, u)
 			call gv_saturation%read(element, saturation)
 
-			point_data_indices = r_point_data_indices
+			point_data_indices(:) = int(r_point_data_indices(:), kind=GRID_SI)
 			p = samoa_basis_p_dofs_to_values(p)
 			u(1, :) = samoa_basis_u_dofs_to_values(u(1, :))
 			u(2, :) = samoa_basis_u_dofs_to_values(u(2, :))

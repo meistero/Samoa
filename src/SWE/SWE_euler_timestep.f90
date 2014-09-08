@@ -36,10 +36,8 @@
 #		define _GT_NAME							t_swe_euler_timestep_traversal
 
 #		define _GT_EDGES
-#		define _GT_EDGES_TEMP
 
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
-#		define _GT_POST_TRAVERSAL_OP			post_traversal_op
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 
@@ -49,7 +47,36 @@
 #		define _GT_CELL_UPDATE_OP				cell_update_op
 #		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
 
+#		define _GT_NODE_MPI_TYPE
+
 #		include "SFC_generic_traversal_ringbuffer.f90"
+
+        subroutine create_node_mpi_type(mpi_node_type)
+            integer, intent(out)            :: mpi_node_type
+
+            type(t_node_data)               :: node
+            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
+
+#           if defined(_MPI)
+                blocklengths(1) = 1
+                blocklengths(2) = 1
+
+                disps(1) = 0
+                disps(2) = sizeof(node)
+
+                types(1) = MPI_LB
+                types(2) = MPI_UB
+
+                call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+                call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
+
+                call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(node), extent)
+
+                call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
+                assert_eq(0, extent)
+#           endif
+        end subroutine
 
 		!*******************************
 		!Geometry operators
@@ -59,11 +86,11 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+            grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
 #           if defined(_ASAGI)
                 if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
-                    grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
+                    grid%r_dt = min(grid%r_dt, 0.1_GRID_SR/15.0_GRID_SR * grid_max_z(cfg%afh_bathymetry))
                 end if
 #           endif
 
@@ -88,11 +115,6 @@
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0_GRID_DI
 			section%u_max = 0.0_GRID_SR
-		end subroutine
-
-		subroutine post_traversal_op(traversal, section)
-			type(t_swe_euler_timestep_traversal), intent(inout)				:: traversal
-			type(t_grid_section), intent(inout)							    :: section
 		end subroutine
 
 		function cell_to_edge_op(element, edge) result(rep)
@@ -160,7 +182,7 @@
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
 
-#			if defined (_SWE_LF) .or.  defined (_SWE_LF_BATH) .or.  defined (_SWE_LLF) .or.  defined (_SWE_LLF_BATH)
+#			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
 				call compute_lf_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
@@ -196,40 +218,39 @@
 
 			bnd_rep = t_state(0.0, [0.0, 0.0], rep%Q(1)%b)
 
-#			if defined (_SWE_LF) .or.  defined (_SWE_LF_BATH) .or.  defined (_SWE_LLF) .or.  defined (_SWE_LLF_BATH)
+#			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
 #			endif
 		end subroutine
 
-		subroutine cell_update_op(traversal, grid, element, update1, update2, update3)
+		subroutine cell_update_op(traversal, section, element, update1, update2, update3)
 			type(t_swe_euler_timestep_traversal), intent(inout)				:: traversal
-			type(t_grid_section), intent(inout)							:: grid
+			type(t_grid_section), intent(inout)							:: section
 			type(t_element_base), intent(inout)						:: element
 			type(num_cell_update), intent(in)						:: update1, update2, update3
 
 			!local variables
 
-			type(t_state), dimension(_SWE_CELL_SIZE)				:: dQ
+			type(t_state)   :: dQ(_SWE_CELL_SIZE)
 
-			call volume_op(traversal, grid, element, dQ, [update1%flux, update2%flux, update3%flux])
+			call volume_op(element%cell%geometry, traversal%i_refinements_issued, element%cell%geometry%i_depth, &
+                element%cell%geometry%refinement, section%u_max, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
 
 			call gv_Q%add(element, dQ)
 		end subroutine
 
-		subroutine cell_last_touch_op(traversal, grid, cell)
+		subroutine cell_last_touch_op(traversal, section, cell)
 			type(t_swe_euler_timestep_traversal), intent(inout)				:: traversal
-			type(t_grid_section), intent(inout)							:: grid
+			type(t_grid_section), intent(inout)							:: section
 			type(t_cell_data_ptr), intent(inout)				:: cell
-			integer (kind = 1)								:: depth
-			real(kind = GRID_SR)							:: b_norm
+			real(kind = GRID_SR)							    :: b_norm
 
-			depth = cell%geometry%i_depth
 			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
 			!refine also on the coasts
-			if (depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
+			if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
 				cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
 			else if (b_norm < 300.0_GRID_SR) then
@@ -241,23 +262,26 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine volume_op(traversal, section, element, dQ, fluxes)
-			type(t_swe_euler_timestep_traversal), intent(inout)				:: traversal
-			type(t_grid_section), intent(inout)							    :: section
-			type(t_element_base), intent(inout)								:: element
-			type(t_state), dimension(:), intent(out)						:: dQ
-			type(t_update), dimension(:), intent(in)						:: fluxes
+		subroutine volume_op(cell, i_refinements_issued, i_depth, i_refinement, u_max, dQ, fluxes, r_dt)
+			type(fine_triangle), intent(in)				                        :: cell
+			integer (kind = GRID_DI), intent(inout)							    :: i_refinements_issued
+			integer (kind = BYTE), intent(in)							        :: i_depth
+			integer (kind = BYTE), intent(out)							        :: i_refinement
+			real(kind = GRID_SR), intent(inout)								    :: u_max
+			type(t_state), dimension(:), intent(out)						    :: dQ
+			type(t_update), dimension(:), intent(in)						    :: fluxes
+			real(kind = GRID_SR), intent(in)								    :: r_dt
 
-			real(kind = GRID_SR)											:: volume, dQ_norm, edge_lengths(3)
-			integer (kind = 1)												:: i, depth
+			real(kind = GRID_SR)											    :: volume, dQ_norm, edge_lengths(3)
+			integer (kind = BYTE)												:: i
 
 			_log_write(6, '(3X, A)') "swe cell update op:"
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
 
-			volume = cfg%scaling * cfg%scaling * element%cell%geometry%get_volume()
-			edge_lengths = cfg%scaling * element%cell%geometry%get_edge_sizes()
+			volume = cfg%scaling * cfg%scaling * cell%get_volume()
+			edge_lengths = cfg%scaling * cell%get_edge_sizes()
 
 			dQ%h = sum(edge_lengths * fluxes%h)
 			dQ%p(1) = sum(edge_lengths * fluxes%p(1))
@@ -266,20 +290,21 @@
 
 			!set refinement condition
 
-			element%cell%geometry%refinement = 0
+			i_refinement = 0
 			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 
-			depth = element%cell%geometry%i_depth
-			if (depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
-				element%cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
-			else if (depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
-				element%cell%geometry%refinement = -1
+			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
+				i_refinement = 1
+				i_refinements_issued = i_refinements_issued + 1_GRID_DI
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
+				i_refinement = -1
 			endif
 
-			section%u_max = max(section%u_max, maxval(fluxes%max_wave_speed))
+			u_max = max(u_max, maxval(fluxes%max_wave_speed))
 
-			dQ%t_dof_state = dQ%t_dof_state * (-section%r_dt / volume)
+            do i = 1, _SWE_CELL_SIZE
+                dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-r_dt / volume)
+            end do
 
 			_log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
 		end subroutine
@@ -294,7 +319,7 @@
 			real(kind = GRID_SR), parameter						:: dry_tol = 0.01_GRID_SR
 			real(kind = GRID_SR)								:: vL, vR, alpha
 
-#           if defined(_SWE_LF_BATH) .or. defined(_SWE_LLF_BATH)
+#           if defined(_SWE_LF_BATH) || defined(_SWE_LLF_BATH)
                 if (QL%h - QL%b < dry_tol) then
                     vL = 0.0_GRID_SR
                     fluxL%max_wave_speed = 0.0_GRID_SR
@@ -367,11 +392,11 @@
 			bR = QR%b
 
 #           if defined(_SWE_FWAVE)
-                call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, 0.01_8, g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, 0.01_GRID_SR, g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_SSQ_FWAVE)
-                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, 0.01_8, g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, 0.01_GRID_SR, g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_AUG_RIEMANN)
-                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, 0.01_8, g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, 0.01_GRID_SR, g, net_updatesL, net_updatesR, max_wave_speed)
 #           endif
 
 			fluxL%h = net_updatesL(1)

@@ -14,13 +14,13 @@
 	MODULE Samoa_darcy_perm_space
 		use SFC_data_types
 
-#		define _BF_type_NAME		samoa_basis_perm
+#		define _BF_TYPE_NAME		samoa_basis_perm
 #		define _BF_ORDER			0
 
 #		include "Tools_hierarchical_basis.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_ORDER
 
 	END MODULE
@@ -28,13 +28,13 @@
 	MODULE Samoa_darcy_p_space
 		use SFC_data_types
 
-#		define _BF_type_NAME		samoa_basis_p
+#		define _BF_TYPE_NAME		samoa_basis_p
 #		define _BF_ORDER			_DARCY_P_ORDER
 
 #		include "Tools_hierarchical_basis.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_ORDER
 
 	END MODULE
@@ -42,13 +42,13 @@
 	MODULE Samoa_darcy_u_space
 		use SFC_data_types
 
-#		define _BF_type_NAME		samoa_basis_u
+#		define _BF_TYPE_NAME		samoa_basis_u
 #		define _BF_ORDER			_DARCY_U_ORDER
 
 #		include "Tools_hierarchical_basis.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_ORDER
 
 	END MODULE
@@ -57,13 +57,13 @@
 	MODULE Samoa_darcy_flow_space
 		use SFC_data_types
 
-#		define _BF_type_NAME		samoa_basis_flow
+#		define _BF_TYPE_NAME		samoa_basis_flow
 #		define _BF_ORDER			_DARCY_FLOW_ORDER
 
 #		include "Tools_lagrange_basis.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_ORDER
 
 	END MODULE
@@ -76,16 +76,16 @@
 		use SFC_data_types
 		use Samoa_darcy_p_space
 
-#		define _BF_type_NAME		samoa_basis_p
+#		define _BF_TYPE_NAME		samoa_basis_p
 #		define _BF_SIZE				_DARCY_P_SIZE
-#		define _QR_type_NAME		samoa_qr_p
+#		define _QR_TYPE_NAME		samoa_qr_p
 
 #		include "Tools_quadrature_rule.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_SIZE
-#		undef _QR_type_NAME
+#		undef _QR_TYPE_NAME
 
 	END MODULE
 
@@ -94,16 +94,16 @@
 		use Samoa_darcy_u_space
 
 
-#		define _BF_type_NAME		samoa_basis_u
+#		define _BF_TYPE_NAME		samoa_basis_u
 #		define _BF_SIZE				_DARCY_U_SIZE
-#		define _QR_type_NAME		samoa_qr_u
+#		define _QR_TYPE_NAME		samoa_qr_u
 
 #		include "Tools_quadrature_rule.f90"
 
 		!undefine macros to avoid compiler warnings
-#		undef _BF_type_NAME
+#		undef _BF_TYPE_NAME
 #		undef _BF_SIZE
-#		undef _QR_type_NAME
+#		undef _QR_TYPE_NAME
 
 	END MODULE
 
