@@ -91,7 +91,9 @@
 
     !> Cell representation on an edge, this would typically be everything required from a cell to compute the flux function on an edge
     type num_cell_rep
-      type(t_state), DIMENSION(_FLASH_CELL_SIZE)                :: Q        !< cell representation
+      type(t_state), DIMENSION(_FLASH_EDGE_SIZE)                :: Q        !< cell representation
+      REAL (KIND = GRID_SR)                                     :: iswete   !< marker for wet element
+      REAL (KIND = GRID_SR)                                     :: iswetg   !< marker for wet edge
     end type
 
     !> Cell update, this would typically be a flux function

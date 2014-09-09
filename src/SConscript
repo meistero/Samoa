@@ -91,6 +91,8 @@ f90_sources = [
 "Flash/FLASH_euler_timestep.f90",
 "Flash/FLASH_adapt.f90",
 "Flash/FLASH_dg_element.f90",
+"Flash/DG_equation.F90",
+"Flash/DG_RS_rusanov.F90",
 ]
 
 f77_sources = [

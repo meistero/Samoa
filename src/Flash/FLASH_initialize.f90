@@ -203,7 +203,6 @@
 #			endif
 
 			Q%p = 0.0_GRID_SR
-			Q%p(1) = x(1)
 			Q%p_old = Q%p
 		end function
 

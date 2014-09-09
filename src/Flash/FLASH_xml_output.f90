@@ -166,6 +166,7 @@
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
 			integer (1), dimension(:), allocatable						:: i_types
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_connectivity, i_tmp
+      integer (kind = BYTE), dimension(:), allocatable        :: b_tmp
 			real (kind = GRID_SR), dimension(:, :), allocatable			:: r_velocity
 			real (kind = GRID_SR), dimension(:), allocatable			:: r_empty
             type(t_vtk_writer)                                          :: vtk
@@ -189,7 +190,7 @@
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_velocity(2, max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
-      allocate(i_tmp(i_cells), stat = i_error); assert_eq(i_error, 0)
+      allocate(i_tmp(i_cells), b_tmp(i_cells), stat = i_error); assert_eq(i_error, 0)
 
 			r_empty = 0.0_GRID_SR
 
@@ -240,29 +241,22 @@
                     e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
                 end if
 
-                forall (i = 1 : i_cells)
-                  i_tmp(i) = traversal%cell_data(i)%rank
-                end forall
+                i_tmp = traversal%cell_data%rank
                 e_io = vtk%VTK_VAR_XML(i_cells, 'rank', i_tmp)
-                forall (i = 1 : i_cells)
-                  i_tmp(i) = traversal%cell_data(i)%section_index
-                end forall
+                i_tmp = traversal%cell_data%section_index
                 e_io = vtk%VTK_VAR_XML(i_cells, 'section index', i_tmp)
-                forall (i = 1 : i_cells)
-                  i_tmp(i) = traversal%cell_data(i)%depth
-                end forall
-                e_io = vtk%VTK_VAR_XML(i_cells, 'depth', i_tmp)
-                forall (i = 1 : i_cells)
-                  i_tmp(i) = traversal%cell_data(i)%refinement
-                end forall
-                e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', i_tmp)
+                b_tmp = traversal%cell_data%depth
+                e_io = vtk%VTK_VAR_XML(i_cells, 'depth', b_tmp)
+                b_tmp = traversal%cell_data%refinement
+                e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', b_tmp)
+
                 e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
 
                 e_io = vtk%VTK_GEO_XML()
                 e_io = vtk%VTK_END_XML()
 #           endif
 
-			deallocate(i_tmp, stat = i_error); assert_eq(i_error, 0)
+			deallocate(i_tmp, b_tmp, stat = i_error); assert_eq(i_error, 0)
       deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_connectivity, stat = i_error); assert_eq(i_error, 0)

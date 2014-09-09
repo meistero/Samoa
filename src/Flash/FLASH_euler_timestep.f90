@@ -1,4 +1,9 @@
+! Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications
+! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema, Stefan Vater
+! This program is licensed under the GPL, for details see the file LICENSE
+
 #include "Compilation_control.f90"
+
 
 #if defined(_FLASH)
   MODULE FLASH_Euler_Timestep
@@ -7,6 +12,8 @@
     use Samoa_FLASH
 
     use FLASH_dg_element
+    USE DG_riemann_solver
+    USE DG_equation
 
     implicit none
 
@@ -47,500 +54,367 @@
 
 #   include "SFC_generic_traversal_ringbuffer.f90"
 
-    !*******************************
-    !Geometry operators
-    !*******************************
+  !*******************************
+  !Geometry operators
+  !*******************************
 
-	subroutine pre_traversal_grid_op(traversal, grid)
-			type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
-			type(t_grid), intent(inout)							    :: grid
+  subroutine pre_traversal_grid_op(traversal, grid)
+    type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
+    type(t_grid), intent(inout)							    :: grid
 
-!         grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
-        grid%r_dt = 1e-3!0.45_GRID_SR * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
-	!print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
-	!print *, "calculatzed Dt: ",0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max), grid%r_dt
+!     grid%r_dt = 0.45_GRID_SR * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+    grid%r_dt = 1e-3!0.45_GRID_SR * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+!     print *, "Calculated dt: ", grid%r_dt, cfg%scaling, grid%u_max,get_edge_size(grid%d_max)
+!     print *, "calculatzed Dt: ",0.45_GRID_SR * grid%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max), grid%r_dt
 
-#           if defined(_ASAGI)
-                if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
-                    grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
-	!	print *, "calculatzed Dt in if: ",min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry)), grid%r_dt
-                end if
-#           endif
+# if defined(_ASAGI)
+    if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
+      grid%r_dt = min(grid%r_dt, 0.1/15.0 * grid_max_z(cfg%afh_bathymetry))
+!       print *, "calculatzed Dt in if: ",min(grid%r_dt, 0.1/15.0 * grid_max_z(grid%afh_bathymetry)), grid%r_dt
+    end if
+# endif
 
-	grid%u_max = 0.0_GRID_SR
-	end subroutine
+    grid%u_max = 0.0_GRID_SR
+  end subroutine
 
-	subroutine post_traversal_grid_op(traversal, grid)
-			type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
-			type(t_grid), intent(inout)							    :: grid
+!*******************************************************************************
+  subroutine post_traversal_grid_op(traversal, grid)
+    type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
+    type(t_grid), intent(inout)							    :: grid
 
-            call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
-            call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
-			grid%r_time = grid%r_time + grid%r_dt
+    call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
+    call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
+    grid%r_time = grid%r_time + grid%r_dt
 
-			grid%sections%elements%r_time = grid%r_time
-	end subroutine
+    grid%sections%elements%r_time = grid%r_time
 
-    subroutine pre_traversal_op(traversal, section)
-      type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
-      type(t_grid_section), intent(inout)                       :: section
+  end subroutine
 
-      !this variable will be incremented for each cell with a refinement request
-      traversal%i_refinements_issued = 0
-      section%u_max = 0.0_GRID_SR
-    end subroutine
+!*******************************************************************************
+  subroutine pre_traversal_op(traversal, section)
+    type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
+    type(t_grid_section), intent(inout)                       :: section
 
-    subroutine post_traversal_op(traversal, section)
-      type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
-      type(t_grid_section), intent(inout)                       :: section
-    end subroutine
+    !this variable will be incremented for each cell with a refinement request
+    traversal%i_refinements_issued = 0
+    section%u_max = 0.0_GRID_SR
+  end subroutine
 
-    function cell_to_edge_op(element, edge) result(rep)
-      type(t_element_base), intent(in)                          :: element
-      type(t_edge_data), intent(in)                             :: edge
-      type(num_cell_rep)                                        :: rep
+!*******************************************************************************
+  subroutine post_traversal_op(traversal, section)
+    type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
+    type(t_grid_section), intent(inout)                       :: section
+  end subroutine
 
-      type(t_state), dimension(_FLASH_CELL_SIZE)                :: Q
-      integer(kind = GRID_SI)                                   :: i, j, i_edge
-      real(kind = GRID_SR), dimension(2, _FLASH_EDGE_SIZE)      :: dof_pos
-      real(kind = GRID_SR), dimension(2, 3), parameter    :: edge_offsets = reshape([0.0, 0.0, 0.0, 1.0, 1.0, 0.0], [2, 3])
-      real(kind = GRID_SR), dimension(2, 3), parameter    :: edge_vectors = reshape([0.0, 1.0, 1.0, -1.0, -1.0, 0.0], [2, 3])
+!*******************************************************************************
+  function cell_to_edge_op(element, edge) result(rep)
+    type(t_element_base), intent(in)                          :: element
+    type(t_edge_data), intent(in)                             :: edge
+    type(num_cell_rep)                                        :: rep
 
-      call gv_Q%read(element, Q)
+    type(t_state), dimension(_FLASH_CELL_SIZE)                :: Q
+    integer(kind = GRID_SI)                                   :: i, i_dof, i_edge
+    real(kind = GRID_SR), dimension(2, _FLASH_EDGE_SIZE)      :: dof_pos
+    real(kind = GRID_SR), dimension(2, 3), parameter    :: edge_offsets = reshape([0.0, 0.0, 0.0, 1.0, 1.0, 0.0], [2, 3])
+    real(kind = GRID_SR), dimension(2, 3), parameter    :: edge_vectors = reshape([0.0, 1.0, 1.0, -1.0, -1.0, 0.0], [2, 3])
 
-      _log_write(6, '(3X, A)') "FLASH cell to edge op:"
-      _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q in: ", Q
-            _log_write(6, '(4X, A, F0.3, 1X, F0.3)') "normal in : ", edge%transform_data%normal
+    call gv_Q%read(element, Q)
 
-!#     if (_FLASH_CELL_SIZE > 1)
-      !  i_edge = edge%transform_data%index
-  !      _log_write(6, '(4X, A, I0)') "edge ", i_edge
-	!print *, "-------------------------------------------"
-	!print *, "GLOBAL INDEXXXXXX: " , i_edge
-!	print *, "LOCAL INDEXXXXXX: " ,  edge%transform_data%orientation
-	!print *, "normal: ", edge%transform_data%normal
-	!print *, "-------------------------------------------"
-   !     forall (i = 1 : _FLASH_EDGE_SIZE)
-    !      dof_pos(:, i) = edge_offsets(:, i_edge) + t_basis_flux_get_dof_coords(i) * edge_vectors(:, i_edge)
-  !      end forall
+    _log_write(6, '(3X, A)') "FLASH cell to edge op:"
+    _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q in: ", Q
+    _log_write(6, '(4X, A, F0.3, 1X, F0.3)') "normal in : ", edge%transform_data%normal
 
-       ! call lfs_flux%transform(edge%transform_data, dof_pos(1, :))
-        !call lfs_flux%transform(edge%transform_data, dof_pos(2, :))
+!# if (_FLASH_CELL_SIZE > 1)
+!     i_edge = edge%transform_data%index
+!     _log_write(6, '(4X, A, I0)') "edge ", i_edge
+!     print *, "-------------------------------------------"
+!     print *, "GLOBAL INDEXXXXXX: " , i_edge
+!     print *, "LOCAL INDEXXXXXX: " ,  edge%transform_data%orientation
+!     print *, "normal: ", edge%transform_data%normal
+!     print *, "-------------------------------------------"
+!     forall (i = 1 : _FLASH_EDGE_SIZE)
+!       dof_pos(:, i) = edge_offsets(:, i_edge) + t_basis_flux_get_dof_coords(i) * edge_vectors(:, i_edge)
+!     end forall
+!
+!     call lfs_flux%transform(edge%transform_data, dof_pos(1, :))
+!     call lfs_flux%transform(edge%transform_data, dof_pos(2, :))
+!
+!     forall (i = 1 : _FLASH_EDGE_SIZE)
+!       rep%Q(i)%h = t_basis_Q_eval(dof_pos(:, i), Q%h)
+!       rep%Q(i)%p(1) = t_basis_Q_eval(dof_pos(:, i), Q%p(1))
+!       rep%Q(i)%p(2) = t_basis_Q_eval(dof_pos(:, i), Q%p(2))
+!     end forall
+!# else
+!     rep%Q(1) = Q(1)
+!# endif
+    forall (i = 1 : _FLASH_EDGE_SIZE)
+      rep%Q(i) = Q(i)
+    end forall
+    ! set some markers which are later used for wetting and drying
+    rep%iswete = 1.0_GRID_SR
+    rep%iswetg = 1.0_GRID_SR
 
-        !forall (i = 1 : _FLASH_EDGE_SIZE)
-         ! rep%Q(i)%h = t_basis_Q_eval(dof_pos(:, i), Q%h)
-          !rep%Q(i)%p(1) = t_basis_Q_eval(dof_pos(:, i), Q%p(1))
-          !rep%Q(i)%p(2) = t_basis_Q_eval(dof_pos(:, i), Q%p(2))
-        !end forall
-!#     else
-      !  rep%Q(1) = Q(1)
-!#     endif
-	forall (i = 1 : _FLASH_CELL_SIZE)
-		rep%Q(i) = Q(i)
-	end forall
+    _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q out: ", rep%Q
+  end function
 
-      _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q out: ", rep%Q
-    end function
+!*******************************************************************************
+  subroutine skeleton_array_op(traversal, grid, edges, rep1, rep2, update1, update2)
+    type(t_FLASH_euler_timestep_traversal), intent(in)        :: traversal
+    type(t_grid_section), intent(in)                          :: grid
+    type(t_edge_data), intent(in)                             :: edges(:)
+    type(num_cell_rep), intent(in)                            :: rep1(:), rep2(:)
+    type(num_cell_update), intent(out)                        :: update1(:), update2(:)
 
-    subroutine skeleton_array_op(traversal, grid, edges, rep1, rep2, update1, update2)
-      type(t_FLASH_euler_timestep_traversal), intent(in)        :: traversal
-      type(t_grid_section), intent(in)                          :: grid
-      type(t_edge_data), intent(in)                             :: edges(:)
-      type(num_cell_rep), intent(in)                            :: rep1(:), rep2(:)
-      type(num_cell_update), intent(out)                        :: update1(:), update2(:)
+    integer (kind = GRID_SI)                                  :: i
 
-      integer (kind = GRID_SI)                                  :: i
+    do i = 1, size(edges)
+      call skeleton_scalar_op(traversal, grid, edges(i), rep1(i), rep2(i), update1(i), update2(i))
+    end do
+  end subroutine
 
-      do i = 1, size(edges)
-        call skeleton_scalar_op(traversal, grid, edges(i), rep1(i), rep2(i), update1(i), update2(i))
-      end do
-    end subroutine
+!*******************************************************************************
+  SUBROUTINE skeleton_scalar_op(traversal, grid, edge, rep1, rep2, update1, update2)
 
-    subroutine skeleton_scalar_op(traversal, grid, edge, rep1, rep2, update1, update2)
-      type(t_FLASH_euler_timestep_traversal), intent(in)        :: traversal
-      type(t_grid_section), intent(in)                          :: grid
-      type(t_edge_data), intent(in)                             :: edge
-      type(num_cell_rep), intent(in)                            :: rep1, rep2
-      type(num_cell_update), intent(out)                        :: update1, update2
+    IMPLICIT NONE
 
-      REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r
-      REAL (KIND = GRID_SR)					:: max_wave_speed
-      REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
-      REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE)   :: r_h_l, r_hv_l, r_hu_l, &
-                                                                   r_h_r, r_hv_r, r_hu_r
-      integer(kind = GRID_SI)                                   :: i
+    type(t_FLASH_euler_timestep_traversal), INTENT(in)      :: traversal
+    type(t_grid_section), INTENT(in)                        :: grid
+    type(t_edge_data), INTENT(in)                           :: edge
+    type(num_cell_rep), INTENT(in)                          :: rep1, rep2
+    type(num_cell_update), intent(out)                      :: update1, update2
 
-      r_minh_r = 1
-      r_minh_l = 1
+!--- local declarations
+    INTEGER (KIND = GRID_SI)                                :: i_quad, i_dof
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE)      :: r_h, r_hu, r_hv
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE) :: r_h_l, r_hu_l, r_hv_l, &
+                                                               r_h_r, r_hu_r, r_hv_r
+    REAL (KIND = GRID_SR), DIMENSION(3)                     :: r_Fstar, r_Fleft, r_Frght
 
-	forall (i = 1 : _FLASH_CELL_SIZE)
-	      r_h_l(i)  = rep1%Q(i)%h
-	      r_hu_l(i) = rep1%Q(i)%p(1)
-	      r_hv_l(i) = rep1%Q(i)%p(2)
-	      r_h_r(i) = rep2%Q(i)%h
-	      r_hu_r(i) = rep2%Q(i)%p(1)
-	      r_hv_r(i)= rep2%Q(i)%p(2)
-	end forall
+    forall (i_dof = 1 : _FLASH_CELL_SIZE)
+      update1%flux(i_dof)%h    = 0.0_GRID_SR
+      update1%flux(i_dof)%p(1) = 0.0_GRID_SR
+      update1%flux(i_dof)%p(2) = 0.0_GRID_SR
+      update2%flux(i_dof)%h    = 0.0_GRID_SR
+      update2%flux(i_dof)%p(1) = 0.0_GRID_SR
+      update2%flux(i_dof)%p(2) = 0.0_GRID_SR
+    end forall
 
-      !_log_write(0, *) "normal: ", edge%transform_data%normal
-      _log_write(6, '(3X, A)') "FLASH skeleton op:"
-      _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
-      _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
+    IF (MAXVAL(rep1%Q(:)%h) > r_wettol .OR. MAXVAL(rep2%Q(:)%h) > r_wettol) THEN
 
-      call compute_flash_flux(r_rhs_l, r_rhs_r,max_wave_speed, edge%transform_data%normal, r_minh_l, r_minh_r, &
-                              _FLASH_CELL_SIZE, _FLASH_EDGE_QUAD_SIZE, r_gqwei, r_gMinvpsi, &
-                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep2%Q(1)%b)
-
-     forall (i = 1 : _FLASH_CELL_SIZE)
-      update1%flux(i)%h    = -r_rhs_l(i,1)
-      update1%flux(i)%p(1) = -r_rhs_l(i,2)
-      update1%flux(i)%p(2) = -r_rhs_l(i,3)
-
-      update2%flux(i)%h    =  r_rhs_r(i,1)
-      update2%flux(i)%p(1) =  r_rhs_r(i,2)
-      update2%flux(i)%p(2) =  r_rhs_r(i,3)
+!-- compute values at quadrature points
+      forall (i_dof = 1 : _FLASH_EDGE_SIZE)
+        r_h(i_dof)  = rep1%Q(i_dof)%h
+        r_hu(i_dof) = rep1%Q(i_dof)%p(1)
+        r_hv(i_dof) = rep1%Q(i_dof)%p(2)
       end forall
-	update1%flux(:)%max_wave_speed = max_wave_speed
-	update2%flux(:)%max_wave_speed = max_wave_speed
-      _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 1 out: ", update1%flux
-      _log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "flux 2 out: ", update2%flux
-    end subroutine
 
-    subroutine bnd_skeleton_array_op(traversal, grid, edges, rep, update)
-      type(t_FLASH_euler_timestep_traversal), intent(in)        :: traversal
-      type(t_grid_section), intent(in)                          :: grid
-      type(t_edge_data), intent(in)                             :: edges(:)
-      type(num_cell_rep), intent(in)                            :: rep(:)
-      type(num_cell_update), intent(out)                        :: update(:)
+      r_h_l  = MATMUL(r_h , r_gpsi)
+      r_hu_l = MATMUL(r_hu, r_gpsi)
+      r_hv_l = MATMUL(r_hv, r_gpsi)
 
-      integer (kind = GRID_SI)                                  :: i
+      forall (i_dof = 1 : _FLASH_EDGE_SIZE)
+        r_h(i_dof)  = rep2%Q(i_dof)%h
+        r_hu(i_dof) = rep2%Q(i_dof)%p(1)
+        r_hv(i_dof) = rep2%Q(i_dof)%p(2)
+      end forall
 
-      do i = 1, size(edges)
-        call bnd_skeleton_scalar_op(traversal, grid, edges(i), rep(i), update(i))
-      end do
-    end subroutine
+      r_h_r  = MATMUL(r_h , r_gpsi)
+      r_hu_r = MATMUL(r_hu, r_gpsi)
+      r_hv_r = MATMUL(r_hv, r_gpsi)
 
-    subroutine bnd_skeleton_scalar_op(traversal, grid, edge, rep, update)
-      type(t_FLASH_euler_timestep_traversal), intent(in)        :: traversal
-      type(t_grid_section), intent(in)                          :: grid
-      type(t_edge_data), intent(in)                             :: edge
-      type(num_cell_rep), intent(in)                            :: rep
-      type(num_cell_update), intent(out)                        :: update
+!--- perform edge quadrature
+      edge_quad_loop: DO i_quad=1,_FLASH_EDGE_QUAD_SIZE
 
-      type(t_state)                                             :: bnd_rep
-      type(t_update)                                            :: bnd_flux
+        r_Fstar = riemannsolver(r_h_l(i_quad), r_h_r(i_quad), r_hu_l(i_quad), r_hu_r(i_quad), &
+                                r_hv_l(i_quad), r_hv_r(i_quad), edge%transform_data%normal)
 
-      REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,3)      :: r_rhs_l, r_rhs_r
-      REAL (KIND = GRID_SR)					:: max_wave_speed
-      REAL (KIND = GRID_SR)                                     :: r_minh_l, r_minh_r
-      REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE)   :: r_h_l, r_hv_l, r_hu_l, &
-                                                                   r_h_r, r_hv_r, r_hu_r
-	integer(kind = GRID_SI)                                   :: i
+        r_Fleft = (1.0-rep1%iswete)*rep1%iswetg*MATMUL(fluxGrav(r_h_l(i_quad)), edge%transform_data%normal)
+        r_Frght = (1.0-rep2%iswete)*rep2%iswetg*MATMUL(fluxGrav(r_h_r(i_quad)), edge%transform_data%normal)
 
-      bnd_rep = t_state(0.0, [0.0, 0.0],0.0, [0.0, 0.0], rep%Q(1)%b)
-      r_minh_r = 1
-      r_minh_l = 1
- forall (i = 1 : _FLASH_CELL_SIZE)
-      r_h_l(i)  = rep%Q(i)%h
-      r_hu_l(i) = rep%Q(i)%p(1)
-      r_hv_l(i) = rep%Q(i)%p(2)
-      r_h_r(i)  = rep%Q(i)%h
-      r_hu_r(i) = rep%Q(i)%p(1)
-      r_hv_r(i) = rep%Q(i)%p(2)
-end forall
+        edge_dof_loop: DO i_dof=1,_FLASH_CELL_SIZE
+          update1%flux(i_dof)%h = update1%flux(i_dof)%h + r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_Fstar(1)  -r_Fleft(1)  )
+          update1%flux(i_dof)%p = update1%flux(i_dof)%p + r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_Fstar(2:3)-r_Fleft(2:3))
+          update2%flux(i_dof)%h = update2%flux(i_dof)%h - r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_Fstar(1)  -r_Frght(1)  )
+          update2%flux(i_dof)%p = update2%flux(i_dof)%p - r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_Fstar(2:3)-r_Frght(2:3))
+        END DO edge_dof_loop
 
-      !_log_write(0, *) "BOUNDARY normal: ", edge%transform_data%normal
+      END DO edge_quad_loop
 
-      call compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed,edge%transform_data%normal, r_minh_l, r_minh_r, &
-                              _FLASH_CELL_SIZE, _FLASH_EDGE_QUAD_SIZE, r_gqwei, r_gMinvpsi, &
-                              r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,rep%Q(1)%b)
-forall (i = 1 : _FLASH_CELL_SIZE)
-      update%flux(i)%h    = -r_rhs_l(i,1)
-      update%flux(i)%p(1) = -r_rhs_l(i,2)
-      update%flux(i)%p(2) = -r_rhs_l(i,3)
-end forall
-      update%flux(:)%max_wave_speed = max_wave_speed
+    END IF
 
-    end subroutine
+  END SUBROUTINE skeleton_scalar_op
 
-    subroutine cell_update_op(traversal, section, element, update1, update2, update3)
-      type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
-      type(t_grid_section), intent(inout)                       :: section
-      type(t_element_base), intent(inout)                       :: element
-      type(num_cell_update), intent(in)                         :: update1, update2, update3
+!*******************************************************************************
+  subroutine bnd_skeleton_array_op(traversal, grid, edges, rep, update)
+    type(t_FLASH_euler_timestep_traversal), intent(in)        :: traversal
+    type(t_grid_section), intent(in)                          :: grid
+    type(t_edge_data), intent(in)                             :: edges(:)
+    type(num_cell_rep), intent(in)                            :: rep(:)
+    type(num_cell_update), intent(out)                        :: update(:)
 
-      !local variables
+    integer (kind = GRID_SI)                                  :: i
 
-      type(t_update), dimension(3)                              :: fluxes
-      type(t_update)                                            :: eflux
-      type(t_state), dimension(_FLASH_CELL_SIZE)                :: dQ
-      real(kind = GRID_SR)                                      :: volume, dQ_norm, edge_lengths(3)
-      integer (kind = 1)                                        :: depth, i_dof
+    do i = 1, size(edges)
+      call bnd_skeleton_scalar_op(traversal, grid, edges(i), rep(i), update(i))
+    end do
+  end subroutine
 
-!       fluxes = [update1%flux, update2%flux, update3%flux]
+!*******************************************************************************
+  SUBROUTINE bnd_skeleton_scalar_op(traversal, grid, edge, rep, update)
+
+    IMPLICIT NONE
+
+    type(t_FLASH_euler_timestep_traversal), INTENT(in)      :: traversal
+    type(t_grid_section), INTENT(in)                        :: grid
+    type(t_edge_data), INTENT(in)                           :: edge
+    type(num_cell_rep), INTENT(in)                          :: rep
+    type(num_cell_update), intent(out)                      :: update
+
+!--- local declarations
+    INTEGER (KIND = GRID_SI)                                :: i_quad, i_dof
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_SIZE)      :: r_h, r_hu, r_hv
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_EDGE_QUAD_SIZE) :: r_h_l, r_hu_l, r_hv_l
+    REAL (KIND = GRID_SR), DIMENSION(3)                     :: r_Fstar, r_Fleft
+
+    forall (i_dof = 1 : _FLASH_CELL_SIZE)
+      update%flux(i_dof)%h    = 0.0_GRID_SR
+      update%flux(i_dof)%p(1) = 0.0_GRID_SR
+      update%flux(i_dof)%p(2) = 0.0_GRID_SR
+    end forall
+
+    IF (MAXVAL(rep%Q(:)%h) > r_wettol) THEN
+
+!-- compute values at quadrature points
+      forall (i_dof = 1 : _FLASH_EDGE_SIZE)
+        r_h(i_dof)  = rep%Q(i_dof)%h
+        r_hu(i_dof) = rep%Q(i_dof)%p(1)
+        r_hv(i_dof) = rep%Q(i_dof)%p(2)
+      end forall
+
+      r_h_l  = MATMUL(r_h , r_gpsi)
+      r_hu_l = MATMUL(r_hu, r_gpsi)
+      r_hv_l = MATMUL(r_hv, r_gpsi)
+
+!--- perform edge quadrature
+      edge_quad_loop: DO i_quad=1,_FLASH_EDGE_QUAD_SIZE
+
+        r_Fstar = riemannsolver(r_h_l(i_quad), r_h_l(i_quad), r_hu_l(i_quad), r_hu_l(i_quad), &
+                                r_hv_l(i_quad), r_hv_l(i_quad), edge%transform_data%normal)
+
+        r_Fleft = (1.0-rep%iswete)*rep%iswetg*MATMUL(fluxGrav(r_h_l(i_quad)), edge%transform_data%normal)
+
+        edge_dof_loop: DO i_dof=1,_FLASH_CELL_SIZE
+          update%flux(i_dof)%h = update%flux(i_dof)%h + r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_Fstar(1)  -r_Fleft(1)  )
+          update%flux(i_dof)%p = update%flux(i_dof)%p + r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_Fstar(2:3)-r_Fleft(2:3))
+        END DO edge_dof_loop
+
+      END DO edge_quad_loop
+
+    END IF
+
+  END SUBROUTINE bnd_skeleton_scalar_op
+
+!*******************************************************************************
+  subroutine cell_update_op(traversal, section, element, update1, update2, update3)
+    type(t_FLASH_euler_timestep_traversal), intent(inout)     :: traversal
+    type(t_grid_section), intent(inout)                       :: section
+    type(t_element_base), intent(inout)                       :: element
+    type(num_cell_update), intent(in)                         :: update1, update2, update3
+
+    !local variables
+
+    type(t_update), dimension(3)                              :: fluxes
+    type(t_update)                                            :: eflux
+    type(t_state), dimension(_FLASH_CELL_SIZE)                :: dQ
+    real(kind = GRID_SR)                                      :: volume, dQ_norm, edge_lengths(3)
+    integer (kind = 1)                                        :: depth, i_dof
+
+    fluxes = [update1%flux, update2%flux, update3%flux]
 !
 !       _log_write(6, '(3X, A)') "FLASH cell update op:"
 !       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
 !       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
 !       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
 
-      volume       = element%cell%geometry%get_volume()
-      edge_lengths = element%cell%geometry%get_edge_sizes()
+    volume       = element%cell%geometry%get_volume()
+    edge_lengths = element%cell%geometry%get_edge_sizes()
 
-!       dQ%h    = sum(edge_lengths * fluxes%h)
-!       dQ%p(1) = sum(edge_lengths * fluxes%p(1))
-!       dQ%p(2) = sum(edge_lengths * fluxes%p(2))
-!       dQ%b    = 0.0_GRID_SR
+    dQ%h    = sum(edge_lengths * fluxes%h)
+    dQ%p(1) = sum(edge_lengths * fluxes%p(1))
+    dQ%p(2) = sum(edge_lengths * fluxes%p(2))
+    dQ%b    = 0.0_GRID_SR
+
+    dQ%h_old    = sum(edge_lengths * fluxes%h)
+    dQ%p_old(1) = sum(edge_lengths * fluxes%p(1))
+    dQ%p_old(2) = sum(edge_lengths * fluxes%p(2))
+
+    ! set refinement condition
+
+!     element%cell%geometry%refinement = 0
+!     dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 !
-!       dQ%h_old    = sum(edge_lengths * fluxes%h)
-!       dQ%p_old(1) = sum(edge_lengths * fluxes%p(1))
-!       dQ%p_old(2) = sum(edge_lengths * fluxes%p(2))
+!     depth = element%cell%geometry%i_depth
+!     if (depth < cfg%i_max_depth .and. dQ_norm > (1.5_GRID_SR ** 2)) then
+!       element%cell%geometry%refinement = 1
+!       traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+!     else if (depth > cfg%i_min_depth .and. dQ_norm < (1.45_GRID_SR ** 2)) then
+!       element%cell%geometry%refinement = -1
+!     endif
 
-      !set refinement condition
+!     section%u_max = max(section%u_max, maxval(fluxes%max_wave_speed))
 
-      element%cell%geometry%refinement = 0
-      dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
+    !_log_write(0, *) "U_max: ", section%u_max
 
-      depth = element%cell%geometry%i_depth
-      if (depth < cfg%i_max_depth .and. dQ_norm > (1.5_GRID_SR ** 2)) then
-        element%cell%geometry%refinement = 1
-        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-      else if (depth > cfg%i_min_depth .and. dQ_norm < (1.45_GRID_SR ** 2)) then
-        element%cell%geometry%refinement = -1
-      endif
+    forall (i_dof = 1 : _FLASH_CELL_SIZE)
+      dQ(i_dof)%t_dof_state = dQ(i_dof)%t_dof_state * (-section%r_dt / volume)
+    end forall
 
-      section%u_max = max(section%u_max, maxval(fluxes%max_wave_speed))
-
-      !_log_write(0, *) "U_max: ", section%u_max
-
-      forall (i_dof = 1 : _FLASH_CELL_SIZE)
-          dQ(i_dof)%t_dof_state = dQ(i_dof)%t_dof_state * (-section%r_dt / volume)
-      end forall
-
-      _log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
+!     _log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
 
 !       call volume_op(section, element, eflux)
 
-!       call gv_Q%add(element, dQ)
+    call gv_Q%add(element, dQ)
 
-    end subroutine
-
-		subroutine cell_last_touch_op(traversal, grid, cell)
-			type(t_FLASH_euler_timestep_traversal), intent(inout)				:: traversal
-			type(t_grid_section), intent(inout)							:: grid
-			type(t_cell_data_ptr), intent(inout)				:: cell
-			integer (kind = 1)								:: depth
-			real(kind = GRID_SR)							:: b_norm
-
-			depth = cell%geometry%i_depth
-			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
-
-			!refine also on the coasts
-			if (depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
-				cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
-			else if (b_norm < 300.0_GRID_SR) then
-				cell%geometry%refinement = max(cell%geometry%refinement, 0)
-			endif
-		end subroutine
-
-    !*******************************
-    !Volume and DoF operators
-    !*******************************
-
-    subroutine volume_op(section, element, update)
-      type(t_grid_section), intent(inout)                       :: section
-      type(t_element_base), intent(inout)                       :: element
-      type(num_cell_update), intent(inout)                        :: update
-
-      real(kind = GRID_SR)                                      :: volume
-
-      _log_write(6, '(3X, A)') "FLASH volume op:"
-
-      volume = element%cell%geometry%get_volume()
-
-    end subroutine
-
-!++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-    subroutine compute_flash_flux(r_rhs_l, r_rhs_r, max_wave_speed, r_normal, r_minh_l, r_minh_r, &
-                      i_faceunknowns, i_gquadpts, r_gqwei, r_gMinvpsi, &
-                      r_h_l, r_hu_l, r_hv_l, r_h_r, r_hu_r, r_hv_r,b)
-
-    IMPLICIT NONE
-
-    REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(out):: r_rhs_l, r_rhs_r
-    REAL (KIND = GRID_SR), INTENT(out):: max_wave_speed
-    REAL (KIND = GRID_SR), INTENT(in)                 :: r_minh_l, r_minh_r
-    REAL (KIND = GRID_SR), DIMENSION(2), INTENT(in)   :: r_normal
-    INTEGER (KIND = GRID_SI), INTENT(in)              :: i_faceunknowns, i_gquadpts
-    REAL (KIND = GRID_SR), DIMENSION(:), INTENT(in)   :: r_gqwei, &
-                                                         r_h_l, r_hv_l, r_hu_l, &
-                                                         r_h_r, r_hv_r, r_hu_r
-    REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(in) :: r_gMinvpsi
-
-!--- local declarations
-    INTEGER (KIND = GRID_SI)                          :: i_quad, i_dof
-    REAL (KIND = GRID_SR), DIMENSION(3)               :: r_intFstar
-    REAL (KIND = GRID_SR), DIMENSION(3,2)             :: r_F_l, r_F_r
-    REAL (KIND = GRID_SR), DIMENSION(3)               :: r_flux_l, r_flux_r, r_Fstar
-    REAL (KIND = GRID_SR)			      :: b
-
-    real(kind = GRID_SR)								:: vL
-
-    r_rhs_l = 0._GRID_SR
-    r_rhs_r = 0._GRID_SR
-    r_intFstar(:) = 0._GRID_SR
-
-!--- perform edge quadrature
-    edge_quad_loop: DO i_quad=1,i_gquadpts
-
-      r_F_l = flux(r_h_l(i_quad), r_hu_l(i_quad), r_hv_l(i_quad))
-      r_F_r = flux(r_h_r(i_quad), r_hu_r(i_quad), r_hv_r(i_quad))
-
-      r_flux_l = MATMUL(r_F_l, r_normal)
-      r_flux_r = MATMUL(r_F_r, r_normal)
-
-      r_Fstar  = riemannsolver(r_h_l(i_quad), r_h_r(i_quad), r_hu_l(i_quad), r_hu_r(i_quad), &
-                               r_hv_l(i_quad), r_hv_r(i_quad), r_normal)
-
-      ! note: this is not used right now but might be useful for wetting/drying...
-      r_intFstar(:) = r_intFstar(:) + r_gqwei(i_quad)*r_Fstar
-
-      edge_dof_loop: DO i_dof=1,i_faceunknowns
-        r_rhs_l(i_dof,:) = r_rhs_l(i_dof,:) + &
-                           r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_flux_l - r_Fstar)
-        r_rhs_r(i_dof,:) = r_rhs_r(i_dof,:) + &
-                           r_gqwei(i_quad)*r_gMinvpsi(i_dof,i_quad)*(r_flux_r - r_Fstar)
-
-
-  !if (DOT_PRODUCT(r_rhs_l(1,:),r_rhs_l(1,:)) /= 0.0) then
-  ! _log_write(0, *) "Fsatr: ", r_flux_l, r_flux_r, r_Fstar
-  ! _log_write(0, *) "Fluxes: " , r_rhs_l, r_rhs_r
-  ! _log_write(0, *) "h: ",r_h_l,r_h_r
-
-  !endif
-
-!-------------**************_____________****************_______________****************----------------------
-!					YOU WERE HERE!
-	max_wave_speed = 0
-! 	vL = DOT_PRODUCT(r_normal, r_hu_l / (r_h_l - b))
-! 	max_wave_speed = sqrt(g * (r_h_l(1) - b)) + sqrt(vL * vL)
-
-      END DO edge_dof_loop
-    END DO edge_quad_loop
-
-    end subroutine
-!*******************************************************************************
-  FUNCTION flux(r_h, r_hu, r_hv) RESULT(r_flux)
-
-    IMPLICIT NONE
-
-    REAL (KIND = GRID_SR), INTENT(in)     :: r_h, r_hu, r_hv
-    REAL (KIND = GRID_SR), DIMENSION(3,2) :: r_flux
-
-    REAL (KIND = GRID_SR)                 :: r_abs
-
-    r_abs = heaviside(r_h)
-
-    r_flux(1,1) = r_hu
-    r_flux(1,2) = r_hv
-
-    r_flux(2,1) = r_abs     * ((r_hu**2)+ 0.5*(r_h*r_h)) + &
-                  (1-r_abs) * ((r_hu**2)/(r_h+10E-20) + 0.5*(r_h*r_h))
-    r_flux(2,2) = r_abs     * (r_hu*r_hv) + &
-                  (1-r_abs) * (r_hu*r_hv/(r_h+10E-20))
-
-    r_flux(3,1) = r_abs     * (r_hu*r_hv) + &
-                  (1-r_abs) * (r_hu*r_hv/(r_h+10E-20))
-    r_flux(3,2) = r_abs     * ((r_hv**2)+ 0.5*(r_h*r_h)) + &
-                  (1-r_abs) * ((r_hv**2)/(r_h+10E-20) + 0.5*(r_h*r_h))
-
-  END FUNCTION flux
+  end subroutine
 
 !*******************************************************************************
+  subroutine cell_last_touch_op(traversal, grid, cell)
+    type(t_FLASH_euler_timestep_traversal), intent(inout)				:: traversal
+    type(t_grid_section), intent(inout)							:: grid
+    type(t_cell_data_ptr), intent(inout)				:: cell
+    integer (kind = 1)								:: depth
+    real(kind = GRID_SR)							:: b_norm
 
-  FUNCTION riemannsolver(r_h_l, r_h_r, r_hu_l, r_hu_r, r_hv_l, r_hv_r, &
-                         r_normal) RESULT(r_flux)
+    depth = cell%geometry%i_depth
+    b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
-    IMPLICIT NONE
+    !refine also on the coasts
+    if (depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
+      cell%geometry%refinement = 1
+      traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+    else if (b_norm < 300.0_GRID_SR) then
+      cell%geometry%refinement = max(cell%geometry%refinement, 0)
+    endif
+  end subroutine
 
-    REAL (KIND = GRID_SR), DIMENSION(3)               :: r_flux
-    REAL (KIND = GRID_SR), INTENT(in)                 :: r_h_l, r_h_r, &
-                                                         r_hu_l, r_hu_r, r_hv_l, r_hv_r
-    REAL (KIND = GRID_SR), DIMENSION(:), INTENT(in) :: r_normal
-
-    REAL (KIND = GRID_SR)                             :: r_u_l, r_u_r, r_v_l, r_v_r, &
-                                                         r_a_l, r_a_r, r_u_norm_l, r_u_norm_r, &
-                                                         r_abs_l, r_abs_r, r_lambda, r_tol
-    REAL (KIND = GRID_SR), DIMENSION(3)               :: r_dq
-    REAL (KIND = GRID_SR), DIMENSION(3,2)             :: r_flux_left, r_flux_right, &
-                                                         r_flux_help, r_fluxrus
-
-    r_tol = 10E-10
-
-!--- compute velocity; if height reaches minimum, set velocity to zero
-    IF(r_h_l < r_tol) THEN
-      r_u_l = 0._GRID_SR
-      r_v_l = 0._GRID_SR
-    ELSE
-      r_u_l = r_hu_l / r_h_l
-      r_v_l = r_hv_l / r_h_l
-    END IF
-    IF(r_h_r < r_tol) THEN
-      r_u_r = 0._GRID_SR
-      r_v_r = 0._GRID_SR
-    ELSE
-      r_u_r = r_hu_r / r_h_r
-      r_v_r = r_hv_r / r_h_r
-    END IF
-
-!--- compute normal component of velocity
-    r_u_norm_l =  r_u_l*r_normal(1) + r_v_l*r_normal(2)
-    r_u_norm_r =  r_u_r*r_normal(1) + r_v_r*r_normal(2)
-
-!--- compute sound speeds
-    r_a_l = sqrt(r_h_l)
-    r_a_r = sqrt(r_h_r)
-
-!--- compute maximal flux strength
-    r_abs_l  = abs(r_u_norm_l) + r_a_l
-    r_abs_r  = abs(r_u_norm_r) + r_a_r
-    r_lambda = abs(max(r_abs_l, r_abs_r))
-
-!--- compute left and right fluxes
-    r_flux_left  = flux(r_h_l, r_hu_l, r_hv_l)
-    r_flux_right = flux(r_h_r, r_hu_r, r_hv_r)
-
-!--- compute q_r - q_l as three-dimensional vector
-    r_dq(1) = r_h_r  - r_h_l
-    r_dq(2) = r_hu_r - r_hu_l
-    r_dq(3) = r_hv_r - r_hv_l
-
-    r_flux_help = r_lambda*matmul(reshape(r_dq, (/ 3, 1 /)), reshape(r_normal, (/1,2/)))
-
-    r_fluxrus = (r_flux_left + r_flux_right - r_flux_help)
-    r_fluxrus = r_fluxrus/2
-
-    r_flux = matmul(r_fluxrus, r_normal)
-
-  END FUNCTION riemannsolver
+  !*******************************
+  !Volume and DoF operators
+  !*******************************
 
 !*******************************************************************************
-  FUNCTION heaviside(r_real)
+  subroutine volume_op(section, element, update)
+    type(t_grid_section), intent(inout)                       :: section
+    type(t_element_base), intent(inout)                       :: element
+    type(num_cell_update), intent(inout)                        :: update
 
-    IMPLICIT NONE
+    real(kind = GRID_SR)                                      :: volume
 
-    REAL (KIND = GRID_SR)           :: r_real
-    REAL (KIND = GRID_SR)           :: heaviside
+    _log_write(6, '(3X, A)') "FLASH volume op:"
 
-!     heaviside = (1-SIGNUM(r_real))
-    heaviside = MERGE(1._GRID_SR, 0._GRID_SR, r_real <= 0._GRID_SR)
+    volume = element%cell%geometry%get_volume()
 
-  END FUNCTION heaviside
-
-!*******************************************************************************
-
+  end subroutine
 
   END MODULE
+
 #endif
