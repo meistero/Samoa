@@ -365,7 +365,7 @@
             call swe%euler%reduce_stats(MPI_SUM, .true.)
             call swe%displace%reduce_stats(MPI_SUM, .true.)
             call swe%adaption%reduce_stats(MPI_SUM, .true.)
-            if (cfg%l_pointoutput == .true.) then
+            if (cfg%l_pointoutput .eqv. .true.) then
                 call swe%point_output%reduce_stats(MPI_SUM, .true.)
             end if
             call grid%reduce_stats(MPI_SUM, .true.)
@@ -392,7 +392,7 @@
                 _log_write(0, '(A, T34, A)') " Time steps: ", trim(swe%euler%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Displace: ", trim(swe%displace%stats%to_string())
                 _log_write(0, '(A, T34, A)') " Adaptions: ", trim(adaption_stats_time_steps%to_string())
-                if (cfg%l_pointoutput == .true.) then
+                if (cfg%l_pointoutput .eqv. .true.) then
                     _log_write(0, '(A, T34, A)') " Point output: ", trim(swe%point_output%stats%to_string())
                 end if
                 _log_write(0, '(A, T34, A)') " Grid: ", trim(grid_stats_time_steps%to_string())
