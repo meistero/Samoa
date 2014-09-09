@@ -13,6 +13,7 @@
 
 		use Samoa_FLASH
 		use FLASH_euler_timestep
+    USE DG_equation
 
 		implicit none
 
@@ -149,9 +150,12 @@
                         e_io = vtk%VTK_VAR(i_points, 'water_height', traversal%point_data%Q%h)
                         e_io = vtk%VTK_VAR(i_points, 'bathymetry', traversal%point_data%Q%b)
 
-                        r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-                        r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+                        forall(i=1 : i_points)
+                          r_velocity(1, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(1))
+                          r_velocity(2, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(2))
+                        end forall
                         e_io = vtk%VTK_VAR('vect', i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+                        e_io = vtk%VTK_VAR('vect', i_points, 'momentum', traversal%point_data%Q%p(1), traversal%point_data%Q%p(2), r_empty(1:i_points))
                     endif
 
                     e_io = vtk%VTK_DAT(i_cells, 'cell')
@@ -160,9 +164,12 @@
                         e_io = vtk%VTK_VAR(i_cells, 'water_height', traversal%cell_data%Q%h)
                         e_io = vtk%VTK_VAR(i_cells, 'bathymetry', traversal%cell_data%Q%b)
 
-                        r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
-                        r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+                        forall(i=1 : i_cells)
+                          r_velocity(1, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(1))
+                          r_velocity(2, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(2))
+                        end forall
                         e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
+                        e_io = vtk%VTK_VAR('vect', i_cells, 'momentum', traversal%cell_data%Q%p(1), traversal%cell_data%Q%p(2), r_empty(1:i_cells))
                     endif
 
                     e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)

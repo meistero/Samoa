@@ -13,6 +13,7 @@
 
 		use Samoa_FLASH
 		use FLASH_euler_timestep
+    USE DG_equation
 
 		implicit none
 
@@ -97,6 +98,7 @@
                             e_io = vtk%VTK_VAR_XML('water height', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+                            e_io = vtk%VTK_VAR_XML('momentum', 1.0_GRID_SR, 3)
                         end if
                     e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
@@ -105,6 +107,7 @@
                             e_io = vtk%VTK_VAR_XML('water height', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+                            e_io = vtk%VTK_VAR_XML('momentum', 1.0_GRID_SR, 3)
                         end if
 
                         e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
@@ -225,9 +228,12 @@
                     e_io = vtk%VTK_VAR_XML(i_points, 'water height', traversal%point_data%Q%h)
                     e_io = vtk%VTK_VAR_XML(i_points, 'bathymetry', traversal%point_data%Q%b)
 
-                    r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-                    r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
-                    e_io = vtk%VTK_VAR_XML(i_points, 'velocity',  r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+                    forall(i=1 : i_points)
+                      r_velocity(1, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(1))
+                      r_velocity(2, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(2))
+                    end forall
+                    e_io = vtk%VTK_VAR_XML(i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+                    e_io = vtk%VTK_VAR_XML(i_points, 'momentum', traversal%point_data%Q%p(1), traversal%point_data%Q%p(2), r_empty(1:i_points))
                 end if
                 e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
@@ -236,9 +242,12 @@
                     e_io = vtk%VTK_VAR_XML(i_cells, 'water height', traversal%cell_data%Q%h)
                     e_io = vtk%VTK_VAR_XML(i_cells, 'bathymetry', traversal%cell_data%Q%b)
 
-                    r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
-                    r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+                    forall(i=1 : i_cells)
+                      r_velocity(1, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(1))
+                      r_velocity(2, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(2))
+                    end forall
                     e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
+                    e_io = vtk%VTK_VAR_XML(i_cells, 'momentum', traversal%cell_data%Q%p(1), traversal%cell_data%Q%p(2), r_empty(1:i_cells))
                 end if
 
                 i_tmp = traversal%cell_data%rank
