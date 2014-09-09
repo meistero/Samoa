@@ -147,8 +147,13 @@
 !# else
 !     rep%Q(1) = Q(1)
 !# endif
+    ! TODO: Here we have to permute the dofs to get the ones which are actually
+    !       needed for an edge. Note: In Stormflash the dofs needed on the
+    !       reference triangle for (the reference) edge 1 (opposite node 1)
+    !       is given by i_gpsiidx. Then we only need the correct permutation to the
+    !       reference triangle...
     forall (i = 1 : _FLASH_EDGE_SIZE)
-      rep%Q(i) = Q(i)
+      rep%Q(i) = Q(i_gpsiidx(i))
     end forall
     ! set some markers which are later used for wetting and drying
     rep%iswete = 1.0_GRID_SR
@@ -323,55 +328,76 @@
 
     !local variables
 
-    type(t_update), dimension(3)                              :: fluxes
-    type(t_update)                                            :: eflux
-    type(t_state), dimension(_FLASH_CELL_SIZE)                :: dQ
+    type(t_update), dimension(_FLASH_CELL_SIZE,3)             :: fluxes
+    type(num_cell_update)                                     :: cell_update
+    type(t_state), dimension(_FLASH_CELL_SIZE)                :: Q, dQ
     real(kind = GRID_SR)                                      :: volume, dQ_norm, edge_lengths(3)
-    integer (kind = 1)                                        :: depth, i_dof
-
-    fluxes = [update1%flux, update2%flux, update3%flux]
-!
-!       _log_write(6, '(3X, A)') "FLASH cell update op:"
-!       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
-!       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 2 flux in:", fluxes(2)
-!       _log_write(6, '(4X, A, 4(X, F0.3))') "edge 3 flux in:", fluxes(3)
+    real(kind = GRID_SR), dimension(2,2)                      :: r_metrics_inv
+    real(kind = GRID_SR), dimension(2)                        :: jac
+    integer (kind = GRID_SI)                                  :: i_dof, i_edge, depth
 
     volume       = element%cell%geometry%get_volume()
     edge_lengths = element%cell%geometry%get_edge_sizes()
 
-    dQ%h    = sum(edge_lengths * fluxes%h)
-    dQ%p(1) = sum(edge_lengths * fluxes%p(1))
-    dQ%p(2) = sum(edge_lengths * fluxes%p(2))
-    dQ%b    = 0.0_GRID_SR
+    ! cell flux update
+    call gv_Q%read(element, Q)
 
-    dQ%h_old    = sum(edge_lengths * fluxes%h)
-    dQ%p_old(1) = sum(edge_lengths * fluxes%p(1))
-    dQ%p_old(2) = sum(edge_lengths * fluxes%p(2))
+    ! TODO: the correct values for r_metrics_inv must be computed, probably by
+    !       element%transform_data%plotter_data%jacobian and
+    !       element%transform_data%custom_data%scaling
+    !       Also Q must probably be flipped according to orientation
+!     call volume_op(Q, cell_update, r_metrics_inv)
+
+    ! TODO: if we flipped Q it must be flipped back according to orientation
+    forall (i_dof = 1 : _FLASH_CELL_SIZE)
+      dQ(i_dof)%h    = 0.0_GRID_SR
+      dQ(i_dof)%p(1) = 0.0_GRID_SR
+      dQ(i_dof)%p(2) = 0.0_GRID_SR
+!       dQ(i_dof)%h    = cell_update%flux(i_dof)%h
+!       dQ(i_dof)%p(1) = cell_update%flux(i_dof)%p(1)
+!       dQ(i_dof)%p(2) = cell_update%flux(i_dof)%p(2)
+      dQ(i_dof)%b    = 0.0_GRID_SR
+    end forall
+
+    ! edge flux update
+    forall (i_dof = 1 : _FLASH_CELL_SIZE)
+      fluxes(i_dof,1) = update1%flux(i_dof)
+      fluxes(i_dof,2) = update2%flux(i_dof)
+      fluxes(i_dof,3) = update3%flux(i_dof)
+    end forall
+
+    ! TODO: we have to permute back the dofs inverse to what we did in
+    !       cell_to_edge_op
+    DO i_edge = 1,3
+      forall (i_dof = 1 : _FLASH_CELL_SIZE)
+        dQ(i_dof)%h    = dQ(i_dof)%h    - edge_lengths(i_edge) * fluxes(i_dof,i_edge)%h    / volume
+        dQ(i_dof)%p(1) = dQ(i_dof)%p(1) - edge_lengths(i_edge) * fluxes(i_dof,i_edge)%p(1) / volume
+        dQ(i_dof)%p(2) = dQ(i_dof)%p(2) - edge_lengths(i_edge) * fluxes(i_dof,i_edge)%p(2) / volume
+      end forall
+    END DO
 
     ! set refinement condition
 
-!     element%cell%geometry%refinement = 0
-!     dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
-!
-!     depth = element%cell%geometry%i_depth
-!     if (depth < cfg%i_max_depth .and. dQ_norm > (1.5_GRID_SR ** 2)) then
-!       element%cell%geometry%refinement = 1
-!       traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-!     else if (depth > cfg%i_min_depth .and. dQ_norm < (1.45_GRID_SR ** 2)) then
-!       element%cell%geometry%refinement = -1
-!     endif
+    element%cell%geometry%refinement = 0
+    dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
+
+    depth = element%cell%geometry%i_depth
+    if (depth < cfg%i_max_depth .and. dQ_norm > (1.5_GRID_SR ** 2)) then
+      element%cell%geometry%refinement = 1
+      traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+    else if (depth > cfg%i_min_depth .and. dQ_norm < (1.45_GRID_SR ** 2)) then
+      element%cell%geometry%refinement = -1
+    endif
 
 !     section%u_max = max(section%u_max, maxval(fluxes%max_wave_speed))
 
     !_log_write(0, *) "U_max: ", section%u_max
 
     forall (i_dof = 1 : _FLASH_CELL_SIZE)
-      dQ(i_dof)%t_dof_state = dQ(i_dof)%t_dof_state * (-section%r_dt / volume)
+      dQ(i_dof)%t_dof_state = dQ(i_dof)%t_dof_state * section%r_dt
     end forall
 
 !     _log_write(6, '(4X, A, 4(X, F0.3))') "dQ out: ", dQ
-
-!       call volume_op(section, element, eflux)
 
     call gv_Q%add(element, dQ)
 
@@ -402,18 +428,17 @@
   !*******************************
 
 !*******************************************************************************
-  subroutine volume_op(section, element, update)
-    type(t_grid_section), intent(inout)                       :: section
-    type(t_element_base), intent(inout)                       :: element
-    type(num_cell_update), intent(inout)                        :: update
+  SUBROUTINE volume_op(Q, update, r_metrics_inv)
 
-    real(kind = GRID_SR)                                      :: volume
+    IMPLICIT NONE
+
+    type(t_state), dimension(_FLASH_CELL_SIZE), INTENT(in)    :: Q
+    type(num_cell_update), intent(out)                        :: update
+    REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(in)         :: r_metrics_inv
 
     _log_write(6, '(3X, A)') "FLASH volume op:"
 
-    volume = element%cell%geometry%get_volume()
-
-  end subroutine
+  END SUBROUTINE volume_op
 
   END MODULE
 

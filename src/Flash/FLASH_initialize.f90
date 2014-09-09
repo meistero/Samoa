@@ -101,6 +101,10 @@
 			do i = 1, _FLASH_CELL_SIZE
 				Q(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, t_basis_Q_get_dof_coords(i)), element%cell%geometry%i_depth / 2_GRID_SI)
 			end do
+      if (element%transform_data%plotter_data%orientation <1) then
+        Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
+      endif
+
 			element%cell%geometry%refinement = 0
 			if (element%cell%geometry%i_depth < cfg%i_min_depth) then
                 	!refine if the minimum depth is not met
