@@ -106,7 +106,7 @@
         integer                         :: i_error, i, j, k, alloc_err
 		integer(4)			:: i_rank, i_section, e_io
 		logical                         :: l_exists
-    	double precision, pointer				:: dummy_points(:,:,:) !groesse/dimension auf null setzen
+    	double precision, pointer				:: dummy_points(:,:,:) => null() !groesse/dimension auf null setzen
     	double precision, pointer 				:: big_points_array(:,:,:) => null()
         integer                                 :: counter = 1
 
@@ -114,12 +114,18 @@
             call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 
             !array of point arrays for gather
-            if (rank_MPI == 0) then     
+            if (rank_MPI == 0) then
+                if (associated(big_points_array)) then
+        	        deallocate(big_points_array)
+    	        end if     
                 allocate (big_points_array(size(r_testpoints,dim=1),size(r_testpoints,dim=2),size_MPI), stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-pointmatrix"
                 end if
-            else 
+            else
+                if (associated(dummy_points)) then
+        	        deallocate(dummy_points)
+              	end if 
 	            allocate (dummy_points(1,1,1), stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-pointmatrix"
@@ -166,7 +172,7 @@
 
         if (rank_MPI == 0) then
             ! file schreiben
-            write(pout_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_pointoutput_", traversal%i_output_iteration, ".txt"
+            write(pout_file_name, "(A, A, I0, A, F4.3, A, F4.3, A, I0, A)") TRIM(traversal%s_file_stamp), "_d", cfg%i_max_depth, "_cou", cfg%courant_number, "_dry", cfg%dry_tolerance, "_pointoutput_", traversal%i_output_iteration, ".txt"
 
             open(unit=out_unit, file=pout_file_name, action="write", status="replace")
                 write(out_unit, "(A)") "x, y, z, p(1), p(2), h, b, dist_to_cell_center, time"
@@ -249,7 +255,7 @@
                 r_testpoints(i,5) = h
                 r_testpoints(i,6) = b
                 r_testpoints(i,7) = dist
-                r_testpoints(i,8) = section%r_time / 86400 + 70.240278 !time unit: days since start of year - for comparison with buoy data
+                r_testpoints(i,8) = section%r_time / 86400 + 70.240556 !time unit: days since start of year - for comparison with buoy data
 
                 end if
 	

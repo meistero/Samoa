@@ -47,6 +47,7 @@ module config
 
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
+        double precision                        :: dry_tolerance                                    !< dry tolerance
 
 #    	if defined(_DARCY)
             character(256)                      :: s_permeability_file                              !< permeability file
@@ -104,9 +105,9 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 5 -tout -1.0d0"
 #    	elif defined(_TESTS)
@@ -163,6 +164,7 @@ module config
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
+            config%dry_tolerance = rget('samoa_drytolerance')
 #       endif
 
         if (rank_MPI == 0) then
@@ -210,6 +212,7 @@ module config
                     PRINT '(A, I0, A)', "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
+                    PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
@@ -334,6 +337,7 @@ module config
             _log_write(0, '(" Flash: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+            _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
 
             if (config%l_ascii_output) then
                 _log_write(0, '(" SWE: Ascii Output: Yes, width: ", I0)') config%i_ascii_width
