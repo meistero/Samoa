@@ -32,7 +32,7 @@
             type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
             type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
-	    type(t_swe_point_output_traversal)	    :: point_output
+	        type(t_swe_point_output_traversal)	    :: point_output
 
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
@@ -150,9 +150,9 @@
 
 		!> Destroys all required runtime objects for the scenario
 		subroutine swe_destroy(swe, grid, l_log)
-            class(t_swe), intent(inout)                                  :: swe
-			type(t_grid), intent(inout)									:: grid
-			logical, intent(in)		:: l_log
+            class(t_swe), intent(inout)     :: swe
+			type(t_grid), intent(inout)     :: grid
+			logical, intent(in)		        :: l_log
 
 			call swe%init%destroy()
             call swe%displace%destroy()
@@ -415,4 +415,3 @@
 		end subroutine
 	END MODULE SWE
 #endif
-

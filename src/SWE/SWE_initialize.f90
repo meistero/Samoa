@@ -235,6 +235,7 @@
                         .and. grid_min_z(cfg%afh_displacement) < t) then
 
                     ts = min(t, grid_max_z(cfg%afh_displacement))
+
                     bathymetry = bathymetry + asagi_get_float(cfg%afh_displacement, dble(xs(1)), dble(xs(2)), dble(ts), 0)
                 end if
 
@@ -253,3 +254,4 @@
 		end function
 	END MODULE
 #endif
+

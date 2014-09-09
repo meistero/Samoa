@@ -34,23 +34,11 @@
 	!Quadrature rules
 	!****************
 
-	MODULE SWE_Q_quadrature_rule
-		use SFC_data_types
-		use SWE_Q_space
-
-#		define _BF_TYPE_NAME		t_basis_Q
-#		define _BF_SIZE				_SWE_CELL_SIZE
-#		define _QR_TYPE_NAME		t_qr_Q
-
-#		include "Tools_quadrature_rule.f90"
-	END MODULE
-
 	MODULE Samoa_swe
 		use SWE_lfs_flux
 		use SWE_gv_Q
 
 		use SWE_Q_space
-		use SWE_Q_quadrature_rule
 		use SWE_flux_space
 
 		use Samoa
