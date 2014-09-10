@@ -13,6 +13,7 @@
 
 		use Samoa_FLASH
 		use FLASH_euler_timestep
+    use FLASH_dg_element
     USE DG_equation
 
 		implicit none
@@ -202,16 +203,17 @@
 			!local variables
 
 			integer (kind = GRID_SI)							:: i
-			real (kind = GRID_SR), parameter, dimension(2, 6)	:: r_test_points = reshape((/ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.5, 0.5 /), (/ 2, 6 /))
+			real (kind = GRID_SR), parameter, dimension(2, 6)	:: r_test_points = reshape((/ 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.5, 0.5 /), (/ 2, 6 /))
 			real (kind = GRID_SR), parameter, dimension(2)		:: r_test_point0 = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
 
 			type(t_state), dimension(_FLASH_CELL_SIZE)			:: Q
 			type(t_state), dimension(6)							:: Q_test
 
 			call gv_Q%read(element, Q)
-			if (element%transform_data%plotter_data%orientation <1) then
-				Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
-			endif
+      Q(:) = Q(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
+! 			if (element%transform_data%plotter_data%orientation <1) then
+! 				Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
+! 			endif
 
 			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
 			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement

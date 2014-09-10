@@ -147,6 +147,7 @@
 !# else
 !     rep%Q(1) = Q(1)
 !# endif
+
     ! TODO: Here we have to permute the dofs to get the ones which are actually
     !       needed for an edge. Note: In Stormflash the dofs needed on the
     !       reference triangle for (the reference) edge 1 (opposite node 1)

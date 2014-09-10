@@ -8,6 +8,7 @@
 		use FLASH_euler_timestep
 
 		use Samoa_FLASH
+    use FLASH_dg_element
 
 		implicit none
 
@@ -90,7 +91,7 @@
 			type(t_state), dimension(_FLASH_CELL_SIZE), intent(out)	:: Q
 
 			real (kind = GRID_SR), dimension(2)						:: pos
-			integer (kind = GRID_SI)								:: i
+			integer (kind = GRID_SI)								:: i, i_dof
 			real (kind = GRID_SR), parameter		                :: r_test_points(2, 3) = reshape([1.0, 0.0, 0.0, 0.0, 0.0, 1.0], [2, 3])
 			real (kind = GRID_SR)                                   :: centroid_square(2), centroid_triangle(2)
 			type(t_state), dimension(3)								:: Q_test
@@ -99,11 +100,12 @@
 			!evaluate initial function values at dof positions and compute DoFs
 
 			do i = 1, _FLASH_CELL_SIZE
-				Q(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, t_basis_Q_get_dof_coords(i)), element%cell%geometry%i_depth / 2_GRID_SI)
+        i_dof = i_reflect(i, (3 - element%transform_data%plotter_data%orientation) / 2)
+        Q(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, t_basis_Q_get_dof_coords(i_dof)), element%cell%geometry%i_depth / 2_GRID_SI)
 			end do
-      if (element%transform_data%plotter_data%orientation <1) then
-        Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
-      endif
+!       if (element%transform_data%plotter_data%orientation <1) then
+!         Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
+!       endif
 
 			element%cell%geometry%refinement = 0
 			if (element%cell%geometry%i_depth < cfg%i_min_depth) then
