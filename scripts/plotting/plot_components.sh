@@ -19,7 +19,7 @@ for file in darcy*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $(($processes * $threads)) \"$processes-$threads\"" " >> "darcy.plt"
+	echo -n $(($processes * $threads)) \"$processes{/Symbol \\264}$threads\"" " >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
@@ -45,7 +45,7 @@ for file in swe*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $(($processes * $threads)) \"$processes-$threads\"" " >> "swe.plt"
+	echo -n $(($processes * $threads)) \"$processes{/Symbol \\264}$threads\"" " >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
 	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
@@ -78,7 +78,7 @@ sort -t" " -n -k 1,1 swe.plt -o swe.plt
 gnuplot << EOT
 
 set terminal postscript enhanced color font ',20'
-set xlabel "Cores"
+set xlabel "Cores (processes {/Symbol \\264} threads)"
 set key below font ",20" spacing 1.0 width -2
 set xtics rotate
 set yrange [0:*]
@@ -91,7 +91,7 @@ set style line 1 lc rgb "cyan"
 set style line 2 lc rgb "orange"
 set style line 3 lc rgb "magenta"
 set style line 4 lc rgb "red"
-set style line 5 lc rgb "blue"
+set style line 5 lc rgb "white"
 set style line 6 lc rgb "green"
 set style line 7 lc rgb "brown"
 set style line 8 lc rgb "purple"
@@ -140,11 +140,11 @@ set ylabel "Sec. per core (wall clock time)"
 set output '| ps2pdf - swe_components.pdf'
 
 plot    "swe.plt" u (\$14) ls 4 t "Time step", \
-	    '' u (\$16) ls 5 t "Displace", \
 	    '' u (\$8) ls 2 t "Conformity", \
         '' u (\$6 - \$12):xtic(2) ls 1 t "Adaption", \
 	    '' u (\$12) ls 8 t "Neighbor search", \
-	    '' u (\$10) ls 3 t "Load Balancing"
+	    '' u (\$10) ls 3 t "Load Balancing", \
+	    '' u (\$16) ls 5 t "Displace"
 
 set title "SWE component breakdown - normalized"
 set ylabel "Sec. per element (CPU time)"
@@ -154,8 +154,8 @@ plot "swe.plt" u (\$14/\$13 * \$1/\$19) ls 4 t "Time step", \
     '' u (\$8/\$5 * \$1/\$19) ls 2 t "Conformity", \
     '' u ((\$6 - \$12)/\$5 * \$1/\$19):xtic(2) ls 1 t "Adaption", \
     '' u (\$12/\$5 * \$1/\$19) ls 8 t "Neighbor search", \
-	'' u (\$10/\$5 * \$1/\$19) ls 3 t "Load Balancing"
-#	'' u (\$16/\$15 * \$1/\$19) ls 5 t "Displace", \
+	'' u (\$10/\$5 * \$1/\$19) ls 3 t "Load Balancing", \
+	'' u (\$16/\$15 * \$1/\$19) ls 5 t "Displace"
 
 
 EOT
