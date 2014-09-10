@@ -346,26 +346,26 @@
     !       element%transform_data%plotter_data%jacobian and
     !       element%transform_data%custom_data%scaling
     !       Also Q must probably be flipped according to orientation
-!     call volume_op(Q, cell_update, r_metrics_inv)
+    r_metrics_inv = element%transform_data%plotter_data%jacobian_inv / element%transform_data%custom_data%scaling * 2.0
+
+    call volume_op(Q, cell_update, r_metrics_inv)
 
     ! TODO: if we flipped Q it must be flipped back according to orientation
     forall (i_dof = 1 : _FLASH_CELL_SIZE)
-      dQ(i_dof)%h    = 0.0_GRID_SR
-      dQ(i_dof)%p(1) = 0.0_GRID_SR
-      dQ(i_dof)%p(2) = 0.0_GRID_SR
-!       dQ(i_dof)%h    = cell_update%flux(i_dof)%h
-!       dQ(i_dof)%p(1) = cell_update%flux(i_dof)%p(1)
-!       dQ(i_dof)%p(2) = cell_update%flux(i_dof)%p(2)
+!       dQ(i_dof)%h    = 0.0_GRID_SR
+!       dQ(i_dof)%p(1) = 0.0_GRID_SR
+!       dQ(i_dof)%p(2) = 0.0_GRID_SR
+      dQ(i_dof)%h    = cell_update%flux(i_dof)%h
+      dQ(i_dof)%p(1) = cell_update%flux(i_dof)%p(1)
+      dQ(i_dof)%p(2) = cell_update%flux(i_dof)%p(2)
       dQ(i_dof)%b    = 0.0_GRID_SR
-    end forall
 
-    ! edge flux update
-    forall (i_dof = 1 : _FLASH_CELL_SIZE)
       fluxes(i_dof,1) = update1%flux(i_dof)
       fluxes(i_dof,2) = update2%flux(i_dof)
       fluxes(i_dof,3) = update3%flux(i_dof)
     end forall
 
+    ! edge flux update
     ! TODO: we have to permute back the dofs inverse to what we did in
     !       cell_to_edge_op
     DO i_edge = 1,3
@@ -436,7 +436,80 @@
     type(num_cell_update), intent(out)                        :: update
     REAL (KIND = GRID_SR), DIMENSION(:,:), INTENT(in)         :: r_metrics_inv
 
-    _log_write(6, '(3X, A)') "FLASH volume op:"
+    INTEGER (KIND = GRID_SI)                                  :: i_quad, i_dof, i_imaxh
+    REAL (KIND = GRID_SR)                                     :: r_iswet
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_QUAD_SIZE)   :: r_h, r_hu, r_hv, tmp
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,_FLASH_CELL_SIZE)       :: r_ddx, r_ddy
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,_FLASH_CELL_QUAD_SIZE)  :: r_eMinvdpsidx, r_eMinvdpsidy
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_SIZE,_FLASH_CELL_QUAD_SIZE)  :: r_ddxq, r_ddyq
+    REAL (KIND = GRID_SR), DIMENSION(_FLASH_CELL_QUAD_SIZE,2) :: r_gradb
+    REAL (KIND = GRID_SR), DIMENSION(3,2)                     :: r_Div
+    REAL (KIND = GRID_SR), DIMENSION(3)                       :: r_Src
+
+    forall (i_dof = 1 : _FLASH_CELL_SIZE)
+      update%flux(i_dof)%h    = 0.0_GRID_SR
+      update%flux(i_dof)%p(1) = 0.0_GRID_SR
+      update%flux(i_dof)%p(2) = 0.0_GRID_SR
+    end forall
+
+    i_imaxh = MAXLOC(Q(:)%h + Q(:)%b, DIM=1)
+    IF (MINVAL(Q(:)%h) < r_wettol .AND. &
+        Q(i_imaxh)%h+Q(i_imaxh)%b-MAXVAL(Q(:)%b) < r_wettol) THEN
+      r_iswet = 0.0_GRID_SR
+    ELSE
+      r_iswet = 1.0_GRID_SR
+    END IF
+
+    r_h  = MATMUL(Q(:)%h   , r_epsi)
+    r_hu = MATMUL(Q(:)%p(1), r_epsi)
+    r_hv = MATMUL(Q(:)%p(2), r_epsi)
+
+!--- compute derivative operators
+    DO i_dof = 1,_FLASH_CELL_SIZE
+      r_ddx(:,i_dof) = r_Dxi(:,i_dof)*r_metrics_inv(1,1) + r_Deta(:,i_dof)*r_metrics_inv(1,2)
+      r_ddy(:,i_dof) = r_Dxi(:,i_dof)*r_metrics_inv(2,1) + r_Deta(:,i_dof)*r_metrics_inv(2,2)
+      r_eMinvdpsidx(:,i_dof) = r_eMinvdpsidxi(:,i_dof) *r_metrics_inv(1,1) + &
+                               r_eMinvdpsideta(:,i_dof)*r_metrics_inv(1,2)
+      r_eMinvdpsidy(:,i_dof) = r_eMinvdpsidxi(:,i_dof) *r_metrics_inv(2,1) + &
+                               r_eMinvdpsideta(:,i_dof)*r_metrics_inv(2,2)
+    END DO
+!     write (*,*) 'r_eMinvdpsidx:'
+!     tmp = r_eMinvdpsidx(1,:)
+!     write (*,*) tmp
+!     tmp = r_eMinvdpsidx(2,:)
+!     write (*,*) tmp
+!     tmp = r_eMinvdpsidx(3,:)
+!     write (*,*) tmp
+    r_ddxq = MATMUL(r_ddx, r_epsi)
+    r_ddyq = MATMUL(r_ddy, r_epsi)
+
+!--- compute unknowns at quadrature points
+    r_gradb(:,1) = MATMUL(Q(:)%b, r_ddxq)
+    r_gradb(:,2) = MATMUL(Q(:)%b, r_ddyq)
+
+!-- quadrature loop
+    elmt_quad_loop: DO i_quad=1,_FLASH_CELL_QUAD_SIZE
+
+!--- compute flux divergence
+      r_Div = flux(r_h(i_quad), r_hu(i_quad), r_hv(i_quad), r_iswet=r_iswet)
+
+!--- multiply with r_eqwei*Minv*psi for each dof
+      elmt_dof_loop1: DO i_dof=1,_FLASH_CELL_SIZE
+        update%flux(i_dof)%h = update%flux(i_dof)%h + &
+          r_eqwei(i_quad)*(r_eMinvdpsidx(i_dof,i_quad)*r_Div(1,1)+r_eMinvdpsidy(i_dof,i_quad)*r_Div(1,2))
+        update%flux(i_dof)%p = update%flux(i_dof)%p + &
+          r_eqwei(i_quad)*(r_eMinvdpsidx(i_dof,i_quad)*r_Div(2:3,1)+r_eMinvdpsidy(i_dof,i_quad)*r_Div(2:3,2))
+      END DO elmt_dof_loop1
+
+      r_Src = source(r_h(i_quad), r_hu(i_quad), r_hv(i_quad), r_iswet, r_gradb(i_quad,:))
+
+!--- multiply with r_eqwei*Minv*psi for each dof
+      elmt_dof_loop2: DO i_dof=1,_FLASH_CELL_SIZE
+        update%flux(i_dof)%h = update%flux(i_dof)%h - r_eqwei(i_quad)*r_eMinvpsi(i_dof,i_quad)*r_Src(1)
+        update%flux(i_dof)%p = update%flux(i_dof)%p - r_eqwei(i_quad)*r_eMinvpsi(i_dof,i_quad)*r_Src(2:3)
+      END DO elmt_dof_loop2
+
+    END DO elmt_quad_loop
 
   END SUBROUTINE volume_op
 
