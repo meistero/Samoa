@@ -327,14 +327,13 @@
     type(t_element_base), intent(inout)                       :: element
     type(num_cell_update), intent(in)                         :: update1, update2, update3
 
-    !local variables
+    ! local variables
 
     type(t_update), dimension(_FLASH_CELL_SIZE,3)             :: fluxes
     type(num_cell_update)                                     :: cell_update
     type(t_state), dimension(_FLASH_CELL_SIZE)                :: Q, dQ
     real(kind = GRID_SR)                                      :: volume, dQ_norm, edge_lengths(3)
     real(kind = GRID_SR), dimension(2,2)                      :: r_metrics_inv
-    real(kind = GRID_SR), dimension(2)                        :: jac
     integer (kind = GRID_SI)                                  :: i_dof, i_edge, depth
 
     volume       = element%cell%geometry%get_volume()
@@ -342,14 +341,16 @@
 
     ! cell flux update
     call gv_Q%read(element, Q)
+    Q(:) = Q(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
 
     ! TODO: the correct values for r_metrics_inv must be computed, probably by
     !       element%transform_data%plotter_data%jacobian and
     !       element%transform_data%custom_data%scaling
     !       Also Q must probably be flipped according to orientation
-    r_metrics_inv = element%transform_data%plotter_data%jacobian_inv / element%transform_data%custom_data%scaling * 2.0
+    r_metrics_inv = TRANSPOSE(element%transform_data%plotter_data%jacobian_inv) / element%transform_data%custom_data%scaling * 2.0
 
     call volume_op(Q, cell_update, r_metrics_inv)
+    cell_update%flux(:) = cell_update%flux(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
 
     ! TODO: if we flipped Q it must be flipped back according to orientation
     forall (i_dof = 1 : _FLASH_CELL_SIZE)
@@ -474,13 +475,7 @@
       r_eMinvdpsidy(:,i_dof) = r_eMinvdpsidxi(:,i_dof) *r_metrics_inv(2,1) + &
                                r_eMinvdpsideta(:,i_dof)*r_metrics_inv(2,2)
     END DO
-!     write (*,*) 'r_eMinvdpsidx:'
-!     tmp = r_eMinvdpsidx(1,:)
-!     write (*,*) tmp
-!     tmp = r_eMinvdpsidx(2,:)
-!     write (*,*) tmp
-!     tmp = r_eMinvdpsidx(3,:)
-!     write (*,*) tmp
+
     r_ddxq = MATMUL(r_ddx, r_epsi)
     r_ddyq = MATMUL(r_ddy, r_epsi)
 
