@@ -51,6 +51,7 @@ PUBLIC _GT
 !> Traversal element ring buffer structure that provides local storage for some of the grid data
 type, extends(t_element_base) :: t_traversal_element
 	integer (KIND = GRID_SI)                            :: i_cell
+	real(kind = GRID_SR)				                :: coords(2,3)            				    !< coordinates
 	type(num_cell_data_temp)							:: cell_data_temp							!< cell temporary data
 
 #	if defined(_GT_EDGES)
@@ -579,15 +580,15 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call create_parent_cell(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_src_element%next%cell%geometry, thread_traversal%p_dest_element%cell%geometry)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
-
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
-				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
-				thread_traversal%p_dest_element%nodes(2)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
-				thread_traversal%p_dest_element%nodes(3)%ptr%position = 2.0_GRID_SR * thread_traversal%p_src_element%nodes(2)%ptr%position - thread_traversal%p_src_element%nodes(1)%ptr%position
+				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
+				thread_traversal%p_dest_element%coords(:,2) = thread_traversal%p_src_element%nodes(3)%ptr%position
+				thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position + (thread_traversal%p_src_element%nodes(2)%ptr%position - thread_traversal%p_src_element%nodes(1)%ptr%position)
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 			call _GT_COARSEN_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
 			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
@@ -596,14 +597,11 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-#			if !defined(_GT_INPUT_DEST)
-				thread_traversal%p_dest_element%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
-#			endif
-
 			call _GT_COARSEN_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [2])
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+
+			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => thread_traversal%p_dest_element%next
@@ -617,13 +615,13 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
-
 #			if !defined(_GT_INPUT_DEST)
-				do i = 1, 3
-					thread_traversal%p_dest_element%nodes(i)%ptr%position = thread_traversal%p_src_element%nodes(i)%ptr%position
-				end do
+                thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
+                thread_traversal%p_dest_element%coords(:,2) = thread_traversal%p_src_element%nodes(2)%ptr%position
+                thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 			call _GT_TRANSFER_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element)
 			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -646,22 +644,24 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
-
 #			if !defined(_GT_INPUT_DEST)
-				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
-				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
-				thread_traversal%p_dest_element%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
+				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
+				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+				thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
 			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_2%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
+                p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
+                p_dest_element_2%coords(:,2) = thread_traversal%p_dest_element%coords(:,2)
+				p_dest_element_2%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [2])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
@@ -687,31 +687,35 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
-
 #			if !defined(_GT_INPUT_DEST)
-				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
-				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
-				thread_traversal%p_dest_element%nodes(3)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
+				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
+				thread_traversal%p_dest_element%coords(:,3) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1, 1])
 			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_2%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
+                p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
+                p_dest_element_2%coords(:,2) = thread_traversal%p_dest_element%coords(:,2)
+				p_dest_element_2%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [1, 2])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_3%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
+                p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
+                p_dest_element_3%coords(:,2) = p_dest_element_2%coords(:,1)
+				p_dest_element_3%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
@@ -737,31 +741,35 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
-
 #			if !defined(_GT_INPUT_DEST)
-				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
-				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
-				thread_traversal%p_dest_element%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
+				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
+				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+				thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
 			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_2%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+                p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
+				p_dest_element_2%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+                p_dest_element_2%coords(:,3) = thread_traversal%p_dest_element%coords(:,2)
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [2, 1])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_3%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
+                p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
+				p_dest_element_3%coords(:,2) = p_dest_element_2%coords(:,2)
+				p_dest_element_3%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2, 2])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
@@ -790,40 +798,46 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 
 			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
-
 #			if !defined(_GT_INPUT_DEST)
-				thread_traversal%p_dest_element%nodes(1)%ptr%position = thread_traversal%p_src_element%nodes(1)%ptr%position
-				thread_traversal%p_dest_element%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
-				thread_traversal%p_dest_element%nodes(3)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
+				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
+				thread_traversal%p_dest_element%coords(:,3) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1, 1])
 			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_2%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(2)%ptr%position
+				p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
+				p_dest_element_2%coords(:,2) = thread_traversal%p_dest_element%coords(:,2)
+				p_dest_element_2%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [1, 2])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_3%nodes(2)%ptr%position = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+				p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
+				p_dest_element_3%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+				p_dest_element_3%coords(:,3) = p_dest_element_2%coords(:,1)
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2, 1])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
-
 #			if !defined(_GT_INPUT_DEST)
-				p_dest_element_4%nodes(3)%ptr%position = thread_traversal%p_src_element%nodes(3)%ptr%position
+				p_dest_element_4%coords(:,1) = p_dest_element_3%coords(:,3)
+				p_dest_element_4%coords(:,2) = p_dest_element_3%coords(:,2)
+				p_dest_element_4%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
 #			endif
+
+			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
 
 			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_4, [2, 2])
 			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
@@ -1023,9 +1037,14 @@ end subroutine
 !Destination grid operations
 !****************
 
+!coordinates are passed through from old to new grid and cannot be disabled
 #undef _GT_NO_COORDS
-#undef _GT_ELEMENT_TO_EDGE_OP
-#undef _GT_SKELETON_OP
+#define _GT_PASS_COORDS
+
+!Skeleton operators are not allowed in adaptive traversal
+#if defined(_GT_SKELETON_OP)
+#   error A skeleton operator cannot be defined in an adaptive traversal!
+#endif
 
 #if defined(_GT_INPUT_DEST)
 #	define _GT_INPUT
@@ -1063,13 +1082,15 @@ subroutine read_dest_element(traversal, thread, section, element)
     select case (element%cell%geometry%get_color_edge_type())
         case (OLD)
             if(thread%indices_stack(element%cell%geometry%i_color_edge_color)%is_empty()) then
+                !correct this case to INNER_OLD_BND
                 call element%cell%geometry%set_color_edge_type(int(OLD_BND, 1))
             else
+                !this is the default case INNER_OLD
                 call thread%indices_stack(element%cell%geometry%i_color_edge_color)%pop_data(i_empty)
             end if
         case (NEW)
             call thread%indices_stack(element%cell%geometry%i_color_edge_color)%push_data(element%i_cell)
-    end select
+     end select
 
 	call read_dest(traversal, thread, section, element)
 end subroutine
@@ -1097,18 +1118,11 @@ subroutine write_dest_element(traversal, thread, section, element)
             call write_dest_onn(traversal, thread, section, element)
         case (INNER_OLD_BND)
             call write_dest_odn(traversal, thread, section, element)
-        case (INNER_NEW_BND)
-            call write_dest_obn(traversal, thread, section, element)
-        case (FIRST_NEW, FIRST_OLD_BND, FIRST_NEW_BND)
+        case (FIRST_NEW, FIRST_OLD_BND)
             element%previous_edge%ptr%remove = .false.
             call write_dest(traversal, thread, section, element)
-        case (LAST_OLD, LAST_OLD_BND, LAST_NEW_BND)
-            element%next_edge%ptr%remove = .false.
-            call write_dest(traversal, thread, section, element)
-        case (SINGLE_OLD_BND, SINGLE_NEW_BND)
-            element%previous_edge%ptr%remove = .false.
-            element%next_edge%ptr%remove = .false.
-            call write_dest(traversal, thread, section, element)
+        case default
+            assert(.false.)
     end select
 end subroutine
 
@@ -1137,6 +1151,7 @@ end subroutine
 #undef _GT_POST_TRAVERSAL_GRID_OP
 #undef _GT_PRE_TRAVERSAL_OP
 #undef _GT_POST_TRAVERSAL_OP
+#undef _GT_PASS_COORDS
 
 !****************
 !Source grid operations
