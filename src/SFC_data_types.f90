@@ -54,6 +54,7 @@ MODULE SFC_data_types
         enumerator ::   INNER_NEW       = 8 * 0 + 4 * 0 + 2 * 0 + NEW
         enumerator ::   INNER_OLD_BND   = 8 * 0 + 4 * 0 + 2 * 1 + OLD
         enumerator ::   INNER_NEW_BND   = 8 * 0 + 4 * 0 + 2 * 1 + NEW
+        enumerator ::   FIRST_OLD       = 8 * 1 + 4 * 0 + 2 * 0 + OLD   !this case is invalid and possible only during adaptivity, when not all boundary edges have been found yet
         enumerator ::   FIRST_NEW       = 8 * 1 + 4 * 0 + 2 * 0 + NEW
         enumerator ::   FIRST_OLD_BND   = 8 * 1 + 4 * 0 + 2 * 1 + OLD
         enumerator ::   FIRST_NEW_BND   = 8 * 1 + 4 * 0 + 2 * 1 + NEW
