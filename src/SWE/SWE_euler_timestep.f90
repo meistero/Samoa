@@ -339,7 +339,7 @@
 #               if defined(_SWE_LLF_BATH)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
 #               else
-                    alpha = 100.0
+                    alpha = 100.0_GRID_SR
 #               endif
 
                 fluxL%h = 0.5_GRID_SR * (vL * (QL%h - QL%b) + vR * (QR%h - QR%b) + alpha * (QL%h - QR%h))
@@ -360,7 +360,7 @@
 #               if defined(_SWE_LLF)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
 #               else
-                    alpha = 100.0
+                    alpha = 100.0_GRID_SR
 #               endif
 
                 fluxL%h = 0.5_GRID_SR * (vL * (QL%h - b) + vR * (QR%h - b) + alpha * (QL%h - QR%h))
@@ -377,14 +377,9 @@
 			type(t_update), intent(out)         :: fluxL, fluxR
 			real(kind = GRID_SR), intent(in)    :: normal(2)
 
-			!real(kind = GRID_SR), parameter     :: dry_tol = 0.01_GRID_SR
 			real(kind = GRID_SR)				:: transform_matrix(2, 2)
 			real(kind = GRID_SR)			    :: net_updatesL(3), net_updatesR(3), max_wave_speed
 			real(kind = GRID_SR)                :: pL(2), pR(2), hL, hR, bL, bR
-
-            !real(kind = GRID_SR), parameter     :: dry_tolerance = 0.1_GRID_SR
-
-            
 
 			transform_matrix(1, :) = normal
 			transform_matrix(2, :) = [-normal(2), normal(1)]
@@ -397,13 +392,11 @@
 			bR = QR%b
 
 #           if defined(_SWE_FWAVE)
-
-                call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, cfg%dry_tolerance, g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_SSQ_FWAVE)
-                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, cfg%dry_tolerance, g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_AUG_RIEMANN)
-                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, cfg%dry_tolerance, g, net_updatesL, net_updatesR, max_wave_speed)
-
+                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           endif
 
 			fluxL%h = net_updatesL(1)

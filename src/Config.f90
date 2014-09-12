@@ -37,7 +37,7 @@ module config
         double precision                        :: r_boundary_weight                                !< boundary weight for the count-based load estimate
         logical                                 :: l_split_sections                                 !< if true, MPI load balancing may split sections, if false sections are treated as atomic units
         logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
-	
+
 	    logical 				                :: l_gridoutput			                            !< grid output on/off
         logical                                 :: l_ascii_output                                   !< ascii output on/off
         integer                                 :: i_ascii_width                                    !< width of the ascii output
@@ -105,9 +105,9 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 5 -tout -1.0d0"
 #    	elif defined(_TESTS)
@@ -144,13 +144,13 @@ module config
         config%courant_number = rget('samoa_courant')
         config%l_gridoutput = lget('samoa_xmloutput')
         config%s_testpoints = sget('samoa_stestpoints', 512)
-        
-	if (len(trim(config%s_testpoints)) .ne. 2) then		
+
+	if (len(trim(config%s_testpoints)) .ne. 2) then
 		config%l_pointoutput = .true.
 		call parse_testpoints(config)
 	else
-		config%l_pointoutput = .false.		
-	end if    
+		config%l_pointoutput = .false.
+	end if
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
@@ -366,17 +366,17 @@ module config
     end subroutine
 
     subroutine parse_testpoints(config)
-	class(t_config), intent(inout)          :: config	
+	class(t_config), intent(inout)          :: config
 
 	!local variables
 	logical					:: l_wrong_format, l_point, l_comma, l_space, l_number_pre, l_number_post, l_sign, l_ycoord
         integer          			:: i, i_error, points, j, coordstart(50,2), k, counter
         character(512)                          :: checkstring
 
-	! check for correctness		
+	! check for correctness
 	l_wrong_format = .false.
 	checkstring = config%s_testpoints
-	
+
 	l_sign = .true.
 	l_number_pre = .true.
 	l_number_post = .false.
@@ -388,8 +388,8 @@ module config
 	counter = len(trim(config%s_testpoints))
 
 	do while ((l_wrong_format .eqv. .false.) .and. (counter > 0))
-		if ((l_sign .eqv. .true.) .and. (checkstring(1:1) == "-")) then			
-			! sign ('-' only)			
+		if ((l_sign .eqv. .true.) .and. (checkstring(1:1) == "-")) then
+			! sign ('-' only)
 			checkstring = checkstring (2:)
 			counter = counter - 1
 			l_number_pre = .true.
@@ -397,10 +397,10 @@ module config
 			l_sign = .false.
 			l_space = .false.
 			l_comma = .false.
-			l_point = .false.		
+			l_point = .false.
 		else if ((l_number_pre .eqv. .true.) .and. &
-		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. & 
-	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. & 
+		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
+	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
 		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
 		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
 		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
@@ -414,8 +414,8 @@ module config
 			l_comma = .false.
 			l_point = .true.
 		else if ((l_number_post .eqv. .true.) .and. &
-		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. & 
-	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. & 
+		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
+	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
 		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
 		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
 		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
@@ -439,7 +439,7 @@ module config
 			l_comma = .false.
 			l_point = .false.
 		else if ((l_comma .eqv. .true.) .and. (l_ycoord .eqv. .true.) &
-		    .and. (checkstring(1:1) == ",")) then 	
+		    .and. (checkstring(1:1) == ",")) then
 			! comma
 			checkstring = checkstring(2:)
 			counter = counter - 1
@@ -460,17 +460,17 @@ module config
 			l_sign = .true.
 			l_space = .false.
 			l_comma = .false.
-			l_point = .false.	
-			l_ycoord = .true.	
+			l_point = .false.
+			l_ycoord = .true.
 		else
-			write (*,'(A,$)') 'Position with wrong symbol (counting from the end):'			
+			write (*,'(A,$)') 'Position with wrong symbol (counting from the end):'
 			write (*,*) counter
 			l_wrong_format = .true.
 		end if
 	end do
-	
+
 	try((.not. l_wrong_format), 'Error in submitted testpoints')
-	
+
 	!convert stestpoints (string) to r_testpoints (real array)
 	points = 0
 	!k = 1
@@ -486,9 +486,9 @@ module config
 		    coordstart(points,1) = j+1
 		end if
 	    end do
-		    
-	    allocate (config%r_testpoints(points,2), stat = i_error); assert_eq(i_error,0) 
-	    
+
+	    allocate (config%r_testpoints(points,2), stat = i_error); assert_eq(i_error,0)
+
 		!uncomment the following do to check if starts of coordinates are correctly detected
 		!do j=1, points
 		!	write (*,*) coordstart(j,1)
@@ -498,14 +498,14 @@ module config
 			read(unit=config%s_testpoints(coordstart(j,1):), fmt=*) config%r_testpoints(j,1)
 			read(unit=config%s_testpoints(coordstart(j,2):), fmt=*) config%r_testpoints(j,2)
 	     end do
-	
+
 		!uncomment the following do to check if testpoints are correctly saved in the double precision array
-		!write (*,*) 'testpoints read:'		
+		!write (*,*) 'testpoints read:'
 		!do j=1,  size(config%r_testpoints,dim=1)
 		!	write (*,*) config%r_testpoints(j,1)
 		!	write (*,*) config%r_testpoints(j,2)
-		!end do			
-		    
+		!end do
+
 	end if
 
     end subroutine
