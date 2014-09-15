@@ -68,45 +68,6 @@
 
 	END MODULE
 
-	!****************
-	!Quadrature rules
-	!****************
-
-	MODULE Samoa_darcy_p_quadrature_rule
-		use SFC_data_types
-		use Samoa_darcy_p_space
-
-#		define _BF_TYPE_NAME		samoa_basis_p
-#		define _BF_SIZE				_DARCY_P_SIZE
-#		define _QR_TYPE_NAME		samoa_qr_p
-
-#		include "Tools_quadrature_rule.f90"
-
-		!undefine macros to avoid compiler warnings
-#		undef _BF_TYPE_NAME
-#		undef _BF_SIZE
-#		undef _QR_TYPE_NAME
-
-	END MODULE
-
-	MODULE Samoa_darcy_u_quadrature_rule
-		use SFC_data_types
-		use Samoa_darcy_u_space
-
-
-#		define _BF_TYPE_NAME		samoa_basis_u
-#		define _BF_SIZE				_DARCY_U_SIZE
-#		define _QR_TYPE_NAME		samoa_qr_u
-
-#		include "Tools_quadrature_rule.f90"
-
-		!undefine macros to avoid compiler warnings
-#		undef _BF_TYPE_NAME
-#		undef _BF_SIZE
-#		undef _QR_TYPE_NAME
-
-	END MODULE
-
 	MODULE Samoa_darcy
 		use Tools_log
 
