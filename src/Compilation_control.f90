@@ -40,7 +40,7 @@
 #define _HEAT_EQ_EDGE_SIZE 			(_HEAT_EQ_ORDER - 1)
 #define _HEAT_EQ_NODE_SIZE			1
 
-#define _FLASH_ORDER            1
+#define _FLASH_ORDER            0
 #define _FLASH_CELL_SIZE        ((_FLASH_ORDER + 1) * (_FLASH_ORDER + 2)) / 2
 # if (_FLASH_ORDER == 0)
 #   define _FLASH_EDGE_SIZE         1
