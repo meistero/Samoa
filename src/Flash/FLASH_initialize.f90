@@ -204,7 +204,7 @@
 				Q%h_old = Q%h
 #			else
 ! 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(x - dam_center, x - dam_center))+10
-        Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - (x(1) - dam_center(1)))+1
+        Q%h = 1.0_GRID_SR ! 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - (x(1) - dam_center(1)))+1
 				Q%h_old = Q%h
 #			endif
 

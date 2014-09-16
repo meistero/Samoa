@@ -343,11 +343,7 @@
     call gv_Q%read(element, Q)
     Q(:) = Q(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
 
-    ! TODO: the correct values for r_metrics_inv must be computed, probably by
-    !       element%transform_data%plotter_data%jacobian and
-    !       element%transform_data%custom_data%scaling
-    !       Also Q must probably be flipped according to orientation
-    r_metrics_inv = TRANSPOSE(element%transform_data%plotter_data%jacobian_inv) / element%transform_data%custom_data%scaling * 2.0
+    r_metrics_inv = TRANSPOSE(element%transform_data%plotter_data%jacobian_inv) / element%transform_data%custom_data%scaling * 2.0_GRID_SR
 
     call volume_op(Q, cell_update, r_metrics_inv)
     cell_update%flux(:) = cell_update%flux(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
