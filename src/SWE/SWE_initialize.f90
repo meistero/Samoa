@@ -201,13 +201,13 @@
 #			else
 				!Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 
-                !Q%h = 0.0_GRID_SR
+                Q%h = 0.0_GRID_SR
 
-                if (x(1) + x(2) >= 1.0_GRID_SR) then
-                    Q%h = 10.0_GRID_SR
-                else
-				    Q%h = 0.0_GRID_SR
-                endif
+                !if (x(1) + x(2) >= 1.0_GRID_SR) then
+                !    Q%h = 10.0_GRID_SR
+                !else
+				!    Q%h = 0.0_GRID_SR
+                !endif
 #			endif
 
 			Q%p = 0.0_GRID_SR
@@ -262,13 +262,13 @@
 
                 !bathymetry = -1000_GRID_SR
                 
-                if (x(1) < 0.5_GRID_SR) then
-                    bathymetry = -1000.0_GRID_SR
-                else
-                    bathymetry = -40.0_GRID_SR
-                end if
+                !if (x(1) < 0.5_GRID_SR) then
+                !    bathymetry = -1000.0_GRID_SR
+                !else
+                !    bathymetry = -40.0_GRID_SR
+                !end if
 
-                !bathymetry = -40.0_GRID_SR - 11000.0_GRID_SR * (x(1)+x(2)) * 0.5_GRID_SR
+                bathymetry = -40.0_GRID_SR - 11000.0_GRID_SR * (x(1)+x(2)) * 0.5_GRID_SR
 #			endif
 		end function
 	END MODULE

@@ -18,6 +18,9 @@
             integer (kind = GRID_DI)			:: i_refinements_issued
         end type
 
+        real (kind=GRID_SR)         ::  j_dt_used, j_dt_should, needed_courant
+
+
         interface skeleton_op
             module procedure skeleton_array_op
             module procedure skeleton_scalar_op
@@ -87,6 +90,8 @@
 			type(t_grid), intent(inout)							    :: grid
 
             grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+            
+            j_dt_used = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max) ! -------- for comparison of used and should-have-used-dt
 
 #           if defined(_ASAGI)
                 if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
@@ -104,6 +109,16 @@
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
 			grid%r_time = grid%r_time + grid%r_dt
+
+            j_dt_should = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max) ! -------- for comparison of used and should-have-used-dt
+            needed_courant = j_dt_should / j_dt_used
+
+            if (needed_courant < cfg%courant_number) then
+                                
+                if (rank_MPI == 0) then
+                    write (*,*) "WARNING! Done timestep was too big. Done timestep: ", cfg%courant_number*j_dt_used, ", should-have-used timestep: ", j_dt_should, ", suggested courant number: ", needed_courant
+                end if
+            end if
 
 			grid%sections%elements%r_time = grid%r_time
 		end subroutine
