@@ -25,6 +25,7 @@ MODULE _CG_(step)
         real (kind = GRID_SR)				    :: beta						!< update ratio
         real (kind = GRID_SR)				    :: d_u					    !< d^T * u
         real (kind = GRID_SR)				    :: v_u					    !< v^T * u
+        real (kind = GRID_SR)				    :: r_C_r					!< r^T * C * r
         real (kind = GRID_SR)					:: r_sq						!< r^2
 
 #       if !defined(_solver_unstable)
@@ -157,35 +158,39 @@ MODULE _CG_(step)
         type(t_grid), intent(inout)							        :: grid
 
         integer                                                     :: i_error
-        double precision                                            :: reduction_set(4)
+
+#       if !defined(_solver_unstable)
+            real (kind = GRID_SR)                                   :: reduction_set(5)
+#       else
+            real (kind = GRID_SR)                                   :: reduction_set(4)
+#       endif
 
         call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .false.)
         call reduce(traversal%v_u, traversal%children%v_u, MPI_SUM, .false.)
+        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
         call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
 
         reduction_set(1) = traversal%d_u
         reduction_set(2) = traversal%v_u
-        reduction_set(3) = traversal%r_sq
+        reduction_set(3) = traversal%r_C_r
+        reduction_set(4) = traversal%r_sq
 
 #       if !defined(_solver_unstable)
             call reduce(traversal%r_u, traversal%children%r_u, MPI_SUM, .false.)
 
-            reduction_set(4) = traversal%r_u
+            reduction_set(5) = traversal%r_u
 
-#           if defined(_MPI)
-                call mpi_allreduce(MPI_IN_PLACE, reduction_set, 4, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#           endif
+            call reduce(reduction_set, MPI_SUM)
 
-            traversal%r_u = reduction_set(4)
+            traversal%r_u = reduction_set(5)
 #       else
-#           if defined(_MPI)
-                call mpi_allreduce(MPI_IN_PLACE, reduction_set, 3, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#           endif
+            call reduce(reduction_set, MPI_SUM)
 #       endif
 
         traversal%d_u = reduction_set(1)
         traversal%v_u = reduction_set(2)
-        traversal%r_sq = reduction_set(3)
+        traversal%r_C_r = reduction_set(3)
+        traversal%r_sq = reduction_set(4)
     end subroutine
 
     pure subroutine pre_traversal_op(traversal, section)
@@ -194,6 +199,7 @@ MODULE _CG_(step)
 
         traversal%d_u = 0.0_GRID_SR
         traversal%v_u = 0.0_GRID_SR
+        traversal%r_C_r = 0.0_GRID_SR
         traversal%r_sq = 0.0_GRID_SR
 
 #       if !defined(_solver_unstable)
@@ -325,9 +331,9 @@ MODULE _CG_(step)
 
         do i = 1, _gv_node_size
 #           if !defined(_solver_unstable)
-                call reduce_dof_op(traversal%d_u, traversal%r_u, traversal%v_u, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
+                call reduce_dof_op(traversal%d_u, traversal%r_u, traversal%v_u, traversal%r_C_r, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
 #           else
-                call reduce_dof_op(traversal%d_u, traversal%d_u, traversal%v_u, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
+                call reduce_dof_op(traversal%d_u, traversal%d_u, traversal%v_u, traversal%r_C_r, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
 #           endif
         end do
     end subroutine
@@ -389,10 +395,11 @@ MODULE _CG_(step)
         v = v / trace_A
     end subroutine
 
-    elemental subroutine reduce_dof_op(d_u, r_u, v_u, r_sq, r, d, v, trace_A)
+    elemental subroutine reduce_dof_op(d_u, r_u, v_u, r_C_r, r_sq, r, d, v, trace_A)
         real (kind = GRID_SR), intent(inout)		:: d_u
         real (kind = GRID_SR), intent(inout)		:: r_u
         real (kind = GRID_SR), intent(inout)		:: v_u
+        real (kind = GRID_SR), intent(inout)		:: r_C_r
         real (kind = GRID_SR), intent(inout)		:: r_sq
         real (kind = GRID_SR), intent(in)		    :: r
         real (kind = GRID_SR), intent(in)		    :: d
@@ -401,6 +408,7 @@ MODULE _CG_(step)
 
         d_u = d_u + (d * v * trace_A)
         v_u = v_u + (v * v * trace_A)
+        r_C_r = r_C_r + (r * r * trace_A)
         r_sq = r_sq + (r * r)
 
 #       if !defined(_solver_unstable)
@@ -541,7 +549,7 @@ MODULE _CG_(exact)
         type(t_grid), intent(inout)							        :: grid
 
         integer                                                     :: i_error
-        double precision                                            :: reduction_set(2)
+        real (kind = GRID_SR)                                       :: reduction_set(2)
 
         call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
         call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
@@ -549,9 +557,7 @@ MODULE _CG_(exact)
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
 
-#       if defined(_MPI)
-            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#       endif
+        call reduce(reduction_set, MPI_SUM)
 
         traversal%r_C_r = reduction_set(1)
         traversal%r_sq = reduction_set(2)
@@ -619,14 +625,17 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(1)
+        real(kind = GRID_SR)	:: r(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
         if (.not. any(is_dirichlet)) then
             call inner_node_last_touch_op(traversal, section, node)
         else
-            call gv_r%write(node, spread(0.0_GRID_SR, 1, _gv_node_size))
+            r(:) = 0.0_GRID_SR
+
+            call gv_r%write(node, r)
         end if
     end subroutine
 
@@ -824,6 +833,7 @@ MODULE _CG
             solver%cg_step%alpha = alpha
             solver%cg_step%beta = beta
             call solver%cg_step%traverse(grid)
+            r_C_r = solver%cg_step%r_C_r
             r_sq = solver%cg_step%r_sq
             d_u = solver%cg_step%d_u
             v_u = solver%cg_step%v_u
@@ -835,8 +845,12 @@ MODULE _CG
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
             if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
-                r_sq = solver%cg_exact%r_sq
                 r_C_r = solver%cg_exact%r_C_r
+                r_sq = solver%cg_exact%r_sq
+
+                if (r_sq < solver%max_error * solver%max_error) then
+                    exit
+                end if
 
                 !$omp master
                 if (iand(i_iteration, z'3ff') == z'3ff') then
@@ -850,10 +864,10 @@ MODULE _CG
             r_C_r_old = r_C_r
 
 #           if !defined(_solver_unstable)
-                !requires 2 reductions, but can afford residual correction every 256 iterations
                 r_C_r = r_C_r_old + alpha * (alpha * v_u - 2.0_GRID_SR * r_u)
+                !r_C_r = alpha * (alpha * v_u - r_u)
 #           else
-                !requires 1 reduction, but also residual correction every 16 iterations
+                !requires one less dot product
                 r_C_r = alpha * alpha * v_u - r_C_r_old
 #           endif
 

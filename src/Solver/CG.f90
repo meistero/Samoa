@@ -272,7 +272,7 @@ MODULE _CG_(2)
         type(t_grid), intent(inout)							        :: grid
 
         integer                                                     :: i_error
-        double precision                                            :: reduction_set(2)
+        real (kind = GRID_SR)                                       :: reduction_set(2)
 
         call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
         call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
@@ -280,9 +280,7 @@ MODULE _CG_(2)
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
 
-#       if defined(_MPI)
-            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#       endif
+        call reduce(reduction_set, MPI_SUM)
 
         traversal%r_C_r = reduction_set(1)
         traversal%r_sq = reduction_set(2)
@@ -508,7 +506,7 @@ MODULE _CG_(exact)
         type(t_grid), intent(inout)							        :: grid
 
         integer                                                     :: i_error
-        double precision                                            :: reduction_set(2)
+        real (kind = GRID_SR)                                       :: reduction_set(2)
 
         call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
         call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
@@ -516,9 +514,7 @@ MODULE _CG_(exact)
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
 
-#       if defined(_MPI)
-            call mpi_allreduce(MPI_IN_PLACE, reduction_set, 2, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#       endif
+        call reduce(reduction_set, MPI_SUM)
 
         traversal%r_C_r = reduction_set(1)
         traversal%r_sq = reduction_set(2)
