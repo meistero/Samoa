@@ -358,6 +358,39 @@
 #		endif
 	end subroutine
 
+
+subroutine _OP0(preset_transform_data)(section, element)
+    type(t_grid_section), intent(inout)         :: section
+    type(t_traversal_element), intent(inout)      :: element            !< input element
+
+#   if defined(_GT_EDGES)
+      integer (kind = 1)                :: i
+      type(t_cell_transform_data), pointer      :: p_plotter_data
+#   endif
+
+    element%transform_data%plotter_data => ref_plotter_data(element%cell%geometry%i_plotter_type)
+    element%transform_data%custom_data%scaling = element%cell%geometry%get_scaling()
+
+#   if defined(_GT_EDGES)
+
+      select case(element%cell%geometry%i_turtle_type)
+        case (K)
+          element%edges(3) = element%previous_edge
+          element%edges(3)%ptr%depth = element%cell%geometry%i_depth
+                      element%edges(3)%ptr%transform_data => element%transform_data%plotter_data%edges(3)
+        case (V)
+          element%edges(3) = element%previous_edge
+          element%edges(3)%ptr%depth = element%cell%geometry%i_depth
+                      element%edges(3)%ptr%transform_data => element%transform_data%plotter_data%edges(3)
+        case (H)
+          element%edges(2) = element%previous_edge
+          element%edges(2)%ptr%depth = element%cell%geometry%i_depth - 1
+                          element%edges(2)%ptr%transform_data => element%transform_data%plotter_data%edges(2)
+      end select
+
+#   endif
+  end subroutine
+
 	subroutine _OP0(read) (traversal, thread, section, element)
 		type(_GT), intent(inout)					            :: traversal
 		type(t_grid_thread), intent(inout)					    :: thread
@@ -560,6 +593,7 @@
 #			endif
 
 #			if (_GT_NEXT_EDGE_TYPE == _NEW)
+        call _OP0(preset_transform_data)(section, element%next)
 				call _GT_SKELETON_OP(traversal, section, element%next_edge%ptr, _GT_CELL_TO_EDGE_OP(element%t_element_base, element%next_edge%ptr), _GT_CELL_TO_EDGE_OP(element%next%t_element_base, element%next_edge%ptr), next_edge_local_update, element%next_edge%ptr%update)
 #			elif (_GT_NEXT_EDGE_TYPE == _NEW_BND)
 				next_edge_local_update = element%next_edge%ptr%update
