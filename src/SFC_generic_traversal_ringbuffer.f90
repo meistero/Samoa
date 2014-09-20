@@ -78,6 +78,7 @@ type, extends(num_traversal_data) :: _GT
     procedure, pass :: destroy
     procedure, pass :: traverse
     procedure, pass :: reduce_stats
+    procedure, pass :: clear_stats
 end type
 
 contains
@@ -90,7 +91,7 @@ subroutine gt_assign(gt1, gt2)
     gt1%stats = gt2%stats
     gt1%mpi_node_type = gt2%mpi_node_type
     gt1%mpi_edge_type = gt2%mpi_edge_type
-    
+
     !pointers are not copied, they must be set manually
 end subroutine
 
@@ -106,6 +107,19 @@ subroutine reduce_stats(traversal, mpi_op, global)
     if (global) then
         call traversal%stats%reduce(mpi_op)
     end if
+end subroutine
+
+subroutine clear_stats(traversal)
+    class(_GT)              :: traversal
+    integer                 :: i
+
+    if (associated(traversal%threads)) then
+        do i = 1, size(traversal%threads)
+            call traversal%threads(i)%stats%clear()
+        end do
+    end if
+
+    call traversal%stats%clear()
 end subroutine
 
 subroutine create(traversal)
@@ -469,7 +483,7 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 #	endif
 
 	if (section%cells%get_size() > 0) then
-        assert_ge(section%cells%get_size(), 2)  
+        assert_ge(section%cells%get_size(), 2)
  		call init(section, thread_traversal%elements(1))
 
 		!process first element

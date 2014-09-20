@@ -88,7 +88,7 @@ MODULE SFC_traversal
 			call darcy%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call darcy%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call darcy%run(grid)
             call grid%destroy()
 			!$omp end parallel
 
@@ -99,7 +99,7 @@ MODULE SFC_traversal
 			call swe%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
-			call swe%run(grid, cfg%i_max_time_steps, real(cfg%r_max_time, GRID_SR), real(cfg%r_output_time_step, GRID_SR))
+			call swe%run(grid)
             call grid%destroy()
 			!$omp end parallel
 

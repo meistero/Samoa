@@ -71,7 +71,9 @@
 
 		integer 						:: i, erro
 
-		write (*,*) "output step: ", traversal%i_output_iteration
+        if (rank_MPI == 0) then
+            _log_write(1, '(A, I0)') " SWE: output step: ", traversal%i_output_iteration
+        end if
 
         ! initialize test point array
 
@@ -119,7 +121,7 @@
             if (rank_MPI == 0) then
                 if (associated(big_points_array)) then
         	        deallocate(big_points_array)
-    	        end if     
+    	        end if
 
                 allocate (big_points_array(size(r_testpoints,dim=1),size(r_testpoints,dim=2),size_MPI), stat = alloc_err)
                 if (alloc_err > 0) then
@@ -128,7 +130,7 @@
             else
                 if (associated(dummy_points)) then
         	        deallocate(dummy_points)
-              	end if 
+              	end if
 	            allocate (dummy_points(1,1,1), stat = alloc_err)
                 if (alloc_err > 0) then
                     write(*,'(A)') "Error when trying to allocate rank-0-pointmatrix"

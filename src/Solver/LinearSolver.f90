@@ -11,6 +11,7 @@ module linear_solver
         procedure(i_destroy), deferred, pass        :: destroy
         procedure(i_solve), deferred, pass          :: solve
         procedure(i_reduce_stats), deferred, pass   :: reduce_stats
+        procedure(i_clear_stats), deferred, pass    :: clear_stats
     end type
 
     interface
@@ -26,6 +27,11 @@ module linear_solver
             class(t_linear_solver), intent(inout)   :: solver
             integer, intent(in)                     :: mpi_op
             logical                                 :: global
+        end subroutine
+
+        subroutine i_clear_stats(solver)
+            import
+            class(t_linear_solver), intent(inout)   :: solver
         end subroutine
 
         subroutine i_destroy(solver)

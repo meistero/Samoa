@@ -77,7 +77,9 @@
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
 			type(t_section_info)                                           :: grid_info
 
- 			_log_write(1, '(A, I0)') " Darcy: output step ", traversal%i_output_iteration
+            if (rank_MPI == 0) then
+                _log_write(1, '(A, I0, A, I0)') " Darcy: output step: ", traversal%i_output_iteration
+            end if
 
             grid_info = section%get_info()
 			i_cells = grid_info%i_cells

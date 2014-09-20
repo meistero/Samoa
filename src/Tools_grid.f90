@@ -790,6 +790,7 @@ module Grid
 
         procedure, pass :: assign => grid_assign
 		procedure, pass :: reduce_stats => grid_reduce_stats
+		procedure, pass :: clear_stats => grid_clear_stats
 		procedure, pass :: get_cells => grid_get_cells
 		procedure, pass :: get_info => grid_get_info
 		procedure, pass :: get_local_sections => grid_get_local_sections
@@ -898,6 +899,19 @@ module Grid
         if (global) then
             call grid%stats%reduce(mpi_op)
         end if
+    end subroutine
+
+    subroutine grid_clear_stats(grid)
+        class(t_grid)           :: grid
+        integer :: i
+
+        if (associated(grid%threads%elements)) then
+            do i = 1, size(grid%threads%elements)
+                call grid%threads%elements(i)%stats%clear()
+            end do
+        end if
+
+        call grid%stats%clear()
     end subroutine
 
 	function grid_get_cells(grid, mpi_op, global) result(i_grid_cells)

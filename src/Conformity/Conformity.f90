@@ -40,6 +40,7 @@ module Conformity
         procedure, pass :: create
         procedure, pass :: check => conformity_check
         procedure, pass :: reduce_stats
+        procedure, pass :: clear_stats
         procedure, pass :: destroy
     end type
 
@@ -63,6 +64,19 @@ module Conformity
         if (global) then
             call conformity%stats%reduce(mpi_op)
         end if
+    end subroutine
+
+    subroutine clear_stats(conformity)
+        class(t_conformity)     :: conformity
+        integer :: i
+
+        if (associated(conformity%threads)) then
+            do i = 1, size(conformity%threads)
+                call conformity%threads(i)%stats%clear()
+            end do
+        end if
+
+        call conformity%stats%clear()
     end subroutine
 
     subroutine create_node_mpi_type(mpi_node_type)

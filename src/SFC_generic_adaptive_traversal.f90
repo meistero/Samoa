@@ -90,6 +90,7 @@ type, extends(num_traversal_data) :: _GT
     procedure, pass :: destroy
     procedure, pass :: traverse => traverse_in_place
     procedure, pass :: reduce_stats
+    procedure, pass :: clear_stats
 end type
 
 contains
@@ -108,6 +109,21 @@ subroutine reduce_stats(traversal, mpi_op, global)
     end if
 
     call traversal%conformity%reduce_stats(mpi_op, global)
+end subroutine
+
+subroutine clear_stats(traversal)
+    class(_GT)              :: traversal
+    integer                 :: i
+
+    if (associated(traversal%threads)) then
+        do i = 1, size(traversal%threads)
+            call traversal%threads(i)%stats%clear()
+        end do
+    end if
+
+    call traversal%stats%clear()
+
+    call traversal%conformity%clear_stats()
 end subroutine
 
 subroutine create(traversal)

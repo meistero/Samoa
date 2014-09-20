@@ -272,6 +272,7 @@ MODULE _JACOBI
         procedure, pass :: destroy
         procedure, pass :: solve
         procedure, pass :: reduce_stats
+        procedure, pass :: clear_stats
     end type
 
     private
@@ -353,6 +354,13 @@ MODULE _JACOBI
 
         call solver%jacobi%reduce_stats(mpi_op, global)
         solver%stats = solver%jacobi%stats
+    end subroutine
+
+    subroutine clear_stats(solver)
+        class(_T_JACOBI), intent(inout)   :: solver
+
+        call solver%jacobi%clear_stats()
+        call solver%stats%clear()
     end subroutine
 END MODULE
 

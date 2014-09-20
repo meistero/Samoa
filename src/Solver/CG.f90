@@ -709,6 +709,7 @@ MODULE _CG
         procedure, pass :: destroy
         procedure, pass :: solve
         procedure, pass :: reduce_stats
+        procedure, pass :: clear_stats
     end type
 
     private
@@ -819,6 +820,15 @@ MODULE _CG
         call solver%cg2%reduce_stats(mpi_op, global)
         call solver%cg_exact%reduce_stats(mpi_op, global)
         solver%stats = solver%cg1%stats + solver%cg2%stats + solver%cg_exact%stats
+    end subroutine
+
+    subroutine clear_stats(solver)
+        class(_T_CG), intent(inout)   :: solver
+
+        call solver%cg1%clear_stats()
+        call solver%cg2%clear_stats()
+        call solver%cg_exact%clear_stats()
+        call solver%stats%clear()
     end subroutine
 END MODULE
 

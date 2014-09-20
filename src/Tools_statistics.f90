@@ -35,6 +35,7 @@ module Tools_statistics
 
         procedure, pass :: scale => t_statistics_scale
         procedure, pass :: to_string => t_statistics_to_string
+		procedure, pass :: clear => t_statistics_clear
 
 		generic :: assignment(=) => assign_stats
 		generic :: reduce => reduce_local, reduce_global
@@ -60,6 +61,7 @@ module Tools_statistics
 
         procedure, pass :: scale_adaptive => t_adaptive_statistics_scale
         procedure, pass :: to_string => t_adaptive_statistics_to_string
+		procedure, pass :: clear => t_adaptive_statistics_clear
 
 		generic :: assignment(=) => assign_adaptive
 		generic :: reduce => reduce_local_adaptive
@@ -129,6 +131,19 @@ module Tools_statistics
 		call reduce(s%r_load_balancing_time, mpi_op)
 		call reduce(s%r_update_distances_time, mpi_op)
 		call reduce(s%r_update_neighbors_time, mpi_op)
+    end subroutine
+
+    subroutine t_adaptive_statistics_clear(s)
+        class(t_adaptive_statistics), intent(inout)	    :: s
+
+		s = t_adaptive_statistics()
+    end subroutine
+
+
+    subroutine t_statistics_clear(s)
+        class(t_statistics), intent(inout)	    :: s
+
+		s = t_statistics()
     end subroutine
 
     pure subroutine t_statistics_assign(sr, s2)
