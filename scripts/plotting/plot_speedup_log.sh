@@ -100,19 +100,17 @@ set style line 32 lc rgb "green"
 
 do for [i=1:20] {
     infile = sprintf('darcy%i.plt', i)
-    title_i = sprintf('Darcy element throughput - Phase %i', i)
-    set title title_i
+    set title 'Darcy element througput'
 
     unset output
-    set xrange [0:*]
-    set yrange [0:*]
+    set xrange [*:*]
+    set yrange [*:*]
 
     plot for [n=1:64] infile u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
 
     outfile = sprintf('| ps2pdf - darcy%i_log.pdf', i)
     set output outfile
 
-    set xtics GPVAL_DATA_X_MAX/8
     replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
 }
 
@@ -122,19 +120,17 @@ do for [i=1:20] {
 
 do for [i=1:20] {
     infile = sprintf('swe%i.plt', i)
-    title_i = sprintf('SWE element throughput - Phase %i', i)
-    set title title_i
+    set title 'SWE element througput'
 
     unset output
-    set xrange [0:*]
-    set yrange [0:*]
+    set xrange [*:*]
+    set yrange [*:*]
 
     plot for [n=1:64] infile u (\$1*\$2):(\$3 == n? \$4 : 1/0) ls n w linespoints t title(n)
 
     outfile = sprintf('| ps2pdf - swe%i_log.pdf', i)
     set output outfile
 
-    set xtics GPVAL_DATA_X_MAX/8
     replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
 }
 

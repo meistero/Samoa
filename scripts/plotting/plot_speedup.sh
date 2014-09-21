@@ -24,7 +24,6 @@ for file in darcy*.log ; do
 
     i=0
     for phase in xx* ; do
-        #echo "#Element throughput by processes, threads, sections" > "darcy"$i".plt"
 	    echo -n $processes $threads $sections" " >> "darcy"$i".plt"
 	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    echo "" >> "darcy"$i".plt"
@@ -49,7 +48,6 @@ for file in swe*.log ; do
 
     i=0
     for phase in xx* ; do
-        #echo "#Element throughput by processes, threads, sections" > "swe"$i".plt"
 	    echo -n $processes $threads $sections" "  >> "swe"$i".plt"
 	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
 	    echo ""  >> "swe"$i".plt"
@@ -99,8 +97,7 @@ set style line 32 lc rgb "green"
 
 do for [i=1:20] {
     infile = sprintf('darcy%i.plt', i)
-    title_i = sprintf('Darcy element throughput - Phase %i', i)
-    set title title_i
+    set title 'Darcy element througput'
 
     unset output
     set xrange [0:*]
@@ -121,8 +118,7 @@ do for [i=1:20] {
 
 do for [i=1:20] {
     infile = sprintf('swe%i.plt', i)
-    title_i = sprintf('SWE element throughput - Phase %i', i)
-    set title title_i
+    set title 'SWE element througput'
 
     unset output
     set xrange [0:*]

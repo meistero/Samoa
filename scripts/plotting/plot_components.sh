@@ -7,35 +7,46 @@
 echo "Plotting results..."
 
 cd $1
-echo "#Component breakdown" > "darcy.plt"
 
-for file in darcy*.log; do
-	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
-	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
-	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
-	sections=$(echo $file | grep -oE "_s[0-9]+" | grep -oE "[0-9]+")
+rm -f darcy*.plt swe*.plt
 
-	processes=${processes:-1}
-	threads=${threads:-1}
-	sections=${sections:-1}
+for file in darcy*.log ; do
+    flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
+    processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
+    threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
+    sections=$(echo $file | grep -oE "_s[0-9]+" | grep -oE "[0-9]+")
 
-	echo -n $(($processes * $threads)) \"$processes{/Symbol \\264}$threads\"" " >> "darcy.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "update neighbors: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Transport" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Gradient" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Permeability" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Pressure Solver" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Time step phase time" $file | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	grep -E "r0.*Cells[ ]+:[ ]+[0-9]+" $file | grep -oE "Cells[ ]+:[ ]+[0-9]+" | grep -oE "[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	echo "" >> "darcy.plt"
+    processes=${processes:-1}
+    threads=${threads:-1}
+    sections=${sections:-1}
+
+    csplit $file "/Phase statistics:/" {*} &>/dev/null
+
+    i=0
+    for phase in xx* ; do
+	    echo -n $(($processes * $threads)) \"$processes{/Symbol \\264}$threads\"" " >> "darcy"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "update neighbors: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Transport" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Gradient" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Permeability" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Pressure Solver" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Phase time" $phase | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+        grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    echo "" >> "darcy"$i".plt"
+
+        i=$(( $i + 1 ))
+    done
+
+    rm -f xx*
 done
 
-echo "#Component breakdown" > "swe.plt"
+#Darcy: Cores Tics adap_time adap_ET integ_time lb_time updnb_time transp_time transp_ET grad_time grad_ET perm_time perm_ET pres_time pres_ET phase_time ET 
+#       1     2    3         4       5          6       7          8           9         10        11      12        13      14        15      16         17
 
-for file in swe*.log; do
+for file in swe*.log ; do
 	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
@@ -45,36 +56,42 @@ for file in swe*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $(($processes * $threads)) \"$processes{/Symbol \\264}$threads\"" " >> "swe.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Adaptions" $file | grep -oE "update neighbors: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Time steps" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Displace" $file | grep -oE "(travs|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Time Step phase time" $file | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Cells[ ]+:[ ]+[0-9]+" $file | grep -oE "Cells[ ]+:[ ]+[0-9]+" | grep -oE "[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	echo ""  >> "swe.plt"
+    csplit $file "/Phase statistics:/" {*} &>/dev/null
+
+    i=0
+    for phase in xx* ; do
+	    echo -n $(($processes * $threads)) \"$processes{/Symbol \\264}$threads\"" " >> "swe"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "integrity: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "load balancing: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    grep -E "r0.*Adaptions" $phase | grep -oE "update neighbors: [0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    grep -E "r0.*Time steps" $phase | grep -oE "(ET|time): [0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    grep -E "r0.*Displace" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[-]*[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    grep -E "r0.*Phase time" $phase | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+        grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    echo ""  >> "swe"$i".plt"
+
+        i=$(( $i + 1 ))
+    done
+
+    rm -f xx*
 done
 
-sort -t" " -n -k 1,1 darcy.plt -o darcy.plt
-sort -t" " -n -k 1,1 swe.plt -o swe.plt
+#SWE: Cores Tics adap_time adap_ET integ_time lb_time updnb_time tstep_time tstep_ET displ_time displ_ET phase_time ET 
+#     1     2    3         4       5          6       7          8          9        10         11       12         13
 
-if [ -n "$2" ]; then
-    echo "#Component breakdown filtered using sed -n $2" > darcy.plt.tmp
-    echo "#Component breakdown filtered using sed -n $2" > swe.plt.tmp
-    
-    sed -n $2 darcy.plt >> darcy.plt.tmp 
-    sed -n $2 swe.plt >> swe.plt.tmp 
+i=0
+for phase in darcy*.plt ; do
+    sort -t" " -n -k 1,1 $phase -o $phase
+    i=$(( $i + 1 ))
+done
 
-    mv darcy.plt.tmp darcy.plt
-    mv swe.plt.tmp swe.plt
-fi
+i=0
+for phase in swe*.plt ; do
+    sort -t" " -n -k 1,1 $phase -o $phase
+    i=$(( $i + 1 ))
+done
 
-sort -t" " -n -k 1,1 darcy.plt -o darcy.plt
-sort -t" " -n -k 1,1 swe.plt -o swe.plt
-
-#gnuplot &> /dev/null << EOT
 gnuplot << EOT
 
 set terminal postscript enhanced color font ',20'
@@ -91,7 +108,7 @@ set style line 1 lc rgb "cyan"
 set style line 2 lc rgb "orange"
 set style line 3 lc rgb "magenta"
 set style line 4 lc rgb "red"
-set style line 5 lc rgb "white"
+set style line 5 lc rgb "blue"
 set style line 6 lc rgb "green"
 set style line 7 lc rgb "brown"
 set style line 8 lc rgb "purple"
@@ -105,57 +122,53 @@ set boxwidth 0.75
 # Darcy
 #*******
 
-set title "Darcy component breakdown"
-set ylabel "Sec. per core (wall clock time)"
-set output '| ps2pdf - darcy_components.pdf'
-	
-plot "darcy.plt" u (\$8) ls 2 t "Conformity", \
-    '' u (\$6 - \$12):xtic(2) ls 1 t "Adaption", \
-	'' u (\$12) ls 8 t "Neighbor search", \
-	'' u (\$10) ls 3 t "Load Balancing", \
-	'' u (\$16) ls 5 t "Gradient", \
-	'' u (\$14) ls 4 t "Transport", \
-	'' u (\$18) ls 6 t "Permeability", \
-	'' u (\$22) ls 7 t "Pressure Solver"
+do for [i=1:20] {
+    infile = sprintf('darcy%i.plt', i)
 
-set title "Darcy component breakdown - normalized"
-set ylabel "Sec. per element (CPU time)"
-set output '| ps2pdf - darcy_components_norm.pdf'
-	
-plot "darcy.plt" u (10.0 * \$22/\$21 * \$1/\$25) ls 7 t "Pressure Solver", \
-	'' u (\$16/\$15 * \$1/\$25) ls 5 t "Gradient", \
-	'' u (\$14/\$13 * \$1/\$25) ls 4 t "Transport", \
-	'' u (\$18/\$15 * \$1/\$25) ls 6 t "Permeability", \
-	'' u (\$8/\$5 * \$1/\$25) ls 2 t "Conformity", \
-    '' u ((\$6 - \$12)/\$5 * \$1/\$25):xtic(2) ls 1 t "Adaption", \
-	'' u (\$12/\$5 * \$1/\$25) ls 8 t "Neighbor search", \
-	'' u (\$10/\$5 * \$1/\$25) ls 3 t "Load Balancing"
+    set title "Darcy component breakdown"
+    set ylabel "Sec. per Melems"
+
+    unset output
+
+    plot infile u (10 / \$15) ls 7 t "Pressure Solver", \
+	    '' u (1 / \$11) ls 5 t "Gradient", \
+	    '' u (1 / \$9) ls 4 t "Transport", \
+	    '' u (2 / \$13) ls 6 t "Permeability", \
+	    '' u (\$5 / \$3 * 1 / \$4) ls 2 t "Conformity", \
+        '' u ((\$3 - \$7) / \$3 * 1 / \$4):xtic(2) ls 1 t "Adaption", \
+	    '' u (\$7 / \$3 * 1 / \$4) ls 8 t "Neighbor search", \
+	    '' u (\$6 / \$3 * 1 / \$4) ls 3 t "Load Balancing"
+
+    outfile = sprintf('| ps2pdf - darcy%i_components.pdf', i)
+    set output outfile
+
+    replot
+}
 
 #*****
 # SWE
 #*****
 
-set title "SWE component breakdown"
-set ylabel "Sec. per core (wall clock time)"
-set output '| ps2pdf - swe_components.pdf'
+do for [i=1:20] {
+    infile = sprintf('swe%i.plt', i)
 
-plot    "swe.plt" u (\$14) ls 4 t "Time step", \
-	    '' u (\$8) ls 2 t "Conformity", \
-        '' u (\$6 - \$12):xtic(2) ls 1 t "Adaption", \
-	    '' u (\$12) ls 8 t "Neighbor search", \
-	    '' u (\$10) ls 3 t "Load Balancing", \
-	    '' u (\$16) ls 5 t "Displace"
+    set title "SWE component breakdown"
+    set ylabel "Sec. per Melems"
 
-set title "SWE component breakdown - normalized"
-set ylabel "Sec. per element (CPU time)"
-set output '| ps2pdf - swe_components_norm.pdf'
-	
-plot "swe.plt" u (\$14/\$13 * \$1/\$19) ls 4 t "Time step", \
-    '' u (\$8/\$5 * \$1/\$19) ls 2 t "Conformity", \
-    '' u ((\$6 - \$12)/\$5 * \$1/\$19):xtic(2) ls 1 t "Adaption", \
-    '' u (\$12/\$5 * \$1/\$19) ls 8 t "Neighbor search", \
-	'' u (\$10/\$5 * \$1/\$19) ls 3 t "Load Balancing", \
-	'' u (\$16/\$15 * \$1/\$19) ls 5 t "Displace"
+    unset output
 
+    plot infile u (1 / \$9) ls 4 t "Time step", \
+        '' u (\$5 / \$3 * 1 / \$4) ls 2 t "Conformity", \
+        '' u ((\$3 - \$7) / \$3 * 1 / \$4):xtic(2) ls 1 t "Adaption", \
+        '' u (\$7 / \$3 * 1 / \$4) ls 8 t "Neighbor search", \
+	    '' u (\$6 / \$3 * 1 / \$4) ls 3 t "Load Balancing" #, \
+	    #'' u (1 / \$11) ls 5 t "Displace"
+
+
+    outfile = sprintf('| ps2pdf - swe%i_components.pdf', i)
+    set output outfile
+
+    replot
+}
 
 EOT
