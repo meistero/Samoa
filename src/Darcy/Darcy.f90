@@ -427,10 +427,10 @@
                         _log_write(0, '(A, T34, A)') " Adaptions: ", trim(darcy%adaption%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(darcy%pressure_solver%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Grid: ", trim(grid%stats%to_string())
-                        _log_write(0, '(A, T34, F10.4, A)') " Element throughput: ", 1.0d-6 * dble(grid%stats%i_traversed_cells) / t_phase, " M/s"
-                        _log_write(0, '(A, T34, F10.4, A)') " Memory throughput: ", dble(grid%stats%i_traversed_memory) / ((1024 * 1024 * 1024) * t_phase), " GB/s"
-                        _log_write(0, '(A, T34, F10.4, A)') " Asagi time:", grid%stats%r_asagi_time, " s"
-                        _log_write(0, '(A, T34, F10.4, A)') " Phase time:", t_phase, " s"
+                        _log_write(0, '(A, T34, F12.4, A)') " Element throughput: ", 1.0d-6 * dble(grid%stats%i_traversed_cells) / t_phase, " M/s"
+                        _log_write(0, '(A, T34, F12.4, A)') " Memory throughput: ", dble(grid%stats%i_traversed_memory) / ((1024 * 1024 * 1024) * t_phase), " GB/s"
+                        _log_write(0, '(A, T34, F12.4, A)') " Asagi time:", grid%stats%r_asagi_time, " s"
+                        _log_write(0, '(A, T34, F12.4, A)') " Phase time:", t_phase, " s"
                         _log_write(0, *) ""
                     end if
                 end if
