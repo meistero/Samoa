@@ -177,7 +177,7 @@
 
         if (rank_MPI == 0) then
             ! file schreiben
-            write(pout_file_name, "(A, A, I0, A, F4.3, A, F4.3, A, I0, A)") TRIM(traversal%s_file_stamp), "_d", cfg%i_max_depth, "_cou", cfg%courant_number, "_dry", cfg%dry_tolerance, "_pointoutput_", traversal%i_output_iteration, ".txt"
+            write(pout_file_name, "(A, A, I0, A, F10.3, A, F10.3, A, I0, A)") TRIM(traversal%s_file_stamp), "_d", cfg%i_max_depth, "_cou", cfg%courant_number, "_dry", cfg%dry_tolerance, "_pointoutput_", traversal%i_output_iteration, ".txt"
 
             open(unit=out_unit, file=pout_file_name, action="write", status="replace")
                 write(out_unit, "(A)") "x, y, z, p(1), p(2), h, b, dist_to_cell_center, time"
