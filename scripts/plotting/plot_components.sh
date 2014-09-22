@@ -92,7 +92,7 @@ for phase in swe*.plt ; do
     i=$(( $i + 1 ))
 done
 
-gnuplot << EOT
+gnuplot &>/dev/null << EOT
 
 set terminal postscript enhanced color font ',20'
 set xlabel "Cores (processes {/Symbol \\264} threads)"
