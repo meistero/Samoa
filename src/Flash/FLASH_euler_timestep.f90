@@ -336,6 +336,14 @@
     real(kind = GRID_SR), dimension(2,2)                      :: r_metrics_inv
     integer (kind = GRID_SI)                                  :: i_dof, i_edge, depth
 
+    write (*,'(A)') 'Element:'
+    write (*,'(A, I3, A, I3)') 'edge 1 index: ', element%edges(1)%ptr%transform_data%index, &
+                               ', orientation: ', element%edges(1)%ptr%transform_data%orientation
+    write (*,'(A, I3, A, I3)') 'edge 2 index: ', element%edges(2)%ptr%transform_data%index, &
+                               ', orientation: ', element%edges(2)%ptr%transform_data%orientation
+    write (*,'(A, I3, A, I3)') 'edge 3 index: ', element%edges(3)%ptr%transform_data%index, &
+                               ', orientation: ', element%edges(3)%ptr%transform_data%orientation
+
     volume       = element%cell%geometry%get_volume()
     edge_lengths = element%cell%geometry%get_edge_sizes()
 
