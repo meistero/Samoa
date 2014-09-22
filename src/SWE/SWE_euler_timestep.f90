@@ -89,8 +89,8 @@
             grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
 #           if defined(_ASAGI)
-                if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
-                    grid%r_dt = min(grid%r_dt, 0.1_GRID_SR/15.0_GRID_SR * grid_max_z(cfg%afh_bathymetry))
+                if (grid%r_time < grid_max_z(cfg%afh_displacement)) then
+                    grid%r_dt = min(grid%r_dt, grid_delta_z(cfg%afh_displacement))
                 end if
 #           endif
 
