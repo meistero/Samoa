@@ -18,9 +18,6 @@
             integer (kind = GRID_DI)			:: i_refinements_issued
         end type
 
-        real (kind=GRID_SR)         ::  j_dt_used, j_dt_should, needed_courant
-
-
         interface skeleton_op
             module procedure skeleton_array_op
             module procedure skeleton_scalar_op
@@ -90,8 +87,6 @@
 			type(t_grid), intent(inout)							    :: grid
 
             grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
-            
-            j_dt_used = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max) ! -------- for comparison of used and should-have-used-dt
 
 #           if defined(_ASAGI)
                 if (grid%r_time < grid_max_z(cfg%afh_bathymetry)) then
@@ -106,17 +101,19 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
+			real (kind = GRID_SR)       :: r_dt_cfl, r_courant_cfl
+
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
 			grid%r_time = grid%r_time + grid%r_dt
 
-            j_dt_should = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max) ! -------- for comparison of used and should-have-used-dt
-            needed_courant = j_dt_should / j_dt_used
+            r_dt_cfl = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
-            if (needed_courant < cfg%courant_number) then
-                                
+            if (grid%r_dt > r_dt_cfl) then
+                r_courant_cfl = r_dt_cfl * cfg%courant_number / grid%r_dt
+
                 if (rank_MPI == 0) then
-                    write (*,*) "WARNING! Done timestep was too big. Done timestep: ", cfg%courant_number*j_dt_used, ", should-have-used timestep: ", j_dt_should, ", suggested courant number: ", needed_courant
+                    _log_write(1, *) "WARNING! Time step size was too big. dt (used): ", grid%r_dt, ", dt (CFL): ", r_dt_cfl, ", correct courant number: ", r_courant_cfl
                 end if
             end if
 
@@ -231,7 +228,7 @@
 			type(t_state)													:: bnd_rep
 			type(t_update)													:: bnd_flux
 
-			bnd_rep = t_state(0.0, [0.0, 0.0], rep%Q(1)%b)
+			bnd_rep = t_state(0.0_GRID_SR, [0.0_GRID_SR, 0.0_GRID_SR], rep%Q(1)%b)
 
 #			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
@@ -311,7 +308,7 @@
 			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 0.5_GRID_SR) ** 2) then
 				i_refinement = -1
 			endif
 
@@ -340,7 +337,7 @@
                     fluxL%max_wave_speed = 0.0_GRID_SR
                 else
                     vL = DOT_PRODUCT(normal, QL%p / (QL%h - QL%b))
-                    fluxL%max_wave_speed = sqrt(g * (QL%h - QL%b)) + sqrt(vL * vL)
+                    fluxL%max_wave_speed = sqrt(g * (QL%h - QL%b)) + abs(vL)
                 end if
 
                 if (QR%h - QR%b < cfg%dry_tolerance) then
@@ -348,7 +345,7 @@
                     fluxR%max_wave_speed = 0.0_GRID_SR
                 else
                     vR = DOT_PRODUCT(normal, QR%p / (QR%h - QR%b))
-                    fluxR%max_wave_speed = sqrt(g * (QR%h - QR%b)) + sqrt(vR * vR)
+                    fluxR%max_wave_speed = sqrt(g * (QR%h - QR%b)) + abs(vR)
                 end if
 
 #               if defined(_SWE_LLF_BATH)
@@ -369,8 +366,8 @@
                 vL = DOT_PRODUCT(normal, QL%p / (QL%h - b))
                 vR = DOT_PRODUCT(normal, QR%p / (QR%h - b))
 
-                fluxL%max_wave_speed = sqrt(g * (QL%h - b)) + sqrt(vL * vL)
-                fluxR%max_wave_speed = sqrt(g * (QR%h - b)) + sqrt(vR * vR)
+                fluxL%max_wave_speed = sqrt(g * (QL%h - b)) + abs(vL)
+                fluxR%max_wave_speed = sqrt(g * (QR%h - b)) + abs(vR)
 
 #               if defined(_SWE_LLF)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
@@ -411,9 +408,7 @@
 #           elif defined(_SWE_SSQ_FWAVE)
                 call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_AUG_RIEMANN)
-
                 call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
-
 #           endif
 
 			fluxL%h = net_updatesL(1)
