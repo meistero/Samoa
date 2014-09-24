@@ -593,10 +593,10 @@ subroutine _OP0(preset_transform_data)(section, element)
 #			endif
 
 #			if (_GT_NEXT_EDGE_TYPE == _NEW)
-        call _OP0(preset_transform_data)(section, element%next)
-	element%next_edge%ptr%rep = _GT_CELL_TO_EDGE_OP(element%t_element_base, element%next%next_edge%ptr)
-	call _OP0(set_transform_data)(section, element)
-				call _GT_SKELETON_OP(traversal, section, element%next_edge%ptr, _GT_CELL_TO_EDGE_OP(element%t_element_base, element%next_edge%ptr), _GT_CELL_TO_EDGE_OP(element%next%t_element_base, element%next_edge%ptr), next_edge_local_update, element%next_edge%ptr%update)
+				call _OP0(preset_transform_data)(section, element%next)
+				element%next_edge%ptr%rep = _GT_CELL_TO_EDGE_OP(element%next%t_element_base, element%next_edge%ptr)
+				call _OP0(set_transform_data)(section, element)
+				call _GT_SKELETON_OP(traversal, section, element%next_edge%ptr, _GT_CELL_TO_EDGE_OP(element%t_element_base, element%next_edge%ptr),element%next_edge%ptr%rep , next_edge_local_update, element%next_edge%ptr%update)
 #			elif (_GT_NEXT_EDGE_TYPE == _NEW_BND)
 				next_edge_local_update = element%next_edge%ptr%update
 #			endif
