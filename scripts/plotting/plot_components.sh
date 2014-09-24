@@ -126,7 +126,7 @@ do for [i=1:20] {
     infile = sprintf('darcy%i.plt', i)
 
     set title "Darcy component breakdown"
-    set ylabel "Sec. per Melems"
+    set ylabel "Sec. per Mio. Elements per core"
 
     unset output
 
@@ -153,7 +153,7 @@ do for [i=1:20] {
     infile = sprintf('swe%i.plt', i)
 
     set title "SWE component breakdown"
-    set ylabel "Sec. per Melems"
+    set ylabel "Sec. per Mio. Elements per core"
 
     unset output
 
