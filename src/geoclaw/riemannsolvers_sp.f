@@ -1,6 +1,6 @@
 c-----------------------------------------------------------------------
       subroutine riemann_aug_JCP_sp(maxiter,meqn,mwaves,hL,hR,huL,huR,
-     &   hvL,hvR,bL,bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,drytol,g,sw,fw)
+     &   hvL,hvR,bL,bR,uL,uR,vL,vR,delphi,sE1,sE2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! This solver is described in J. Comput. Phys. (6): 3089-3113, March 2008
@@ -20,7 +20,7 @@ c-----------------------------------------------------------------------
       integer meqn,mwaves,maxiter
       real fw(meqn,mwaves)
       real sw(mwaves)
-      real hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,sE1,sE2
+      real hL,hR,huL,huR,bL,bR,uL,uR,delphi,sE1,sE2
       real hvL,hvR,vL,vR
       real drytol,g
 
@@ -33,7 +33,7 @@ c-----------------------------------------------------------------------
       real del(3)
       real beta(3)
 
-      real delh,delhu,delphi,delb,delnorm
+      real delh,delhu,delb,delnorm
       real rare1st,rare2st,sdelta,raremin,raremax
       real criticaltol,convergencetol,raretol
       real s1s2bar,s1s2tilde,hbar,hLstar,hRstar,hustar
@@ -48,7 +48,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
       delnorm = delh**2 + delphi**2
 
@@ -261,7 +260,7 @@ c        !solve for beta(k) using Cramers Rule=================
 
 c-----------------------------------------------------------------------
       subroutine riemann_ssqfwave_sp(maxiter,meqn,mwaves,hL,hR,huL,huR,
-     &    hvL,hvR,bL,bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,drytol,g,sw,fw)
+     &    hvL,hvR,bL,bR,uL,uR,vL,vR,delphi,sE1,sE2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! steady state wave is subtracted from delta [q,f]^T before decomposition
@@ -271,7 +270,7 @@ c-----------------------------------------------------------------------
       !input
       integer meqn,mwaves,maxiter
 
-      real hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,sE1,sE2
+      real hL,hR,huL,huR,bL,bR,uL,uR,delphi,sE1,sE2
       real vL,vR,hvL,hvR
       real drytol,g
 
@@ -280,7 +279,7 @@ c-----------------------------------------------------------------------
 
       logical sonic
 
-      real delh,delhu,delphi,delb,delhdecomp,delphidecomp
+      real delh,delhu,delb,delhdecomp,delphidecomp
       real s1s2bar,s1s2tilde,hbar,hLstar,hRstar,hustar
       real uRstar,uLstar,hstarHLL
       real deldelh,deldelphi
@@ -295,7 +294,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
 
       convergencetol= 1.e-16
@@ -303,6 +301,7 @@ c-----------------------------------------------------------------------
 
       deldelh = -delb
       deldelphi = -g*0.5e0*(hR+hL)*delb
+
 
 !     !if no source term, skip determining steady state wave
       if (abs(delb).gt.0.e0) then
@@ -446,7 +445,7 @@ c               hustar=huL+alpha1*sE1
 
 c-----------------------------------------------------------------------
       subroutine riemann_fwave_sp(meqn,mwaves,hL,hR,huL,huR,hvL,hvR,
-     &            bL,bR,uL,uR,vL,vR,phiL,phiR,s1,s2,drytol,g,sw,fw)
+     &            bL,bR,uL,uR,vL,vR,delphi,s1,s2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! solution has two waves.
@@ -457,7 +456,7 @@ c-----------------------------------------------------------------------
       !input
       integer meqn,mwaves
 
-      real hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,s1,s2
+      real hL,hR,huL,huR,bL,bR,uL,uR,delphi,s1,s2
       real hvL,hvR,vL,vR
       real drytol,g
 
@@ -465,7 +464,7 @@ c-----------------------------------------------------------------------
       real fw(meqn,mwaves)
 
       !local
-      real delh,delhu,delphi,delb,delhdecomp,delphidecomp
+      real delh,delhu,delb,delhdecomp,delphidecomp
       real deldelh,deldelphi
       real beta1,beta2
 
@@ -473,7 +472,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
 
       deldelphi = -g*0.5e0*(hR+hL)*delb
@@ -497,7 +495,7 @@ c-----------------------------------------------------------------------
       ! advection of transverse wave
       fw(1,2) = 0.e0
       fw(2,2) = 0.e0
-      fw(3,2) = hR*uR*vR - hL*uL*vL -fw(3,1)-fw(3,3)
+      fw(3,2) = huR*vR - huL*vL-fw(3,1)-fw(3,3)
       return
 
       end !subroutine -------------------------------------------------
