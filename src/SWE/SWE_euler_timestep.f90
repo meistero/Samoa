@@ -230,10 +230,10 @@
 			type(t_state)													:: bnd_rep
 			type(t_update)													:: bnd_flux
 
-            !SLIP: mirror momentum at normal
+            !SLIP: reflect momentum at normal
 			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
-            !NOSLIP: invert momentum
+            !NOSLIP: invert momentum (stable)
 			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
 
 			!OUTFLOW: copy values
@@ -317,7 +317,7 @@
 			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 0.5_GRID_SR) ** 2) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
 				i_refinement = -1
 			endif
 

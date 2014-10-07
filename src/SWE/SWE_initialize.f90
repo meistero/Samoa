@@ -179,7 +179,6 @@
 			!init height, momentum and bathymetry
 			Q%t_dof_state = get_initial_dof_state(section, x, lod)
 			Q%b = get_bathymetry(section, x, 0.0_GRID_SR, lod)
-            !Q%b = -1000.0_GRID_SR
 		end function
 
 		function get_initial_dof_state(section, x, lod) result(Q)
@@ -199,15 +198,7 @@
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
 #			else
-				!Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
-
-                Q%h = 0.0_GRID_SR
-
-                !if (x(1) + x(2) >= 1.0_GRID_SR) then
-                !    Q%h = 10.0_GRID_SR
-                !else
-				!    Q%h = 0.0_GRID_SR
-                !endif
+				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 #			endif
 
 			Q%p = 0.0_GRID_SR
@@ -258,17 +249,7 @@
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
 
                 xs = cfg%scaling * x + cfg%offset
-				!bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
-
-                !bathymetry = -1000_GRID_SR
-                
-                !if (x(1) < 0.5_GRID_SR) then
-                !    bathymetry = -1000.0_GRID_SR
-                !else
-                !    bathymetry = -40.0_GRID_SR
-                !end if
-
-                bathymetry = -40.0_GRID_SR - 11000.0_GRID_SR * (x(1)+x(2)) * 0.5_GRID_SR
+				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
 #			endif
 		end function
 	END MODULE
