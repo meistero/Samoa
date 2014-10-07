@@ -30,7 +30,7 @@ module c_bind_riemannsolvers
       double precision, dimension(i_numberOfFWaves)       :: waveSpeeds;
       double precision, dimension(3, i_numberOfFWaves)    :: fWaves;
       double precision, dimension(3)                      :: wall;
-      double precision                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, phiL, phiR;
+      double precision                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, delphi;
       double precision                                    :: sL, sR, sRoe1, sRoe2, sE1, sE2, s1m, s2m;
       logical                                             :: rare1,rare2;
       double precision, dimension(3)                      :: correctionL, correctionR, midCorrection;
@@ -41,11 +41,11 @@ module c_bind_riemannsolvers
   !******************************************************************
 
   !reset max wave speed
-  o_maxWaveSpeed = 0.d0;
+  o_maxWaveSpeed = 0.d0
 
   !reset net updates
-  o_netUpdatesLeft = 0.d0;
-  o_netUpdatesRight = 0.d0;
+  o_netUpdatesLeft = 0.d0
+  o_netUpdatesRight = 0.d0
 
 
   !Initialize Riemann problem for grid interface
@@ -54,43 +54,39 @@ module c_bind_riemannsolvers
 
   !zero (small) negative values if they exist
   if (i_hL .lt. 0.d0) then
-    i_hL = 0.d0; !rest of left variables will be set later
+    i_hL = 0.d0 !rest of left variables will be set later
   endif
 
   if (i_hR .lt. 0.d0) then
-    i_hR = 0.d0; !rest of right variables will be set later
+    i_hR = 0.d0 !rest of right variables will be set later
   endif
 
   !skip problem if in a completely dry area
   if (i_hL .le. i_dryTol .and. i_hR .le. i_dryTol) then
-    return;
+    return
   endif
 
   !check for wet/dry boundary
   if (i_hR.gt.i_dryTol) then
     uR=i_huR/i_hR
     vR=i_hvR/i_hR
-    phiR = 0.5d0*i_g*i_hR**2 + i_huR**2/i_hR
   else
     i_hR = 0.d0
     i_huR = 0.d0
     i_hvR = 0.d0
     uR = 0.d0
     vR = 0.d0
-    phiR = 0.d0
   endif
 
   if (i_hL.gt.i_dryTol) then
     uL=i_huL/i_hL
     vL=i_hvL/i_hL
-    phiL = 0.5d0*i_g*i_hL**2 + i_huL**2/i_hL
   else
     i_hL=0.d0
     i_huL=0.d0
     i_hvL=0.d0
     uL=0.d0
     vL=0.d0
-    phiL = 0.d0
   endif
 
   !per default there is no wall
@@ -107,7 +103,6 @@ module c_bind_riemannsolvers
       i_hR=i_hL
       i_huR=-i_huL
       i_bR=i_bL
-      phiR=phiL
       uR=-uL
       vR=vL
     elseif (i_hL+i_bL.lt.i_bR) then
@@ -122,13 +117,17 @@ module c_bind_riemannsolvers
       i_hL=i_hR
       i_huL=-i_huR
       i_bL=i_bR
-      phiL=phiR
       uL=-uR
       vL=vR
     elseif (i_hR+i_bR.lt.i_bL) then
       i_bL=i_hR+i_bR
     endif
   endif
+
+  !BUGFIX:
+  !Problem: loss of significance may occur in phiR-phiL, causing divergence of the steady state.
+  !Action:  Compute delphi=phiR-phiL explicitly. delphi is arithmetically equivalent to phiR-phiL, but with far smaller numerical loss.
+  delphi = (i_huR - i_huL)*(uL + uR) - uL*uR*(i_hR - i_hL) + (0.5d0*i_g*(i_bR + i_hR - i_bL - i_hL)*(i_hR + i_hL)) - 0.5d0*i_g*(i_hR + i_hL)*(i_bR - i_bL)
 
   !determine wave speeds
   sL=uL-sqrt(i_g*i_hL) ! 1 wave speed of left state
@@ -148,11 +147,11 @@ module c_bind_riemannsolvers
 
   select case (i_solver)
     case (GEOCLAW_FWAVE)
-        call riemann_fwave(3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_fwave(3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
     case (GEOCLAW_SSQ_FWAVE)
-        call riemann_ssqfwave(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_ssqfwave(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
     case (GEOCLAW_AUG_RIEMANN)
-        call riemann_aug_JCP(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_aug_JCP(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
   end select
 
   !eliminate ghost fluxes for wall
@@ -203,7 +202,7 @@ module c_bind_riemannsolvers
       real, dimension(i_numberOfFWaves)       :: waveSpeeds;
       real, dimension(3, i_numberOfFWaves)    :: fWaves;
       real, dimension(3)                      :: wall;
-      real                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, phiL, phiR;
+      real                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, delphi;
       real                                    :: sL, sR, sRoe1, sRoe2, sE1, sE2, s1m, s2m;
       logical                                             :: rare1,rare2;
       real, dimension(3)                      :: correctionL, correctionR, midCorrection;
@@ -239,31 +238,32 @@ module c_bind_riemannsolvers
     return;
   endif
 
+  !BUGFIX:
+  !Problem: loss of significance may occur in phiR-phiL, causing divergence of the steady state.
+  !Action:  Compute delphi=phiR-phiL explicitly. delphi is arithmetically equivalent to phiR-phiL, but with far smaller numerical loss.
+  delphi=0.0e0
+
   !check for wet/dry boundary
   if (i_hR.gt.i_dryTol) then
     uR=i_huR/i_hR
     vR=i_hvR/i_hR
-    phiR = 0.5e0*i_g*i_hR**2 + i_huR**2/i_hR
   else
     i_hR = 0.e0
     i_huR = 0.e0
     i_hvR = 0.e0
     uR = 0.e0
     vR = 0.e0
-    phiR = 0.e0
   endif
 
   if (i_hL.gt.i_dryTol) then
     uL=i_huL/i_hL
     vL=i_hvL/i_hL
-    phiL = 0.5e0*i_g*i_hL**2 + i_huL**2/i_hL
   else
     i_hL=0.e0
     i_huL=0.e0
     i_hvL=0.e0
     uL=0.e0
     vL=0.e0
-    phiL = 0.e0
   endif
 
   !per default there is no wall
@@ -280,7 +280,6 @@ module c_bind_riemannsolvers
       i_hR=i_hL
       i_huR=-i_huL
       i_bR=i_bL
-      phiR=phiL
       uR=-uL
       vR=vL
     elseif (i_hL+i_bL.lt.i_bR) then
@@ -295,13 +294,17 @@ module c_bind_riemannsolvers
       i_hL=i_hR
       i_huL=-i_huR
       i_bL=i_bR
-      phiL=phiR
       uL=-uR
       vL=vR
     elseif (i_hR+i_bR.lt.i_bL) then
       i_bL=i_hR+i_bR
     endif
   endif
+
+  !BUGFIX:
+  !Problem: loss of significance may occur in phiR-phiL, causing divergence of the steady state.
+  !Action:  Compute delphi=phiR-phiL explicitly. delphi is arithmetically equivalent to phiR-phiL, but with far smaller numerical loss.
+  delphi = (i_huR - i_huL)*(uL + uR) - uL*uR*(i_hR - i_hL) + (0.5e0*i_g*(i_bR + i_hR - i_bL - i_hL)*(i_hR + i_hL)) - 0.5e0*i_g*(i_hR + i_hL)*(i_bR - i_bL)
 
   !determine wave speeds
   sL=uL-sqrt(i_g*i_hL) ! 1 wave speed of left state
@@ -321,11 +324,11 @@ module c_bind_riemannsolvers
 
   select case (i_solver)
     case (GEOCLAW_FWAVE)
-        call riemann_fwave_sp(3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_fwave_sp(3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
     case (GEOCLAW_SSQ_FWAVE)
-        call riemann_ssqfwave_sp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_ssqfwave_sp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
     case (GEOCLAW_AUG_RIEMANN)
-        call riemann_aug_JCP_sp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_aug_JCP_sp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
   end select
 
   !eliminate ghost fluxes for wall
@@ -377,7 +380,7 @@ module c_bind_riemannsolvers
       real (kind = QP), dimension(i_numberOfFWaves)       :: waveSpeeds;
       real (kind = QP), dimension(3, i_numberOfFWaves)    :: fWaves;
       real (kind = QP), dimension(3)                      :: wall;
-      real (kind = QP)                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, phiL, phiR;
+      real (kind = QP)                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, delphi;
       real (kind = QP)                                    :: sL, sR, sRoe1, sRoe2, sE1, sE2, s1m, s2m;
       logical                                             :: rare1,rare2;
       real (kind = QP), dimension(3)                      :: correctionL, correctionR, midCorrection;
@@ -413,31 +416,33 @@ module c_bind_riemannsolvers
     return;
   endif
 
+
+  !BUGFIX:
+  !Problem: loss of significance may occur in phiR-phiL, causing divergence of the steady state.
+  !Action:  Compute delphi=phiR-phiL explicitly. delphi is arithmetically equivalent to phiR-phiL, but with far smaller numerical loss.
+  delphi=0.0q0
+
   !check for wet/dry boundary
   if (i_hR.gt.i_dryTol) then
     uR=i_huR/i_hR
     vR=i_hvR/i_hR
-    phiR = 0.5q0*i_g*i_hR**2 + i_huR**2/i_hR
   else
     i_hR = 0.q0
     i_huR = 0.q0
     i_hvR = 0.q0
     uR = 0.q0
     vR = 0.q0
-    phiR = 0.q0
   endif
 
   if (i_hL.gt.i_dryTol) then
     uL=i_huL/i_hL
     vL=i_hvL/i_hL
-    phiL = 0.5q0*i_g*i_hL**2 + i_huL**2/i_hL
   else
     i_hL=0.q0
     i_huL=0.q0
     i_hvL=0.q0
     uL=0.q0
     vL=0.q0
-    phiL = 0.q0
   endif
 
   !per default there is no wall
@@ -454,7 +459,6 @@ module c_bind_riemannsolvers
       i_hR=i_hL
       i_huR=-i_huL
       i_bR=i_bL
-      phiR=phiL
       uR=-uL
       vR=vL
     elseif (i_hL+i_bL.lt.i_bR) then
@@ -469,13 +473,17 @@ module c_bind_riemannsolvers
       i_hL=i_hR
       i_huL=-i_huR
       i_bL=i_bR
-      phiL=phiR
       uL=-uR
       vL=vR
     elseif (i_hR+i_bR.lt.i_bL) then
       i_bL=i_hR+i_bR
     endif
   endif
+
+  !BUGFIX:
+  !Problem: loss of significance may occur in phiR-phiL, causing divergence of the steady state.
+  !Action:  Compute delphi=phiR-phiL explicitly. delphi is arithmetically equivalent to phiR-phiL, but with far smaller numerical loss.
+  delphi = (i_huR - i_huL)*(uL + uR) - uL*uR*(i_hR - i_hL) + (0.5q0*i_g*(i_bR + i_hR - i_bL - i_hL)*(i_hR + i_hL)) - 0.5q0*i_g*(i_hR + i_hL)*(i_bR - i_bL)
 
   !determine wave speeds
   sL=uL-sqrt(i_g*i_hL) ! 1 wave speed of left state
@@ -495,11 +503,11 @@ module c_bind_riemannsolvers
 
   select case (i_solver)
     case (GEOCLAW_FWAVE)
-        call riemann_fwave_qp(3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_fwave_qp(3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
     case (GEOCLAW_SSQ_FWAVE)
-        call riemann_ssqfwave_qp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_ssqfwave_qp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
     case (GEOCLAW_AUG_RIEMANN)
-        call riemann_aug_JCP_qp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
+        call riemann_aug_JCP_qp(i_maxIter,3,i_numberOfFWaves,i_hL,i_hR,i_huL,i_huR,i_hvL,i_hvR,i_bL,i_bR,uL,uR,vL,vR,delphi,sE1,sE2,i_dryTol,i_g,waveSpeeds,fWaves)
   end select
 
   !eliminate ghost fluxes for wall

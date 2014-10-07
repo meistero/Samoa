@@ -1,6 +1,6 @@
 c-----------------------------------------------------------------------
       subroutine riemann_aug_JCP_qp(maxiter,meqn,mwaves,hL,hR,huL,huR,
-     &   hvL,hvR,bL,bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,drytol,g,sw,fw)
+     &   hvL,hvR,bL,bR,uL,uR,vL,vR,delphi,sE1,sE2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! This solver is described in J. Comput. Phys. (6): 3089-3113, March 2008
@@ -22,7 +22,7 @@ c-----------------------------------------------------------------------
       integer meqn,mwaves,maxiter
       real (kind = QP) fw(meqn,mwaves)
       real (kind = QP) sw(mwaves)
-      real (kind = QP) hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,sE1,sE2
+      real (kind = QP) hL,hR,huL,huR,bL,bR,uL,uR,delphi,sE1,sE2
       real (kind = QP) hvL,hvR,vL,vR
       real (kind = QP) drytol,g
 
@@ -35,7 +35,7 @@ c-----------------------------------------------------------------------
       real (kind = QP) del(3)
       real (kind = QP) beta(3)
 
-      real (kind = QP) delh,delhu,delphi,delb,delnorm
+      real (kind = QP) delh,delhu,delb,delnorm
       real (kind = QP) rare1st,rare2st,sdelta,raremin,raremax
       real (kind = QP) criticaltol,convergencetol,raretol
       real (kind = QP) s1s2bar,s1s2tilde,hbar,hLstar,hRstar,hustar
@@ -50,7 +50,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
       delnorm = delh**2 + delphi**2
 
@@ -263,7 +262,7 @@ c        !solve for beta(k) using Cramers Rule=================
 
 c-----------------------------------------------------------------------
       subroutine riemann_ssqfwave_qp(maxiter,meqn,mwaves,hL,hR,huL,huR,
-     &    hvL,hvR,bL,bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,drytol,g,sw,fw)
+     &    hvL,hvR,bL,bR,uL,uR,vL,vR,delphi,sE1,sE2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! steady state wave is subtracted from delta [q,f]^T before decomposition
@@ -275,7 +274,7 @@ c-----------------------------------------------------------------------
 
       integer meqn,mwaves,maxiter
 
-      real (kind = QP) hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,sE1,sE2
+      real (kind = QP) hL,hR,huL,huR,bL,bR,uL,uR,delphi,sE1,sE2
       real (kind = QP) vL,vR,hvL,hvR
       real (kind = QP) drytol,g
 
@@ -284,7 +283,7 @@ c-----------------------------------------------------------------------
 
       logical sonic
 
-      real (kind = QP) delh,delhu,delphi,delb,delhdecomp,delphidecomp
+      real (kind = QP) delh,delhu,delb,delhdecomp,delphidecomp
       real (kind = QP) s1s2bar,s1s2tilde,hbar,hLstar,hRstar,hustar
       real (kind = QP) uRstar,uLstar,hstarHLL
       real (kind = QP) deldelh,deldelphi
@@ -299,7 +298,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
 
       convergencetol= 1.q-16
@@ -450,7 +448,7 @@ c               hustar=huL+alpha1*sE1
 
 c-----------------------------------------------------------------------
       subroutine riemann_fwave_qp(meqn,mwaves,hL,hR,huL,huR,hvL,hvR,
-     &            bL,bR,uL,uR,vL,vR,phiL,phiR,s1,s2,drytol,g,sw,fw)
+     &            bL,bR,uL,uR,vL,vR,delphi,s1,s2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! solution has two waves.
@@ -463,7 +461,7 @@ c-----------------------------------------------------------------------
 
       integer meqn,mwaves
 
-      real (kind = QP) hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,s1,s2
+      real (kind = QP) hL,hR,huL,huR,bL,bR,uL,uR,delphi,s1,s2
       real (kind = QP) hvL,hvR,vL,vR
       real (kind = QP) drytol,g
 
@@ -471,7 +469,7 @@ c-----------------------------------------------------------------------
       real (kind = QP) fw(meqn,mwaves)
 
       !local
-      real (kind = QP) delh,delhu,delphi,delb,delhdecomp,delphidecomp
+      real (kind = QP) delh,delhu,delb,delhdecomp,delphidecomp
       real (kind = QP) deldelh,deldelphi
       real (kind = QP) beta1,beta2
 
@@ -479,7 +477,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
 
       deldelphi = -g*0.5q0*(hR+hL)*delb
@@ -503,7 +500,7 @@ c-----------------------------------------------------------------------
       ! advection of transverse wave
       fw(1,2) = 0.q0
       fw(2,2) = 0.q0
-      fw(3,2) = hR*uR*vR - hL*uL*vL -fw(3,1)-fw(3,3)
+      fw(3,2) = huR*vR - huL*vL -fw(3,1)-fw(3,3)
       return
 
       end !subroutine -------------------------------------------------
