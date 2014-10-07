@@ -94,6 +94,8 @@
                 end if
 #           endif
 
+			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
+
 			grid%u_max = 0.0_GRID_SR
 		end subroutine
 
@@ -117,7 +119,7 @@
                 end if
             end if
 
-			grid%sections%elements%r_time = grid%r_time
+			call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -228,7 +230,14 @@
 			type(t_state)													:: bnd_rep
 			type(t_update)													:: bnd_flux
 
-			bnd_rep = t_state(0.0_GRID_SR, [0.0_GRID_SR, 0.0_GRID_SR], rep%Q(1)%b)
+            !SLIP: mirror momentum at normal
+			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
+
+            !NOSLIP: invert momentum
+			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
+
+			!OUTFLOW: copy values
+			!bnd_rep = rep%Q(1)
 
 #			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
