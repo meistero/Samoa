@@ -52,15 +52,6 @@ module c_bind_riemannsolvers
   waveSpeeds=0.d0
   fWaves=0.d0
 
-  !zero (small) negative values if they exist
-  if (i_hL .lt. 0.d0) then
-    i_hL = 0.d0 !rest of left variables will be set later
-  endif
-
-  if (i_hR .lt. 0.d0) then
-    i_hR = 0.d0 !rest of right variables will be set later
-  endif
-
   !skip problem if in a completely dry area
   if (i_hL .le. i_dryTol .and. i_hR .le. i_dryTol) then
     return
@@ -223,15 +214,6 @@ module c_bind_riemannsolvers
   !Initialize Riemann problem for grid interface
   waveSpeeds=0.e0
   fWaves=0.e0
-
-  !zero (small) negative values if they exist
-  if (i_hL .lt. 0.e0) then
-    i_hL = 0.e0; !rest of left variables will be set later
-  endif
-
-  if (i_hR .lt. 0.e0) then
-    i_hR = 0.e0; !rest of right variables will be set later
-  endif
 
   !skip problem if in a completely dry area
   if (i_hL .le. i_dryTol .and. i_hR .le. i_dryTol) then
@@ -401,15 +383,6 @@ module c_bind_riemannsolvers
   !Initialize Riemann problem for grid interface
   waveSpeeds=0.q0
   fWaves=0.q0
-
-  !zero (small) negative values if they exist
-  if (i_hL .lt. 0.q0) then
-    i_hL = 0.q0; !rest of left variables will be set later
-  endif
-
-  if (i_hR .lt. 0.q0) then
-    i_hR = 0.q0; !rest of right variables will be set later
-  endif
 
   !skip problem if in a completely dry area
   if (i_hL .le. i_dryTol .and. i_hR .le. i_dryTol) then
