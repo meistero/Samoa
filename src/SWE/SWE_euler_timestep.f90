@@ -115,7 +115,7 @@
                 r_courant_cfl = r_dt_cfl * cfg%courant_number / grid%r_dt
 
                 if (rank_MPI == 0) then
-                    _log_write(1, *) "WARNING! Time step size was too big. dt (used): ", grid%r_dt, ", dt (CFL): ", r_dt_cfl, ", correct courant number: ", r_courant_cfl
+                    _log_write(1, '("WARNING! Time step size was too big. dt (used): ", ES10.3, ", dt (CFL): ", ES10.3, ", correct courant number: ", F0.3)') grid%r_dt, r_dt_cfl, r_courant_cfl
                 end if
             end if
 
@@ -259,7 +259,20 @@
 			call volume_op(element%cell%geometry, traversal%i_refinements_issued, element%cell%geometry%i_depth, &
                 element%cell%geometry%refinement, section%u_max, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
 
-			call gv_Q%add(element, dQ)
+			!if land is flooded, init water height to dry tolerance and velocity to 0
+			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > 0.0_GRID_SR) then
+                element%cell%data_pers%Q(1)%h = element%cell%data_pers%Q(1)%b + cfg%dry_tolerance
+                element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
+                !print '("Wetting:", 2(X, F0.0))', cfg%scaling * element%transform_data%custom_data%offset + cfg%offset
+            end if
+
+            call gv_Q%add(element, dQ)
+
+			!if the water level falls below the dry tolerance, set water surface to 0 and velocity to 0
+			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance) then
+                element%cell%data_pers%Q(1)%h = min(element%cell%data_pers%Q(1)%b, 0.0_GRID_SR)
+                element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
+           end if
 		end subroutine
 
 		subroutine cell_last_touch_op(traversal, section, cell)
