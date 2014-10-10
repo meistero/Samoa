@@ -29,7 +29,7 @@
             real (kind = GRID_SR), intent(out)  :: mat(_DARCY_P_SIZE, _DARCY_P_SIZE)
 
             real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
-                reshape([ 1.0d0/2.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0/2.0d0], [_DARCY_P_SIZE, _DARCY_P_SIZE])
+                reshape([ 0.5_GRID_SR, -0.5_GRID_SR, 0.0_GRID_SR, -0.5_GRID_SR, 1.0_GRID_SR, -0.5_GRID_SR, 0.0_GRID_SR, -0.5_GRID_SR, 0.5_GRID_SR], [_DARCY_P_SIZE, _DARCY_P_SIZE])
 
             mat = element%cell%data_pers%permeability * mat_const
         end subroutine

@@ -282,6 +282,10 @@ MODULE _CG_(step)
 
         if (.not. any(is_dirichlet)) then
             call inner_node_last_touch_op(traversal, section, node)
+        else
+            node%data_pers%d = 0.0_GRID_SR
+            node%data_pers%r = 0.0_GRID_SR
+            node%data_pers%A_d = 0.0_GRID_SR
         end if
     end subroutine
 
