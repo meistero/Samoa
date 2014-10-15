@@ -77,7 +77,9 @@
 			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			_log_write(1, '(A, I0, A, I0)') " Darcy: output step: ", traversal%i_output_iteration
+            if (rank_MPI == 0) then
+                _log_write(1, '(A, I0, A, I0)') " Darcy: output step: ", traversal%i_output_iteration
+            end if
 
             call scatter(traversal%s_file_stamp, traversal%children%s_file_stamp)
             call scatter(traversal%i_output_iteration, traversal%children%i_output_iteration)

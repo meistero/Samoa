@@ -1,6 +1,6 @@
 c-----------------------------------------------------------------------
       subroutine riemann_aug_JCP(maxiter,meqn,mwaves,hL,hR,huL,huR,
-     &   hvL,hvR,bL,bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,drytol,g,sw,fw)
+     &   hvL,hvR,bL,bR,uL,uR,vL,vR,delphi,sE1,sE2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! This solver is described in J. Comput. Phys. (6): 3089-3113, March 2008
@@ -20,7 +20,7 @@ c-----------------------------------------------------------------------
       integer meqn,mwaves,maxiter
       double precision fw(meqn,mwaves)
       double precision sw(mwaves)
-      double precision hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,sE1,sE2
+      double precision hL,hR,huL,huR,bL,bR,uL,uR,delphi,sE1,sE2
       double precision hvL,hvR,vL,vR
       double precision drytol,g
 
@@ -33,7 +33,7 @@ c-----------------------------------------------------------------------
       double precision del(3)
       double precision beta(3)
 
-      double precision delh,delhu,delphi,delb,delnorm
+      double precision delh,delhu,delb,delnorm
       double precision rare1st,rare2st,sdelta,raremin,raremax
       double precision criticaltol,convergencetol,raretol
       double precision s1s2bar,s1s2tilde,hbar,hLstar,hRstar,hustar
@@ -48,7 +48,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
       delnorm = delh**2 + delphi**2
 
@@ -261,7 +260,7 @@ c        !solve for beta(k) using Cramers Rule=================
 
 c-----------------------------------------------------------------------
       subroutine riemann_ssqfwave(maxiter,meqn,mwaves,hL,hR,huL,huR,
-     &    hvL,hvR,bL,bR,uL,uR,vL,vR,phiL,phiR,sE1,sE2,drytol,g,sw,fw)
+     &    hvL,hvR,bL,bR,uL,uR,vL,vR,delphi,sE1,sE2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! steady state wave is subtracted from delta [q,f]^T before decomposition
@@ -271,7 +270,7 @@ c-----------------------------------------------------------------------
       !input
       integer meqn,mwaves,maxiter
 
-      double precision hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,sE1,sE2
+      double precision hL,hR,huL,huR,bL,bR,uL,uR,delphi,sE1,sE2
       double precision vL,vR,hvL,hvR
       double precision drytol,g
 
@@ -280,7 +279,7 @@ c-----------------------------------------------------------------------
 
       logical sonic
 
-      double precision delh,delhu,delphi,delb,delhdecomp,delphidecomp
+      double precision delh,delhu,delb,delhdecomp,delphidecomp
       double precision s1s2bar,s1s2tilde,hbar,hLstar,hRstar,hustar
       double precision uRstar,uLstar,hstarHLL
       double precision deldelh,deldelphi
@@ -295,7 +294,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
 
       convergencetol= 1.d-16
@@ -355,7 +353,7 @@ c           !find jump in phi, deldelphi
             if (sonic) then
                deldelphi = -g*hbar*delb
             else
-               deldelphi = -delb*g*hbar*s1s2tilde/s1s2bar
+               deldelphi = -g*s1s2tilde/s1s2bar*hbar*delb
             endif
 !           !bounds in case of critical state resonance, or negative states
             deldelphi=min(deldelphi,g*max(-hLstar*delb,-hRstar*delb))
@@ -446,7 +444,7 @@ c               hustar=huL+alpha1*sE1
 
 c-----------------------------------------------------------------------
       subroutine riemann_fwave(meqn,mwaves,hL,hR,huL,huR,hvL,hvR,
-     &            bL,bR,uL,uR,vL,vR,phiL,phiR,s1,s2,drytol,g,sw,fw)
+     &            bL,bR,uL,uR,vL,vR,delphi,s1,s2,drytol,g,sw,fw)
 
       ! solve shallow water equations given single left and right states
       ! solution has two waves.
@@ -457,7 +455,7 @@ c-----------------------------------------------------------------------
       !input
       integer meqn,mwaves
 
-      double precision hL,hR,huL,huR,bL,bR,uL,uR,phiL,phiR,s1,s2
+      double precision hL,hR,huL,huR,bL,bR,uL,uR,delphi,s1,s2
       double precision hvL,hvR,vL,vR
       double precision drytol,g
 
@@ -465,7 +463,7 @@ c-----------------------------------------------------------------------
       double precision fw(meqn,mwaves)
 
       !local
-      double precision delh,delhu,delphi,delb,delhdecomp,delphidecomp
+      double precision delh,delhu,delb,delhdecomp,delphidecomp
       double precision deldelh,deldelphi
       double precision beta1,beta2
 
@@ -473,7 +471,6 @@ c-----------------------------------------------------------------------
       !determine del vectors
       delh = hR-hL
       delhu = huR-huL
-      delphi = phiR-phiL
       delb = bR-bL
 
       deldelphi = -g*0.5d0*(hR+hL)*delb
@@ -497,7 +494,7 @@ c-----------------------------------------------------------------------
       ! advection of transverse wave
       fw(1,2) = 0.d0
       fw(2,2) = 0.d0
-      fw(3,2) = hR*uR*vR - hL*uL*vL -fw(3,1)-fw(3,3)
+      fw(3,2) = huR*vR - huL*vL -fw(3,1)-fw(3,3)
       return
 
       end !subroutine -------------------------------------------------

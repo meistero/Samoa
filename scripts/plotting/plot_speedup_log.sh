@@ -8,10 +8,9 @@ echo "Plotting results..."
 
 cd $1
 
-echo "#Element throughput by sections and threads" > "darcy.plt"
-echo "#Threads ET per (initialization, time steps) per sections" >> "darcy.plt"
+rm -f darcy*.plt swe*.plt
 
-for file in darcy*.log; do
+for file in darcy*.log ; do
 	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
@@ -21,17 +20,22 @@ for file in darcy*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $processes $threads $sections" " >> "darcy.plt"
-	grep -E "r0.*Element throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy.plt"
-	echo -n $flags >> "darcy.plt"
-	echo "" >> "darcy.plt"
+    csplit $file "/Phase statistics:/" {*} &>/dev/null
+
+    i=0
+    for phase in xx* ; do
+        #echo "#Element throughput by processes, threads, sections" > "darcy"$i".plt"
+	    echo -n $processes $threads $sections" " >> "darcy"$i".plt"
+	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    echo "" >> "darcy"$i".plt"
+
+        i=$(( $i + 1 ))
+    done
+
+    rm -f xx*
 done
 
-
-echo "#Cell update throughput and flux solver throughput by sections and threads" > "swe.plt"
-echo "#Threads CUT FST per sections" >> "swe.plt"
-
-for file in swe*.log; do
+for file in swe*.log ; do
 	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
@@ -41,18 +45,36 @@ for file in swe*.log; do
 	threads=${threads:-1}
 	sections=${sections:-1}
 
-	echo -n $processes $threads $sections" "  >> "swe.plt"
-	    
-	grep -E "r0.*Cell update throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	grep -E "r0.*Flux solver throughput" $file | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe.plt"
-	echo -n $flags >> "swe.plt"
-	echo ""  >> "swe.plt"
+    csplit $file "/Phase statistics:/" {*} &>/dev/null
+
+    i=0
+    for phase in xx* ; do
+        #echo "#Element throughput by processes, threads, sections" > "swe"$i".plt"
+	    echo -n $processes $threads $sections" "  >> "swe"$i".plt"
+	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
+	    echo ""  >> "swe"$i".plt"
+
+        i=$(( $i + 1 ))
+    done
+
+    rm -f xx*
 done
 
-sort -t" " -n -k 3,3 -k 1,1 -k 2,2 darcy.plt -o darcy.plt
-sort -t" " -n -k 3,3 -k 1,1 -k 2,2 swe.plt -o swe.plt
 
-gnuplot &> /dev/null << EOT
+i=0
+for phase in darcy*.plt ; do
+    sort -t" " -n -k 3,3 -k 1,1 -k 2,2 $phase -o $phase
+    i=$(( $i + 1 ))
+done
+
+i=0
+for phase in swe*.plt ; do
+    sort -t" " -n -k 3,3 -k 1,1 -k 2,2 $phase -o $phase
+
+    i=$(( $i + 1 ))
+done
+
+gnuplot &>/dev/null << EOT
 
 set terminal postscript enhanced color font ',30'
 set xlabel "Cores"
@@ -76,58 +98,40 @@ set style line 32 lc rgb "green"
 # Darcy
 #*******
 
-set title "Darcy element throughput - initialization"
-unset output
-set xrange [*:*]
-set yrange [*:*]
+do for [i=1:20] {
+    infile = sprintf('darcy%i.plt', i)
+    set title 'Darcy element througput'
 
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
+    unset output
+    set xrange [*:*]
+    set yrange [*:*]
 
-set output '| ps2pdf - darcy_elem_init_log.pdf'
+    plot for [n=1:64] infile u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
 
-replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
+    outfile = sprintf('| ps2pdf - darcy%i_log.pdf', i)
+    set output outfile
 
-#********
-
-set title "Darcy element throughput - time steps"
-unset output
-set xrange [*:*]
-set yrange [*:*]
-
-plot for [n=1:64] "darcy.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls n w linespoints t title(n)
-		
-set output '| ps2pdf - darcy_elem_log.pdf'
-
-replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
+    replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
+}
 
 #*****
 # SWE
 #*****
 
-set title "SWE flux solver throughput"
-unset output
-set xrange [*:*]
-set yrange [*:*]
+do for [i=1:20] {
+    infile = sprintf('swe%i.plt', i)
+    set title 'SWE element througput'
 
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$5 : 1/0) ls n w linespoints t title(n)
+    unset output
+    set xrange [*:*]
+    set yrange [*:*]
 
-set output '| ps2pdf - swe_flux_log.pdf'
+    plot for [n=1:64] infile u (\$1*\$2):(\$3 == n? \$4 : 1/0) ls n w linespoints t title(n)
 
-replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
+    outfile = sprintf('| ps2pdf - swe%i_log.pdf', i)
+    set output outfile
 
-
-#********
-
-set title "SWE cell update throughput"
-unset output
-set xrange [*:*]
-set yrange [*:*]
-
-plot for [n=1:64] "swe.plt" u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
-
-set output '| ps2pdf - swe_cells_log.pdf'
-
-replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
-
+    replot log(GPVAL_DATA_Y_MIN) / log(GPVAL_DATA_X_MIN) * x ls 999 w lines title "reference"
+}
 
 EOT

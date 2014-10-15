@@ -392,8 +392,10 @@ module Grid_thread
 		procedure, pass :: create => grid_thread_create
 		procedure, pass :: destroy => grid_thread_destroy
 		procedure, pass :: eq => grid_thread_eq
+        procedure, pass :: assign => grid_thread_assign
 
         generic :: operator(.eq.) => eq
+        generic :: assignment(=) => assign
  	end type
 
 	PUBLIC t_grid_thread
@@ -403,6 +405,17 @@ module Grid_thread
 
 #	include "Tools_list.f90"
 
+
+	subroutine grid_thread_assign(s1, s2)
+		class(t_grid_thread), intent(inout)		:: s1
+		class(t_grid_thread), intent(in)		:: s2
+
+        s1%edges_stack = s2%edges_stack
+        s1%nodes_stack = s2%nodes_stack
+        s1%indices_stack = s2%indices_stack
+        s1%stats = s2%stats
+        s1%info = s2%info
+	end subroutine
 
 	elemental function grid_thread_eq(s1, s2)
 		class(t_grid_thread), intent(in)		:: s1, s2
@@ -777,6 +790,7 @@ module Grid
 
         procedure, pass :: assign => grid_assign
 		procedure, pass :: reduce_stats => grid_reduce_stats
+		procedure, pass :: clear_stats => grid_clear_stats
 		procedure, pass :: get_cells => grid_get_cells
 		procedure, pass :: get_info => grid_get_info
 		procedure, pass :: get_local_sections => grid_get_local_sections
@@ -885,6 +899,19 @@ module Grid
         if (global) then
             call grid%stats%reduce(mpi_op)
         end if
+    end subroutine
+
+    subroutine grid_clear_stats(grid)
+        class(t_grid)           :: grid
+        integer :: i
+
+        if (associated(grid%threads%elements)) then
+            do i = 1, size(grid%threads%elements)
+                call grid%threads%elements(i)%stats%clear()
+            end do
+        end if
+
+        call grid%stats%clear()
     end subroutine
 
 	function grid_get_cells(grid, mpi_op, global) result(i_grid_cells)

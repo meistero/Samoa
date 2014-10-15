@@ -522,9 +522,21 @@
 		call _OP0(set_transform_data) (section, element)
 
 #		if !defined(_GT_NO_COORDS)
-#			if !defined(_STORE_NODE_COORDS) && (_GT_COLOR_EDGE_TYPE == _NEW)
-				element%color_node_in%ptr%position = element%color_node_out%ptr%position + element%transform_data%custom_data%scaling * matmul(element%transform_data%plotter_data%jacobian, node_offset(:, element%cell%geometry%i_turtle_type))
-#			endif
+#           if defined(_GT_PASS_COORDS)
+#               if (_GT_COLOR_EDGE_TYPE == _OLD) && (_GT_PREVIOUS_EDGE_TYPE == _OLD)
+
+#               elif (_GT_PREVIOUS_EDGE_TYPE == _OLD)
+                    element%color_node_in%ptr%position = element%color_node_out%ptr%position + element%transform_data%custom_data%scaling * matmul(element%transform_data%plotter_data%jacobian, node_offset(:, element%cell%geometry%i_turtle_type))
+#               else
+                    element%nodes(1)%ptr%position(:) = element%coords(:, 1)
+                    element%nodes(2)%ptr%position(:) = element%coords(:, 2)
+                    element%nodes(3)%ptr%position(:) = element%coords(:, 3)
+#               endif
+#		    elif !defined(_STORE_NODE_COORDS)
+#               if (_GT_COLOR_EDGE_TYPE == _NEW)
+                    element%color_node_in%ptr%position = element%color_node_out%ptr%position + element%transform_data%custom_data%scaling * matmul(element%transform_data%plotter_data%jacobian, node_offset(:, element%cell%geometry%i_turtle_type))
+#               endif
+#           endif
 #		endif
 
 		!First Touch Hooks

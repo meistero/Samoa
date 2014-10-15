@@ -54,6 +54,7 @@ MODULE SFC_data_types
         enumerator ::   INNER_NEW       = 8 * 0 + 4 * 0 + 2 * 0 + NEW
         enumerator ::   INNER_OLD_BND   = 8 * 0 + 4 * 0 + 2 * 1 + OLD
         enumerator ::   INNER_NEW_BND   = 8 * 0 + 4 * 0 + 2 * 1 + NEW
+        enumerator ::   FIRST_OLD       = 8 * 1 + 4 * 0 + 2 * 0 + OLD   !this case is invalid and possible only during adaptivity, when not all boundary edges have been found yet
         enumerator ::   FIRST_NEW       = 8 * 1 + 4 * 0 + 2 * 0 + NEW
         enumerator ::   FIRST_OLD_BND   = 8 * 1 + 4 * 0 + 2 * 1 + OLD
         enumerator ::   FIRST_NEW_BND   = 8 * 1 + 4 * 0 + 2 * 1 + NEW
@@ -189,7 +190,7 @@ MODULE SFC_data_types
 	!> Node geometry data structure
 	type t_node_geometry
 #		if defined(_STORE_NODE_COORDS)
-			real (kind = GRID_SR), dimension(2)				:: position
+			real (kind = GRID_SR)				            :: position(2)
 #		endif
 	end type
 
@@ -203,12 +204,12 @@ MODULE SFC_data_types
 		type(num_node_data_temp)							:: data_temp
 
 #		if !defined(_STORE_NODE_COORDS)
-			real (kind = GRID_SR), dimension(2)				:: position
+			real (kind = GRID_SR)			                :: position(2)
 #		endif
 
         integer (kind = GRID_DI)                            :: distance             !< node distance, defined only for boundary nodes!
-        logical                             :: owned_locally        !< if true, the current section owns the node, defined only for boundary nodes!
-        logical                             :: owned_globally       !< if true, the current rank owns the node, defined only for boundary nodes!
+        logical                                             :: owned_locally        !< if true, the current section owns the node, defined only for boundary nodes!
+        logical                                             :: owned_globally       !< if true, the current rank owns the node, defined only for boundary nodes!
 	end type
 
 	!traversal data types
@@ -249,11 +250,11 @@ MODULE SFC_data_types
 		!integer (kind = BYTE)									:: plotter_type				!< Sierpinski plotter grammar triangle type (appears not to be used anywhere?)
 		integer (kind = BYTE)									:: forward					!< true if forward traversal
 		integer (kind = BYTE)									:: orientation				!< local orientation: -1: backward 1: forward
-		real (kind = GRID_SR), DIMENSION(2, 2)				:: jacobian					!< Jacobian of the reference element transformation from barycentric to cartesian coordinates
-		real (kind = GRID_SR), DIMENSION(2, 2)				:: jacobian_inv				!< Inverse of the Jacobian
-		real (kind = GRID_SR)								:: det_jacobian				!< Determinant of the Jacobian
+		real (kind = GRID_SR)				                    :: jacobian(2, 2)		    !< Jacobian of the reference element transformation from barycentric to cartesian coordinates
+		real (kind = GRID_SR)			                        :: jacobian_inv(2, 2)	    !< Inverse of the Jacobian
+		real (kind = GRID_SR)								    :: det_jacobian				!< Determinant of the Jacobian
 
-		type(t_edge_transform_data), DIMENSION(3)			:: edges					!< Reference edge data
+		type(t_edge_transform_data)                             :: edges(3)				!< Reference edge data
 	end type
 
 	!> Element-specific data for the generic triangle <-> Reference triangle transformation
@@ -270,7 +271,7 @@ MODULE SFC_data_types
 		type(t_custom_transform_data)		 				:: custom_data				!< Element-specific custom data
 	end type
 
-	type(t_cell_transform_data), DIMENSION(-8 : 8), target	:: ref_plotter_data			!< Reference plotter grammar data for the 16 possible triangle orientations
+	type(t_cell_transform_data), target	                    :: ref_plotter_data(-8 : 8)			!< Reference plotter grammar data for the 16 possible triangle orientations
 
 	interface get_c_pointer
         module procedure t_node_data_get_c_pointer
@@ -594,10 +595,10 @@ MODULE SFC_data_types
 
 	subroutine init_transform_data()
 		type(t_edge_transform_data), pointer				:: p_edge_data
-		integer (kind = BYTE)									:: i_plotter_type, i, j
+		integer (kind = BYTE)							    :: i_plotter_type, i, j
 		integer                                             :: i_error
 		real (kind = GRID_SR)								:: r_angle
-		real (kind = GRID_SR), dimension(2, 3)				:: edge_vectors, edge_normals
+		real (kind = GRID_SR)				                :: edge_vectors(2, 3), edge_normals(2, 3)
 		type(t_global_data)                                 :: global_data
 
 		!set transformation matrices for the 8 different plotter grammar patterns

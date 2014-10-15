@@ -38,7 +38,7 @@
                             0.5_GRID_SR * K(1,2), -0.5_GRID_SR * (K(1,2) + K(2,2)), 0.5_GRID_SR * K(2,2)], [3,3])
 #           else
                 real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
-                    reshape([ 1.0d0/2.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0, -1.0d0/2.0d0, 0.0d0, -1.0d0/2.0d0, 1.0d0/2.0d0], [_DARCY_P_SIZE, _DARCY_P_SIZE])
+                    reshape([ 0.5_GRID_SR, -0.5_GRID_SR, 0.0_GRID_SR, -0.5_GRID_SR, 1.0_GRID_SR, -0.5_GRID_SR, 0.0_GRID_SR, -0.5_GRID_SR, 0.5_GRID_SR], [_DARCY_P_SIZE, _DARCY_P_SIZE])
 
                 mat = element%cell%data_pers%permeability * mat_const
 #           endif

@@ -49,7 +49,15 @@
             module procedure reduce_mpi_r32
             module procedure reduce_mpi_r64
             module procedure reduce_mpi_r128
+            module procedure reduce_mpi_vector_i8
+            module procedure reduce_mpi_vector_i16
+            module procedure reduce_mpi_vector_i32
+            module procedure reduce_mpi_vector_i64
+            module procedure reduce_mpi_vector_r32
+            module procedure reduce_mpi_vector_r64
+            module procedure reduce_mpi_vector_r128
             module procedure reduce_mpi_l
+            module procedure reduce_mpi_vector_l
         end interface
 
         interface scatter
@@ -252,6 +260,20 @@ subroutine _T_(reduce_mpi)(s, mpi_op)
         assert_eq(sizeof(s), _T_SIZE)
 
         call mpi_allreduce(MPI_IN_PLACE, s, 1, _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#   endif
+end subroutine
+
+subroutine _T_(reduce_mpi_vector)(s, mpi_op)
+    _T, intent(inout)	        :: s(:)
+    integer, intent(in)		    :: mpi_op
+
+    integer				        :: i_error
+
+#   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
+        assert_ge(size(s), 1)
+        assert_eq(sizeof(s(1)), _T_SIZE)
+
+        call mpi_allreduce(MPI_IN_PLACE, s, size(s), _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #   endif
 end subroutine
 

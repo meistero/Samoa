@@ -130,8 +130,8 @@
 
             !test if |rhs - A p| < epsilon. This might fail even though we did everything correct, since we minimize
             !the preconditioned residual norm |D^{-1} (rhs - A p)| and not the residual norm |rhs - A p| in the linear solver
-            nrm = norm2(matmul(traversal%A, traversal%p) - traversal%rhs)
-            assert_le(nrm, cfg%r_epsilon * 1.0e-7 * cfg%r_p_prod)
+            !nrm = norm2(matmul(traversal%A, traversal%p) - traversal%rhs)
+            !assert_le(nrm, cfg%r_epsilon * 1.0e-7 * cfg%r_p_prod)
 
 			deallocate(traversal%A, stat=i_error); assert_eq(i_error, 0)
 			deallocate(traversal%p, stat=i_error); assert_eq(i_error, 0)

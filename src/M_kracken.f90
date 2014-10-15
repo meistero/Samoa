@@ -28,9 +28,9 @@ module M_kracken_dictionary
 
       implicit none
 
-      integer, parameter,public :: IPverb=20                          ! ilength of verb
-      integer, parameter,public :: IPvalue=1024                        ! ilength of verb value
-      integer, parameter,public :: ic=50                              ! number of entries in language dictionary
+      integer, parameter,public :: IPverb=40                          ! ilength of verb
+      integer, parameter,public :: IPvalue=2048                        ! ilength of verb value
+      integer, parameter,public :: ic=60                              ! number of entries in language dictionary
       integer, parameter,public :: k_int = SELECTED_INT_kind(9)       ! integer*4
       integer, parameter,public :: k_dbl = SELECTED_real_kind(15,300) ! real*8
       !=================================================================--------

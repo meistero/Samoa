@@ -1,12 +1,10 @@
+#!/bin/bash
 # Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications
 # Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
 # This program is licensed under the GPL, for details see the file LICENSE
 
-
-#!/bin/bash
-
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Thin_MPI_Weak_Hybrid_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Snb_Hybrid_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
@@ -17,36 +15,32 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-scons config=supermuc.py scenario=darcy -j4 &
-scons config=supermuc.py scenario=swe -j4 &
+partition=snb
+
+scons config=snb.py scenario=darcy -j4 &
+scons config=snb.py scenario=swe -j4 &
 
 wait %1 %2
 
 echo "Running scenarios..."
 
-limit=00:10:00
-postfix=""
+class=test
+limit=02:00:00
+postfix=
 
 for asagimode in 2
 do
-	for sections in 2
+	for sections in 1
 	do
-		for cores in 1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192
+		for cores in 1 2 4 8 16 32
 		do
-		    processes=$(( ($cores - 1) / 8 + 1 ))
-		    threads=$(( $cores / $processes )) 
-		    nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
-			size=`echo "import numpy; print int(numpy.log2("$cores"))" | python`
+			processes=$(( ($cores - 1) / 32 + 1 ))
+			threads=$(( $cores / $processes )) 
 
-			if [ $nodes -le 32 ]; then
-               class=test
-            else
-               class=general
-            fi
+			script="scripts/cache/run_mac"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
+			cat "$script_dir/run_mac_template.sh" > $script
 
-			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
-			cat "$script_dir/run_supermuc_template.sh" > $script
-
+            sed -i 's=$partition='$partition'=g' $script
 			sed -i 's=$asagimode='$asagimode'=g' $script
 			sed -i 's=$sections='$sections'=g' $script
 			sed -i 's=$processes='$processes'=g' $script
@@ -56,10 +50,10 @@ do
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
-			sed -i 's=-dmin 26=-dmin '$((20 + $size))'=g' $script
-			sed -i 's=-dmax 29=-dmax '$((26 + $size))'=g' $script
+		    sed -i 's=-dmin 26=-dmin 23=g' $script
+	        sed -i 's=-dmax 29=-dmax 29=g' $script
 
-			llsubmit $script
+			sbatch $script
 		done
 	done
 done

@@ -28,20 +28,28 @@ module config
         integer			                        :: i_threads			                            !< number of OpenMP threads
         integer (kind = selected_int_kind(1))   :: i_sections_per_thread						    !< number of sections per thread
         integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
-        double precision                        :: r_max_time, r_output_time_step					!< maximum simulation time, output time step
+        double precision                        :: r_max_time					                    !< maximum simulation time
+        double precision                        :: r_output_time_step					            !< grid output time step
+        integer                                 :: i_stats_phases					                !< number of times intermediate stats should be printed during time steps
         logical			                        :: l_log                                            !< if true, a log file is used
         integer (kind = selected_int_kind(1))   :: i_min_depth, i_max_depth			                !< minimum and maximum scenario depth
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
-        integer                                 :: i_ascii_width                                    !< width of the ascii output
-        logical                                 :: l_ascii_output                                   !< ascii output on/off
         logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by counting entities
         double precision                        :: r_cell_weight                                    !< cell weight for the count-based load estimate
         double precision                        :: r_boundary_weight                                !< boundary weight for the count-based load estimate
         logical                                 :: l_split_sections                                 !< if true, MPI load balancing may split sections, if false sections are treated as atomic units
         logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
 
+	    logical 				                :: l_gridoutput			                            !< grid output on/off
+        logical                                 :: l_ascii_output                                   !< ascii output on/off
+        integer                                 :: i_ascii_width                                    !< width of the ascii output
+	    logical					                :: l_pointoutput                                    !< test points output on/off
+	    character(512)				            :: s_testpoints			                            !< test points input string
+	    double precision, pointer		        :: r_testpoints(:,:)		                        !< test points array
+
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
+        double precision                        :: dry_tolerance                                    !< dry tolerance
 
 #    	if defined(_DARCY)
             character(256)                      :: s_permeability_file                              !< permeability file
@@ -97,27 +105,28 @@ module config
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
+
         write(arguments, '(A)') "-v .false. --version .false. -h .false. --help .false."
         write(arguments, '(A, A)') trim(arguments),   " -lbtime .false. -lbsplit .false. -lbserial .false. -lbcellweight 1.0d0 -lbbndweight 0.0d0"
-        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -asciiout_width 60 -asciiout .false. -noprint .false. -sections 4"
+        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -asciioutput_width 60 -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
         write(arguments, '(A, A, I0)') trim(arguments), " -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            !-p_in 9.2d-3
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lse_output .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 3 -max_iter -1 -cg_restart 256 -lseoutput .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 5 -tout -1.0d0"
 #    	elif defined(_TESTS)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0d0"
 #    	elif defined(_GENERIC)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0d0"
+
 #    	else
 #           error No scenario selected!
 #    	endif
@@ -133,6 +142,7 @@ module config
         config%i_max_time_steps = iget('samoa_tsteps')
         config%r_max_time = rget('samoa_tmax')
         config%r_output_time_step = rget('samoa_tout')
+        config%i_stats_phases = rget('samoa_phases')
         config%l_log = lget('samoa_noprint')
         config%i_threads = iget('samoa_threads')
         config%l_timed_load = lget('samoa_lbtime')
@@ -142,9 +152,18 @@ module config
         config%l_serial_lb = lget('samoa_lbserial')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
-        config%l_ascii_output = lget('samoa_asciiout')
-        config%i_ascii_width = iget('samoa_asciiout_width')
+        config%l_ascii_output = lget('samoa_asciioutput')
+        config%i_ascii_width = iget('samoa_asciioutput_width')
         config%courant_number = rget('samoa_courant')
+        config%l_gridoutput = lget('samoa_xmloutput')
+        config%s_testpoints = sget('samoa_stestpoints', 512)
+
+	if (len(trim(config%s_testpoints)) .ne. 2) then
+		config%l_pointoutput = .true.
+		call parse_testpoints(config)
+	else
+		config%l_pointoutput = .false.
+	end if
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
@@ -159,10 +178,11 @@ module config
             config%i_max_iterations = iget('samoa_max_iter')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
-            config%l_lse_output = lget('samoa_lse_output')
+            config%l_lse_output = lget('samoa_lseoutput')
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
+            config%dry_tolerance = rget('samoa_drytolerance')
 #       endif
 
         if (rank_MPI == 0) then
@@ -184,6 +204,7 @@ module config
                 PRINT '(A, I0, A)',     "	-tsteps <value>         maximum number of time steps, less than 0: disabled (value: ", config%i_max_time_steps, ")"
                 PRINT '(A, ES8.1, A)',  "	-tmax <value>           maximum simulation time in seconds, less than 0: disabled (value: ", config%r_max_time, ")"
                 PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: disabled (value: ", config%r_output_time_step, ")"
+                PRINT '(A, I0, A)',     "	-phases <value>         number of times intermediate stats should be printed during time steps (value: ", config%i_stats_phases, ")"
                 PRINT '(A, I0, A)',     "	-threads <value>        number of OpenMP threads (value: ", config%i_threads, ")"
                 PRINT '(A, I0, A)',     "	-sections <value>       number of grid sections per OpenMP thread (value: ", config%i_sections_per_thread, ")"
                 PRINT '(A, L, A)',      "	-lbtime                 if true, load is estimated by time measurements, if false load is estimated by cell count (value: ", config%l_timed_load, ")"
@@ -192,6 +213,9 @@ module config
                 PRINT '(A, F0.3, A)',  "	-lbcellweight           cell weight for the count-based load estimate (value: ", config%r_cell_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
+
+        		PRINT '(A, L, A)',     "	-xmloutput              [usage of -tout required] turns on grid output (value: ", config%l_gridoutput, ")"
+        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
@@ -206,12 +230,13 @@ module config
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
-                    PRINT '(A, L, A)',      "	-lse_output             enable LSE output (value: ", config%l_lse_output, ")"
+                    PRINT '(A, L, A)',     "	-lseoutput             enable LSE output (value: ", config%l_lse_output, ")"
 #         	    elif defined(_SWE)
-                    PRINT '(A, L, A)',  "	-asciiout               turns on ascii output (value: ", config%l_ascii_output, ")"
-                    PRINT '(A, I0, A)', "	-asciiout_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
+                    PRINT '(A, L, A)',  "	-asciioutput               [usage of -tout required] turns on ascii output (value: ", config%l_ascii_output, ")"
+                    PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
+                    PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
@@ -336,6 +361,7 @@ module config
             _log_write(0, '(" Flash: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+            _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
 
             if (config%l_ascii_output) then
                 _log_write(0, '(" SWE: Ascii Output: Yes, width: ", I0)') config%i_ascii_width
@@ -361,5 +387,150 @@ module config
 #		endif
 
         _log_write(0, "()")
+    end subroutine
+
+    subroutine parse_testpoints(config)
+	class(t_config), intent(inout)          :: config
+
+	!local variables
+	logical					:: l_wrong_format, l_point, l_comma, l_space, l_number_pre, l_number_post, l_sign, l_ycoord
+        integer          			:: i, i_error, points, j, coordstart(50,2), k, counter
+        character(512)                          :: checkstring
+
+	! check for correctness
+	l_wrong_format = .false.
+	checkstring = config%s_testpoints
+
+	l_sign = .true.
+	l_number_pre = .true.
+	l_number_post = .false.
+	l_space = .false.
+	l_comma = .false.
+	l_point = .false.
+	l_ycoord = .false.
+
+	counter = len(trim(config%s_testpoints))
+
+	do while ((l_wrong_format .eqv. .false.) .and. (counter > 0))
+		if ((l_sign .eqv. .true.) .and. (checkstring(1:1) == "-")) then
+			! sign ('-' only)
+			checkstring = checkstring (2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .false.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.
+		else if ((l_number_pre .eqv. .true.) .and. &
+		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
+	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
+		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
+		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
+		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
+			! number before the point
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .false.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .true.
+		else if ((l_number_post .eqv. .true.) .and. &
+		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
+	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
+		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
+		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
+		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
+			! number behind the point
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .false.
+			l_number_post = .true.
+			l_sign = .false.
+			l_space = .true.
+			l_comma = .true.
+			l_point = .false.
+		else if ((l_point .eqv. .true.) .and. (checkstring(1:1) == ".")) then
+			! point
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .false.
+			l_number_post = .true.
+			l_sign = .false.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.
+		else if ((l_comma .eqv. .true.) .and. (l_ycoord .eqv. .true.) &
+		    .and. (checkstring(1:1) == ",")) then
+			! comma
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .true.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.
+			l_ycoord = .false.
+		else if ((l_space .eqv. .true.) .and. (l_ycoord .eqv. .false.) &
+		   .and. (checkstring(1:1) == " ")) then
+			! space
+			checkstring = checkstring(2:)
+			counter = counter - 1
+			l_number_pre = .true.
+			l_number_post = .false.
+			l_sign = .true.
+			l_space = .false.
+			l_comma = .false.
+			l_point = .false.
+			l_ycoord = .true.
+		else
+			write (*,'(A,$)') 'Position with wrong symbol (counting from the end):'
+			write (*,*) counter
+			l_wrong_format = .true.
+		end if
+	end do
+
+	try((.not. l_wrong_format), 'Error in submitted testpoints')
+
+	!convert stestpoints (string) to r_testpoints (real array)
+	points = 0
+	!k = 1
+	if (l_wrong_format .eqv. .false.) then
+	    points = 1
+	    coordstart(1,1) = 1
+	    do j=1, len(trim(config%s_testpoints))
+		if (config%s_testpoints(j:j) == " ") then
+			coordstart(points,2) = j+1
+		end if
+		if (config%s_testpoints(j:j) == ",") then
+		    points = points + 1
+		    coordstart(points,1) = j+1
+		end if
+	    end do
+
+	    allocate (config%r_testpoints(points,2), stat = i_error); assert_eq(i_error,0)
+
+		!uncomment the following do to check if starts of coordinates are correctly detected
+		!do j=1, points
+		!	write (*,*) coordstart(j,1)
+		!	write (*,*) coordstart(j,2)
+		!end do
+	     do j=1, points
+			read(unit=config%s_testpoints(coordstart(j,1):), fmt=*) config%r_testpoints(j,1)
+			read(unit=config%s_testpoints(coordstart(j,2):), fmt=*) config%r_testpoints(j,2)
+	     end do
+
+		!uncomment the following do to check if testpoints are correctly saved in the double precision array
+		!write (*,*) 'testpoints read:'
+		!do j=1,  size(config%r_testpoints,dim=1)
+		!	write (*,*) config%r_testpoints(j,1)
+		!	write (*,*) config%r_testpoints(j,2)
+		!end do
+
+	end if
+
     end subroutine
 end module

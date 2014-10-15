@@ -59,7 +59,6 @@ end type
 
 type, extends(num_traversal_data) :: t_thread_data
     type(t_traversal_element), dimension(8)     			:: elements									!< Element ring buffer (must contain at least 8 elements, because transfer nodes can be referenced back up to 8 elements)
-    type(t_traversal_element), pointer						:: p_current_element => null()				!< Current element
 	type(t_statistics)										:: stats
 end type
 
@@ -71,13 +70,30 @@ type, extends(num_traversal_data) :: _GT
 
     contains
 
+    procedure, pass :: assign => gt_assign
+
+    generic :: assignment(=) => assign
+
     procedure, pass :: create
     procedure, pass :: destroy
     procedure, pass :: traverse
     procedure, pass :: reduce_stats
+    procedure, pass :: clear_stats
 end type
 
 contains
+
+subroutine gt_assign(gt1, gt2)
+    class(_GT), intent(inout) :: gt1
+    class(_GT), intent(in) :: gt2
+
+    gt1%num_traversal_data = gt2%num_traversal_data
+    gt1%stats = gt2%stats
+    gt1%mpi_node_type = gt2%mpi_node_type
+    gt1%mpi_edge_type = gt2%mpi_edge_type
+
+    !pointers are not copied, they must be set manually
+end subroutine
 
 subroutine reduce_stats(traversal, mpi_op, global)
     class(_GT)              :: traversal
@@ -91,6 +107,19 @@ subroutine reduce_stats(traversal, mpi_op, global)
     if (global) then
         call traversal%stats%reduce(mpi_op)
     end if
+end subroutine
+
+subroutine clear_stats(traversal)
+    class(_GT)              :: traversal
+    integer                 :: i
+
+    if (associated(traversal%threads)) then
+        do i = 1, size(traversal%threads)
+            call traversal%threads(i)%stats%clear()
+        end do
+    end if
+
+    call traversal%stats%clear()
 end subroutine
 
 subroutine create(traversal)
@@ -209,10 +238,10 @@ subroutine traverse(traversal, grid)
 
 	integer (kind = GRID_SI)                            :: i_section, i_first_local_section, i_last_local_section
 	integer (kind = GRID_SI)                            :: i_error
-	type(t_statistics)                                  :: thread_stats
 
+	type(t_thread_data), save                           :: thread_traversal
 	integer (kind = GRID_SI), save                      :: i_thread
-	!$omp threadprivate(i_thread)
+	!$omp threadprivate(thread_traversal, i_thread)
 
     if (.not. associated(traversal%children) .or. size(traversal%children) .ne. grid%sections%get_size()) then
         !$omp barrier
@@ -234,21 +263,22 @@ subroutine traverse(traversal, grid)
         !$omp end single
 
         i_thread = 1 + omp_get_thread_num()
-        call create_ringbuffer(traversal%threads(i_thread)%elements)
-        traversal%threads(i_thread)%p_current_element => traversal%threads(i_thread)%elements(1)
+        call create_ringbuffer(thread_traversal%elements)
     end if
 
     assert_eq(size(traversal%threads), omp_get_max_threads())
 
     call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-    thread_stats%r_traversal_time = -get_wtime()
+    thread_traversal%stats = t_statistics()
+
+    thread_traversal%stats%r_traversal_time = -get_wtime()
 
 #   if defined(_ASAGI_TIMING)
         grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time = 0.0
 #   endif
 
-    thread_stats%r_barrier_time = -get_wtime()
+    thread_traversal%stats%r_barrier_time = -get_wtime()
 
     select type (traversal)
         type is (_GT)
@@ -259,7 +289,7 @@ subroutine traverse(traversal, grid)
             assert(.false.)
     end select
 
-    thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+    thread_traversal%stats%r_barrier_time = thread_traversal%stats%r_barrier_time + get_wtime()
 
 #   if defined(_GT_SKELETON_OP)
         do i_section = i_first_local_section, i_last_local_section
@@ -296,8 +326,8 @@ subroutine traverse(traversal, grid)
             traversal%children(i_section)%stats%r_computation_time = -get_wtime()
 #       endif
 
-        call pre_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
-        call traverse_section(traversal%threads(i_thread), traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
+        call pre_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        call traverse_section_wrapper(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
 
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
             call send_mpi_boundary(grid%sections%elements_alloc(i_section))
@@ -321,7 +351,7 @@ subroutine traverse(traversal, grid)
 #   endif
 
     !sync and call post traversal operator
-    thread_stats%r_sync_time = -get_wtime()
+    thread_traversal%stats%r_sync_time = -get_wtime()
 #   if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
         call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
 #   elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
@@ -331,14 +361,14 @@ subroutine traverse(traversal, grid)
 #   else
         call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   endif
-    thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+    thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
 
     !call post traversal operator
 
     do i_section = i_first_local_section, i_last_local_section
         assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time - get_wtime()
-        call post_traversal(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        call post_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
     end do
 
@@ -346,7 +376,7 @@ subroutine traverse(traversal, grid)
 
     !$omp barrier
 
-    thread_stats%r_barrier_time = thread_stats%r_barrier_time - get_wtime()
+    thread_traversal%stats%r_barrier_time = thread_traversal%stats%r_barrier_time - get_wtime()
 
     select type (traversal)
         type is (_GT)
@@ -357,22 +387,75 @@ subroutine traverse(traversal, grid)
             assert(.false.)
     end select
 
-    thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
-    thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+    thread_traversal%stats%r_barrier_time = thread_traversal%stats%r_barrier_time + get_wtime()
+    thread_traversal%stats%r_traversal_time = thread_traversal%stats%r_traversal_time + get_wtime()
 
 #   if defined(_ASAGI_TIMING)
         !HACK: in lack of a better method, we reduce ASAGI timing data like this for now - should be changed in the long run, so that stats belongs to the section and not the traversal
-        thread_stats%r_asagi_time = sum(grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time)
+        thread_traversal%stats%r_asagi_time = sum(grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%r_asagi_time)
 #   endif
 
     do i_section = i_first_local_section, i_last_local_section
         call set_stats_counters(traversal%children(i_section)%stats, grid%sections%elements_alloc(i_section))
         grid%sections%elements_alloc(i_section)%stats%t_statistics = grid%sections%elements_alloc(i_section)%stats%t_statistics + traversal%children(i_section)%stats
-        thread_stats = thread_stats + traversal%children(i_section)%stats
+        thread_traversal%stats = thread_traversal%stats + traversal%children(i_section)%stats
     end do
 
-    traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
-    grid%threads%elements(i_thread)%stats%t_statistics = grid%threads%elements(i_thread)%stats%t_statistics + thread_stats
+    traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_traversal%stats
+    grid%threads%elements(i_thread)%stats%t_statistics = grid%threads%elements(i_thread)%stats%t_statistics + thread_traversal%stats
+end subroutine
+
+subroutine traverse_section_wrapper(thread_traversal, traversal, thread, section)
+	type(t_thread_data), intent(inout)	                :: thread_traversal
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_thread), intent(inout)					:: thread
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_thread)			:: thread_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    thread_local = thread
+    section_local = section
+
+    call traverse_section(thread_traversal, traversal_local, thread_local, section_local)
+
+    traversal = traversal_local
+    thread = thread_local
+    section = section_local
+end subroutine
+
+subroutine pre_traversal_wrapper(traversal, section)
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    section_local = section
+
+    call pre_traversal(traversal_local, section_local)
+
+    traversal = traversal_local
+    section = section_local
+end subroutine
+
+subroutine post_traversal_wrapper(traversal, section)
+	type(_GT), intent(inout)	                        :: traversal
+	type(t_grid_section), intent(inout)					:: section
+
+	type(_GT)	                :: traversal_local
+	type(t_grid_section)		:: section_local
+
+    traversal_local = traversal
+    section_local = section
+
+    call post_traversal(traversal_local, section_local)
+
+    traversal = traversal_local
+    section = section_local
 end subroutine
 
 !> Generic iterative traversal subroutine
@@ -383,8 +466,7 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 	type(t_grid_section), intent(inout)					:: section
 
 	! local variables
-	integer (kind = GRID_SI)							:: i
-	type(t_traversal_element), pointer					:: p_next_element
+	integer (kind = GRID_SI)							:: i, i_current_element, i_next_element
 
 #	if (_DEBUG_LEVEL > 4)
 		_log_write(5, '(2X, A)') "section input state :"
@@ -401,46 +483,44 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 
 	if (section%cells%get_size() > 0) then
         assert_ge(section%cells%get_size(), 2)
-		call init(section, thread_traversal%p_current_element)
+ 		call init(section, thread_traversal%elements(1))
 
 		!process first element
-        p_next_element => thread_traversal%p_current_element%next
-        call init(section, p_next_element)
-        call leaf(traversal, thread, section, thread_traversal%p_current_element)
-        thread_traversal%p_current_element => p_next_element
+        call init(section, thread_traversal%elements(2))
+        call leaf(traversal, thread, section, thread_traversal%elements(1))
+
+        i_current_element = 2
 
 		do
-			select case (thread_traversal%p_current_element%cell%geometry%i_entity_types)
+            i_next_element = mod(i_current_element, 8) + 1
+
+			select case (thread_traversal%elements(i_current_element)%cell%geometry%i_entity_types)
 				case (INNER_OLD)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-					call old_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+					call old_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 				case (INNER_NEW)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-					call new_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+					call new_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 				case (INNER_OLD_BND)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-                    call old_bnd_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+                    call old_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 				case (INNER_NEW_BND)
                     !init next element for the skeleton operator
-                    p_next_element => thread_traversal%p_current_element%next
-                    call init(section, p_next_element)
-                    call new_bnd_leaf(traversal, thread, section, thread_traversal%p_current_element)
+                    call init(section, thread_traversal%elements(i_next_element))
+                    call new_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
                 case default
                     !this should happen only for the last element
                     exit
 			end select
 
-			thread_traversal%p_current_element => p_next_element
+			i_current_element = i_next_element
 		end do
 
 		!process last element
-        call leaf(traversal, thread, section, thread_traversal%p_current_element)
+        call leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
 	end if
 
 #	if (_DEBUG_LEVEL > 4)
