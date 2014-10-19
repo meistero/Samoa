@@ -27,7 +27,6 @@
 #   define _gv_rhs              darcy_gv_rhs
 
 #   define _gv_r                darcy_gv_r
-#   define _gv_rhs              darcy_gv_rhs
 #   define _gv_d                darcy_gv_d
 #   define _gv_u                darcy_gv_A_d
 #   define _gv_trace_A          darcy_gv_mat_diagonal

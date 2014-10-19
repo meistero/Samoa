@@ -27,10 +27,6 @@ MODULE _CG_(step)
         real (kind = GRID_SR)				    :: v_u					    !< v^T * u
         real (kind = GRID_SR)				    :: r_C_r					!< r^T * C * r
         real (kind = GRID_SR)					:: r_sq						!< r^2
-
-#       if !defined(_solver_unstable)
-            real (kind = GRID_SR)				:: r_u					    !< r^T * u
-#       endif
     end type
 
     !LSE variables
@@ -159,12 +155,7 @@ MODULE _CG_(step)
         type(t_grid), intent(inout)							        :: grid
 
         integer                                                     :: i_error
-
-#       if !defined(_solver_unstable)
-            real (kind = GRID_SR)                                   :: reduction_set(5)
-#       else
-            real (kind = GRID_SR)                                   :: reduction_set(4)
-#       endif
+        real (kind = GRID_SR)                                       :: reduction_set(4)
 
         call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .false.)
         call reduce(traversal%v_u, traversal%children%v_u, MPI_SUM, .false.)
@@ -176,17 +167,7 @@ MODULE _CG_(step)
         reduction_set(3) = traversal%r_C_r
         reduction_set(4) = traversal%r_sq
 
-#       if !defined(_solver_unstable)
-            call reduce(traversal%r_u, traversal%children%r_u, MPI_SUM, .false.)
-
-            reduction_set(5) = traversal%r_u
-
-            call reduce(reduction_set, MPI_SUM)
-
-            traversal%r_u = reduction_set(5)
-#       else
-            call reduce(reduction_set, MPI_SUM)
-#       endif
+        call reduce(reduction_set, MPI_SUM)
 
         traversal%d_u = reduction_set(1)
         traversal%v_u = reduction_set(2)
@@ -202,10 +183,6 @@ MODULE _CG_(step)
         traversal%v_u = 0.0_GRID_SR
         traversal%r_C_r = 0.0_GRID_SR
         traversal%r_sq = 0.0_GRID_SR
-
-#       if !defined(_solver_unstable)
-            traversal%r_u = 0.0_GRID_SR
-#       endif
     end subroutine
 
     !*******************************
@@ -291,16 +268,18 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)					:: section
         type(t_node_data), intent(inout)			:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(1)
+        real(kind = GRID_SR)    :: empty(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
         if (.not. any(is_dirichlet)) then
             call inner_node_last_touch_op(traversal, section, node)
         else
-            node%data_pers%d = 0.0_GRID_SR
-            node%data_pers%r = 0.0_GRID_SR
-            node%data_pers%A_d = 0.0_GRID_SR
+            empty = 0.0_GRID_SR
+            call gv_r%write(node, empty)
+            call gv_d%write(node, empty)
+            call gv_v%write(node, empty)
         end if
     end subroutine
 
@@ -349,11 +328,7 @@ MODULE _CG_(step)
         call gv_trace_A%read(node, trace_A)
 
         do i = 1, _gv_node_size
-#           if !defined(_solver_unstable)
-                call reduce_dof_op(traversal%d_u, traversal%r_u, traversal%v_u, traversal%r_C_r, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
-#           else
-                call reduce_dof_op(traversal%d_u, traversal%d_u, traversal%v_u, traversal%r_C_r, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
-#           endif
+            call reduce_dof_op(traversal%d_u, traversal%v_u, traversal%r_C_r, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
         end do
     end subroutine
 
@@ -394,7 +369,7 @@ MODULE _CG_(step)
     elemental subroutine pre_dof_op(alpha, beta, x, r, d, v, trace_A)
         real (kind = GRID_SR), intent(in)			:: alpha
         real (kind = GRID_SR), intent(in)			:: beta
-        real (kind = GRID_SR), intent(inout)		    :: x
+        real (kind = GRID_SR), intent(inout)		 :: x
         real (kind = GRID_SR), intent(inout)	    :: r
         real (kind = GRID_SR), intent(inout)	    :: d
         real (kind = GRID_SR), intent(inout)	    :: v
@@ -414,9 +389,8 @@ MODULE _CG_(step)
         v = v / trace_A
     end subroutine
 
-    elemental subroutine reduce_dof_op(d_u, r_u, v_u, r_C_r, r_sq, r, d, v, trace_A)
+    elemental subroutine reduce_dof_op(d_u, v_u, r_C_r, r_sq, r, d, v, trace_A)
         real (kind = GRID_SR), intent(inout)		:: d_u
-        real (kind = GRID_SR), intent(inout)		:: r_u
         real (kind = GRID_SR), intent(inout)		:: v_u
         real (kind = GRID_SR), intent(inout)		:: r_C_r
         real (kind = GRID_SR), intent(inout)		:: r_sq
@@ -429,10 +403,6 @@ MODULE _CG_(step)
         v_u = v_u + (v * v * trace_A)
         r_C_r = r_C_r + (r * r * trace_A)
         r_sq = r_sq + (r * r)
-
-#       if !defined(_solver_unstable)
-            r_u = r_u + (r * v * trace_A)
-#       endif
     end subroutine
 END MODULE
 
@@ -859,10 +829,6 @@ MODULE _CG
             d_u = solver%cg_step%d_u
             v_u = solver%cg_step%v_u
 
-#           if !defined(_solver_unstable)
-                r_u = solver%cg_step%r_u
-#           endif
-
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
             if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
                 call solver%cg_exact%traverse(grid)
@@ -889,13 +855,7 @@ MODULE _CG
             alpha = r_C_r / d_u
             r_C_r_old = r_C_r
 
-#           if !defined(_solver_unstable)
-                r_C_r = r_C_r_old + alpha * (alpha * v_u - 2.0_GRID_SR * r_u)
-                !r_C_r = alpha * (alpha * v_u - r_u)
-#           else
-                !requires one less dot product
-                r_C_r = alpha * alpha * v_u - r_C_r_old
-#           endif
+            r_C_r = alpha * alpha * v_u - r_C_r_old
 
             !compute beta = r^T C r (new) / r^T C r (old)
             beta = r_C_r / r_C_r_old

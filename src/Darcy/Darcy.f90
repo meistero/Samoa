@@ -17,7 +17,6 @@
 		use Darcy_pressure_solver_jacobi
 		use Darcy_pressure_solver_cg
 		use Darcy_pressure_solver_pipecg
-		use Darcy_pressure_solver_pipecg_unst
 		use Darcy_transport_eq
 		use Darcy_permeability
 		use Darcy_error_estimate
@@ -67,7 +66,6 @@
             type(t_darcy_pressure_solver_jacobi)                        :: pressure_solver_jacobi
             type(t_darcy_pressure_solver_cg)                            :: pressure_solver_cg
             type(t_darcy_pressure_solver_pipecg)                        :: pressure_solver_pipecg
-            type(t_darcy_pressure_solver_pipecg_unst)                   :: pressure_solver_pipecg_unst
 
             !allocate solver
 
@@ -96,11 +94,8 @@
                 case (2)
                     call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
-                case (3)
-                    call pressure_solver_pipecg_unst%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
-                    allocate(darcy%pressure_solver, source=pressure_solver_pipecg_unst, stat=i_error); assert_eq(i_error, 0)
                 case default
-                    try(.false., "Invalid linear solver, must be in range 0 to 3")
+                    try(.false., "Invalid linear solver, must be in range 0 to 2")
             end select
 
 			!open log file
