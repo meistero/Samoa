@@ -343,6 +343,14 @@ module Section_info_list
 
  	subroutine grid_info_print(grid_info)
 		class(t_grid_info), intent(in)	:: grid_info
+		integer(kind = GRID_SI)         :: total_sections
+		real(kind = GRID_SR)            :: quality
+
+		total_sections = size_MPI * cfg%i_threads * cfg%i_sections_per_thread
+		!Compute average section circumference
+		quality = sum(grid_info%i_boundary_edges) / total_sections * (sqrt(2.0_SR) / 3.0_SR + 2.0_SR/3.0_SR)
+		!Divide by ideal circumference of a square section
+		quality = quality * 0.25_SR / sqrt(real(grid_info%i_cells, SR) / (2.0 * total_sections))
 
 		_log_write(0, "(A)")			"  Info:"
 		_log_write(0, '(A)')			""
@@ -357,6 +365,9 @@ module Section_info_list
 		_log_write(0, "(A, 2(I14))")	"  Stack nodes (red/green)       :", grid_info%i_stack_nodes
 
 		_log_write(0, "(A, 2(I14))")	"  Comms (red/green)             :", grid_info%i_comms
+
+		_log_write(0, "(A, F0.4)")	    "  Mesh quality (1.0: perfect, infinity: worst): ", quality
+
 		_log_write(0, *) ""
 	end subroutine
 
