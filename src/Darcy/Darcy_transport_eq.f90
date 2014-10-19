@@ -200,22 +200,23 @@
 
             lambda_w(:) = (saturation(:) * saturation(:)) / cfg%r_nu_w
 
-			u(:) = u_in(:, 1)
+			u(:) = samoa_world_to_barycentric_normal(element%transform_data, u_in(:, 1))
+			u = u * sqrt(dot_product(u_in(:, 1), u_in(:, 1)) / dot_product(u, u))
 			r_dual_edge_length = 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size()
 
 			!compute an upwind flux
 
-			n = samoa_barycentric_to_world_normal(element%transform_data, [1.0_GRID_SR, 0.0_GRID_SR])
-			n = n / norm2(n)
-			u_dot_n = dot_product(n, u)
-			flux(1) = (lambda_w(2) * max(u_dot_n, 0.0_GRID_SR) + lambda_w(1) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
+#           if defined(_UPWIND_FLUX)
+                flux(1) = (lambda_w(2) * max(u(1), 0.0_GRID_SR) + lambda_w(1) * min(u(1), 0.0_GRID_SR))
+                flux(3) = (lambda_w(2) * max(u(2), 0.0_GRID_SR) + lambda_w(3) * min(u(2), 0.0_GRID_SR))
+                flux(2) = -flux(1) - flux(3)
+#           elif defined(_FWAVE_FLUX)
+                flux(1) = (lambda_w(2) - lambda_w(1)) * max(u(1), 0.0_GRID_SR)
+                flux(3) = (lambda_w(2) - lambda_w(3)) * max(u(2), 0.0_GRID_SR)
+                flux(2) = (lambda_w(1) - lambda_w(2)) * max(-u(1), 0.0_GRID_SR) + (lambda_w(3) - lambda_w(2)) * max(-u(2), 0.0_GRID_SR)
+#           endif
 
-			n = samoa_barycentric_to_world_normal(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR])
-			n = n / norm2(n)
-			u_dot_n = dot_product(n, u)
-			flux(3) = (lambda_w(2) * max(u_dot_n, 0.0_GRID_SR) + lambda_w(3) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
-
-			flux(2) = -flux(1) - flux(3)
+            flux(:) = r_dual_edge_length * flux(:)
 		end subroutine
 
         subroutine compute_fluxes(element, u_in, saturation, volume, flux, diverg)
@@ -236,26 +237,30 @@
             lambda_w(:) = (saturation(:) * saturation(:)) / cfg%r_nu_w
             lambda_n(:) = (1.0_SR - saturation(:)) * (1.0_SR - saturation(:)) / cfg%r_nu_n
 
-			u(:) = u_in(:, 1)
-			r_dual_edge_length = 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size()
-
 			!compute an upwind flux
 			!also, accumulate the divergence on boundary dual cells
 
-			n = samoa_barycentric_to_world_normal(element%transform_data, [1.0_GRID_SR, 0.0_GRID_SR])
-			n = n / norm2(n)
-			u_dot_n = dot_product(n, u)
-			flux(1) = (lambda_w(2) * max(u_dot_n, 0.0_GRID_SR) + lambda_w(1) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
-			diverg(1) = dot_product([0.25_SR, 0.5_SR, 0.25_SR], lambda_w(:) + lambda_n(:)) * u_dot_n * r_dual_edge_length
+			u(:) = samoa_world_to_barycentric_normal(element%transform_data, u_in(:, 1))
+			u = u / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+			assert_le(norm2(u_in(:, 1)), (1.0_SR + 1.0e2 * epsilon(1.0_SR)) * norm2(u))
+			assert_le(norm2(u), (1.0_SR + 1.0e2 * epsilon(1.0_SR)) * norm2(u_in(:, 1)))
+			r_dual_edge_length = 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size()
 
-			n = samoa_barycentric_to_world_normal(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR])
-			n = n / norm2(n)
-			u_dot_n = dot_product(n, u)
-			flux(3) = (lambda_w(2) * max(u_dot_n, 0.0_GRID_SR) + lambda_w(3) * min(u_dot_n, 0.0_GRID_SR)) * r_dual_edge_length
-			diverg(3) = dot_product([0.25_SR, 0.5_SR, 0.25_SR], lambda_w(:) + lambda_n(:)) * u_dot_n * r_dual_edge_length
+#           if defined(_UPWIND_FLUX)
+                flux(1) = (lambda_w(2) * max(u(1), 0.0_GRID_SR) + lambda_w(1) * min(u(1), 0.0_GRID_SR))
+                flux(3) = (lambda_w(2) * max(u(2), 0.0_GRID_SR) + lambda_w(3) * min(u(2), 0.0_GRID_SR))
+                flux(2) = -flux(1) - flux(3)
+#           elif defined(_FWAVE_FLUX)
+                flux(1) = (lambda_w(2) - lambda_w(1)) * max(u(1), 0.0_GRID_SR)
+                flux(3) = (lambda_w(2) - lambda_w(3)) * max(u(2), 0.0_GRID_SR)
+                flux(2) = (lambda_w(1) - lambda_w(2)) * max(-u(1), 0.0_GRID_SR) + (lambda_w(3) - lambda_w(2)) * max(-u(2), 0.0_GRID_SR)
+#           endif
 
-			flux(2) = -flux(1) - flux(3)
+			diverg(1) = dot_product([0.25_SR, 0.5_SR, 0.25_SR], lambda_w(:) + lambda_n(:)) * u(1) * r_dual_edge_length
+			diverg(3) = dot_product([0.25_SR, 0.5_SR, 0.25_SR], lambda_w(:) + lambda_n(:)) * u(2) * r_dual_edge_length
 			diverg(2) = -diverg(1) - diverg(3)
+
+            flux(:) = r_dual_edge_length * flux(:)
 
             !Careful: the FEM pressure solution implies that u = 0 on the boundary.
             !If we defined an outflow condition in the FV step, we would get a non-zero divergence.

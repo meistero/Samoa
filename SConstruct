@@ -42,8 +42,8 @@ vars.AddVariables(
                 allowed_values=('darcy', 'swe', 'generic', 'flash') #, 'heat_eq', 'tests')
               ),
 
-  EnumVariable( 'swe_solver', 'flux solver for the swe scenario', 'aug_riemann',
-                allowed_values=('lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
+  EnumVariable( 'flux_solver', 'flux solver for FV problems', 'aug_riemann',
+                allowed_values=('upwind', 'lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
               ),
 
   EnumVariable( 'compiler', 'choice of compiler', 'intel',
@@ -103,7 +103,7 @@ else:
 # handle unknown, maybe misspelled variables
 unknownVariables = vars.UnknownVariables()
 
-# exit in the case of unknown variables
+# exit in case of unknown variables
 if unknownVariables:
   print "****************************************************"
   print "Error: unknown variable(s):", unknownVariables.keys()
@@ -189,7 +189,7 @@ if env['openmp'] != 'noomp':
 
     if env['openmp'] != 'notasks':
       print "******************************************************"
-      print "Warning: gnu compiler currently does not support tasks"
+      print "Warning: gnu compiler does not currently support tasks"
       print "******************************************************"
 
 #set compilation flags and preprocessor macros for the ASAGI library
@@ -216,18 +216,28 @@ if env['asagi_timing']:
     Exit(-1)
 
 #Choose a flux solver for the SWE scenario
-if env['swe_solver'] == 'lf':
-  env['F90FLAGS'] += ' -D_SWE_LF'
-elif env['swe_solver'] == 'lfbath':
-  env['F90FLAGS'] += ' -D_SWE_LF_BATH'
-elif env['swe_solver'] == 'llf':
-  env['F90FLAGS'] += ' -D_SWE_LLF'
-elif env['swe_solver'] == 'llfbath':
-  env['F90FLAGS'] += ' -D_SWE_LLF_BATH'
-elif env['swe_solver'] == 'fwave':
-  env['F90FLAGS'] += ' -D_SWE_FWAVE'
-elif env['swe_solver'] == 'aug_riemann':
-  env['F90FLAGS'] += ' -D_SWE_AUG_RIEMANN'
+if env['flux_solver'] == 'upwind':
+  env['F90FLAGS'] += ' -D_UPWIND_FLUX'
+if env['flux_solver'] == 'lf':
+  env['F90FLAGS'] += ' -D_LF_FLUX'
+elif env['flux_solver'] == 'lfbath':
+  env['F90FLAGS'] += ' -D_LF_BATH_FLUX'
+elif env['flux_solver'] == 'llf':
+  env['F90FLAGS'] += ' -D_LLF_FLUX'
+elif env['flux_solver'] == 'llfbath':
+  env['F90FLAGS'] += ' -D_LLF_BATH_FLUX'
+elif env['flux_solver'] == 'fwave':
+  env['F90FLAGS'] += ' -D_FWAVE_FLUX'
+elif env['flux_solver'] == 'aug_riemann':
+  env['F90FLAGS'] += ' -D_AUG_RIEMANN_FLUX'
+
+if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind', 'fwave']:
+  print "Error: flux solver must be one of ", ['upwind', 'fwave']
+  Exit(-1)
+
+if env['scenario'] == 'swe' and env['flux_solver'] in ['upwind']:
+  print "Error: flux solver must be one of ", ['lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann']
+  Exit(-1)
 
 #Choose a floating point precision
 if env['precision'] == 'single':
@@ -321,8 +331,8 @@ if env['mpi'] != 'default':
 if not env['asagi']:
   program_name += '_' + env['asagi']
 
-if env['swe_solver'] != 'aug_riemann':
-  program_name += '_' + env['swe_solver']
+if env['flux_solver'] != 'aug_riemann':
+  program_name += '_' + env['flux_solver']
 
 if env['precision'] != 'double':
   program_name += '_' + env['precision']

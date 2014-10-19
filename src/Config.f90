@@ -113,7 +113,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 3 -max_iter -1 -cg_restart 256 -lseoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lseoutput .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -349,6 +349,22 @@ module config
         _log_write(0, '(" Scenario: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)'), config%i_max_time_steps, config%r_max_time, config%r_output_time_step
         _log_write(0, '(" Scenario: courant number: ", F0.3)'), config%courant_number
 
+#       if defined (_UPWIND_FLUX)
+               _log_write(0, '(" Scenario: Flux solver: ", A)') "Upwind"
+#       elif defined (_LF_FLUX)
+               _log_write(0, '(" Scenario: Flux solver: ", A)') "Lax Friedrichs"
+#       elif defined (_LLF_FLUX)
+                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Local Lax Friedrichs"
+#       elif defined(_LF_BATH_FLUX)
+                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Lax Friedrichs + Bathymetry"
+#       elif defined(_LLF_BATH_FLUX)
+                _log_write(0, '(" Scenario: Flux solver: ", A)') "Local Lax Friedrichs + Bathymetry"
+#       elif defined(_FWAVE_FLUX)
+                _log_write(0, '(" Scenario: Flux solver: ", A)')  "FWave"
+#       elif defined(_AUG_RIEMANN_FLUX)
+                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Augmented Riemann"
+#       endif
+
 #		if defined(_DARCY)
             _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
@@ -368,22 +384,6 @@ module config
             else
                 _log_write(0, '(" SWE: Ascii Output: No")')
             end if
-
-#           if defined (_SWE_LF)
-               _log_write(0, '(" SWE: Flux solver: ", A)') "Lax Friedrichs"
-#           elif defined (_SWE_LLF)
-                _log_write(0, '(" SWE: Flux solver: ", A)')  "Local Lax Friedrichs"
-#           elif defined(_SWE_LF_BATH)
-                _log_write(0, '(" SWE: Flux solver: ", A)')  "Lax Friedrichs + Bathymetry"
-#           elif defined(_SWE_LLF_BATH)
-                _log_write(0, '(" SWE: Flux solver: ", A)') "Local Lax Friedrichs + Bathymetry"
-#           elif defined(_SWE_FWAVE)
-                _log_write(0, '(" SWE: Flux solver: ", A)')  "FWave"
-#           elif defined(_SWE_SSQ_FWAVE)
-                _log_write(0, '(" SWE: Flux solver: ", A)')  "SSQ-FWave"
-#           elif defined(_SWE_AUG_RIEMANN)
-                _log_write(0, '(" SWE: Flux solver: ", A)')  "Augmented Riemann"
-#           endif
 #		endif
 
         _log_write(0, "()")

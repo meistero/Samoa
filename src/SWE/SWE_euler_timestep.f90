@@ -196,7 +196,7 @@
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
 
-#			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
+#			if defined (_LF_FLUX) || defined (_LF_BATH_FLUX) || defined (_LLF_FLUX) || defined (_LLF_BATH_FLUX)
 				call compute_lf_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
@@ -239,7 +239,7 @@
 			!OUTFLOW: copy values
 			!bnd_rep = rep%Q(1)
 
-#			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
+#			if defined (_LF_FLUX) || defined (_LF_BATH_FLUX) || defined (_LLF_FLUX) || defined (_LLF_BATH_FLUX)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
@@ -353,7 +353,7 @@
 			!real(kind = GRID_SR), parameter						:: dry_tol = 0.01_GRID_SR       --- replaced by flag parameter cfg%dry_tolerance
 			real(kind = GRID_SR)								:: vL, vR, alpha
 
-#           if defined(_SWE_LF_BATH) || defined(_SWE_LLF_BATH)
+#           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
                 if (QL%h - QL%b < cfg%dry_tolerance) then
                     vL = 0.0_GRID_SR
                     fluxL%max_wave_speed = 0.0_GRID_SR
@@ -370,7 +370,7 @@
                     fluxR%max_wave_speed = sqrt(g * (QR%h - QR%b)) + abs(vR)
                 end if
 
-#               if defined(_SWE_LLF_BATH)
+#               if defined(_LLF_BATH_FLUX)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
 #               else
                     alpha = 100.0_GRID_SR
@@ -381,7 +381,7 @@
 
                 fluxL%p = 0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) + 0.5_GRID_SR * g * (max(QR%h - QL%b, 0.0_GRID_SR) ** 2) * normal
                 fluxR%p = -0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) - 0.5_GRID_SR * g * (max(QL%h - QR%b, 0.0_GRID_SR) ** 2) * normal
-#           else
+#           elif defined(_LF_FLUX) || defined(_LLF_FLUX)
                 real(kind = GRID_SR), parameter					:: b = -1000.0_GRID_SR     !default constant bathymetry
 
                 !use the height of the water pillars for computation
@@ -391,7 +391,7 @@
                 fluxL%max_wave_speed = sqrt(g * (QL%h - b)) + abs(vL)
                 fluxR%max_wave_speed = sqrt(g * (QR%h - b)) + abs(vR)
 
-#               if defined(_SWE_LLF)
+#               if defined(_LLF_FLUX)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
 #               else
                     alpha = 100.0_GRID_SR
@@ -425,11 +425,9 @@
 			bL = QL%b
 			bR = QR%b
 
-#           if defined(_SWE_FWAVE)
+#           if defined(_FWAVE_FLUX)
                 call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
-#           elif defined(_SWE_SSQ_FWAVE)
-                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
-#           elif defined(_SWE_AUG_RIEMANN)
+#           elif defined(_AUG_RIEMANN_FLUX)
                 call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           endif
 
