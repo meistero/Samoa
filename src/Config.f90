@@ -356,11 +356,11 @@ module config
 #       elif defined (_LLF_FLUX)
                 _log_write(0, '(" Scenario: Flux solver: ", A)')  "Local Lax Friedrichs"
 #       elif defined(_LF_BATH_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Lax Friedrichs + Bathymetry"
+                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Lax Friedrichs (Bathymetry)"
 #       elif defined(_LLF_BATH_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)') "Local Lax Friedrichs + Bathymetry"
+                _log_write(0, '(" Scenario: Flux solver: ", A)') "Local Lax Friedrichs (Bathymetry)"
 #       elif defined(_FWAVE_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)')  "FWave"
+                _log_write(0, '(" Scenario: Flux solver: ", A)')  "F-Wave"
 #       elif defined(_AUG_RIEMANN_FLUX)
                 _log_write(0, '(" Scenario: Flux solver: ", A)')  "Augmented Riemann"
 #       endif
