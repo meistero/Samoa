@@ -123,8 +123,10 @@
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 			real (kind = GRID_SR), intent(out)									:: permeability
 
-			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR, -1.0_SR/8.0_SR, -1.0_SR/4.0_SR, -1.0_SR/8.0_SR, 0.0_SR, 0.0_SR, 0.0_SR], [3, 3])
-			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0_SR, 0.0_SR, 0.0_SR, -1.0_SR/8.0_SR, -1.0_SR/4.0_SR, -1.0_SR/8.0_SR, 1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR], [3, 3])
+			real (kind = GRID_SR), parameter            :: dx(3) = [1.0_SR, -1.0_SR, 0.0_SR]
+			real (kind = GRID_SR), parameter            :: dy(3) = [0.0_SR, -1.0_SR, 1.0_SR]
+			real (kind = GRID_SR), parameter            :: volumes(3) = [1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR]
+
 			real (kind = GRID_SR)					    :: g_local(2), pos_prod(2), pos_in(2), r_lambda_w(3), r_lambda_n(3), radius
 
             rhs(:) = 0.0_SR
@@ -158,10 +160,7 @@
 			permeability = base_permeability * dot_product([0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR], r_lambda_w + r_lambda_n)
             g_local = samoa_world_to_barycentric_normal(element%transform_data, g)
 
-            rhs = rhs + base_permeability * ( &
-                g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + &
-                g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy))
-
+            rhs = rhs + base_permeability * dot_product(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, volumes) * (g_local(1) * dx + g_local(2) * dy)
 		end subroutine
 	END MODULE
 #endif

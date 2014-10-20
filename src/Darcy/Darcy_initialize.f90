@@ -295,18 +295,20 @@
 			real (kind = GRID_SR), intent(in)									:: base_permeability
 			real (kind = GRID_SR), intent(out)									:: permeability
 
+			real (kind = GRID_SR), parameter            :: dx(3) = [1.0_SR, -1.0_SR, 0.0_SR]
+			real (kind = GRID_SR), parameter            :: dy(3) = [0.0_SR, -1.0_SR, 1.0_SR]
+			real (kind = GRID_SR), parameter            :: volumes(3) = [1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR]
+
+			real (kind = GRID_SR)					    :: g_local(2), pos_prod(2), pos_in(2), r_lambda_w(3), r_lambda_n(3), radius
 			integer (kind = GRID_SI)	                :: i_depth
 			logical 								    :: l_refine_initial, l_refine_solution
-			real (kind = GRID_SR), parameter            :: Dx(3, 3) = reshape([1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR, -1.0_SR/8.0_SR, -1.0_SR/4.0_SR, -1.0_SR/8.0_SR, 0.0_SR, 0.0_SR, 0.0_SR], [3, 3])
-			real (kind = GRID_SR), parameter            :: Dy(3, 3) = reshape([0.0_SR, 0.0_SR, 0.0_SR, -1.0_SR/8.0_SR, -1.0_SR/4.0_SR, -1.0_SR/8.0_SR, 1.0_SR/8.0_SR, 1.0_SR/4.0_SR, 1.0_SR/8.0_SR], [3, 3])
-			real (kind = GRID_SR)					    :: g_local(2), pos_prod(2), pos_in(2), r_lambda_w(3), r_lambda_n(3), radius
 
             !set boundary conditions and source terms
 
             rhs(:) = 0.0_SR
-            l_refine_initial = .false.
-
             radius = 0.0508_SR / (cfg%scaling * element%transform_data%custom_data%scaling)
+
+            l_refine_initial = .false.
 
             pos_prod = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
             pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
@@ -321,6 +323,9 @@
                 call gv_p%write(element, p)
                 call gv_is_dirichlet%add(element, is_dirichlet)
             end if
+
+            !saturation = 1.0_SR
+            !call gv_saturation%write(element, saturation)
 
             pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
             if (base_permeability > 0.0_SR .and. pos_in(1) .ge. -radius .and. pos_in(2) .ge. -radius .and. pos_in(1) + pos_in(2) .le. 1.0_SR + radius) then
@@ -342,9 +347,7 @@
 			permeability = base_permeability * (dot_product([0.25_SR, 0.5_SR, 0.25_SR], r_lambda_w + r_lambda_n))
             g_local = samoa_world_to_barycentric_normal(element%transform_data, g / cfg%scaling)
 
-            rhs = rhs + base_permeability * ( &
-                g_local(1) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dx) + &
-                g_local(2) * matmul(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, Dy))
+            rhs = rhs + base_permeability * dot_product(cfg%r_rho_w * r_lambda_w + cfg%r_rho_n * r_lambda_n, volumes) * (g_local(1) * dx + g_local(2) * dy)
 
 			l_refine_solution = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2))) > 0.1_SR
 			l_refine_solution = l_refine_solution .or. max(abs(p(3) - p(2)), abs(p(1) - p(2))) > 0.01_SR * cfg%r_p_prod
