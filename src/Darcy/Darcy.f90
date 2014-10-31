@@ -251,15 +251,13 @@
 				!reset saturation to initial condition, compute permeability and set refinement flag
 				call darcy%init_saturation%traverse(grid)
 
+                !solve pressure equation
                 if (cfg%l_lse_output) then
                     call darcy%lse_output%traverse(grid)
-                end if
-
-				!solve pressure equation
-				i_lse_iterations = darcy%pressure_solver%solve(grid)
-
-                if (cfg%l_lse_output) then
+                    i_lse_iterations = darcy%pressure_solver%solve(grid)
                     call darcy%lse_output%traverse(grid)
+                else
+                    i_lse_iterations = darcy%pressure_solver%solve(grid)
                 end if
 
                 if (rank_MPI == 0) then
@@ -323,15 +321,13 @@
 					call darcy%permeability%traverse(grid)
 				!end if
 
+                !solve pressure equation
                 if (cfg%l_lse_output) then
                     call darcy%lse_output%traverse(grid)
-                end if
-
-				!solve pressure equation
-				i_lse_iterations = darcy%pressure_solver%solve(grid)
-
-                if (cfg%l_lse_output) then
+                    i_lse_iterations = darcy%pressure_solver%solve(grid)
                     call darcy%lse_output%traverse(grid)
+                else
+                    i_lse_iterations = darcy%pressure_solver%solve(grid)
                 end if
 
 				!compute velocity field

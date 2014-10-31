@@ -30,7 +30,7 @@
 #define _SWE_CELL_SIZE				((_SWE_ORDER + 1) * (_SWE_ORDER + 2)) / 2
 #define _SWE_EDGE_SIZE 				(_SWE_ORDER + 1)
 
-#define _NUMA_ORDER 					0
+#define _NUMA_ORDER 				0
 #define _NUMA_CELL_SIZE				((_NUMA_ORDER + 1) * (_NUMA_ORDER + 2)) / 2
 #define _NUMA_EDGE_SIZE 			(_NUMA_ORDER + 1)
 
@@ -45,30 +45,7 @@
 #define _FLASH_EDGE_SIZE 			_FLASH_CELL_SIZE
 #define _FLASH_EDGE_QUAD_SIZE			_FLASH_CELL_SIZE
 
-#define _DARCY_P_ORDER				1
-#define _DARCY_P_SIZE				((_DARCY_P_ORDER + 1) * (_DARCY_P_ORDER + 2)) / 2
-#define _DARCY_P_CELL_SIZE			((_DARCY_P_ORDER - 1) * (_DARCY_P_ORDER - 2)) / 2
-#define _DARCY_P_EDGE_SIZE			(_DARCY_P_ORDER - 1)
-#define _DARCY_P_NODE_SIZE			1
-
-#define _DARCY_U_ORDER				_DARCY_P_ORDER - 1
-#if (_DARCY_U_ORDER > 0)
-#	define _DARCY_U_SIZE			((_DARCY_P_ORDER + 1) * (_DARCY_P_ORDER + 2)) / 2
-#	define _DARCY_U_CELL_SIZE		((_DARCY_P_ORDER - 1) * (_DARCY_P_ORDER - 2)) / 2
-#	define _DARCY_U_EDGE_SIZE		(_DARCY_P_ORDER - 1)
-#	define _DARCY_U_NODE_SIZE		1
-#else
-#	define _DARCY_U_SIZE			1
-#	define _DARCY_U_CELL_SIZE		1
-#	define _DARCY_U_EDGE_SIZE		0
-#	define _DARCY_U_NODE_SIZE		0
-#endif
-
-#define _DARCY_FLOW_ORDER			1
-#define _DARCY_FLOW_SIZE			3
-#define _DARCY_FLOW_CELL_SIZE		0
-#define _DARCY_FLOW_EDGE_SIZE		0
-#define _DARCY_FLOW_NODE_SIZE		1
+#define _DARCY_LAYERS                   1
 
 !compiler-dependent macros (traditional vs. modern preprocessor)
 #	define _id(x) x

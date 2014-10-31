@@ -113,7 +113,7 @@ MODULE _CG_(1)
 
     !element
 
-    pure subroutine element_op(traversal, section, element)
+    subroutine element_op(traversal, section, element)
         type(_T_CG_(1_traversal)), intent(inout)							:: traversal
         type(t_grid_section), intent(inout)					:: section
         type(t_element_base), intent(inout), target			:: element
@@ -310,7 +310,7 @@ MODULE _CG_(2)
         call gv_trace_A%write(node, trace_A)
     end subroutine
 
-    pure subroutine element_op(traversal, section, element)
+    subroutine element_op(traversal, section, element)
         type(_T_CG_(2_traversal)), intent(in)							:: traversal
         type(t_grid_section), intent(in)							:: section
         type(t_element_base), intent(inout), target		:: element

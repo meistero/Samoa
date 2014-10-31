@@ -113,8 +113,8 @@
  			type(t_grid_section), intent(inout)						:: section
 			type(t_element_base), intent(inout), target				:: element
 
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: saturation
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)			:: p
+			real (kind = GRID_SR)   :: saturation(3)
+			real (kind = GRID_SR)   :: p(3)
 
 			call gv_saturation%read(element, saturation)
 			call gv_p%read(element, p)
@@ -128,15 +128,15 @@
 		!*******************************
 
 		subroutine alpha_volume_op(i_refinements_issued, i_depth, i_refinement, saturation, p, base_permeability)
-			integer (kind = GRID_DI), intent(inout)							    :: i_refinements_issued
-			integer (kind = BYTE), intent(in)							        :: i_depth
-			integer (kind = BYTE), intent(out)							        :: i_refinement
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE), intent(in)		:: saturation
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE), intent(in)			:: p
-			real (kind = GRID_SR), intent(in)									:: base_permeability
+			integer (kind = GRID_DI), intent(inout)		:: i_refinements_issued
+			integer (kind = BYTE), intent(in)			:: i_depth
+			integer (kind = BYTE), intent(out)			:: i_refinement
+			real (kind = GRID_SR), intent(in)		    :: saturation(:)
+			real (kind = GRID_SR), intent(in)			:: p(:)
+			real (kind = GRID_SR), intent(in)			:: base_permeability
 
-			real (kind = GRID_SR)												:: r_sat_norm, r_p_norm
-			logical 											                :: l_coarsen_p, l_coarsen_sat, l_refine_sat
+			real (kind = GRID_SR)						:: r_sat_norm, r_p_norm
+			logical 									:: l_coarsen_p, l_coarsen_sat, l_refine_sat
 
 			r_sat_norm = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2)))
 			r_p_norm = max(abs(p(3) - p(2)), abs(p(1) - p(2)))

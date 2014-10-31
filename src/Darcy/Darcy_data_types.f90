@@ -39,50 +39,39 @@
 
 		!> persistent, scenario specific data on a node
 		type num_node_data_pers
-			real (kind = GRID_SR)   :: p(_DARCY_P_NODE_SIZE), rhs(_DARCY_P_NODE_SIZE)
-			real (kind = GRID_SR)   :: A_d(_DARCY_P_NODE_SIZE), d(_DARCY_P_NODE_SIZE), r(_DARCY_P_NODE_SIZE)
+#           if (_DARCY_LAYERS > 1)
+                real (kind = GRID_SR)   :: p(_DARCY_LAYERS), rhs(_DARCY_LAYERS)
+                real (kind = GRID_SR)   :: A_d(_DARCY_LAYERS), d(_DARCY_LAYERS), r(_DARCY_LAYERS)
 
-			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_NODE_SIZE)    !< water saturation
+                real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS)    !< wetting phase saturation
+#           else
+                real (kind = GRID_SR)   :: p(1), rhs(1)
+                real (kind = GRID_SR)   :: A_d(1), d(1), r(1)
 
-#           if (_DARCY_U_NODE_SIZE > 0)
-			real (kind = GRID_SR)   :: u(2, _DARCY_U_NODE_SIZE)
+                real (kind = GRID_SR)   :: saturation(1)    !< wetting phase saturation
 #           endif
+
 		END type
 
 		!> persistent, scenario specific data on an edge
 		type num_edge_data_pers
-#           if (_DARCY_P_EDGE_SIZE > 0)
-			real (kind = GRID_SR)   :: p(_DARCY_P_EDGE_SIZE), rhs(_DARCY_P_EDGE_SIZE)
-			real (kind = GRID_SR)   :: A_d(_DARCY_P_EDGE_SIZE), d(_DARCY_P_EDGE_SIZE), r(_DARCY_P_EDGE_SIZE)
-#           endif
-
-#           if (_DARCY_FLOW_EDGE_SIZE > 0)
-			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_EDGE_SIZE)    !< water saturation
-#           endif
-
-#           if (_DARCY_U_EDGE_SIZE > 0)
-			real (kind = GRID_SR)   :: u(2, _DARCY_U_EDGE_SIZE)		        !< velocity
-#           endif
 		END type
 
 		!> persistent, scenario specific data on a cell
 		type num_cell_data_pers
-#           if (_DARCY_P_CELL_SIZE > 0)
-			real (kind = GRID_SR)   :: p(_DARCY_P_CELL_SIZE), rhs(_DARCY_P_CELL_SIZE)
-			real (kind = GRID_SR)   :: A_d(_DARCY_P_CELL_SIZE), d(_DARCY_P_CELL_SIZE), r(_DARCY_P_CELL_SIZE)
-#           endif
+#           if (_DARCY_LAYERS > 1)
+                real (kind = GRID_SR)   :: u(_DARCY_LAYERS, 2)			            !< velocity
 
-#           if (_DARCY_FLOW_CELL_SIZE > 0)
-			real (kind = GRID_SR)   :: saturation(_DARCY_FLOW_CELL_SIZE)    !< water saturation
-#           endif
+                real (kind = GRID_SR)   :: base_permeability(_DARCY_LAYERS, 2)      !< horizontal and vertical permeability (diagonal tensor D = [k_h, k_h, k_v])
+                real (kind = GRID_SR)   :: lambda_t(_DARCY_LAYERS, 3)               !< total mobility in local coordinates
+                real (kind = GRID_SR)   :: porosity(_DARCY_LAYERS)                  !< element porosity
+#           else
+                real (kind = GRID_SR)   :: u(2)			                            !< velocity
 
-#           if (_DARCY_U_CELL_SIZE > 0)
-			real (kind = GRID_SR)   :: u(2, _DARCY_U_CELL_SIZE)			    !< velocity
+                real (kind = GRID_SR)   :: base_permeability                        !< permeability (uniform tensor k * I)
+                real (kind = GRID_SR)   :: lambda_t(2)                              !< total mobility in local coordinates
+                real (kind = GRID_SR)   :: porosity                                 !< element porosity
 #           endif
-
-			real (kind = GRID_SR)   :: base_permeability
-			real (kind = GRID_SR)   :: permeability
-            real (kind = GRID_SR)   :: porosity
 		END type
 
 		!*********************************************
@@ -91,38 +80,19 @@
 
 		!> temporary, scenario specific data on a node (deleted after each traversal)
 		type num_node_data_temp
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_NODE_SIZE)		:: r
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_NODE_SIZE)		:: mat_diagonal
+			real (kind = GRID_SR)       :: mat_diagonal(_DARCY_LAYERS)
 
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_NODE_SIZE)		:: flux
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_NODE_SIZE)		:: volume
-			logical 									                :: is_dirichlet_boundary(1)
+			real (kind = GRID_SR)       :: flux(_DARCY_LAYERS)
+			real (kind = GRID_SR)		:: volume(_DARCY_LAYERS)
+			logical                     :: is_dirichlet_boundary(1)
 		END type num_node_data_temp
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)
 		type num_edge_data_temp
-#           if (_DARCY_P_EDGE_SIZE > 0)
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: r
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_EDGE_SIZE)		:: mat_diagonal
-#           endif
-
-#           if (_DARCY_FLOW_EDGE_SIZE > 0)
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_EDGE_SIZE)		:: flux
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_EDGE_SIZE)		:: volume
-#           endif
 		END type num_edge_data_temp
 
 		!> temporary, scenario specific data on a cell (deleted after each traversal)
 		type num_cell_data_temp
-#           if (_DARCY_P_CELL_SIZE > 0)
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: r
-			real (kind = GRID_SR), DIMENSION(_DARCY_P_CELL_SIZE)		:: mat_diagonal
-#           endif
-
-#           if (_DARCY_FLOW_CELL_SIZE > 0)
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_CELL_SIZE)		:: flux
-			real (kind = GRID_SR), DIMENSION(_DARCY_FLOW_CELL_SIZE)		:: volume
-#           endif
 		END type num_cell_data_temp
 
 		!*************************
@@ -131,9 +101,9 @@
 
 		!> Base data type for the scenario configuration
 		type num_global_data
-			real (kind = GRID_SR)						:: r_time					!< simulation time
-			real (kind = GRID_SR)						:: r_dt						!< time step
-			real (kind = GRID_SR)						:: u_max			        !< maximum velocity
+			real (kind = GRID_SR)       :: r_time					!< simulation time
+			real (kind = GRID_SR)       :: r_dt						!< time step
+			real (kind = GRID_SR)       :: u_max			        !< maximum velocity
 		END type
 	END MODULE Darcy_data_types
 #endif

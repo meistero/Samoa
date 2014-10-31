@@ -10,44 +10,9 @@
 	!pressure space
 	!**************
 
-	MODULE Darcy_gm_A_mod
-		use SFC_data_types
-
-        type darcy_gm_A
-            contains
-
-            procedure, pass :: read_from_element
-
-            generic:: read => read_from_element
-        end type
-
-        contains
-
-        pure subroutine read_from_element(gm_A, element, mat)
-            class(darcy_gm_A), intent(in)	    :: gm_A
-            type(t_element_base), intent(in)    :: element
-            real (kind = GRID_SR), intent(out)  :: mat(_DARCY_P_SIZE, _DARCY_P_SIZE)
-
-#           if (_DARCY_PERM_MATRIX)
-                real (kind = GRID_SR), K(2, 2)
-
-                K = element%cell%data_pers%permeability
-
-                mat = reshape([0.5_GRID_SR * K(1,1), -0.5_GRID_SR * (K(1,1) + K(2,1)), 0.5_GRID_SR * K(2,1), &
-                            -0.5_GRID_SR * (K(1,1) + K(1,2)), 0.5_GRID_SR * (K(1,1) + K(1,2) + K(2,1) + K(2,2)), -0.5_GRID_SR * (K(2,1) + K(2,2)), &
-                            0.5_GRID_SR * K(1,2), -0.5_GRID_SR * (K(1,2) + K(2,2)), 0.5_GRID_SR * K(2,2)], [3,3])
-#           else
-                real (kind = GRID_SR), parameter    :: mat_const(_DARCY_P_SIZE, _DARCY_P_SIZE) = &
-                    reshape([ 0.5_GRID_SR, -0.5_GRID_SR, 0.0_GRID_SR, -0.5_GRID_SR, 1.0_GRID_SR, -0.5_GRID_SR, 0.0_GRID_SR, -0.5_GRID_SR, 0.5_GRID_SR], [_DARCY_P_SIZE, _DARCY_P_SIZE])
-
-                mat = element%cell%data_pers%permeability * mat_const
-#           endif
-        end subroutine
-	END MODULE
-
-#	define _GV_CELL_SIZE		_DARCY_P_CELL_SIZE
-#	define _GV_EDGE_SIZE		_DARCY_P_EDGE_SIZE
-#	define _GV_NODE_SIZE		_DARCY_P_NODE_SIZE
+#	define _GV_CELL_SIZE		0
+#	define _GV_EDGE_SIZE		0
+#	define _GV_NODE_SIZE		_DARCY_LAYERS
 
 	MODULE Darcy_gv_p_mod
 		use SFC_data_types
@@ -135,9 +100,9 @@
 	!velocity space
 	!**************
 
-#	define _GV_CELL_SIZE		2 * _DARCY_U_CELL_SIZE
-#	define _GV_EDGE_SIZE		2 * _DARCY_U_EDGE_SIZE
-#	define _GV_NODE_SIZE		2 * _DARCY_U_NODE_SIZE
+#	define _GV_CELL_SIZE		2 * _DARCY_LAYERS
+#	define _GV_EDGE_SIZE		0
+#	define _GV_NODE_SIZE		0
 
 	MODULE Darcy_gv_u_mod
 		use SFC_data_types
@@ -159,9 +124,9 @@
 	!flow space
 	!**********
 
-#	define _GV_CELL_SIZE		    _DARCY_FLOW_CELL_SIZE
-#	define _GV_EDGE_SIZE		    _DARCY_FLOW_EDGE_SIZE
-#	define _GV_NODE_SIZE		    _DARCY_FLOW_NODE_SIZE
+#	define _GV_CELL_SIZE		    0
+#	define _GV_EDGE_SIZE		    0
+#	define _GV_NODE_SIZE		    _DARCY_LAYERS
 
 	MODULE Darcy_gv_saturation_mod
 		use SFC_data_types
@@ -199,4 +164,88 @@
 #	undef _GV_CELL_SIZE
 #	undef _GV_EDGE_SIZE
 #	undef _GV_NODE_SIZE
+
+
+	MODULE Darcy_gm_A_mod
+		use SFC_data_types
+		use darcy_gv_saturation_mod
+		use darcy_gv_p_mod
+		use Samoa
+
+		type(darcy_gv_saturation)   :: gv_s
+		type(darcy_gv_p)            :: gv_p
+
+		private
+		public :: darcy_gm_A
+
+        type darcy_gm_A
+            contains
+
+            procedure, pass :: read_from_element
+
+            generic:: read => read_from_element
+        end type
+
+        contains
+
+        subroutine read_from_element(gm_A, element, mat)
+            class(darcy_gm_A), intent(in)	    :: gm_A
+            type(t_element_base), intent(in)    :: element
+
+#           if (_DARCY_LAYERS > 1)
+                real (kind = GRID_SR), intent(out)  :: mat(6, 6)
+                real (kind = GRID_SR)               :: K_base(2)        !The vector contains horizontal and vertical permeability
+                real (kind = GRID_SR)               :: lambda_t(3)
+
+                K_base = element%cell%data_pers%base_permeability
+
+                if (element%transform_data%plotter_data%orientation > 0) then
+                    lambda_t = element%cell%data_pers%lambda_t
+                else
+                    lambda_t(1) = element%cell%data_pers%lambda_t(2)
+                    lambda_t(2) = element%cell%data_pers%lambda_t(1)
+                    lambda_t(3) = element%cell%data_pers%lambda_t(3)
+                end if
+
+                mat = 0.0_SR
+
+                !bottom horizontal contributions
+                mat(1:2, 1:2) = mat(1:2, 1:2) + lambda_t(1) * K_base(1) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+                mat(2:3, 2:3) = mat(2:3, 2:3) + lambda_t(2) * K_base(1) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+
+                !top horizontal contributions
+                mat(4:5, 4:5) = mat(4:5, 4:5) + lambda_t(1) * K_base(1) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+                mat(5:6, 5:6) = mat(5:6, 5:6) + lambda_t(2) * K_base(1) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+
+                !vertical contributions
+                mat(1:4:3,1:4:3) = mat(1:4:3,1:4:3) + lambda_t(3) * K_base(2) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+                mat(2:5:3,2:5:3) = mat(2:5:3,2:5:3) + lambda_t(3) * K_base(2) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+                mat(3:6:3,3:6:3) = mat(3:6:3,3:6:3) + lambda_t(3) * K_base(2) * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+
+                !Well, we better look at this thing..
+                !print '(6(6(ES11.3, X), /))', mat
+#           else
+                real (kind = GRID_SR), intent(out)  :: mat(3, 3)
+                real (kind = GRID_SR)               :: K_base
+                real (kind = GRID_SR)               :: lambda_t(2)
+
+                K_base = element%cell%data_pers%base_permeability
+
+                if (element%transform_data%plotter_data%orientation > 0) then
+                    lambda_t = element%cell%data_pers%lambda_t
+                else
+                    lambda_t(1) = element%cell%data_pers%lambda_t(2)
+                    lambda_t(2) = element%cell%data_pers%lambda_t(1)
+                end if
+
+                mat = 0.0_SR
+
+                mat(1:2, 1:2) = mat(1:2, 1:2) + lambda_t(1) * K_base * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+                mat(2:3, 2:3) = mat(2:3, 2:3) + lambda_t(2) * K_base * reshape([0.5_SR, -0.5_SR, -0.5_SR, 0.5_SR], [2, 2])
+
+                !Well, we better look at this thing..
+                !print '(3(3(ES11.3, X), /))', mat
+#           endif
+        end subroutine
+	END MODULE
 #endif

@@ -17,7 +17,7 @@
         implicit none
 
         type num_traversal_data
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE, 2)					:: p_in
+			real (kind = GRID_SR)                   :: p_in(3, 2)
         end type
 
 		type(darcy_gv_p)							:: gv_p
@@ -25,10 +25,6 @@
 		type(darcy_gv_volume)						:: gv_volume
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
-
-#		if (_DARCY_U_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
-#			define _GT_EDGES
-#		endif
 
 #		define	_GT_NODES
 
@@ -82,9 +78,9 @@
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
 
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)								:: p
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: saturation
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: volume
+			real (kind = GRID_SR), dimension(3)							:: p
+			real (kind = GRID_SR), dimension(3)							:: saturation
+			real (kind = GRID_SR), dimension(3)							:: volume
 
 			!pressure
 
@@ -113,12 +109,12 @@
 			type(t_traversal_element), intent(inout)								:: dest_element
 			integer, dimension(:), intent(in)										:: refinement_path
 
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)							:: p_in
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE, 2)						:: p_out
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)						:: saturation_in
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE, 2)					:: saturation_out
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)						:: volume
-			integer																	:: i
+			real (kind = GRID_SR), dimension(3)						:: p_in
+			real (kind = GRID_SR), dimension(3, 2)					:: p_out
+			real (kind = GRID_SR), dimension(3)						:: saturation_in
+			real (kind = GRID_SR), dimension(3, 2)					:: saturation_out
+			real (kind = GRID_SR), dimension(3)						:: volume
+			integer													:: i
 
 			call gv_p%read( src_element%t_element_base, p_in)
 			call gv_saturation%read( src_element%t_element_base, saturation_in)
@@ -156,11 +152,11 @@
 			type(t_traversal_element), intent(inout)									:: dest_element
 			integer, dimension(:), intent(in)											:: refinement_path
 
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)						:: saturation_in
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)								:: p_out
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: saturation_out
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)							:: volume
-			integer																		:: i
+			real (kind = GRID_SR), dimension(3)						    :: saturation_in
+			real (kind = GRID_SR), dimension(3)							:: p_out
+			real (kind = GRID_SR), dimension(3)							:: saturation_out
+			real (kind = GRID_SR), dimension(3)							:: volume
+			integer														:: i
 
 			!pressure
 			i = refinement_path(1)

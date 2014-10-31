@@ -17,13 +17,10 @@
 		type(darcy_gv_u)						:: gv_u
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_volume)					:: gv_volume
-		type(darcy_gv_flux)						:: gv_flux
+		type(darcy_gv_flux)						:: gv_flux_w
+		type(darcy_gv_d)						:: gv_flux_n
 
 #		define _GT_NAME							t_darcy_transport_eq_traversal
-
-#		if (_DARCY_U_EDGE_SIZE > 0 || _DARCY_FLOW_EDGE_SIZE > 0)
-#			define _GT_EDGES
-#		endif
 
 #		define _GT_NODES
 
@@ -34,6 +31,7 @@
 
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
+!#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 
@@ -95,19 +93,21 @@
  			type(t_grid_section), intent(inout)						:: section
 			type(t_element_base), intent(inout), target				:: element
 
-			real(kind = GRID_SR), dimension(2, _DARCY_U_SIZE)		:: u
-			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: saturation
-			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: flux
-			real(kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)		:: volume
+			real(kind = GRID_SR)    :: u(2)
+			real(kind = GRID_SR)    :: saturation(3)
+			real(kind = GRID_SR)    :: flux_w(3)
+			real(kind = GRID_SR)    :: flux_n(3)
+			real(kind = GRID_SR)    :: volume(3)
 
 			call gv_u%read_from_element(element, u)
-			call gv_saturation%read(element, saturation)
+			call gv_saturation%read_from_element(element, saturation)
 
 			!call volume operator
-			call compute_fluxes(element, u, saturation, volume, flux)
+			call compute_fluxes(element, u, saturation, volume, flux_w, flux_n)
 
-			call gv_volume%add(element, volume)
-			call gv_flux%add(element, flux)
+			call gv_volume%add_to_element(element, volume)
+			call gv_flux_w%add_to_element(element, flux_w)
+			call gv_flux_n%add_to_element(element, flux_n)
 		end subroutine
 
 		!first touches
@@ -117,86 +117,120 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_temp%flux, node%data_temp%volume)
+			call pre_dof_op(node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
 		end subroutine
 
 		!last touches
 
-		elemental subroutine node_last_touch_op(traversal, section, node)
+		elemental subroutine inner_node_last_touch_op(traversal, section, node)
  			type(t_darcy_transport_eq_traversal), intent(in)	    :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)				:: node
 
-            call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_temp%volume)
+            call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
+		end subroutine
+
+		elemental subroutine node_last_touch_op(traversal, section, node)
+ 			type(t_darcy_transport_eq_traversal), intent(in)    :: traversal
+ 			type(t_grid_section), intent(in)				    :: section
+			type(t_node_data), intent(inout)				    :: node
+
+            call post_dof_op_correction(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(flux, volume)
- 			real (kind = GRID_SR), intent(out)		:: flux
+		elemental subroutine pre_dof_op(flux_w, flux_n, volume)
+ 			real (kind = GRID_SR), intent(out)		:: flux_w
+ 			real (kind = GRID_SR), intent(out)		:: flux_n
 			real (kind = GRID_SR), intent(out)		:: volume
 
-			flux = 0.0_GRID_SR
-			volume = 0.0_GRID_SR
+			flux_w = 0.0_SR
+			flux_n = 0.0_SR
+			volume = 0.0_SR
 		end subroutine
 
-        subroutine compute_fluxes(element, u_in, saturation, volume, flux)
-			type(t_element_base), intent(inout)									:: element
-			real (kind = GRID_SR), dimension(:, :), intent(in)					:: u_in
-			real (kind = GRID_SR), dimension(:), intent(in)						:: saturation
-			real (kind = GRID_SR), dimension(:), intent(out)	    :: volume
-			real (kind = GRID_SR), dimension(:), intent(out)	    :: flux
+        subroutine compute_fluxes(element, u, saturation, volume, flux_w, flux_n)
+			type(t_element_base), intent(inout)	    :: element
+			real (kind = GRID_SR), intent(in)	    :: u(:), saturation(:)
+			real (kind = GRID_SR), intent(out)	    :: volume(:), flux_w(:), flux_n(:)
 
-			real (kind = GRID_SR)									:: u(2), r_dual_edge_length
-            real (kind = GRID_SR)								    :: lambda_w(3)
+            real (kind = GRID_SR)                   :: u_w(2), u_n(2), r_dual_edge_length
+            real (kind = GRID_SR)                   :: lambda_w(3), lambda_n(3)
+            integer                                 :: i
 
-			volume(:) = [0.25_GRID_SR, 0.50_GRID_SR, 0.25_GRID_SR] * cfg%scaling * cfg%scaling * element%cell%data_pers%porosity * element%cell%geometry%get_volume()
+            volume(:) = [0.25_SR, 0.50_SR, 0.25_SR] * cfg%scaling * cfg%scaling * element%cell%data_pers%porosity * element%cell%geometry%get_volume()
 
-            lambda_w(:) = (saturation(:) * saturation(:)) / cfg%r_nu_w
+            lambda_w = (saturation * saturation) / cfg%r_nu_w
+            lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
 
 			!compute fluxes
 
-			u(:) = samoa_world_to_barycentric_normal(element%transform_data, u_in(:, 1))
-			u = u / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-			assert_le(norm2(u_in(:, 1)), (1.0_SR + 1.0e2 * epsilon(1.0_SR)) * norm2(u))
-			assert_le(norm2(u), (1.0_SR + 1.0e2 * epsilon(1.0_SR)) * norm2(u_in(:, 1)))
-			r_dual_edge_length = 0.5_GRID_SR * cfg%scaling * element%cell%geometry%get_leg_size()
+			u_w = samoa_world_to_barycentric_normal(element%transform_data, u)
+			u_w = u_w / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+			u_n = u_w
+			assert_le(norm2(u), (1.0_SR + 1.0e2_SR * epsilon(1.0_SR)) * norm2(u_w))
+			assert_le(norm2(u_w), (1.0_SR + 1.0e2_SR * epsilon(1.0_SR)) * norm2(u))
 
-#           if defined(_UPWIND_FLUX)
-                !compute flux for the equation Phi * S_t + < u, grad f(S) > = 0
-                flux(1) = (lambda_w(2) * max(u(1), 0.0_GRID_SR) + lambda_w(1) * min(u(1), 0.0_GRID_SR))
-                flux(3) = (lambda_w(2) * max(u(2), 0.0_GRID_SR) + lambda_w(3) * min(u(2), 0.0_GRID_SR))
-                flux(2) = -flux(1) - flux(3)
+            flux_w(1) = lambda_w(2) * max(u_w(1), 0.0_SR) + lambda_w(1) * min(u_w(1), 0.0_SR)
+            flux_w(3) = lambda_w(2) * max(u_w(2), 0.0_SR) + lambda_w(3) * min(u_w(2), 0.0_SR)
+            flux_w(2) = -flux_w(1) - flux_w(3)
 
-                !Solve the source term equation Phi * S_t = -div(u) * f(S)
-                flux(:) = (flux(:) - lambda_w(:) * [u(1), -u(1) -u(2), u(2)]) * r_dual_edge_length
-
-                !together, both steps solve the conservative equation Phi * S_t + div(u * f(S)) = 0
-#           elif defined(_FWAVE_FLUX)
-                flux(1) = (lambda_w(2) - lambda_w(1)) * max(u(1), 0.0_GRID_SR)
-                flux(3) = (lambda_w(2) - lambda_w(3)) * max(u(2), 0.0_GRID_SR)
-                flux(2) = (lambda_w(1) - lambda_w(2)) * max(-u(1), 0.0_GRID_SR) + (lambda_w(3) - lambda_w(2)) * max(-u(2), 0.0_GRID_SR)
-
-                flux(:) = flux(:) * r_dual_edge_length
-#           endif
+            flux_n(1) = lambda_n(2) * max(u_n(1), 0.0_SR) + lambda_n(1) * min(u_n(1), 0.0_SR)
+            flux_n(3) = lambda_n(2) * max(u_n(2), 0.0_SR) + lambda_n(3) * min(u_n(2), 0.0_SR)
+            flux_n(2) = -flux_n(1) - flux_n(3)
 
             !Careful: the FEM pressure solution implies that u = 0 on the boundary.
-            !If we defined an outflow condition in the FV step, we would get a non-zero divergence.
+            !If we define an outflow condition in the FV step, we will get a non-zero divergence.
 		end subroutine
 
-		elemental subroutine post_dof_op(dt, saturation, flux, volume)
+        !> Update saturation
+		elemental subroutine post_dof_op(dt, saturation, flux_w, flux_n, volume)
 			real (kind = GRID_SR), intent(in)		:: dt
 			real (kind = GRID_SR), intent(inout)	:: saturation
-			real (kind = GRID_SR), intent(in)		:: flux
+			real (kind = GRID_SR), intent(in)		:: flux_w
+			real (kind = GRID_SR), intent(in)		:: flux_n
 			real (kind = GRID_SR), intent(in)		:: volume
 
             if (volume > 0.0_SR) then
-                saturation = saturation + dt / volume * flux
+                saturation = saturation + dt / volume * flux_w
             end if
 
-            !assert_pure(saturation <= 1.0_SR)
+            !assert_pure(flux_w + flux_n == 1.0_SR)
+		end subroutine
+
+        !> Update saturation and apply a divergence correction
+        !> EITHER: Eliminate divergence by removing excess mass from the saturation:
+        !> S_w \leftarrow S_w' / (S_w' + S_n') = (S_w + dt/V * f_w) / ((S_w + S_n) + dt/V * (f_w + f_n))
+        !> If f_w + f_n = 0, then S_w \leftarrow S_w'
+        !> saturation = (saturation + dt / volume * flux_w) / (1.0_SR + dt / volume * (flux_w + flux_n))
+        !>
+        !> OR: Eliminate divergence by removing excess mass from the flux:
+        !> S_w \leftarrow S_w + dt/V * (f_w - lambda_w / (lambda_w + lambda_n) * (f_w + f_n))
+        !> S_n \leftarrow S_n + dt/V * (f_n - lambda_n / (lambda_w + lambda_n) * (f_w + f_n))
+        !> \Rightarrow S_w + S_n \leftarrow S_w + S_n + dt/V * ((f_w + f_n) - (f_w + f_n))
+        !>
+        !> The last works better, maybe because it prevents an unphysical cell state instead of fixing it
+        !> Saturation conservation is violated by both approaches however.
+		elemental subroutine post_dof_op_correction(dt, saturation, flux_w, flux_n, volume)
+			real (kind = GRID_SR), intent(in)		:: dt
+			real (kind = GRID_SR), intent(inout)	:: saturation
+			real (kind = GRID_SR), intent(in)		:: flux_w
+			real (kind = GRID_SR), intent(in)		:: flux_n
+			real (kind = GRID_SR), intent(in)		:: volume
+
+            real (kind = GRID_SR)                   :: lambda_w, lambda_n
+
+            if (volume > 0.0_SR) then
+                lambda_w = (saturation * saturation) / cfg%r_nu_w
+                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+
+                saturation = saturation + dt / volume * (flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
+            end if
+
+            !assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 
 		elemental subroutine node_merge_op(local_node, neighbor_node)
@@ -204,8 +238,8 @@
  			type(t_node_data), intent(in)		    :: neighbor_node
 
 			local_node%data_temp%flux = local_node%data_temp%flux + neighbor_node%data_temp%flux
-			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 			local_node%data_pers%d = local_node%data_pers%d + neighbor_node%data_pers%d
+			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
 	END MODULE
 #endif

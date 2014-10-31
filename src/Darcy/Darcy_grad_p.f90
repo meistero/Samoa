@@ -113,13 +113,17 @@
  			type(t_grid_section), intent(inout)				:: section
 			type(t_element_base), intent(inout), target		:: element
 
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)	:: p
-			real (kind = GRID_SR), dimension(2, _DARCY_U_SIZE)	:: u
+			real (kind = GRID_SR) :: p(_DARCY_LAYERS, 3)
+			real (kind = GRID_SR) :: u(_DARCY_LAYERS, 2)
+			integer (kind = GRID_SI)											:: i
 
-			call gv_p%read(element, p)
+			call gv_p%read_from_element(element, p)
 
 			!call element operator
-			call alpha_volume_op(traversal, element, p, u, element%cell%data_pers%base_permeability)
+			do i = 1, _DARCY_LAYERS
+                call alpha_volume_op(traversal, element, p(i, :), u(i, :), element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
+                !call alpha_volume_op(traversal, element, p(i, :), u(i, :), element%cell%data_pers%base_permeability(i), element%cell%data_pers%porosity(i))
+			end do
 
 			call gv_u%write_to_element(element, u)
 		end subroutine
@@ -128,30 +132,27 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine alpha_volume_op(traversal, element, p, u, base_permeability)
+		subroutine alpha_volume_op(traversal, element, p, u, base_permeability, porosity)
  			type(t_darcy_grad_p_traversal), intent(inout)						:: traversal
 			type(t_element_base), intent(inout)									:: element
-			real (kind = GRID_SR), dimension(:), intent(in)						:: p
-			real (kind = GRID_SR), dimension(:, :), intent(out)					:: u
+			real (kind = GRID_SR), intent(in)					                :: p(:)
+			real (kind = GRID_SR), intent(out)					                :: u(:)
 			real (kind = GRID_SR), intent(in)									:: base_permeability
+			real (kind = GRID_SR), intent(in)									:: porosity
 
-			integer (kind = GRID_SI)											:: i
-			real (kind = SR)    :: u_norm
+			real (kind = SR)                                                    :: u_norm
 
 			!define velocity by u = k (-grad p + rho g)
-			do i = 1, _DARCY_U_SIZE
-				u(:, i) = -samoa_basis_p_gradient(samoa_basis_u_get_dof_coords(i), p)
-				u(:, i) = base_permeability / cfg%scaling * (samoa_barycentric_to_world_normal(element%transform_data,  u(:, i)) + cfg%r_rho_w * g)
+            u = samoa_barycentric_to_world_normal(element%transform_data, 0.5_SR * [p(1) - p(2), p(3) - p(2)])
+            u = u * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+            assert_le(norm2(u), (1.0_SR + 1.0e2_SR * epsilon(1.0_SR)) * norm2(0.5_SR * [p(1) - p(2), p(3) - p(2)]))
+            assert_le(norm2(0.5_SR * [p(1) - p(2), p(3) - p(2)]), (1.0_SR + 1.0e2_SR * epsilon(1.0_SR)) * norm2(u))
+            u = base_permeability * (-u + cfg%r_rho_w * g)
 
-				u_norm = norm2(u(:, i))
-				if (u_norm > 0.0_SR .and. element%cell%data_pers%porosity > 0.0_SR) then
-                    traversal%r_dt = min(traversal%r_dt, element%cell%data_pers%porosity * element%cell%geometry%get_leg_size() / (2.0_SR * u_norm))
-                end if
-			end do
-
-			!compute DoFs from the values of u
-			u(1, :) = samoa_basis_u_values_to_dofs(u(1, :))
-			u(2, :) = samoa_basis_u_values_to_dofs(u(2, :))
+            u_norm = norm2(u)
+            if (u_norm > 0.0_SR .and. porosity > 0.0_SR) then
+                traversal%r_dt = min(traversal%r_dt, porosity * element%cell%geometry%get_leg_size() / (2.0_SR * u_norm))
+            end if
 		end subroutine
 	END MODULE
 #endif

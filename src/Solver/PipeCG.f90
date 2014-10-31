@@ -236,7 +236,7 @@ MODULE _CG_(step)
         end if
     end subroutine
 
-    pure subroutine element_op(traversal, section, element)
+    subroutine element_op(traversal, section, element)
         type(_T_CG_(step_traversal)), intent(in)							:: traversal
         type(t_grid_section), intent(in)							:: section
         type(t_element_base), intent(inout), target		:: element

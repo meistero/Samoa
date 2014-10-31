@@ -31,7 +31,7 @@
 			integer (BYTE)					        :: refinement
 		end type
 
-		logical, parameter											:: l_second_order = (_DARCY_P_ORDER > 1)
+		logical, parameter											:: l_second_order = .false.
 
         type num_traversal_data
             type(t_output_point_data), allocatable		            :: point_data(:)
@@ -262,29 +262,27 @@
 
 			!local variables
 
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)					:: p
-			real (kind = GRID_SR), dimension(2, _DARCY_U_SIZE)				:: u
-			real (kind = GRID_SR), dimension(_DARCY_FLOW_SIZE)				:: saturation
+			real (kind = GRID_SR)               :: p(3)
+			real (kind = GRID_SR)				:: u(2)
+			real (kind = GRID_SR)				:: saturation(3)
 
-			real (kind = GRID_SR), dimension(_DARCY_P_SIZE)					:: r_point_data_indices		!< point data indices
-			integer (kind = GRID_SI), dimension(_DARCY_P_SIZE)				:: point_data_indices		!< point data indices
+			real (kind = GRID_SR)               :: r_point_data_indices(3)		!< point data indices
+			integer (kind = GRID_SI)            :: point_data_indices(3)		!< point data indices
 
-			call gv_p%read(element, p)
-			call gv_r%read(element, r_point_data_indices)
+			call gv_p%read_from_element(element, p)
+			call gv_r%read_from_element(element, r_point_data_indices)
 			call gv_u%read_from_element(element, u)
-			call gv_saturation%read(element, saturation)
+			call gv_saturation%read_from_element(element, saturation)
 
 			point_data_indices(:) = int(r_point_data_indices(:), kind=GRID_SI)
-			p = samoa_basis_p_dofs_to_values(p) / 6.89e3_GRID_SR
-			u(1, :) = samoa_basis_u_dofs_to_values(u(1, :))
-			u(2, :) = samoa_basis_u_dofs_to_values(u(2, :))
+			p = p / 6.89e3_GRID_SR
 			saturation = samoa_basis_flow_dofs_to_values(saturation)
 
 			traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
 			traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-			traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%permeability / 9.869233e-16_SR
+			traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR
 			traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity
-			traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u(:, 1)
+			traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u
 			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
 			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
 
@@ -317,7 +315,7 @@
 			integer (kind = GRID_SI)						    :: i, j
 
             do j = 1, size(nodes)
-                do i = 1, _DARCY_P_NODE_SIZE
+                do i = 1, _DARCY_LAYERS
                     call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i))
                 end do
             end do
@@ -330,7 +328,7 @@
 
 			integer (kind = GRID_SI)						    :: i
 
-			do i = 1, _DARCY_P_NODE_SIZE
+			do i = 1, _DARCY_LAYERS
 				call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i))
 			end do
 		end subroutine

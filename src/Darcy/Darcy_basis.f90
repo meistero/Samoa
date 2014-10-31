@@ -29,7 +29,7 @@
 		use SFC_data_types
 
 #		define _BF_TYPE_NAME		samoa_basis_p
-#		define _BF_ORDER			_DARCY_P_ORDER
+#		define _BF_ORDER			1
 
 #		include "Tools_hierarchical_basis.f90"
 
@@ -43,7 +43,7 @@
 		use SFC_data_types
 
 #		define _BF_TYPE_NAME		samoa_basis_u
-#		define _BF_ORDER			_DARCY_U_ORDER
+#		define _BF_ORDER			0
 
 #		include "Tools_hierarchical_basis.f90"
 
@@ -58,7 +58,7 @@
 		use SFC_data_types
 
 #		define _BF_TYPE_NAME		samoa_basis_flow
-#		define _BF_ORDER			_DARCY_FLOW_ORDER
+#		define _BF_ORDER			1
 
 #		include "Tools_lagrange_basis.f90"
 
