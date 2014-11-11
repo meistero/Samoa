@@ -105,6 +105,10 @@
                 if (rank_MPI == 0) then
                     write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
                     e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
+                        e_io = vtk%VTK_DAT_XML('pfield', 'OPEN')
+                            e_io = vtk%VTK_VAR_XML('time', 1.0_GRID_SR, 1)
+                        e_io = vtk%VTK_DAT_XML('pfield', 'CLOSE')
+
                         e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
                             e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
@@ -213,6 +217,10 @@
 #               warning VTK output does not work for quad precision
 #           else
                 e_io = vtk%VTK_INI_XML('binary', traversal%s_file_stamp, 'UnstructuredGrid')
+                    e_io = vtk%VTK_DAT_XML('field', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML(1, 'time', [section%r_time])
+                    e_io = vtk%VTK_DAT_XML('field', 'CLOSE')
+
                     e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
                     e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
@@ -278,13 +286,17 @@
 			p = p / 6.89e3_GRID_SR
 			saturation = samoa_basis_flow_dofs_to_values(saturation)
 
-			traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
-			traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-			traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR
-			traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity
-			traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u
-			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
-			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+#           if (_DARCY_LAYERS > 1)
+                !TODO
+#           else
+                traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
+                traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
+                traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR
+                traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity
+                traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u
+                traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
+                traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+#           endif
 
 			if (l_second_order) then
 				forall (i = 1 : 6)
