@@ -143,8 +143,28 @@
                     end if
                end associate
 #           else
-                cfg%scaling = 1.0_GRID_SR
-                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+
+#                if defined(_SWE_DAMBREAK_CLASSIC)
+                    cfg%scaling = 100.0_GRID_SR
+                    cfg%offset = [-50.0_GRID_SR, -50.0_GRID_SR]
+#                elif defined(_SWE_DAMBREAK_RADIAL)
+                    cfg%scaling = 100.0_GRID_SR
+                    cfg%offset = [-50.0_GRID_SR, -50.0_GRID_SR]
+#                else
+                    cfg%scaling = 1.0_GRID_SR
+                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+#                endif
+
+!                if (cfg%i_benchmark == 1) then
+!                    cfg%scaling = 100.0_GRID_SR
+!                    cfg%offset = [-50.0_GRID_SR, -50.0_GRID_SR]
+!                else if (cfg%i_benchmark == 2) then
+!                    cfg%scaling = 100.0_GRID_SR
+!                    cfg%offset = [-50.0_GRID_SR, -50.0_GRID_SR]
+!                else
+!                    cfg%scaling = 1.0_GRID_SR
+!                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+!                endif
 #			endif
 		end subroutine
 

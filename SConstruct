@@ -66,6 +66,11 @@ vars.AddVariables(
 
   BoolVariable( 'standard', 'check for Fortran 2003 standard compatibility', False),
 
+  EnumVariable( 'benchmark', '1D or 2D dambreak scenario for swe', 'nobench',
+                allowed_values=('nobench', 'dambreak1d', 'dambreak2d')
+              ),
+
+
   EnumVariable( 'asagi', 'ASAGI support', 'standard',
                 allowed_values=('noasagi', 'standard', 'numa')
               ),
@@ -156,6 +161,10 @@ elif env['scenario'] == 'swe':
   env['F90FLAGS'] += ' -D_SWE'
   env.SetDefault(asagi = 'standard')
   env.SetDefault(library = False)
+  if env['benchmark'] == 'dambreak1d':
+    env['F90FLAGS'] += ' -D_SWE_DAMBREAK_CLASSIC'
+  elif env['benchmark'] == 'dambreak2d':
+    env['F90FLAGS'] += ' -D_SWE_DAMBREAK_RADIAL'
 elif env['scenario'] == 'generic':
   env['F90FLAGS'] += ' -D_GENERIC'
   env.SetDefault(asagi = 'noasagi')
@@ -323,6 +332,9 @@ if not env['asagi']:
 
 if env['swe_solver'] != 'aug_riemann':
   program_name += '_' + env['swe_solver']
+
+if env['benchmark'] != 'nobench':
+  program_name += '_' + env['benchmark']
 
 if env['precision'] != 'double':
   program_name += '_' + env['precision']

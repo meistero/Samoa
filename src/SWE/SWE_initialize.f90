@@ -194,11 +194,45 @@
             real (kind = GRID_SR)                               :: xs(2)
 
             xs = cfg%scaling * x + cfg%offset
+            !xs = 5 * x - 2.5
 
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
 #			else
-				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+
+#               if defined(_SWE_DAMBREAK_CLASSIC)
+                    if (x(1) < 0.5_GRID_SR) then
+                        Q%h = 3.0_GRID_SR   
+                    else
+                        Q%h = 1.0_GRID_SR
+                    endif
+#               elif defined(_SWE_DAMBREAK_RADIAL)
+                    if (sqrt(xs(1)**2 + xs(2)**2) < 10.0_GRID_SR) then
+                        Q%h = 2.0_GRID_SR
+                    else
+                        Q%h = 1.0_GRID_SR
+                    endif
+#               else
+                    Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+#               endif
+				
+!                if (cfg%i_benchmark == 1) then
+                !dam-break
+!                    if (x(1) < 0.5_GRID_SR) then
+!                        Q%h = 3.0_GRID_SR   
+!                    else
+!                        Q%h = 1.0_GRID_SR
+!                    endif
+!                else if (cfg%i_benchmark == 2) then
+                !radial dam-break
+!                    if (sqrt(xs(1)**2 + xs(2)**2) < 0.5_GRID_SR) then
+!                        Q%h = 2.0_GRID_SR
+!                    else
+!                        Q%h = 1.0_GRID_SR
+!                    endif
+!                else
+!                    Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+!                endif
 #			endif
 
 			Q%p = 0.0_GRID_SR
@@ -249,7 +283,21 @@
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
 
                 xs = cfg%scaling * x + cfg%offset
-				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+
+#               if defined(_SWE_DAMBREAK_CLASSIC)
+                   bathymetry = 0.0_GRID_SR
+#               elif defined(_SWE_DAMBREAK_RADIAL)
+                   bathymetry = 0.0_GRID_SR
+#               else
+                   bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+#               endif
+
+!                if (cfg%i_benchmark == 1 .or. cfg%i_benchmark == 2) then
+!                    bathymetry = 0.0_GRID_SR
+!                else
+!                    bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+!                endif
+
 #			endif
 		end function
 	END MODULE

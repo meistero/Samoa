@@ -67,6 +67,7 @@ module config
             character(256)                      :: s_displacement_file                              !< displacement file
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
+!            integer                             :: i_benchmark                                      !< benchmark choice
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -107,7 +108,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -benchmark 0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -168,6 +169,7 @@ module config
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
             config%dry_tolerance = rget('samoa_drytolerance')
+!            config%i_benchmark = iget('samoa_benchmark')
 #       endif
 
         if (rank_MPI == 0) then
@@ -200,7 +202,7 @@ module config
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
 
         		PRINT '(A, L, A)',     "	-xmloutput              [usage of -tout required] turns on grid output (value: ", config%l_gridoutput, ")"
-        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
+        		PRINT '(A, A, A)',     "	-stestpoints <string>            [usage of -tout required] test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability template xyz(_*).nc (value: ", trim(config%s_permeability_file), ")"
@@ -216,7 +218,8 @@ module config
                     PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
-                    PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
+                    PRINT '(A, ES8.1, A)',  "	-drytolerance <value>           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
+!                    PRINT '(A, I0, A)', "   -benchmark <value>              enable simulation of benchmarks: 1 = dam-break, 2 = radial dam-break, other values = off (value: ", config%i_benchmark, ")"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
@@ -348,6 +351,18 @@ module config
             else
                 _log_write(0, '(" SWE: Ascii Output: No")')
             end if
+
+#           if defined(_SWE_DAMBREAK_CLASSIC)
+               _log_write(0, '(" SWE: Benchmark: dam-break (1D)")')
+#           elif defined(_SWE_DAMBREAK_RADIAL)
+                _log_write(0, '(" SWE: Benchmark: radial dam-break (2D)")')
+#           endif
+
+!            if (config%i_benchmark == 1) then
+!                _log_write(0, '(" SWE: Benchmark: dam-break (1D)")')
+!            else if (config%i_benchmark == 2) then
+!                _log_write(0, '(" SWE: Benchmark: radial dam-break (2D)")')
+!            endif               
 
 #           if defined (_SWE_LF)
                _log_write(0, '(" SWE: Flux solver: ", A)') "Lax Friedrichs"
