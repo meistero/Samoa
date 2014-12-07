@@ -19,6 +19,9 @@
 		use SWE_point_output
 		use SWE_euler_timestep
 
+#if defined(_SWE_DAMBREAK_CLASSIC)
+        use SWE_compute_error
+#endif
 		use Samoa_swe
 
 		implicit none
@@ -33,7 +36,9 @@
             type(t_swe_xml_output_traversal)        :: xml_output
             type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
 	        type(t_swe_point_output_traversal)	    :: point_output
-
+#if defined(_SWE_DAMBREAK_CLASSIC)
+            type(t_swe_compute_error_traversal)     :: compute_error
+#endif
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
@@ -74,6 +79,9 @@
             call swe%output%create()
             call swe%xml_output%create()
             call swe%ascii_output%create()
+#if defined(_SWE_DAMBREAK_CLASSIC)
+            call swe%compute_error%create()
+#endif
             call swe%euler%create()
             call swe%adaption%create()
 		end subroutine
@@ -180,6 +188,9 @@
             call swe%xml_output%destroy()
             call swe%ascii_output%destroy()
             call swe%point_output%destroy()
+#if defined(_SWE_DAMBREAK_CLASSIC)
+            call swe%compute_error%destroy()
+#endif
             call swe%euler%destroy()
             call swe%adaption%destroy()
 
@@ -269,6 +280,10 @@
                     call swe%point_output%traverse(grid)
                 end if
 
+!#               if defined(_SWE_DAMBREAK_CLASSIC)
+!                    call swe%compute_error%traverse(grid)
+!#               endif
+
 				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
@@ -335,6 +350,10 @@
                             call swe%point_output%traverse(grid)
                         end if
 
+#                     if defined(_SWE_DAMBREAK_CLASSIC)
+                          call swe%compute_error%traverse(grid)
+#                     endif
+
                         r_time_next_output = r_time_next_output + cfg%r_output_time_step
                     end if
                 end do
@@ -380,6 +399,8 @@
                         call swe%point_output%traverse(grid)
                     end if
 
+
+
 					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if
 
@@ -387,6 +408,10 @@
                 if ((cfg%r_max_time >= 0.0d0 .and. grid%r_time * cfg%i_stats_phases >= i_stats_phase * cfg%r_max_time) .or. &
                     (cfg%i_max_time_steps >= 0 .and. i_time_step * cfg%i_stats_phases >= i_stats_phase * cfg%i_max_time_steps)) then
                     call update_stats(swe, grid)
+
+#                    if defined(_SWE_DAMBREAK_CLASSIC)
+                         call swe%compute_error%traverse(grid)
+#                    endif
 
                     i_stats_phase = i_stats_phase + 1
                 end if
@@ -442,6 +467,12 @@
                         _log_write(0, *) ""
                     end if
                 end if
+
+#               if defined(_SWE_DAMBREAK_CLASSIC)
+                   if (rank_MPI == 0) then
+                       cfg%t_phase = t_phase
+                   end if
+#               endif
 
                 call swe%init%clear_stats()
                 call swe%displace%clear_stats()

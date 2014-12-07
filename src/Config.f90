@@ -68,6 +68,9 @@ module config
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
 !            integer                             :: i_benchmark                                      !< benchmark choice
+#         if defined(_SWE_DAMBREAK_CLASSIC)
+            double precision                    :: t_phase                                          ! required to make t_phase available globally
+#         endif
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -108,7 +111,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -benchmark 0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -170,6 +173,7 @@ module config
             config%s_displacement_file = sget('samoa_fdispl', 256)
             config%dry_tolerance = rget('samoa_drytolerance')
 !            config%i_benchmark = iget('samoa_benchmark')
+            config%t_phase = 0
 #       endif
 
         if (rank_MPI == 0) then
