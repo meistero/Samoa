@@ -70,6 +70,7 @@ module config
 !            integer                             :: i_benchmark                                      !< benchmark choice
 #         if defined(_SWE_DAMBREAK_CLASSIC)
             double precision                    :: t_phase                                          ! required to make t_phase available globally
+            integer                             :: i_phase_nr                                       ! required to make phase number available globally
 #         endif
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file

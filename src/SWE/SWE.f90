@@ -230,6 +230,11 @@
 
             call update_stats(swe, grid)
 			i_stats_phase = 0
+#           if defined(_SWE_DAMBREAK_CLASSIC)
+               if (rank_MPI == 0) then
+                  cfg%i_phase_nr = i_stats_phase
+               end if
+#           endif
 
             i_initial_step = 0
 
@@ -292,6 +297,11 @@
                 call update_stats(swe, grid)
 
                 i_stats_phase = i_stats_phase + 1
+#               if defined(_SWE_DAMBREAK_CLASSIC)
+                   if (rank_MPI == 0) then
+                      cfg%i_phase_nr = i_stats_phase
+                   end if
+#               endif
 			end if
 
             !$omp master
@@ -409,11 +419,12 @@
                     (cfg%i_max_time_steps >= 0 .and. i_time_step * cfg%i_stats_phases >= i_stats_phase * cfg%i_max_time_steps)) then
                     call update_stats(swe, grid)
 
-#                    if defined(_SWE_DAMBREAK_CLASSIC)
-                         call swe%compute_error%traverse(grid)
-#                    endif
-
                     i_stats_phase = i_stats_phase + 1
+#                   if defined(_SWE_DAMBREAK_CLASSIC)
+                       if (rank_MPI == 0) then
+                           cfg%i_phase_nr = i_stats_phase
+                       end if
+#                   endif
                 end if
 			end do
 
@@ -466,13 +477,16 @@
                         _log_write(0, '(A, T34, F12.4, A)') " Phase time:", t_phase, " s"
                         _log_write(0, *) ""
                     end if
-                end if
+                    
+#                   if defined(_SWE_DAMBREAK_CLASSIC)
+                       if (rank_MPI == 0) then
+                           cfg%t_phase = t_phase
+                       end if
+                       call swe%compute_error%traverse(grid)
+#                   endif
 
-#               if defined(_SWE_DAMBREAK_CLASSIC)
-                   if (rank_MPI == 0) then
-                       cfg%t_phase = t_phase
-                   end if
-#               endif
+
+                end if
 
                 call swe%init%clear_stats()
                 call swe%displace%clear_stats()
