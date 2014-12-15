@@ -68,6 +68,8 @@ f90_sources = [
 "SWE/SWE_point_output.f90",
 "SWE/SWE_euler_timestep.f90",
 "SWE/SWE_adapt.f90",
+"SWE/SWE_non_hydrostatic_pressure_jacobi.f90",
+"SWE/SWE_lse_output.f90",
 "geoclaw/c_bind_riemannsolvers.f90",
 "Samoa/Samoa.f90",
 "Samoa/Tools_quadrature_rule_base.f90",

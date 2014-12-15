@@ -38,7 +38,7 @@
 		type t_dof_state
 			real (kind = GRID_SR)													:: h						!< water change
 			real (kind = GRID_SR), dimension(2)										:: p						!< momentum change
-
+            real (kind =GRID_SR)                                                    :: w
             contains
 
             procedure, pass :: add => dof_state_add
@@ -72,7 +72,9 @@
 
 		!> persistent scenario data on a node
 		type num_node_data_pers
-			integer (kind = BYTE)															:: dummy					!< no data
+			real(kind=GRID_SR), dimension(1)                      ::qp
+            real(kind=GRID_SR), dimension(1)                        ::r
+			!integer (kind = BYTE)															:: dummy					!< no data
 		END type num_node_data_pers
 
 		!> persistent scenario data on an edge
@@ -101,7 +103,9 @@
 
 		!> temporary scenario data on a node (deleted after each traversal)
 		type num_node_data_temp
-			integer (kind = BYTE), dimension(0)										:: dummy					!< no data
+			real (kind = GRID_SR), dimension(1)										:: mat_diagonal
+            real (kind = GRID_SR), dimension(1)										:: rhs
+            logical 									                :: is_dirichlet_boundary(1)
 		END type num_node_data_temp
 
 		!> temporary scenario data on an edge (deleted after each traversal)
@@ -134,7 +138,7 @@
 			type (t_state), intent(in)		:: Q2
 			type (t_state)					:: Q_out
 
-			Q_out = t_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%b + Q2%b)
+			Q_out = t_state(Q1%h + Q2%h, Q1%p + Q2%p,Q1%w + Q2%w, Q1%b + Q2%b)
 		end function
 
 		!adds two update vectors
@@ -143,7 +147,7 @@
 			type (t_update), intent(in)		    :: f2
 			type (t_update)					    :: f_out
 
-			f_out = t_update(f1%h + f2%h, f1%p + f2%p, max_wave_speed = max(f1%max_wave_speed, f2%max_wave_speed))
+			f_out = t_update(f1%h + f2%h, f1%p + f2%p, f1%w+f2%w, max_wave_speed = max(f1%max_wave_speed, f2%max_wave_speed))
 		end function
 
 		!adds two dof state vectors
@@ -152,7 +156,7 @@
 			type (t_dof_state), intent(in)		:: Q2
 			type (t_dof_state)					:: Q_out
 
-			Q_out = t_dof_state(Q1%h + Q2%h, Q1%p + Q2%p)
+			Q_out = t_dof_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%w + Q2%w)
 		end function
 
 		!inverts a dof state vector
@@ -160,7 +164,7 @@
 			class (t_dof_state), intent(in)		:: f
 			type (t_dof_state)					:: f_out
 
-			f_out = t_dof_state(-f%h, -f%p)
+			f_out = t_dof_state(-f%h, -f%p, -f%w)
 		end function
 
 		!multiplies a scalar with a dof state vector
@@ -169,7 +173,7 @@
 			real (kind = GRID_SR), intent(in)		:: s
 			type (t_dof_state)					:: f_out
 
-			f_out = t_dof_state(s * f%h, s * f%p)
+			f_out = t_dof_state(s * f%h, s * f%p, s*f%w)
 		end function
 	END MODULE SWE_data_types
 #endif

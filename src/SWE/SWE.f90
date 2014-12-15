@@ -19,6 +19,11 @@
 		use SWE_point_output
 		use SWE_euler_timestep
 
+        use Swe_pressure_solver_jacobi
+        use Linear_solver
+        use SWE_lse_output
+
+
 		use Samoa_swe
 
 		implicit none
@@ -33,10 +38,12 @@
             type(t_swe_xml_output_traversal)        :: xml_output
             type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
 	        type(t_swe_point_output_traversal)	    :: point_output
+	        type(t_swe_lse_output_traversal)        :: lse_output
 
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
+            class(t_linear_solver), pointer                 :: pressure_solver
             contains
 
             procedure, pass :: create => swe_create
@@ -52,9 +59,11 @@
 			type(t_grid), intent(inout)									:: grid
 			logical, intent(in)						                    :: l_log
 			integer, intent(in)											:: i_asagi_mode
-
+            integer                                                     :: i_error
 			!local variables
 			character(64)												:: s_log_name, s_date, s_time
+            type(t_swe_pressure_solver_jacobi)                        :: pressure_solver_jacobi
+
 
 			!open log file
 			call date_and_time(s_date, s_time)
@@ -76,6 +85,10 @@
             call swe%ascii_output%create()
             call swe%euler%create()
             call swe%adaption%create()
+
+            !call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
+            call pressure_solver_jacobi%create(real(0.0001, GRID_SR))
+            allocate(swe%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
 		end subroutine
 
 		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
@@ -153,6 +166,7 @@
             class(t_swe), intent(inout)     :: swe
 			type(t_grid), intent(inout)     :: grid
 			logical, intent(in)		        :: l_log
+            integer                         ::i_error
 
 			call swe%init%destroy()
             call swe%displace%destroy()
@@ -162,6 +176,12 @@
             call swe%point_output%destroy()
             call swe%euler%destroy()
             call swe%adaption%destroy()
+
+            if (associated(swe%pressure_solver)) then
+                call swe%pressure_solver%destroy()
+
+                deallocate(swe%pressure_solver, stat = i_error); assert_eq(i_error, 0)
+            end if
 
 #			if defined(_ASAGI)
 				call asagi_close(cfg%afh_displacement)
@@ -184,7 +204,7 @@
 
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_grid_info)           	                            :: grid_info, grid_info_max
-			integer (kind = GRID_SI)                                    :: i_initial_step, i_time_step
+			integer (kind = GRID_SI)                                    :: i_initial_step, i_time_step, i_lse_iterations
 			integer  (kind = GRID_SI)                                   :: i_stats_phase
 
 			!init parameters
@@ -288,6 +308,15 @@
                     call swe%adaption%traverse(grid)
 
                     call swe%euler%traverse(grid)
+
+                    !call pressure solver
+                    i_lse_iterations = swe%pressure_solver%solve(grid)
+
+                    if (cfg%l_lse_output) then
+                        call swe%lse_output%traverse(grid)
+                    end if
+
+
                     i_time_step = i_time_step + 1
 
                     !displace time-dependent bathymetry
@@ -336,6 +365,10 @@
 
 				!do a time step
 				call swe%euler%traverse(grid)
+				i_lse_iterations = swe%pressure_solver%solve(grid)
+				if (cfg%l_lse_output) then
+                    call swe%lse_output%traverse(grid)
+                end if
 				i_time_step = i_time_step + 1
 
                 if (rank_MPI == 0) then

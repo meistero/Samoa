@@ -234,7 +234,7 @@
 			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
-			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
+			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, 0, rep%Q(1)%b)
 
 			!OUTFLOW: copy values
 			!bnd_rep = rep%Q(1)

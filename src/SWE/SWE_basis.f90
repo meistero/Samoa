@@ -30,6 +30,8 @@
 #		include "Tools_boundary_basis.f90"
 	END MODULE
 
+
+
 	!****************
 	!Quadrature rules
 	!****************
@@ -38,8 +40,17 @@
 		use SWE_lfs_flux
 		use SWE_gv_Q
 
+
+		use SWE_gm_A_mod
+        use SWE_gv_qp_mod
+        use SWE_gv_mat_diagonal_mod
+        use SWE_gv_r_mod
+        use SWE_gv_is_dirichlet_boundary_mod
+        use SWE_gv_rhs_mod
+
 		use SWE_Q_space
 		use SWE_flux_space
+
 
 		use Samoa
 

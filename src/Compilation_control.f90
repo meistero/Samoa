@@ -51,6 +51,11 @@
 #define _DARCY_P_EDGE_SIZE			(_DARCY_P_ORDER - 1)
 #define _DARCY_P_NODE_SIZE			1
 
+
+#define _SWE_P_NODE_SIZE 1
+#define _SWE_P_EDGE_SIZE 0
+#define _SWE_P_CELL_SIZE 0
+
 #define _DARCY_U_ORDER				_DARCY_P_ORDER - 1
 #if (_DARCY_U_ORDER > 0)
 #	define _DARCY_U_SIZE			((_DARCY_P_ORDER + 1) * (_DARCY_P_ORDER + 2)) / 2
