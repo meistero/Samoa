@@ -81,12 +81,12 @@
         call scatter(grid%r_time, grid%sections%elements_alloc(:)%r_time)
 	end subroutine
 
-        subroutine post_traversal_grid_op(traversal, grid)
+    subroutine post_traversal_grid_op(traversal, grid)
 		type(t_swe_compute_error_traversal), intent(inout)		:: traversal
 		type(t_grid), intent(inout)				:: grid
 
-
-        integer                         :: i_error, i, j, k, alloc_err
+        type(t_grid_info)                       :: grid_info
+        integer                         :: i_error, i, j, k, alloc_err, nr_of_edges, nr_of_cells
 		integer(4)			:: i_rank, i_section, e_io
 		logical                         :: l_exists
 
@@ -105,6 +105,15 @@
             call reduce(traversal%norm_data_u%error_l2, traversal%children%norm_data_u%error_l2, MPI_SUM, .true.)
             call reduce(traversal%norm_data_u%error_max, traversal%children%norm_data_u%error_max, MPI_MAX, .true.)
 
+            grid_info = grid%get_info(MPI_SUM, .true.)
+            nr_of_edges = grid_info%i_crossed_edges + grid_info%i_color_edges + grid_info%i_boundary_edges(RED)+ grid_info%i_boundary_edges(GREEN)! : GREEN)!(1) + grid_info%i_boundary_edges(2)
+
+            nr_of_cells = grid%get_cells(MPI_SUM, .true.)
+#     else
+            grid_info = grid%get_info(MPI_SUM, .false.)
+            nr_of_edges = grid_info%i_crossed_edges + grid_info%i_color_edges + grid_info%i_boundary_edges(RED)+ grid_info%i_boundary_edges(GREEN)! : GREEN)!(1) + grid_info%i_boundary_edges(2)
+
+            nr_of_cells = grid%get_cells(MPI_SUM, .false.)
 #     endif
 
         traversal%norm_data_h%error_l2 = sqrt(traversal%norm_data_h%error_l2)
@@ -127,7 +136,7 @@
 
                 open(unit=out_unit, file=pout_file_name, action="write", status="replace")
                     write(out_unit, "(A)") "dmin, dmax, cells, edges, cou, dry_tol, processes, sim_time, h_error_l1, h_error_l2, h_error_max, u_error_l1, u_error_l2, u_error_max"
-                    write(out_unit, "(4(I0, A), 2(F6.5, A), I0, A, F12.4, 6(A, ES14.7))") cfg%i_min_depth, ", ", cfg%i_max_depth, ",", grid%get_cells(MPI_SUM, .false.), ",", -1, ", ", cfg%courant_number, ", ", cfg%dry_tolerance, ", ", size_MPI, ", ", cfg%t_phase, ", ", traversal%norm_data_h%error_l1, ", ", traversal%norm_data_h%error_l2, ", ", traversal%norm_data_h%error_max, ", ", traversal%norm_data_u%error_l1, ", ", traversal%norm_data_u%error_l2, ", ", traversal%norm_data_u%error_max
+                    write(out_unit, "(4(I0, A), 2(F6.5, A), I0, A, F12.4, 6(A, ES14.7))") cfg%i_min_depth, ", ", cfg%i_max_depth, ", ", nr_of_cells, ", ", nr_of_edges, ", ", cfg%courant_number, ", ", cfg%dry_tolerance, ", ", size_MPI, ", ", cfg%t_phase, ", ", traversal%norm_data_h%error_l1, ", ", traversal%norm_data_h%error_l2, ", ", traversal%norm_data_h%error_max, ", ", traversal%norm_data_u%error_l1, ", ", traversal%norm_data_u%error_l2, ", ", traversal%norm_data_u%error_max
                 close(out_unit)
 
             end if
