@@ -22,6 +22,7 @@
         use Swe_pressure_solver_jacobi
         use Linear_solver
         use SWE_lse_output
+        use SWE_lse_traversal
 
 
 		use Samoa_swe
@@ -39,7 +40,7 @@
             type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
 	        type(t_swe_point_output_traversal)	    :: point_output
 	        type(t_swe_lse_output_traversal)        :: lse_output
-
+            type(t_swe_lse_traversal)               :: lse_traversal
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
@@ -85,6 +86,8 @@
             call swe%ascii_output%create()
             call swe%euler%create()
             call swe%adaption%create()
+            call swe%lse_traversal%create()
+            call swe%lse_output%create()
 
             !call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
             call pressure_solver_jacobi%create(real(0.0001, GRID_SR))
@@ -176,6 +179,8 @@
             call swe%point_output%destroy()
             call swe%euler%destroy()
             call swe%adaption%destroy()
+            call swe%lse_output%destroy()
+            call swe%lse_traversal%destroy()
 
             if (associated(swe%pressure_solver)) then
                 call swe%pressure_solver%destroy()
@@ -310,6 +315,7 @@
                     call swe%euler%traverse(grid)
 
                     !call pressure solver
+                    call swe%lse_traversal%traverse(grid)
                     i_lse_iterations = swe%pressure_solver%solve(grid)
 
                     if (cfg%l_lse_output) then
@@ -365,9 +371,10 @@
 
 				!do a time step
 				call swe%euler%traverse(grid)
-				i_lse_iterations = swe%pressure_solver%solve(grid)
+                call swe%lse_traversal%traverse(grid)
+				!i_lse_iterations = swe%pressure_solver%solve(grid)
 				if (cfg%l_lse_output) then
-                    call swe%lse_output%traverse(grid)
+                    !call swe%lse_output%traverse(grid)
                 end if
 				i_time_step = i_time_step + 1
 

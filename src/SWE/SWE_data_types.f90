@@ -72,8 +72,12 @@
 
 		!> persistent scenario data on a node
 		type num_node_data_pers
-			real(kind=GRID_SR), dimension(1)                      ::qp
-            real(kind=GRID_SR), dimension(1)                        ::r
+			real(kind=GRID_SR), dimension(1)                       ::qp
+            real(kind=GRID_SR), dimension(1)                       ::r
+
+            real (kind = GRID_SR), dimension(1)		     		   :: rhs
+
+            logical 									           :: is_dirichlet_boundary(1)
 			!integer (kind = BYTE)															:: dummy					!< no data
 		END type num_node_data_pers
 
@@ -84,7 +88,8 @@
 
 		!> persistent scenario data on a cell
 		type num_cell_data_pers
-			type(t_state), DIMENSION(_SWE_CELL_SIZE)									:: Q						!< cell status vector
+			type(t_state), DIMENSION(_SWE_CELL_SIZE)									:: Q            	!< cell status vector
+			real (kind=GRID_SR), dimension(3,3)                                          :: A
 		END type num_cell_data_pers
 
 		!> Cell representation on an edge, this would typically be everything required from a cell to compute the flux function on an edge
@@ -103,9 +108,7 @@
 
 		!> temporary scenario data on a node (deleted after each traversal)
 		type num_node_data_temp
-			real (kind = GRID_SR), dimension(1)										:: mat_diagonal
-            real (kind = GRID_SR), dimension(1)										:: rhs
-            logical 									                :: is_dirichlet_boundary(1)
+                        real (kind = GRID_SR), dimension(1)					   :: mat_diagonal
 		END type num_node_data_temp
 
 		!> temporary scenario data on an edge (deleted after each traversal)
@@ -115,6 +118,7 @@
 
 		!> temporary scenario data on a cell (deleted after each traversal)
 		type num_cell_data_temp
+
 			integer (kind = BYTE), dimension(0)										:: dummy					!< no data
 		END type num_cell_data_temp
 

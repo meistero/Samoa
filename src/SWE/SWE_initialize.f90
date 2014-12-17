@@ -23,6 +23,11 @@
 		type(t_gv_Q)							:: gv_Q
 		type(t_lfs_flux)						:: lfs_flux
 
+		type(swe_gm_a)                          :: gm_a
+		type(swe_gv_qp)                         :: gv_qp
+		type(swe_gv_rhs)                        :: gv_rhs
+
+
 		PUBLIC get_bathymetry
 
 #		define _GT_NAME							t_swe_init_traversal
@@ -34,6 +39,9 @@
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 #		define _GT_ELEMENT_OP					element_op
+
+#		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
+#		define _GT_INNER_NODE_FIRST_TOUCH_OP    inner_node_first_touch_op
 
 #		define _GT_CELL_TO_EDGE_OP				cell_to_edge_op
 
@@ -81,10 +89,40 @@
 
 			type(t_state), dimension(_SWE_CELL_SIZE)			:: Q
 
+			real(kind=GRID_SR), dimension(3,3)          ::A
+			A= 0_GRID_SR
+
 			call alpha_volume_op(traversal, section, element, Q)
 
 			call gv_Q%write(element, Q)
+			call gm_A%write(element, A)
 		end subroutine
+
+        elemental subroutine node_first_touch_op(traversal, section, node)
+ 			type(t_swe_init_traversal), intent(in)                       :: traversal
+ 			type(t_grid_section), intent(in)							:: section
+			type(t_node_data), intent(inout)			:: node
+
+			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
+				node%data_pers%is_dirichlet_boundary = .false.
+			else
+				node%data_pers%is_dirichlet_boundary = .true.
+			end if
+
+            call inner_node_first_touch_op(traversal, section, node)
+		end subroutine
+
+		elemental subroutine inner_node_first_touch_op(traversal, section, node)
+ 			type(t_swe_init_traversal), intent(in)                       :: traversal
+ 			type(t_grid_section), intent(in)							:: section
+			type(t_node_data), intent(inout)			:: node
+			integer										:: i
+
+             node%data_pers%qp=0
+             node%data_pers%rhs=0
+             node%data_pers%r=0
+        end subroutine
+
 
 		!*******************************
 		!Volume and DoF operators
@@ -202,6 +240,7 @@
 #			endif
 
 			Q%p = 0.0_GRID_SR
+			Q%w= 0.0_GRID_SR
 		end function
 
 		function get_bathymetry(section, x, t, lod) result(bathymetry)

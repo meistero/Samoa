@@ -86,6 +86,7 @@
 			traversal%A(:,:) = 0.0d0
 			traversal%qp(:) = 0.0d0
 			traversal%rhs(:) = 0.0d0
+			write (*,*) 'pre_traversa'
 		end subroutine
 
 		subroutine post_traversal_op(traversal, section)
@@ -167,13 +168,13 @@
                 if (indices(i) .ge. 0) then
                     do j = 1, 1
                         if (indices(j) .ge. 0) then
-                            traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
+                            !traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
                         else
-                            traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
+                            !traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
                         end if
                     end do
 
-                    traversal%qp(indices(i)) = qp(i)
+                    !traversal%qp(indices(i)) = qp(i)
                end if
             end do
 		end subroutine
@@ -187,7 +188,7 @@
 
             do j = 1, size(nodes)
                 do i = 1, 1
-                    call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i), nodes(j)%data_temp%is_dirichlet_boundary(i))
+                    call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i), nodes(j)%data_pers%is_dirichlet_boundary(i))
                 end do
             end do
 		end subroutine
