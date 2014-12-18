@@ -90,7 +90,7 @@
             call swe%lse_output%create()
 
             !call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
-            call pressure_solver_jacobi%create(real(0.0001, GRID_SR))
+            call pressure_solver_jacobi%create(real(0.01, GRID_SR))
             allocate(swe%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
 		end subroutine
 
@@ -319,7 +319,7 @@
                     i_lse_iterations = swe%pressure_solver%solve(grid)
 
                     if (cfg%l_lse_output) then
-                        call swe%lse_output%traverse(grid)
+                       ! call swe%lse_output%traverse(grid)
                     end if
 
 
@@ -372,9 +372,9 @@
 				!do a time step
 				call swe%euler%traverse(grid)
                 call swe%lse_traversal%traverse(grid)
-				!i_lse_iterations = swe%pressure_solver%solve(grid)
+				i_lse_iterations = swe%pressure_solver%solve(grid)
 				if (cfg%l_lse_output) then
-                    !call swe%lse_output%traverse(grid)
+                    call swe%lse_output%traverse(grid)
                 end if
 				i_time_step = i_time_step + 1
 

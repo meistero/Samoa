@@ -86,7 +86,6 @@
 			traversal%A(:,:) = 0.0d0
 			traversal%qp(:) = 0.0d0
 			traversal%rhs(:) = 0.0d0
-			write (*,*) 'pre_traversa'
 		end subroutine
 
 		subroutine post_traversal_op(traversal, section)
@@ -160,21 +159,22 @@
 			call gm_A%read(element, A)
 			call gv_qp%read(element, qp)
 			call gv_r%read(element, r_indices)
+            !call gv_rhs%read(element, rhs)
 
 			indices(:) = int(r_indices(:), kind=GRID_SI)
 			!qp = samoa_basis_p_dofs_to_values(qp)
 
-            do i = 1, 1
+            do i = 1, 3
                 if (indices(i) .ge. 0) then
-                    do j = 1, 1
+                    do j = 1, 3
                         if (indices(j) .ge. 0) then
-                            !traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
+                            traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
                         else
-                            !traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
+                            traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
                         end if
                     end do
 
-                    !traversal%qp(indices(i)) = qp(i)
+                    traversal%qp(indices(i)) = qp(i)
                end if
             end do
 		end subroutine

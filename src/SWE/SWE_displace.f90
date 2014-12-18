@@ -25,6 +25,7 @@
 #		define _GT_NAME							t_swe_displace_traversal
 
 #		define _GT_EDGES
+#       define _GT_NODES
 
 #		define _GT_ELEMENT_OP					element_op
 

@@ -33,7 +33,13 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     type(t_grid_section), intent(in) :: section
     type(t_node_data), intent(inout) :: node
     node%data_pers%rhs = 0.0_GRID_SR
-    node%data_pers%is_dirichlet_boundary = .false.
+    node%data_pers%qp = 0.0_GRID_SR
+    if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR .and. node%position(2) > 0.0_GRID_SR .and. node%position(2) < 1.0_GRID_SR ) then
+            node%data_pers%is_dirichlet_boundary = .false.
+    else
+            node%data_pers%is_dirichlet_boundary = .true.
+    end if
+
 end subroutine
 
 
@@ -52,7 +58,7 @@ subroutine element_op(traversal, section, element)
     c=0.5_GRID_SR * element%cell%geometry%get_leg_size() !TODO
     dt=section%r_dt !TODO
 
-    write (*,*) 'element_op'
+    !write (*,*) 'element_op'
 
     h= element%cell%data_pers%Q(1)%h
     hu= element%cell%data_pers%Q(1)%p(1)
@@ -60,14 +66,18 @@ subroutine element_op(traversal, section, element)
     w= element%cell%data_pers%Q(1)%w
 
 
-    mat= reshape([c*0.5_GRID_SR*dt*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR), -c*dt*0.5_GRID_SR*h*h*dt*0.5_GRID_SR*c*c, (1._GRID_SR/6._GRID_SR)*dt*c*c, &
+    mat= reshape([c*0.5_GRID_SR*dt*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR), -c*dt*0.5_GRID_SR*h*h+dt*0.5_GRID_SR*c*c, (1._GRID_SR/6._GRID_SR)*dt*c*c, &
             -c*h*h*dt*0.5_GRID_SR+2*dt*c*c*(1._GRID_SR/12._GRID_SR), c*dt*0.5_GRID_SR*h*h+c*dt*0.5_GRID_SR*h*h+dt*c*c, -c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/12._GRID_SR),&
             (1._GRID_SR/6._GRID_SR)*dt*c*c,-c*dt*0.5_GRID_SR*h*h+2*dt*c*c*0.25_GRID_SR, c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR) &
             ],[3,3])
+    !write (*,*) 'matrix=',mat
+    !write (*,*) ''
+
 
     rhs= [-c*hu+ 0.5_GRID_SR*c*c*w,c*hv+c*hu+c*c*w,-c*hv+0.5_GRID_SR*c*c*w]
 
-
+    !write (*,*) 'rhs=',rhs
+    !write (*,*) ''
 
     call gm_a%write(element, mat)
         !call element operator

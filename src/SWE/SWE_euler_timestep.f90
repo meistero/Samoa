@@ -36,6 +36,7 @@
 #		define _GT_NAME							t_swe_euler_timestep_traversal
 
 #		define _GT_EDGES
+#       define _GT_NODES
 
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op

@@ -46,6 +46,7 @@
 #		define _GT_NAME								t_swe_output_traversal
 
 #		define _GT_EDGES
+#       define _GT_NODES
 #		define _GT_REFINEMENTS
 
 #		define _GT_PRE_TRAVERSAL_OP					pre_traversal_op

@@ -21,6 +21,7 @@
 #		define _GT_NAME								t_swe_ascii_output_traversal
 
 #		define _GT_EDGES
+#       define _GT_NODES
 
 #		define _GT_PRE_TRAVERSAL_OP					pre_traversal_op
 #		define _GT_POST_TRAVERSAL_OP				post_traversal_op
