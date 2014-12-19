@@ -58,7 +58,7 @@ type, extends(t_element_base) :: t_traversal_element
 end type
 
 type, extends(num_traversal_data) :: t_thread_data
-    type(t_traversal_element), dimension(8)     			:: elements									!< Element ring buffer (must contain at least 8 elements, because transfer nodes can be referenced back up to 8 elements)
+    type(t_traversal_element)     			                :: elements(8)							    !< Element ring buffer (must contain at least 8 elements, because transfer nodes can be referenced back up to 8 elements)
 	type(t_statistics)										:: stats
 end type
 

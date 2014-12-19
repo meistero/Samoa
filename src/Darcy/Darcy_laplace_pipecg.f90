@@ -18,7 +18,7 @@
 #   define _solver              darcy_pressure_solver_pipecg
 #   define _solver_use          Samoa_darcy
 
-#   define _gv_node_size        1
+#   define _gv_node_size        (_DARCY_LAYERS + 1)
 #   define _gv_edge_size        0
 #   define _gv_cell_size        0
 

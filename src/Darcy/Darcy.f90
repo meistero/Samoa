@@ -156,6 +156,7 @@
                 associate(afh_perm => cfg%afh_permeability, afh_phi => cfg%afh_porosity)
                     cfg%scaling = max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
                     cfg%offset = [0.5_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm) - cfg%scaling), 0.5_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm) - cfg%scaling)]
+                    cfg%dz = real(grid_max_z(afh_perm) - grid_min_z(afh_perm), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
 
                     cfg%r_pos_in = ([0.0_GRID_SR, 0.0_GRID_SR] - cfg%offset) / cfg%scaling
                     cfg%r_pos_prod = ([grid_max_x(afh_perm), grid_max_y(afh_perm)] - cfg%offset) / cfg%scaling
@@ -176,13 +177,38 @@
 #           else
                 cfg%scaling = 1.0_GRID_SR
                 cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                cfg%dz = 1.0_SR
 
                 cfg%r_pos_in = [0.0_GRID_SR, 0.0_GRID_SR]
                 cfg%r_pos_prod = [1.0_GRID_SR, 1.0_GRID_SR]
 #			endif
 
-            cfg%r_p_in = 6.89e3_GRID_SR * cfg%r_p_in_psi
-            cfg%r_p_prod = 6.89e3_GRID_SR * cfg%r_p_prod_psi
+            !convert pressure from psi (pounds per square inch) to Pa m/um = N * m / um^3 = kg / (um * s^2)
+            !so [K / mu *(-grad(p + rho g))] = 1 um^2 / (N*m/um^3 * s) * ((N*m/um^3) / um + kg / um^3 * um/s^2) = 1 um/s
+            !p = p_psi * 6894.75729 Pa/psi * cfg%scaling m/um
+
+            cfg%r_p_in = cfg%r_p_in * 6894.75729_SR * cfg%scaling
+            cfg%r_p_prod = cfg%r_p_prod * 6894.75729_SR * cfg%scaling
+
+            !convert viscosity (Pa * s = kg/(m * s^2) * s = kg/(um * s^2) * (cfg%scaling m/um)
+            cfg%r_nu_w = cfg%r_nu_w * cfg%scaling
+            cfg%r_nu_n = cfg%r_nu_n * cfg%scaling
+
+            !convert density (kg/(m^3) = kg/(um^3) * (cfg%scaling m/um)^3
+            cfg%r_rho_w = cfg%r_rho_w * (cfg%scaling ** 3)
+            cfg%r_rho_n = cfg%r_rho_n * (cfg%scaling ** 3)
+
+            !Inflow condition: (bbl/day) * / ((6.28981077 bbl/m^3) * (86400 s/day)) = m^3 / s
+            !(m^3 / s) / (cfg%scaling m/um)^3 = um^3 / s
+            cfg%r_inflow = cfg%r_inflow / (6.28981077 * 86400) / (cfg%scaling ** 3)
+
+            !Well radius: in / (40 m/in * cfg%scaling m/um) = um
+            cfg%r_well_radius = cfg%r_well_radius / (40.0_SR * cfg%scaling)
+
+            !convert g from (m / s^2) to (m / s^2) / (cfg%scaling m / um) = (um / s^2) so
+            ![u] = [K / mu * (-grad p + rho * g)] = 1 um^2 / (Pa*(m/um) * s) * (Pa*(m/um)/um + (kg / um^3) * (um / s^2)) =
+            != um^2 / (m * s) + 1 / (kg/(um * s^2) * s) * kg * (1 / s^2) = um / s + um / s
+            g = g / cfg%scaling
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
@@ -292,8 +318,6 @@
 
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
-				call darcy%grad_p%traverse(grid)
-                call darcy%permeability%traverse(grid)
 				call darcy%xml_output%traverse(grid)
 				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
@@ -350,7 +374,6 @@
 
 				!output grid
 				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
-                    call darcy%permeability%traverse(grid)
 					call darcy%xml_output%traverse(grid)
 					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if

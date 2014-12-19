@@ -187,10 +187,8 @@
 			integer (kind = GRID_SI), intent(in)				:: lod						!< level of detail
 			type(t_dof_state)									:: Q						!< initial state
 
-			real (kind = GRID_SR), dimension(2), parameter		:: dam_center = [0.5, 0.5]
-			real (kind = GRID_SR), parameter					:: dam_radius = 0.02
-			real (kind = GRID_SR), parameter					:: outer_height = 0.0
-			real (kind = GRID_SR), parameter					:: inner_height = 10.0
+            real (kind = GRID_SR), parameter					:: hL = 1.0_SR, hR = 0.0_SR
+
             real (kind = GRID_SR)                               :: xs(2)
 
             xs = cfg%scaling * x + cfg%offset
@@ -198,7 +196,11 @@
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
 #			else
-				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+				if (xs(1) < 0.0_SR) then
+                    Q%h = hL
+                else
+                    Q%h = hR
+                end if
 #			endif
 
 			Q%p = 0.0_GRID_SR
@@ -213,11 +215,9 @@
 
             real (kind = GRID_SR)                               :: xs(2), ts
 
-
+            xs = cfg%scaling * x + cfg%offset
 
 #			if defined(_ASAGI)
-                xs = cfg%scaling * x + cfg%offset
-
 #               if defined(_ASAGI_TIMING)
                     section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #               endif
@@ -243,13 +243,7 @@
                     section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
 #               endif
 #			else
-                real (kind = GRID_SR), dimension(2), parameter		:: dam_center = [0.5, 0.5]
-                real (kind = GRID_SR), parameter					:: dam_radius = 0.1
-                real (kind = GRID_SR), parameter					:: outer_height = -100.0
-                real (kind = GRID_SR), parameter					:: inner_height = -5.0
-
-                xs = cfg%scaling * x + cfg%offset
-				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+				bathymetry = 0.0_SR
 #			endif
 		end function
 	END MODULE

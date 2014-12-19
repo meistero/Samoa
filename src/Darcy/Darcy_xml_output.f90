@@ -10,28 +10,28 @@
 		use LIB_VTK_IO
 
 		use SFC_edge_traversal
+		use Darcy_grad_p
 
 		use Samoa_darcy
 
 		!> Output point data
 		type t_output_point_data
-			real (kind = GRID_SR)				    :: coords(2)
+			real (kind = GRID_SR)				    :: coords(3)
 			real (kind = GRID_SR)			        :: p
 			real (kind = GRID_SR)			        :: S
+			real (kind = GRID_SR)			        :: rhs
 		end type
 
 		!> Output cell data
 		type t_output_cell_data
 			real (kind = GRID_SR)			        :: permeability
 			real (kind = GRID_SR)			        :: porosity
-			real (kind = GRID_SR)					:: u(2)
+			real (kind = GRID_SR)					:: u(3)
             integer (kind = GRID_SI)			    :: rank
             integer (kind = GRID_SI)			    :: section_index
 			integer (BYTE)					        :: depth
 			integer (BYTE)					        :: refinement
 		end type
-
-		logical, parameter											:: l_second_order = .false.
 
         type num_traversal_data
             type(t_output_point_data), allocatable		            :: point_data(:)
@@ -50,7 +50,7 @@
         end interface
 
         type(darcy_gv_p)										    :: gv_p
-        type(darcy_gv_u)										    :: gv_u
+        type(darcy_gv_rhs)										    :: gv_rhs
         type(darcy_gv_saturation)								    :: gv_saturation
         type(darcy_gv_r)										    :: gv_r
 
@@ -112,6 +112,7 @@
                         e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
                             e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('rhs', 1.0_GRID_SR, 1)
                         e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
                         e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
@@ -152,15 +153,15 @@
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
 
             grid_info = section%get_info()
-			i_cells = grid_info%i_cells
+			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
 
-			if (l_second_order) then
-				i_points = grid_info%i_crossed_edges + grid_info%i_color_edges + grid_info%i_nodes + sum(grid_info%i_boundary_edges + grid_info%i_boundary_nodes)
-				allocate(traversal%i_connectivity(6 * i_cells), stat = i_error); assert_eq(i_error, 0)
-			else
-				i_points = grid_info%i_nodes + sum(grid_info%i_boundary_nodes)
-				allocate(traversal%i_connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
-			end if
+			i_points = (_DARCY_LAYERS + 1) * (grid_info%i_nodes + sum(grid_info%i_boundary_nodes))
+
+#           if (_DARCY_LAYERS > 0)
+                allocate(traversal%i_connectivity(6 * i_cells), stat = i_error); assert_eq(i_error, 0)
+#           else
+                allocate(traversal%i_connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
+#           endif
 
 			allocate(traversal%point_data(i_points), stat = i_error); assert_eq(i_error, 0)
 			allocate(traversal%cell_data(i_cells), stat = i_error); assert_eq(i_error, 0)
@@ -175,7 +176,6 @@
 
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
 			integer (1), dimension(:), allocatable						:: i_types
-			real (kind = GRID_SR), dimension(:), allocatable			:: r_empty
             type(t_vtk_writer)                                          :: vtk
 
 			type(t_section_info)                                        :: grid_info
@@ -183,33 +183,26 @@
 			integer(4)													:: e_io, i
 
             grid_info = section%get_info()
-			i_cells = grid_info%i_cells
+			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
 
-			if (l_second_order) then
-				i_points = grid_info%i_crossed_edges + grid_info%i_color_edges + grid_info%i_nodes + sum(grid_info%i_boundary_edges + grid_info%i_boundary_nodes)
-			else
-				i_points = grid_info%i_nodes + sum(grid_info%i_boundary_nodes)
-			end if
+			i_points = (_DARCY_LAYERS + 1) * (grid_info%i_nodes + sum(grid_info%i_boundary_nodes))
 
 			allocate(i_offsets(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
-			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 
-			r_empty(:) = 0.0_GRID_SR
+#           if (_DARCY_LAYERS > 0)
+                i_types = 13_1
 
-			if (l_second_order) then
-				i_types = 22_1
+                forall (i = 1 : i_cells)
+                    i_offsets(i) = 6_GRID_SI * i
+                end forall
+#           else
+                i_types = 5_1
 
-				forall (i = 1 : i_cells)
-					i_offsets(i) = 6_GRID_SI * i
-				end forall
-			else
-				i_types = 5_1
-
-				forall (i = 1 : i_cells)
-					i_offsets(i) = 3_GRID_SI * i
-				end forall
-			end if
+                forall (i = 1 : i_cells)
+                    i_offsets(i) = 3_GRID_SI * i
+                end forall
+#           endif
 
 			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
@@ -221,19 +214,20 @@
                         e_io = vtk%VTK_VAR_XML(1, 'time', [section%r_time])
                     e_io = vtk%VTK_DAT_XML('field', 'CLOSE')
 
-                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), traversal%point_data%coords(3))
 
                     e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
 
                     e_io = vtk%VTK_DAT_XML('node', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
                         e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
+                        e_io = vtk%VTK_VAR_XML(i_points, 'rhs',  traversal%point_data%rhs)
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'porosity', traversal%cell_data%porosity)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), r_empty(1:i_cells))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), traversal%cell_data%u(3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
@@ -246,7 +240,6 @@
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
-			deallocate(r_empty, stat = i_error); assert_eq(i_error, 0)
 
 			deallocate(traversal%i_connectivity, stat = i_error); assert_eq(i_error, 0)
 			deallocate(traversal%cell_data, stat = i_error); assert_eq(i_error, 0)
@@ -266,57 +259,109 @@
 
 			!local variables
 
-			integer (kind = GRID_SI)							:: i
+			integer (kind = GRID_SI)							:: i, layer
 
 			!local variables
 
-			real (kind = GRID_SR)               :: p(3)
-			real (kind = GRID_SR)				:: u(2)
-			real (kind = GRID_SR)				:: saturation(3)
+			real (kind = GRID_SR)               :: p(_DARCY_LAYERS + 1, 3)
+			real (kind = GRID_SR)               :: rhs(_DARCY_LAYERS + 1, 3)
+			real (kind = GRID_SR)				:: saturation(_DARCY_LAYERS + 1, 3)
 
-			real (kind = GRID_SR)               :: r_point_data_indices(3)		!< point data indices
+			real (kind = GRID_SR)               :: r_point_data_indices(_DARCY_LAYERS + 1, 3)		!< point data indices
 			integer (kind = GRID_SI)            :: point_data_indices(3)		!< point data indices
 
+            real (kind = GRID_SR)				:: g_local(3), edge_length, dz
+            real (kind = SR)                    :: u_w(3), u_n(3)
+
 			call gv_p%read_from_element(element, p)
+
+			call gv_rhs%read_from_element(element, rhs)
 			call gv_r%read_from_element(element, r_point_data_indices)
-			call gv_u%read_from_element(element, u)
 			call gv_saturation%read_from_element(element, saturation)
 
-			point_data_indices(:) = int(r_point_data_indices(:), kind=GRID_SI)
-			p = p / 6.89e3_GRID_SR
-			saturation = samoa_basis_flow_dofs_to_values(saturation)
+            !rotate g so it points in the right direction (no scaling!)
+            g_local = g
+            g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
+            g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-#           if (_DARCY_LAYERS > 1)
-                !TODO
+#           if (_DARCY_LAYERS > 0)
+                edge_length = element%cell%geometry%get_leg_size()
+                dz = cfg%dz
+
+                do layer = 1, _DARCY_LAYERS
+                    traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
+                    traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
+                    traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability(layer, 1) / 9.869233e-16_SR
+                    traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity(layer)
+
+                    call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 1) + p(layer + 1, 1)), u_w(1), u_n(1), g_local(1))
+                    call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 3) + p(layer + 1, 3)), u_w(2), u_n(2), g_local(2))
+                    call compute_velocity_1D(dz, 1.0_SR, element%cell%data_pers%base_permeability(layer, 2), &
+                    (0.25_SR * p(layer, 1) + 0.5_SR * p(layer, 2) + 0.25_SR * p(layer, 3)), &
+                    (0.25_SR * p(layer + 1, 1) + 0.5_SR * p(layer + 1, 2) + 0.25_SR * p(layer + 1, 3)), u_w(3), u_n(3), g_local(3))
+
+                    u_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, u_w(1:2))
+                    u_w(1:2) = u_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+                    traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u_w
+
+                    traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
+                    traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+
+                    point_data_indices = int(r_point_data_indices(layer, :), kind=GRID_SI)
+                    traversal%i_connectivity(6 * traversal%i_cell_data_index - 5 : 6 * traversal%i_cell_data_index - 3) = point_data_indices - 1
+
+                    point_data_indices = int(r_point_data_indices(layer + 1, :), kind=GRID_SI)
+                    traversal%i_connectivity(6 * traversal%i_cell_data_index - 2 : 6 * traversal%i_cell_data_index) = point_data_indices - 1
+
+                    traversal%i_cell_data_index = traversal%i_cell_data_index + 1
+                end do
+
+                do layer = 1, _DARCY_LAYERS + 1
+                    point_data_indices(:) = int(r_point_data_indices(layer, :), kind=GRID_SI)
+
+                    forall (i = 1 : 3)
+                        traversal%point_data(point_data_indices(i))%coords(1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
+                        traversal%point_data(point_data_indices(i))%coords(3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
+                        traversal%point_data(point_data_indices(i))%p = p(layer, i) / (cfg%scaling * 6894.75729_SR)
+                        traversal%point_data(point_data_indices(i))%rhs = rhs(layer, i) * (cfg%scaling ** 3)
+                        traversal%point_data(point_data_indices(i))%S = saturation(layer, i)
+                    end forall
+                end do
 #           else
+                edge_length = element%cell%geometry%get_leg_size()
+
+                point_data_indices(:) = int(r_point_data_indices(1, :), kind=GRID_SI)
+
                 traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
                 traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
                 traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR
                 traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity
-                traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u
+
+                call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 1), u_w(1), u_n(1), g_local(1))
+                call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 3), u_w(2), u_n(2), g_local(2))
+
+                u_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, u_w(1:2))
+                u_w(1:2) = u_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+                u_w(3) = 0.0_SR
+
+                traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u_w
+
                 traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
                 traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+
+                forall (i = 1 : 3)
+                    traversal%point_data(point_data_indices(i))%coords(1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
+                    traversal%point_data(point_data_indices(i))%coords(3) = 0.0_SR
+                    traversal%point_data(point_data_indices(i))%p = p(1, i) / (cfg%scaling * 6894.75729_SR)
+                    traversal%point_data(point_data_indices(i))%rhs = rhs(1, i) * (cfg%scaling ** 2)
+                    traversal%point_data(point_data_indices(i))%S = saturation(1, i)
+                end forall
+
+                traversal%i_connectivity(3 * traversal%i_cell_data_index - 2 : 3 * traversal%i_cell_data_index) = point_data_indices(1:3) - 1
+
+                traversal%i_cell_data_index = traversal%i_cell_data_index + 1
 #           endif
-
-			if (l_second_order) then
-				forall (i = 1 : 6)
-					traversal%point_data(point_data_indices(i))%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-					traversal%point_data(point_data_indices(i))%p = p(i)
-					traversal%point_data(point_data_indices(i))%S = saturation(i)
-				end forall
-
-				traversal%i_connectivity(6 * traversal%i_cell_data_index - 5 : 6 * traversal%i_cell_data_index) = point_data_indices([ 1, 2, 3, 6, 4, 5 ]) - 1
-			else
-				forall (i = 1 : 3)
-					traversal%point_data(point_data_indices(i))%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-					traversal%point_data(point_data_indices(i))%p = p(i)
-					traversal%point_data(point_data_indices(i))%S = saturation(i)
-				end forall
-
-				traversal%i_connectivity(3 * traversal%i_cell_data_index - 2 : 3 * traversal%i_cell_data_index) = point_data_indices(1:3) - 1
-			end if
-
-			traversal%i_cell_data_index = traversal%i_cell_data_index + 1
 		end subroutine
 
 		subroutine node_first_touch_op_array(traversal, section, nodes)
@@ -324,12 +369,10 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: nodes(:)
 
-			integer (kind = GRID_SI)						    :: i, j
+			integer (kind = GRID_SI)						    :: j
 
             do j = 1, size(nodes)
-                do i = 1, _DARCY_LAYERS
-                    call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i))
-                end do
+                call node_first_touch_op_scalar(traversal, section, nodes(j))
             end do
 		end subroutine
 
@@ -338,11 +381,11 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
-			integer (kind = GRID_SI)						    :: i
+			integer (kind = GRID_SI) :: i
 
-			do i = 1, _DARCY_LAYERS
-				call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i))
-			end do
+            do i = 1, _DARCY_LAYERS + 1
+                call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i))
+            end do
 		end subroutine
 
 		elemental subroutine pre_dof_op(i_point_data_index, r)

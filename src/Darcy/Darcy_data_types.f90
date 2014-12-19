@@ -31,7 +31,11 @@
         integer, PARAMETER :: SI = GRID_SI
         integer, PARAMETER :: DI = GRID_DI
 
-        real (kind = GRID_SR), parameter            :: g(2) = [0.0_SR, 0.0_SR]
+#       if (_DARCY_LAYERS > 0)
+            real (kind = SR)            :: g(3) = [0.0_SR, 0.0_SR, 0.0_SR]
+#       else
+            real (kind = SR)            :: g(2) = [0.0_SR, 0.0_SR]
+#       endif
 
 		!*********************************************
 		!Persistent Entity data (geometric association)
@@ -39,11 +43,11 @@
 
 		!> persistent, scenario specific data on a node
 		type num_node_data_pers
-#           if (_DARCY_LAYERS > 1)
-                real (kind = GRID_SR)   :: p(_DARCY_LAYERS), rhs(_DARCY_LAYERS)
-                real (kind = GRID_SR)   :: A_d(_DARCY_LAYERS), d(_DARCY_LAYERS), r(_DARCY_LAYERS)
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR)   :: p(_DARCY_LAYERS + 1), rhs(_DARCY_LAYERS + 1)
+                real (kind = GRID_SR)   :: A_d(_DARCY_LAYERS + 1), d(_DARCY_LAYERS + 1), r(_DARCY_LAYERS + 1)
 
-                real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS)    !< wetting phase saturation
+                real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1)    !< wetting phase saturation
 #           else
                 real (kind = GRID_SR)   :: p(1), rhs(1)
                 real (kind = GRID_SR)   :: A_d(1), d(1), r(1)
@@ -59,15 +63,11 @@
 
 		!> persistent, scenario specific data on a cell
 		type num_cell_data_pers
-#           if (_DARCY_LAYERS > 1)
-                real (kind = GRID_SR)   :: u(_DARCY_LAYERS, 2)			            !< velocity
-
+#           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR)   :: base_permeability(_DARCY_LAYERS, 2)      !< horizontal and vertical permeability (diagonal tensor D = [k_h, k_h, k_v])
-                real (kind = GRID_SR)   :: lambda_t(_DARCY_LAYERS, 3)               !< total mobility in local coordinates
+                real (kind = GRID_SR)   :: lambda_t(_DARCY_LAYERS, 7)               !< total mobility in local coordinates
                 real (kind = GRID_SR)   :: porosity(_DARCY_LAYERS)                  !< element porosity
 #           else
-                real (kind = GRID_SR)   :: u(2)			                            !< velocity
-
                 real (kind = GRID_SR)   :: base_permeability                        !< permeability (uniform tensor k * I)
                 real (kind = GRID_SR)   :: lambda_t(2)                              !< total mobility in local coordinates
                 real (kind = GRID_SR)   :: porosity                                 !< element porosity
@@ -80,11 +80,11 @@
 
 		!> temporary, scenario specific data on a node (deleted after each traversal)
 		type num_node_data_temp
-			real (kind = GRID_SR)       :: mat_diagonal(_DARCY_LAYERS)
+			real (kind = GRID_SR)       :: mat_diagonal(_DARCY_LAYERS + 1)
 
-			real (kind = GRID_SR)       :: flux(_DARCY_LAYERS)
-			real (kind = GRID_SR)		:: volume(_DARCY_LAYERS)
-			logical                     :: is_dirichlet_boundary(1)
+			real (kind = GRID_SR)       :: flux(_DARCY_LAYERS + 1)
+			real (kind = GRID_SR)		:: volume(_DARCY_LAYERS + 1)
+			logical                     :: is_dirichlet_boundary(_DARCY_LAYERS + 1)
 		END type num_node_data_temp
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)

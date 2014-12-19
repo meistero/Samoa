@@ -93,6 +93,8 @@ vars.AddVariables(
   BoolVariable( 'library', 'build samoa as a library', False),
 )
 
+vars.Add('layers', 'number of vertical layers (0: 2D, >0: 3D)', 0)
+
 # set environment
 if 'INTEL_LICENSE_FILE' in os.environ:
     env = Environment(ENV = {'PATH': os.environ['PATH'], 'INTEL_LICENSE_FILE': os.environ['INTEL_LICENSE_FILE']}, variables=vars)
@@ -215,7 +217,7 @@ if env['asagi_timing']:
     print "Error: asagi_timing must not be set if asagi is not active"
     Exit(-1)
 
-#Choose a flux solver for the SWE scenario
+#Choose a flux solver
 if env['flux_solver'] == 'upwind':
   env['F90FLAGS'] += ' -D_UPWIND_FLUX'
 if env['flux_solver'] == 'lf':
@@ -238,6 +240,9 @@ if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind', 'fwave']:
 if env['scenario'] == 'swe' and env['flux_solver'] in ['upwind']:
   print "Error: flux solver must be one of ", ['lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann']
   Exit(-1)
+
+#Set the number of vertical layers for 2.5D
+env['F90FLAGS'] += ' -D_DARCY_LAYERS=' + str(env['layers'])
 
 #Choose a floating point precision
 if env['precision'] == 'single':

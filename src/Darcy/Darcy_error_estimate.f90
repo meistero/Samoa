@@ -113,11 +113,16 @@
  			type(t_grid_section), intent(inout)						:: section
 			type(t_element_base), intent(inout), target				:: element
 
-			real (kind = GRID_SR)   :: saturation(3)
-			real (kind = GRID_SR)   :: p(3)
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1, 3)
+                real (kind = GRID_SR)   :: p(_DARCY_LAYERS + 1, 3)
+#           else
+                real (kind = GRID_SR)   :: saturation(3)
+                real (kind = GRID_SR)   :: p(3)
+#           endif
 
-			call gv_saturation%read(element, saturation)
-			call gv_p%read(element, p)
+			call gv_saturation%read_from_element(element, saturation)
+			call gv_p%read_from_element(element, p)
 
 			!call element operator
 			call alpha_volume_op(traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
@@ -131,15 +136,27 @@
 			integer (kind = GRID_DI), intent(inout)		:: i_refinements_issued
 			integer (kind = BYTE), intent(in)			:: i_depth
 			integer (kind = BYTE), intent(out)			:: i_refinement
-			real (kind = GRID_SR), intent(in)		    :: saturation(:)
-			real (kind = GRID_SR), intent(in)			:: p(:)
-			real (kind = GRID_SR), intent(in)			:: base_permeability
 
-			real (kind = GRID_SR)						:: r_sat_norm, r_p_norm
-			logical 									:: l_coarsen_p, l_coarsen_sat, l_refine_sat
+            real (kind = GRID_SR)						:: r_sat_norm, r_p_norm
+            logical 									:: l_coarsen_p, l_coarsen_sat, l_refine_sat, l_relevant
 
-			r_sat_norm = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2)))
-			r_p_norm = max(abs(p(3) - p(2)), abs(p(1) - p(2)))
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR), intent(in)		    :: saturation(:,:)
+                real (kind = GRID_SR), intent(in)			:: p(:,:)
+                real (kind = GRID_SR), intent(in)			:: base_permeability(:,:)
+
+                r_sat_norm = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2))))
+                r_p_norm = max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2))))
+                l_relevant = any(base_permeability > 0.0_GRID_SR)
+#           else
+                real (kind = GRID_SR), intent(in)		    :: saturation(:)
+                real (kind = GRID_SR), intent(in)			:: p(:)
+                real (kind = GRID_SR), intent(in)			:: base_permeability
+
+                r_sat_norm = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2)))
+                r_p_norm = max(abs(p(3) - p(2)), abs(p(1) - p(2)))
+                l_relevant = (base_permeability > 0.0_GRID_SR)
+#           endif
 
 			l_refine_sat = r_sat_norm > 0.1_GRID_SR
 			l_coarsen_sat = r_sat_norm < 0.02_GRID_SR
@@ -149,12 +166,12 @@
 			!* coarsen the cell if pressure and saturation are constant within a cell
 			!* leave it as is otherwise
 
-			if (i_depth < cfg%i_max_depth .and. base_permeability > 0.0_GRID_SR .and. (l_refine_sat .or. i_depth < cfg%i_min_depth)) then
+			if (i_depth < cfg%i_max_depth .and. l_relevant .and. (l_refine_sat .or. i_depth < cfg%i_min_depth)) then
 				_log_write(5, "(A, T30, A, I0, A, L, A, ES9.2)") "  refinement issued:", "depth ", i_depth, ", sat ", l_refine_sat, ", perm ", base_permeability
 
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if ((i_depth > cfg%i_min_depth .and. l_coarsen_p .and. l_coarsen_sat) .or. (base_permeability == 0.0_GRID_SR)) then
+			else if ((i_depth > cfg%i_min_depth .and. l_coarsen_p .and. l_coarsen_sat) .or. .not. l_relevant) then
 				_log_write(5, "(A, T30, A, I0, A, L, A, L, A, ES9.2)") "  coarsening issued:", "depth ", i_depth, ", p ", l_coarsen_p, ", sat ", l_coarsen_sat, ", perm ", base_permeability
 
 				i_refinement = -1

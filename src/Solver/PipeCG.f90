@@ -227,7 +227,7 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(inout)			:: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -243,21 +243,15 @@ MODULE _CG_(step)
 
         !local variables
 
-        real(kind = GRID_SR)	    :: A(_gv_size, _gv_size)
         real(kind = GRID_SR)		:: d(_gv_size)
         real(kind = GRID_SR)		:: v(_gv_size)
         real(kind = GRID_SR)	    :: trace_A(_gv_size)
         integer :: i
 
-        call gm_A%read(element, A)
         call gv_d%read(element, d)
 
-        v = matmul(A, d)
-
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
+        call gm_A%apply(element, d, v)
+        call gm_A%get_trace(element, trace_A)
 
         call gv_v%add(element, v)
         call gv_trace_A%add(element, trace_A)
@@ -268,7 +262,7 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)					:: section
         type(t_node_data), intent(inout)			:: node
 
-        logical                 :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)    :: empty(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
@@ -304,7 +298,7 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -586,20 +580,14 @@ MODULE _CG_(exact)
         !local variables
         integer :: i
         real(kind = GRID_SR)	:: x(_gv_size), r(_gv_size), trace_A(_gv_size)
-        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
-        call gv_x%read(element, x)
-        call gm_A%read(element, A)
+        call gv_x%read_from_element(element, x)
 
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
+        call gm_A%apply(element, x, r)
+        call gm_A%get_trace(element, trace_A)
 
-        r = -matmul(A, x)
-
-        call gv_r%add(element, r)
-        call gv_trace_A%add(element, trace_A)
+        call gv_r%add_to_element(element, r)
+        call gv_trace_A%add_to_element(element, trace_A)
     end subroutine
 
     elemental subroutine node_last_touch_op(traversal, section, node)
@@ -607,7 +595,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        logical                 :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)	:: r(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
@@ -649,7 +637,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -723,7 +711,8 @@ MODULE _CG_(exact)
         real (kind = GRID_SR), intent(in)		    :: rhs
         real (kind = GRID_SR), intent(in)			:: trace_A
 
-        r = (rhs + r) / trace_A
+        !so far, r assembled Ax, so now we set it to r <- D^(-1)(b - Ax)
+        r = (rhs - r) / trace_A
     end subroutine
 
     elemental subroutine reduce_dof_op(r_C_r, r_sq, r, trace_A)

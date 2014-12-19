@@ -17,7 +17,6 @@
         implicit none
 
         type num_traversal_data
-			real (kind = GRID_SR)                   :: p_in(3, 2)
         end type
 
 		type(darcy_gv_p)							:: gv_p
@@ -32,6 +31,7 @@
 #		define	_GT_REFINE_OP						refine_op
 #		define	_GT_COARSEN_OP						coarsen_op
 
+#		define _GT_CELL_FIRST_TOUCH_OP				cell_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP				node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP				node_last_touch_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP			inner_node_last_touch_op
@@ -78,23 +78,32 @@
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
 
-			real (kind = GRID_SR), dimension(3)							:: p
-			real (kind = GRID_SR), dimension(3)							:: saturation
-			real (kind = GRID_SR), dimension(3)							:: volume
+			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3)
+			integer					:: i, level
 
-			!pressure
+            !make sure, the effective volume never turns out to be 0
+            porosity = epsilon(1.0_SR)
 
-			call gv_p%read( src_element%t_element_base, p)
-			call gv_p%write( dest_element%t_element_base, p)
+#           if (_DARCY_LAYERS > 0)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
 
-			!saturation
+                porosity(1) = 2.0_SR * porosity(1)
+                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+#           else
+                porosity = porosity + src_element%cell%data_pers%porosity
+#           endif
 
-			call gv_saturation%read( src_element%t_element_base, saturation)
+			call gv_p%read_from_element( src_element%t_element_base, p_in)
+			call gv_saturation%read_from_element( src_element%t_element_base, saturation_in)
 
-			volume = src_element%cell%geometry%get_volume() * src_element%cell%data_pers%porosity * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
+            volume(1) = src_element%cell%geometry%get_volume() * 0.25_SR
+            volume(2) = src_element%cell%geometry%get_volume() * 0.5_SR
+            volume(3) = src_element%cell%geometry%get_volume() * 0.25_SR
 
-			call gv_saturation%add( dest_element%t_element_base, volume * saturation)
-			call gv_volume%add( dest_element%t_element_base, volume)
+			call gv_p%add_to_element( dest_element%t_element_base, [p_in(:, 1) * volume(1) * porosity, p_in(:, 2) * volume(2) * porosity, p_in(:, 3) * volume(3) * porosity])
+			call gv_saturation%add_to_element( dest_element%t_element_base, [saturation_in(:, 1) * volume(1) * porosity, saturation_in(:, 2) * volume(2) * porosity, saturation_in(:, 3) * volume(3) * porosity])
+			call gv_volume%add_to_element( dest_element%t_element_base, [volume(1) * porosity, volume(2) * porosity, volume(3) * porosity])
 
 			!permeability
 
@@ -107,97 +116,154 @@
  			type(t_grid_section), intent(inout)										:: grid
 			type(t_traversal_element), intent(inout)								:: src_element
 			type(t_traversal_element), intent(inout)								:: dest_element
-			integer, dimension(:), intent(in)										:: refinement_path
+			integer, intent(in)										                :: refinement_path(:)
 
-			real (kind = GRID_SR), dimension(3)						:: p_in
-			real (kind = GRID_SR), dimension(3, 2)					:: p_out
-			real (kind = GRID_SR), dimension(3)						:: saturation_in
-			real (kind = GRID_SR), dimension(3, 2)					:: saturation_out
-			real (kind = GRID_SR), dimension(3)						:: volume
-			integer													:: i
+			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
+            real (kind = GRID_SR)   :: x(3)
+			integer					:: i, level
 
-			call gv_p%read( src_element%t_element_base, p_in)
-			call gv_saturation%read( src_element%t_element_base, saturation_in)
+            !make sure, the effective volume never turns out to be 0
+            porosity = epsilon(1.0_SR)
 
-			volume = src_element%cell%geometry%get_volume() * src_element%cell%data_pers%porosity * [0.25_GRID_SR, 0.5_GRID_SR, 0.25_GRID_SR]
+#           if (_DARCY_LAYERS > 0)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
 
-			do i = 1, size(refinement_path)
-				!pressure
-				call samoa_basis_p_split(p_in, p_out(:, 1), p_out(:, 2))
-				p_in = p_out(:, refinement_path(i))
+                porosity(1) = 2.0_SR * porosity(1)
+                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+#           else
+                porosity = porosity + src_element%cell%data_pers%porosity
+#           endif
 
-				!saturation
-				saturation_out(:, 1) = [ saturation_in(1), 0.50_GRID_SR * (saturation_in(1) + saturation_in(2)), saturation_in(2) ]
-				saturation_out(:, 2) = [ saturation_in(2), 0.50_GRID_SR * (saturation_in(2) + saturation_in(3)), saturation_in(3) ]
+			call gv_p%read_from_element( src_element%t_element_base, p_in)
+			call gv_saturation%read_from_element( src_element%t_element_base, saturation_in)
 
-				saturation_in = saturation_out(:, refinement_path(i))
-                volume = 0.5_GRID_SR * volume
-			end do
+			r_cells = [0.0_SR, 0.25_SR, 0.75_SR, 1.0_SR]
 
-			call gv_p%write( dest_element%t_element_base, p_in)
+            do level = 1, size(refinement_path)
+                if (refinement_path(level) > 1) then
+                    r_cells = 0.5_SR + r_cells / 2.0_SR
+                else
+                    r_cells = r_cells / 2.0_SR
+                end if
+            end do
 
-			call gv_saturation%add( dest_element%t_element_base, volume * saturation_in)
-			call gv_volume%add( dest_element%t_element_base, volume)
+            weights = transpose(reshape([max(0.0_SR, min(0.25_SR, r_cells(2:4)) - max(0.0_SR, r_cells(1:3))), &
+                        max(0.0_SR, min(0.75_SR, r_cells(2:4)) - max(0.25_SR, r_cells(1:3))), &
+                        max(0.0_SR, min(1.0_SR, r_cells(2:4)) - max(0.75_SR, r_cells(1:3)))], [3, 3]))
+
+            weights = src_element%cell%geometry%get_volume() * weights
+
+            forall (level = 1:_DARCY_LAYERS + 1, i = 1:3)
+                p_in(level, i) = dot_product(weights(:, i), p_in(level, :))
+                saturation_in(level, i) = dot_product(weights(:, i), saturation_in(level, :))
+            end forall
+
+            volume(1) = sum(weights(:, 1))
+            volume(2) = sum(weights(:, 2))
+            volume(3) = sum(weights(:, 3))
+
+ 			call gv_p%add_to_element(dest_element%t_element_base, [p_in(:, 1) * porosity, p_in(:, 2) * porosity, p_in(:, 3) * porosity])
+			call gv_saturation%add_to_element( dest_element%t_element_base, [saturation_in(:, 1) * porosity, saturation_in(:, 2) * porosity, saturation_in(:, 3) * porosity])
+			call gv_volume%add_to_element( dest_element%t_element_base, [volume(1) * porosity, volume(2) * porosity, volume(3) * porosity])
 
 			!permeability & porosity
 
-			dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]), dest_element%cell%geometry%i_depth / 2_GRID_SI)
-			dest_element%cell%data_pers%porosity = get_porosity(grid, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR]))
+#           if (_DARCY_LAYERS > 0)
+                x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
+
+                do i = 1, _DARCY_LAYERS
+                    x(3) = (i - 0.5_SR) / real(_DARCY_LAYERS, SR)
+
+                    dest_element%cell%data_pers%base_permeability(i, :) = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+                    dest_element%cell%data_pers%porosity(i) = get_porosity(grid, x)
+                end do
+#           else
+                x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
+                x(3) = 1.0e-5_SR
+
+                dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+                dest_element%cell%data_pers%porosity = get_porosity(grid, x)
+#           endif
 		end subroutine
 
-		subroutine coarsen_op(traversal, grid, src_element, dest_element, refinement_path)
+		subroutine coarsen_op(traversal, grid, src_element, dest_element, coarsening_path)
   			type(t_darcy_adaption_traversal), intent(inout)							    :: traversal
 			type(t_grid_section), intent(inout)										    :: grid
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
-			integer, dimension(:), intent(in)											:: refinement_path
+			integer, dimension(:), intent(in)											:: coarsening_path
 
-			real (kind = GRID_SR), dimension(3)						    :: saturation_in
-			real (kind = GRID_SR), dimension(3)							:: p_out
-			real (kind = GRID_SR), dimension(3)							:: saturation_out
-			real (kind = GRID_SR), dimension(3)							:: volume
-			integer														:: i
+			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
+			integer					:: i, level
 
-			!pressure
-			i = refinement_path(1)
-			call gv_p%read( src_element%t_element_base, traversal%p_in(:, i))
+            !make sure, the effective volume never turns out to be 0
+            porosity = epsilon(1.0_SR)
 
-			!saturation
-			call gv_saturation%read( src_element%t_element_base, saturation_in(:))
+#           if (_DARCY_LAYERS > 0)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
 
-			if (i > 1) then
-				call samoa_basis_p_merge(traversal%p_in(:, 1), traversal%p_in(:, 2), p_out)
-				call gv_p%write( dest_element%t_element_base, p_out)
+                porosity(1) = 2.0_SR * porosity(1)
+                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+#           else
+                porosity = porosity + src_element%cell%data_pers%porosity
+#           endif
 
-                saturation_out = [0.0_SR, 0.5_SR * (saturation_in(1) + saturation_in(2)), 0.5_SR * (saturation_in(3) + saturation_in(2))]
-                volume = src_element%cell%geometry%get_volume() * src_element%cell%data_pers%porosity * [0.0_GRID_SR, 0.5_GRID_SR, 0.5_GRID_SR]
+			call gv_p%read_from_element( src_element%t_element_base, p_in)
+			call gv_saturation%read_from_element( src_element%t_element_base, saturation_in)
 
-				!permeability and porosity: compute the average
+			r_cells = [0.0_SR, 0.25_SR, 0.75_SR, 1.0_SR]
 
-				dest_element%cell%data_pers%base_permeability = dest_element%cell%data_pers%base_permeability + 0.5_GRID_SR * src_element%cell%data_pers%base_permeability
-				dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + 0.5_GRID_SR * src_element%cell%data_pers%porosity
-			else
-                saturation_out = [0.5_SR * (saturation_in(1) + saturation_in(2)), 0.5_GRID_SR * (saturation_in(3) + saturation_in(2)), 0.0_SR]
-                volume = src_element%cell%geometry%get_volume() * src_element%cell%data_pers%porosity * [0.5_GRID_SR, 0.5_GRID_SR, 0.0_GRID_SR]
+            do level = 1, size(coarsening_path)
+                if (coarsening_path(level) > 1) then
+                    r_cells = 0.5_SR + r_cells / 2.0_SR
+                else
+                    r_cells = r_cells / 2.0_SR
+                end if
+            end do
 
-				!permeability and porosity: compute the average
+            weights = transpose(reshape([max(0.0_SR, min(0.25_SR, r_cells(2:4)) - max(0.0_SR, r_cells(1:3))), &
+                        max(0.0_SR, min(0.75_SR, r_cells(2:4)) - max(0.25_SR, r_cells(1:3))), &
+                        max(0.0_SR, min(1.0_SR, r_cells(2:4)) - max(0.75_SR, r_cells(1:3)))], [3, 3]))
 
-				dest_element%cell%data_pers%base_permeability = 0.5_GRID_SR * src_element%cell%data_pers%base_permeability
-				dest_element%cell%data_pers%porosity = 0.5_GRID_SR * src_element%cell%data_pers%porosity
-			end if
+            weights = dest_element%cell%geometry%get_volume() * weights
 
-			call gv_saturation%add( dest_element%t_element_base, volume * saturation_out)
-			call gv_volume%add( dest_element%t_element_base, volume)
+            forall (level = 1:_DARCY_LAYERS + 1, i = 1:3)
+                p_in(level, i) = dot_product(weights(:, i), p_in(level, :))
+                saturation_in(level, i) = dot_product(weights(:, i), saturation_in(level, :))
+            end forall
+
+            volume(1) = sum(weights(:, 1))
+            volume(2) = sum(weights(:, 2))
+            volume(3) = sum(weights(:, 3))
+
+ 			call gv_p%add_to_element(dest_element%t_element_base, [p_in(:, 1) * porosity, p_in(:, 2) * porosity, p_in(:, 3) * porosity])
+			call gv_saturation%add_to_element( dest_element%t_element_base, [saturation_in(:, 1) * porosity, saturation_in(:, 2) * porosity, saturation_in(:, 3) * porosity])
+			call gv_volume%add_to_element( dest_element%t_element_base, [volume(1) * porosity, volume(2) * porosity, volume(3) * porosity])
+
+            !permeability and porosity: compute the average
+
+            dest_element%cell%data_pers%base_permeability = dest_element%cell%data_pers%base_permeability + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%base_permeability
+            dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%porosity
 		end subroutine
 
 		!first touch ops
+		elemental subroutine cell_first_touch_op(traversal, grid, cell)
+ 			type(t_darcy_adaption_traversal), intent(in)							:: traversal
+ 			type(t_grid_section), intent(in)							:: grid
+			type(t_cell_data_ptr), intent(inout)				:: cell
+
+			cell%data_pers%base_permeability = 0.0_SR
+			cell%data_pers%porosity = 0.0_SR
+		end subroutine
 
 		elemental subroutine node_first_touch_op(traversal, grid, node)
  			type(t_darcy_adaption_traversal), intent(in)							:: traversal
  			type(t_grid_section), intent(in)							:: grid
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%d, node%data_pers%A_d)
+			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_pers%d, node%data_pers%A_d)
 		end subroutine
 
 		!merge ops
@@ -206,6 +272,7 @@
  			type(t_node_data), intent(inout)			    :: local_node
 			type(t_node_data), intent(in)				    :: neighbor_node
 
+            local_node%data_pers%p = local_node%data_pers%p + neighbor_node%data_pers%p
             local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
             local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
         end subroutine
@@ -229,33 +296,35 @@
  			type(t_grid_section), intent(inout)			    :: section
 			type(t_node_data), intent(inout)			    :: node
 
-			call post_dof_op(node%data_pers%saturation, node%data_temp%volume)
+			call post_dof_op(node%data_pers%saturation, node%data_pers%p, node%data_temp%volume)
 		end subroutine
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(saturation, volume, d, A_d)
+		elemental subroutine pre_dof_op(saturation, volume, p, d, A_d)
 			real (kind = GRID_SR), intent(out)		:: saturation
 			real (kind = GRID_SR), intent(out)		:: volume
+			real (kind = GRID_SR), intent(out)		:: p
 			real (kind = GRID_SR), intent(out)		:: d
 			real (kind = GRID_SR), intent(out)		:: A_d
 
 			saturation = 0.0_GRID_SR
 			volume = 0.0_GRID_SR
+			p = 0.0_GRID_SR
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
 		end subroutine
 
-		elemental subroutine post_dof_op(saturation, volume)
+		elemental subroutine post_dof_op(saturation, p, volume)
  			real (kind = GRID_SR), intent(inout)	:: saturation
+ 			real (kind = GRID_SR), intent(inout)	:: p
 			real (kind = GRID_SR), intent(in)		:: volume
 
-            if (volume > 0.0_SR) then
-                saturation = saturation / volume
-            else
-                saturation = 0.0_SR
-            endif
+            !assert_pure(volume > 0.0_SR)
+
+            saturation = saturation / volume
+            p = p / volume
 
             !assert_pure(saturation <= 1.0_SR)
 		end subroutine

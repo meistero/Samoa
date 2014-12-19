@@ -45,8 +45,6 @@
 #define _FLASH_EDGE_SIZE 			_FLASH_CELL_SIZE
 #define _FLASH_EDGE_QUAD_SIZE			_FLASH_CELL_SIZE
 
-#define _DARCY_LAYERS                   1
-
 !compiler-dependent macros (traditional vs. modern preprocessor)
 #	define _id(x) x
 

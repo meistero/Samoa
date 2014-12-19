@@ -120,12 +120,10 @@ MODULE _CG_(1)
 
         real(kind = GRID_SR)		:: d(_gv_size)
         real(kind = GRID_SR)		:: u(_gv_size)
-        real(kind = GRID_SR)		:: A(_gv_size, _gv_size)
 
         call gv_d%read(element, d)
-        call gm_A%read(element, A)
 
-        u = matmul(A, d)
+        call gm_A%apply(element, d, u)
 
         call gv_u%add(element, u)
     end subroutine
@@ -137,7 +135,7 @@ MODULE _CG_(1)
         type(t_grid_section), intent(in)							:: section
         type(t_node_data), intent(in)			:: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -185,15 +183,6 @@ MODULE _CG_(1)
 
         d = r + beta * d
         u = 0.0_GRID_SR
-    end subroutine
-
-    pure subroutine alpha_volume_op(A, d, u, permeability)
-        real (kind = GRID_SR), intent(in) 	:: A(_gv_size, _gv_size)
-        real (kind = GRID_SR), intent(in)	:: d(_gv_size)
-        real (kind = GRID_SR), intent(out)	:: u(_gv_size)
-        real (kind = GRID_SR), intent(in)	:: permeability
-
-        u = matmul(A, d)
     end subroutine
 
     elemental subroutine reduce_dof_op(d_u, d, u)
@@ -317,17 +306,9 @@ MODULE _CG_(2)
 
         !local variables
 
-        integer :: i
-        real(kind = GRID_SR)	:: trace_A(_gv_size)
-        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
+        real(kind = GRID_SR) :: trace_A(_gv_size)
 
-        !call element operator
-        call gm_A%read(element, A)
-
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
+        call gm_A%get_trace(element, trace_A)
 
         call gv_trace_A%add(element, trace_A)
     end subroutine
@@ -337,7 +318,7 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)					:: section
         type(t_node_data), intent(inout)			:: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -368,7 +349,7 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -554,17 +535,11 @@ MODULE _CG_(exact)
         !local variables
         integer :: i
         real(kind = GRID_SR)	:: x(_gv_size), r(_gv_size), trace_A(_gv_size)
-        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
         call gv_x%read(element, x)
-        call gm_A%read(element, A)
 
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
-
-        r = -matmul(A, x)
+        call gm_A%apply(element, x, r)
+        call gm_A%get_trace(element, trace_A)
 
         call gv_r%add(element, r)
         call gv_trace_A%add(element, trace_A)
@@ -575,7 +550,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        logical                 :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -614,7 +589,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -672,7 +647,8 @@ MODULE _CG_(exact)
         real (kind = GRID_SR), intent(in)			:: rhs
         real (kind = GRID_SR), intent(in)			:: trace_A
 
-        r = (rhs + r) / trace_A
+        !so far, r assembled Ax, so now we set it to r <- D^(-1)(b - Ax)
+        r = (rhs - r) / trace_A
     end subroutine
 
     elemental subroutine reduce_dof_op(r_C_r, r_sq, r, trace_A)

@@ -13,7 +13,7 @@
 		use SWE_adapt
 		use SWE_initialize
 		use SWE_displace
-		use SWE_output
+		!use SWE_output
 		use SWE_xml_output
 		use SWE_ascii_output
 		use SWE_point_output
@@ -29,7 +29,7 @@
 		type t_swe
             type(t_swe_init_traversal)              :: init
             type(t_swe_displace_traversal)          :: displace
-            type(t_swe_output_traversal)            :: output
+            !type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
             type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
 	        type(t_swe_point_output_traversal)	    :: point_output
@@ -58,7 +58,7 @@
 
 			!open log file
 			call date_and_time(s_date, s_time)
-			write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
+			!write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (swe%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
             write (swe%point_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (s_log_name, '(A, A)') TRIM(swe%xml_output%s_file_stamp), ".log"
@@ -71,7 +71,7 @@
 
 			call swe%init%create()
             call swe%displace%create()
-            call swe%output%create()
+            !call swe%output%create()
             call swe%xml_output%create()
             call swe%ascii_output%create()
             call swe%euler%create()
@@ -143,8 +143,8 @@
                     end if
                end associate
 #           else
-                cfg%scaling = 1.0_GRID_SR
-                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                cfg%scaling = 10.0_GRID_SR
+                cfg%offset = cfg%scaling * [-0.5_GRID_SR, -0.5_GRID_SR]
 #			endif
 		end subroutine
 
@@ -156,7 +156,7 @@
 
 			call swe%init%destroy()
             call swe%displace%destroy()
-            call swe%output%destroy()
+            !call swe%output%destroy()
             call swe%xml_output%destroy()
             call swe%ascii_output%destroy()
             call swe%point_output%destroy()

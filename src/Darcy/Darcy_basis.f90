@@ -79,7 +79,6 @@
 		use Darcy_gv_A_d_mod
 		use Darcy_gv_mat_diagonal_mod
 		use Darcy_gv_is_dirichlet_boundary_mod
-		use Darcy_gv_u_mod
 		use Darcy_gv_saturation_mod
 		use Darcy_gv_flux_mod
 		use Darcy_gv_volume_mod

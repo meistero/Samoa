@@ -47,7 +47,7 @@
         end interface
 
         type(darcy_gv_p)											:: gv_p
-        type(darcy_gv_u)											:: gv_u
+        !type(darcy_gv_u)											:: gv_u
         type(darcy_gv_saturation)									:: gv_saturation
         type(darcy_gv_r)											:: gv_r
 
@@ -200,17 +200,21 @@
 
 			call gv_p%read(element, p)
 			call gv_r%read(element, r_point_data_indices)
-			call gv_u%read_from_element(element, u)
+			!call gv_u%read_from_element(element, u)
 			call gv_saturation%read(element, saturation)
 
 			point_data_indices = r_point_data_indices
 			p = p / 6.89e3_GRID_SR
 			saturation = samoa_basis_flow_dofs_to_values(saturation)
 
-			traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability
-			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
-			traversal%cell_data(traversal%i_cell_data_index)%u = u
-			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+#           if (_DARCY_LAYERS > 0)
+                !TODO
+#           else
+                traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability
+                traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
+                traversal%cell_data(traversal%i_cell_data_index)%u = u
+                traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+#           endif
 
 			if (l_second_order) then
 				forall (i = 1 : 6)
@@ -243,7 +247,7 @@
 			integer (kind = GRID_SI)						    :: i, j
 
             do j = 1, size(nodes)
-                do i = 1, _DARCY_LAYERS
+                do i = 1, _DARCY_LAYERS + 1
                     call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i))
                 end do
             end do
@@ -256,7 +260,7 @@
 
 			integer (kind = GRID_SI)						    :: i
 
-			do i = 1, _DARCY_LAYERS
+			do i = 1, _DARCY_LAYERS + 1
 				call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i))
 			end do
 		end subroutine

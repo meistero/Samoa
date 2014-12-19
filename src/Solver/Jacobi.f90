@@ -119,39 +119,35 @@ MODULE _JACOBI_(1)
         !local variables
         integer :: i
         real(kind = GRID_SR)	:: x(_gv_size), r(_gv_size), trace_A(_gv_size)
-        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
         call gv_x%read(element, x)
-        call gm_A%read(element, A)
-
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
-
-        r = -matmul(A, x)
+        call gm_A%apply(element, x, r)
+        call gm_A%get_trace(element, trace_A)
 
         call gv_r%add(element, r)
         call gv_trace_A%add(element, trace_A)
     end subroutine
 
-    elemental subroutine node_last_touch_op(traversal, section, node)
+    subroutine node_last_touch_op(traversal, section, nodes)
         type(_T_JACOBI_(traversal)), intent(in)			:: traversal
         type(t_grid_section), intent(in)				:: section
-        type(t_node_data), intent(inout)				:: node
+        type(t_node_data), intent(inout)				:: nodes(:)
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
+        integer :: i
 
-        call gv_dirichlet%read(node, is_dirichlet)
+        do i = 1, size(nodes)
+            call gv_dirichlet%read(nodes(i), is_dirichlet)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_last_touch_op(traversal, section, node)
-        else
-            call gv_r%write(node, spread(0.0_GRID_SR, 1, _gv_node_size))
-        end if
+            if (.not. any(is_dirichlet)) then
+                call inner_node_last_touch_op(traversal, section, nodes(i))
+            else
+                call gv_r%write(nodes(i), spread(0.0_GRID_SR, 1, _gv_node_size))
+            end if
+        end do
     end subroutine
 
-    elemental subroutine inner_node_last_touch_op(traversal, section, node)
+    subroutine inner_node_last_touch_op(traversal, section, node)
         type(_T_JACOBI_(traversal)), intent(in)			:: traversal
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
@@ -181,7 +177,7 @@ MODULE _JACOBI_(1)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical :: is_dirichlet(1)
+        logical :: is_dirichlet(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
@@ -239,10 +235,8 @@ MODULE _JACOBI_(1)
         real (kind = GRID_SR), intent(in)			:: rhs
         real(kind = GRID_SR), intent(in)			:: trace_A
 
-        !Jacobi-step
-
-        !add (rhs + r) / trace(A) to the unknown x
-        r = (rhs + r) / trace_A
+        !so far, r assembled Ax, so now we set it to D^(-1)(b - Ax)
+        r = (rhs - r) / trace_A
         x = alpha * r
     end subroutine
 

@@ -48,6 +48,7 @@ module config
 	    double precision, pointer		        :: r_testpoints(:,:)		                        !< test points array
 
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
+        double precision                        :: dz                                               !< layer height for 3D scenarios
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
         double precision                        :: dry_tolerance                                    !< dry tolerance
 
@@ -57,7 +58,7 @@ module config
  			integer					 		    :: afh_permeability			                        !< asagi file handle to permeability data
  			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
             integer			        	        :: i_lsolver			                		    !< linear solver
-            integer			        	        :: i_max_iterations			                		    !< maximum linear iterations of the solver
+            integer			        	        :: i_max_iterations			                		!< maximum linear iterations of the solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
             logical                             :: l_lse_output                                     !< print out the linear equation system
 
@@ -66,10 +67,10 @@ module config
 			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase
 			double precision				    :: r_rho_w		                                    !< density of the wetting phase
 			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase
-			double precision				    :: r_p_in			                                !< injection well pressure
-			double precision				    :: r_p_in_psi			                            !< injection well pressure
-			double precision				    :: r_p_prod			                                !< production well pressure
-			double precision				    :: r_p_prod_psi			                            !< production well pressure
+			double precision				    :: r_p_in			                                !< injection well pressure [psi]
+			double precision				    :: r_p_prod			                                !< production well pressure [psi]
+			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [psi]
+			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/s]
 			double precision			        :: r_pos_in(2)				                        !< injection well position
 			double precision			        :: r_pos_prod(2)				                    !< production well position
 #    	elif defined(_SWE)
@@ -173,12 +174,14 @@ module config
 			config%r_nu_n = rget('samoa_nu_n')
 			config%r_rho_w = rget('samoa_rho_w')
 			config%r_rho_n = rget('samoa_rho_n')
-			config%r_p_in_psi = rget('samoa_p_in')
-			config%r_p_prod_psi = rget('samoa_p_prod')
+			config%r_p_in = rget('samoa_p_in')
+			config%r_p_prod = rget('samoa_p_prod')
             config%i_max_iterations = iget('samoa_max_iter')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
             config%l_lse_output = lget('samoa_lseoutput')
+            config%r_well_radius = 5.0d0
+            config%r_inflow = 5000.0d0
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
@@ -225,8 +228,8 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " 1 / (Pa s))"
                     PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, " kg / m^3)"
-                    PRINT '(A, ES8.1, A)',  "	-p_in			        injection well pressure (value: ", config%r_p_in_psi, " psi)"
-                    PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod_psi, " psi)"
+                    PRINT '(A, ES8.1, A)',  "	-p_in			        injection well pressure (value: ", config%r_p_in, " psi)"
+                    PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod, " psi)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
@@ -366,6 +369,12 @@ module config
 #       endif
 
 #		if defined(_DARCY)
+#		    if (_DARCY_LAYERS > 0)
+                _log_write(0, '(" Darcy: 3D with ", I0, " layers")') _DARCY_LAYERS
+#           else
+                _log_write(0, '(" Darcy: 2D")')
+#           endif
+
             _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
             _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n

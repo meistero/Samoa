@@ -231,10 +231,10 @@
 			type(t_update)													:: bnd_flux
 
             !SLIP: reflect momentum at normal
-			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
+			bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
-			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
+			!bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
 
 			!OUTFLOW: copy values
 			!bnd_rep = rep%Q(1)
@@ -350,7 +350,6 @@
 			type(t_update), intent(out) 						:: fluxL, fluxR
 			real(kind = GRID_SR), intent(in)		            :: normal(2)
 
-			!real(kind = GRID_SR), parameter						:: dry_tol = 0.01_GRID_SR       --- replaced by flag parameter cfg%dry_tolerance
 			real(kind = GRID_SR)								:: vL, vR, alpha
 
 #           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
@@ -382,7 +381,7 @@
                 fluxL%p = 0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) + 0.5_GRID_SR * g * (max(QR%h - QL%b, 0.0_GRID_SR) ** 2) * normal
                 fluxR%p = -0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) - 0.5_GRID_SR * g * (max(QL%h - QR%b, 0.0_GRID_SR) ** 2) * normal
 #           elif defined(_LF_FLUX) || defined(_LLF_FLUX)
-                real(kind = GRID_SR), parameter					:: b = -1000.0_GRID_SR     !default constant bathymetry
+                real(kind = GRID_SR), parameter					:: b = 0.0_GRID_SR     !default constant bathymetry
 
                 !use the height of the water pillars for computation
                 vL = DOT_PRODUCT(normal, QL%p / (QL%h - b))

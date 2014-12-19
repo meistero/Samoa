@@ -16,7 +16,9 @@
         end type
 
 		type(darcy_gv_p)						:: gv_p
-		type(darcy_gv_u)						:: gv_u
+		type(darcy_gv_saturation)				:: gv_saturation
+
+        public compute_velocity_1D
 
 #		define _GT_NAME							t_darcy_grad_p_traversal
 
@@ -93,8 +95,8 @@
 			type(t_darcy_grad_p_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							:: grid
 
-			call reduce(grid%r_dt, traversal%children%r_dt, MPI_MIN, .true.)
-			grid%r_dt = cfg%courant_number * cfg%r_nu_w * cfg%scaling * grid%r_dt
+			call reduce(traversal%r_dt, traversal%children%r_dt, MPI_MIN, .true.)
+			grid%r_dt = cfg%courant_number * traversal%r_dt
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -113,46 +115,138 @@
  			type(t_grid_section), intent(inout)				:: section
 			type(t_element_base), intent(inout), target		:: element
 
-			real (kind = GRID_SR) :: p(_DARCY_LAYERS, 3)
-			real (kind = GRID_SR) :: u(_DARCY_LAYERS, 2)
-			integer (kind = GRID_SI)											:: i
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR) :: S(_DARCY_LAYERS + 1, 3)
+                real (kind = GRID_SR) :: p(_DARCY_LAYERS + 1, 3)
 
-			call gv_p%read_from_element(element, p)
+                integer :: i
 
-			!call element operator
-			do i = 1, _DARCY_LAYERS
-                call alpha_volume_op(traversal, element, p(i, :), u(i, :), element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
-                !call alpha_volume_op(traversal, element, p(i, :), u(i, :), element%cell%data_pers%base_permeability(i), element%cell%data_pers%porosity(i))
-			end do
+                call gv_saturation%read_from_element(element, S)
+                call gv_p%read_from_element(element, p)
 
-			call gv_u%write_to_element(element, u)
+                call alpha_volume_op(traversal, element, S, p, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
+#           else
+                real (kind = GRID_SR)       :: S(3)
+                real (kind = GRID_SR)       :: p(3)
+
+                call gv_saturation%read_from_element(element, S)
+                call gv_p%read_from_element(element, p)
+
+                call alpha_volume_op(traversal, element, S, p, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
+#           endif
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine alpha_volume_op(traversal, element, p, u, base_permeability, porosity)
- 			type(t_darcy_grad_p_traversal), intent(inout)						:: traversal
-			type(t_element_base), intent(inout)									:: element
-			real (kind = GRID_SR), intent(in)					                :: p(:)
-			real (kind = GRID_SR), intent(out)					                :: u(:)
-			real (kind = GRID_SR), intent(in)									:: base_permeability
-			real (kind = GRID_SR), intent(in)									:: porosity
+#       if (_DARCY_LAYERS > 0)
+            subroutine alpha_volume_op(traversal, element, S, p, base_permeability, porosity)
+                type(t_darcy_grad_p_traversal), intent(inout)						:: traversal
+                type(t_element_base), intent(inout)									:: element
+                real (kind = GRID_SR), intent(in)					                :: S(:,:)
+                real (kind = GRID_SR), intent(in)					                :: p(:,:)
+                real (kind = GRID_SR), intent(in)									:: base_permeability(:,:)
+                real (kind = GRID_SR), intent(in)									:: porosity(:)
 
-			real (kind = SR)                                                    :: u_norm
+                real (kind = GRID_SR)					  :: g_local(3), edge_length, dz
+                real (kind = SR)                          :: u_w(7), u_n(7), dt_inv_max
+                integer                                   :: i
 
-			!define velocity by u = k (-grad p + rho g)
-            u = samoa_barycentric_to_world_normal(element%transform_data, 0.5_SR * [p(1) - p(2), p(3) - p(2)])
-            u = u * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-            assert_le(norm2(u), (1.0_SR + 1.0e2_SR * epsilon(1.0_SR)) * norm2(0.5_SR * [p(1) - p(2), p(3) - p(2)]))
-            assert_le(norm2(0.5_SR * [p(1) - p(2), p(3) - p(2)]), (1.0_SR + 1.0e2_SR * epsilon(1.0_SR)) * norm2(u))
-            u = base_permeability * (-u + cfg%r_rho_w * g)
+                !rotate g so it points in the right direction (no scaling!)
+                g_local = g
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
+                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-            u_norm = norm2(u)
-            if (u_norm > 0.0_SR .and. porosity > 0.0_SR) then
-                traversal%r_dt = min(traversal%r_dt, porosity * element%cell%geometry%get_leg_size() / (2.0_SR * u_norm))
-            end if
-		end subroutine
+                edge_length = element%cell%geometry%get_leg_size()
+                dz = cfg%dz
+
+                do i = 1, _DARCY_LAYERS
+                    call compute_velocity_1D(edge_length, 1.0_SR, base_permeability(i, 1), p(i, 2), p(i, 1), u_w(1), u_n(1), g_local(1))
+                    call compute_velocity_1D(edge_length, 1.0_SR, base_permeability(i, 1), p(i, 2), p(i, 3), u_w(2), u_n(2), g_local(2))
+
+                    call compute_velocity_1D(dz, 1.0_SR, base_permeability(i, 2), p(i, 1), p(i + 1, 1), u_w(3), u_n(3), g_local(3))
+                    call compute_velocity_1D(dz, 1.0_SR, base_permeability(i, 2), p(i, 2), p(i + 1, 2), u_w(4), u_n(4), g_local(3))
+                    call compute_velocity_1D(dz, 1.0_SR, base_permeability(i, 2), p(i, 3), p(i + 1, 3), u_w(5), u_n(5), g_local(3))
+
+                    call compute_velocity_1D(edge_length, 1.0_SR, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
+                    call compute_velocity_1D(edge_length, 1.0_SR, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
+
+                    dt_inv_max = maxval([compute_max_wave_speed_1D(S(i, 2), S(i, 1), u_w(1), u_n(1), base_permeability(i, 1), g_local(1))/edge_length, &
+                                    compute_max_wave_speed_1D(S(i, 2), S(i, 3), u_w(2), u_n(2), base_permeability(i, 1), g_local(2))/edge_length, &
+                                    compute_max_wave_speed_1D(S(i, 1), S(i + 1, 1), u_w(3), u_n(3), base_permeability(i, 2), g_local(3))/dz, &
+                                    compute_max_wave_speed_1D(S(i, 2), S(i + 1, 2), u_w(4), u_n(4), base_permeability(i, 2), g_local(3))/dz, &
+                                    compute_max_wave_speed_1D(S(i, 3), S(i + 1, 3), u_w(5), u_n(5), base_permeability(i, 2), g_local(3))/dz, &
+                                    compute_max_wave_speed_1D(S(i + 1, 2), S(i + 1, 1), u_w(6), u_n(6), base_permeability(i, 1), g_local(1))/edge_length, &
+                                    compute_max_wave_speed_1D(S(i + 1, 2), S(i + 1, 3), u_w(7), u_n(7), base_permeability(i, 1), g_local(2))/edge_length])
+
+                    if (dt_inv_max * porosity(i) > 1.0e5_SR * tiny(1.0_SR)) then
+                        traversal%r_dt = min(traversal%r_dt, porosity(i) / dt_inv_max)
+                    end if
+                end do
+            end subroutine
+#       else
+            subroutine alpha_volume_op(traversal, element, S, p, base_permeability, porosity)
+                type(t_darcy_grad_p_traversal), intent(inout)						:: traversal
+                type(t_element_base), intent(inout)									:: element
+                real (kind = GRID_SR), intent(in)					                :: S(:)
+                real (kind = GRID_SR), intent(in)					                :: p(:)
+                real (kind = GRID_SR), intent(in)									:: base_permeability
+                real (kind = GRID_SR), intent(in)									:: porosity
+
+                real (kind = GRID_SR)					  :: g_local(2), edge_length
+                real (kind = SR)                          :: u_w(2), u_n(2), dt_inv_max
+
+                !rotate g so it points in the right direction (no scaling!)
+                g_local = g
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
+                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+                edge_length = element%cell%geometry%get_leg_size()
+
+                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
+                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
+
+                dt_inv_max = max(compute_max_wave_speed_1D(S(2), S(1), u_w(1), u_n(1), base_permeability, g_local(1)) / edge_length, &
+                                compute_max_wave_speed_1D(S(2), S(3), u_w(2), u_n(2), base_permeability, g_local(2)) / edge_length)
+
+                if (dt_inv_max * porosity > 1.0e5_SR * tiny(1.0_SR)) then
+                    traversal%r_dt = min(traversal%r_dt, porosity / dt_inv_max)
+                end if
+            end subroutine
+#       endif
+
+        function l_w(S)
+            real (kind = GRID_SR), intent(in)   :: S
+            real (kind = GRID_SR)               :: l_w
+
+            l_w = S * S / cfg%r_nu_w
+        end function
+
+        function l_n(S)
+            real (kind = GRID_SR), intent(in)   :: S
+            real (kind = GRID_SR)               :: l_n
+
+            l_n = (1.0_SR - S) * (1.0_SR - S) / cfg%r_nu_n
+        end function
+
+        function compute_max_wave_speed_1D(S_l, S_r, u_w, u_n, permeability, g_local) result(max_wave_speed)
+            real (kind = GRID_SR), intent(in)       :: S_l, S_r, u_w, u_n, permeability, g_local
+            real (kind = GRID_SR)                   :: max_wave_speed
+
+            real (kind = GRID_SR)                   :: S_m
+
+            !Upwind and F-Wave solver approximate the Riemann solution by a single shock wave with velocity
+            !xi = (f(S_r) - f(S_l)) / (S_r - S_l) = (S_r^2 - S_l^2) / (nu_w (S_r - S_l)) K (-grad p + rho_w g)
+            max_wave_speed = (S_l + S_r) / cfg%r_nu_w * abs(u_w)
+        end function
+
+        elemental subroutine compute_velocity_1D(dx, area, base_permeability, pL, pR, u_w, u_n, g_local)
+            real (kind = GRID_SR), intent(in)       :: dx, area, base_permeability, pL, pR, g_local
+            real (kind = GRID_SR), intent(inout)    :: u_w, u_n
+
+            u_w = area * base_permeability * (-(pR - pL) / dx + cfg%r_rho_w * g_local)
+            u_n = area * base_permeability * (-(pR - pL) / dx + cfg%r_rho_n * g_local)
+        end subroutine
 	END MODULE
 #endif

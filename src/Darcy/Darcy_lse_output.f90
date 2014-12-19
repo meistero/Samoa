@@ -157,7 +157,6 @@
 			integer (kind = GRID_SI)    :: indices(3)		!< point data indices
 			integer                     :: i, j
 
-			call gm_A%read(element, A)
 			call gv_p%read(element, p)
 			call gv_rhs%read(element, rhs)
 			call gv_r%read(element, r_indices)
@@ -165,8 +164,17 @@
 			indices(:) = int(r_indices(:), kind=GRID_SI)
 			p = samoa_basis_p_dofs_to_values(p)
 
+#           if (_DARCY_LAYERS > 0)
+                !TODO
+#           else
+                call gm_A%apply(element, [1.0_SR, 0.0_SR, 0.0_SR], A(:, 1))
+                call gm_A%apply(element, [0.0_SR, 1.0_SR, 0.0_SR], A(:, 2))
+                call gm_A%apply(element, [0.0_SR, 0.0_SR, 1.0_SR], A(:, 3))
+#           endif
+
             do i = 1, 3
                 if (indices(i) .ge. 0) then
+
                     do j = 1, 3
                         if (indices(j) .ge. 0) then
                             traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
@@ -186,7 +194,7 @@
 			integer (kind = GRID_SI)						    :: i, j
 
             do j = 1, size(nodes)
-                do i = 1, _DARCY_LAYERS
+                do i = 1, _DARCY_LAYERS + 1
                     call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, nodes(j)%data_pers%p(i), nodes(j)%data_pers%rhs(i), nodes(j)%data_pers%r(i), nodes(j)%data_temp%is_dirichlet_boundary(i))
                 end do
             end do
@@ -199,7 +207,7 @@
 
 			integer (kind = GRID_SI)						    :: i
 
-			do i = 1, _DARCY_LAYERS
+			do i = 1, _DARCY_LAYERS + 1
 				call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, node%data_pers%p(i), node%data_pers%rhs(i), node%data_pers%r(i), .false.)
 			end do
 		end subroutine

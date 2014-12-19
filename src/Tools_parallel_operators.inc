@@ -219,9 +219,17 @@ subroutine _T_(prefix_sum_mpi)(s, mpi_op)
     integer				        :: i_error
 
 #   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
-        assert_eq(sizeof(s), _T_SIZE)
+#       if defined(__GFORTRAN__)
+            _T	        :: r
 
-        call mpi_scan(MPI_IN_PLACE, s, 1, _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+            !HOTFIX: for some reason, MPI_IN_PLACE does not work with gfortran 4.8 and mpich
+            call mpi_scan(s, r, 1, _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+            s = r
+#       else
+            call mpi_scan(MPI_IN_PLACE, s, 1, _T_MPI_TYPE, mpi_op, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#       endif
+
+        assert_eq(sizeof(s), _T_SIZE)
 #   endif
 end subroutine
 
