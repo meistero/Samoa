@@ -18,6 +18,8 @@
 #define _GT_NAME t_swe_lse_traversal
 
 #define _GT_NODES
+#define  _GT_EDGES
+#		define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 
@@ -55,15 +57,23 @@ subroutine element_op(traversal, section, element)
     real (kind = GRID_SR)  :: mat(3, 3)
     real (kind=GRID_SR) :: c,dt
     real(kind=GRID_SR):: h,hu,hv,w
+    real (kind=GRiD_SR),dimension(2):: p, p_local
     c=0.5_GRID_SR * element%cell%geometry%get_leg_size() !TODO
     dt=section%r_dt !TODO
 
     !write (*,*) 'element_op'
 
     h= element%cell%data_pers%Q(1)%h
-    hu= element%cell%data_pers%Q(1)%p(1)
-    hv= element%cell%data_pers%Q(1)%p(2)
+    !hu= element%cell%data_pers%Q(1)%p(1)
+    !hv= element%cell%data_pers%Q(1)%p(2)
+    p=element%cell%data_pers%Q(1)%p
     w= element%cell%data_pers%Q(1)%w
+
+    !rotate p so it points in the right direction (no scaling!)
+    p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
+    p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+    hu=p_local(1)
+    hv=p_local(2)
 
 
     mat= reshape([c*0.5_GRID_SR*dt*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR), -c*dt*0.5_GRID_SR*h*h+dt*0.5_GRID_SR*c*c, (1._GRID_SR/6._GRID_SR)*dt*c*c, &

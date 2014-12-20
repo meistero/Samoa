@@ -104,7 +104,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR) then
+			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR .and. node%position(2) > 0.0_GRID_SR .and. node%position(2) < 1.0_GRID_SR ) then
 				node%data_pers%is_dirichlet_boundary = .false.
 			else
 				node%data_pers%is_dirichlet_boundary = .true.
@@ -119,9 +119,9 @@
 			type(t_node_data), intent(inout)			:: node
 			integer										:: i
 
-             node%data_pers%qp=0
-             node%data_pers%rhs=0
-             node%data_pers%r=0
+             node%data_pers%qp=0_GRID_SR
+             node%data_pers%rhs=0_GRID_SR
+             node%data_pers%r=0_GRID_SR
         end subroutine
 
 

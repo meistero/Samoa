@@ -37,6 +37,7 @@
 
 #		define _GT_EDGES
 #       define _GT_NODES
+#		define _GT_EDGES_TEMP
 
 #		define _GT_PRE_TRAVERSAL_OP				pre_traversal_op
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
