@@ -569,7 +569,7 @@
 
             rhs_local = area * base_permeability * (lambda_w_local * cfg%r_rho_w + lambda_n_local * cfg%r_rho_n) * g_local
 
-            rhsL = rhsL + rhs_local
+            rhsL = rhsL - rhs_local
             rhsR = rhsR + rhs_local
             lambda_t = area / dx * base_permeability * (lambda_w_local + lambda_n_local)
         end subroutine

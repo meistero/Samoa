@@ -32,7 +32,7 @@
         integer, PARAMETER :: DI = GRID_DI
 
 #       if (_DARCY_LAYERS > 0)
-            real (kind = SR)            :: g(3) = [0.0_SR, 0.0_SR, 0.0_SR]
+            real (kind = SR)            :: g(3) = [0.0_SR, 0.0_SR, -9.81_SR]
 #       else
             real (kind = SR)            :: g(2) = [0.0_SR, 0.0_SR]
 #       endif

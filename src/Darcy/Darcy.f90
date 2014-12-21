@@ -175,40 +175,50 @@
                     end if
                 end associate
 #           else
-                cfg%scaling = 1.0_GRID_SR
-                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                cfg%scaling = 1.0_SR
+                cfg%offset = [0.0_SR, 0.0_SR]
                 cfg%dz = 1.0_SR
 
-                cfg%r_pos_in = [0.0_GRID_SR, 0.0_GRID_SR]
-                cfg%r_pos_prod = [1.0_GRID_SR, 1.0_GRID_SR]
+                cfg%r_pos_in = [0.0_SR, 0.0_SR]
+                cfg%r_pos_prod = [1.0_SR, 1.0_SR]
 #			endif
 
-            !convert pressure from psi (pounds per square inch) to Pa m/um = N * m / um^3 = kg / (um * s^2)
-            !so [K / mu *(-grad(p + rho g))] = 1 um^2 / (N*m/um^3 * s) * ((N*m/um^3) / um + kg / um^3 * um/s^2) = 1 um/s
-            !p = p_psi * 6894.75729 Pa/psi * cfg%scaling m/um
+            !Conversion rules:
+            ! cfg%scaling m = 1 um
+            ! 6894.75729 Pa = 1 psi
+            ! 6.28981077 bbl = 1 m^3
+            ! 86400 s = 1 day
+            ! 40 in = 1 m
 
+            !u_w = 1 / mu K(grad p + rho g)
+            ![u_w] = um/s = [1 / mu K rho g] = 1 / (kg/(um s)) * um^2 * kg / um^3 * um/s^2
+            ![u_w] = um/s = [1 / mu K grad p] = 1 / (kg/(um s)) * um^2 * kg/(um s^2) / um
+
+            !convert pressure: Pa * (cfg%scaling m/um) = psi (pounds per square inch) * (6894.75729 Pa/psi) * (cfg%scaling m/um)
+            !so: [grad p] = 1 Pa/m * (cfg%scaling m/um)^2 = 1 Pa/um * (cfg%scaling m/um)
             cfg%r_p_in = cfg%r_p_in * 6894.75729_SR * cfg%scaling
             cfg%r_p_prod = cfg%r_p_prod * 6894.75729_SR * cfg%scaling
 
-            !convert viscosity (Pa * s = kg/(m * s^2) * s = kg/(um * s^2) * (cfg%scaling m/um)
+            !convert viscosity: kg/(um * s) = kg/(m * s^2) * s * (cfg%scaling m/um) = N / m^2 * s * (cfg%scaling m/um) = Pa * s * (cfg%scaling m/um)
             cfg%r_nu_w = cfg%r_nu_w * cfg%scaling
             cfg%r_nu_n = cfg%r_nu_n * cfg%scaling
 
-            !convert density (kg/(m^3) = kg/(um^3) * (cfg%scaling m/um)^3
+            !convert density: kg/(um^3) = kg/(m^3) * (cfg%scaling m/um)^3
             cfg%r_rho_w = cfg%r_rho_w * (cfg%scaling ** 3)
             cfg%r_rho_n = cfg%r_rho_n * (cfg%scaling ** 3)
 
-            !Inflow condition: (bbl/day) * / ((6.28981077 bbl/m^3) * (86400 s/day)) = m^3 / s
-            !(m^3 / s) / (cfg%scaling m/um)^3 = um^3 / s
-            cfg%r_inflow = cfg%r_inflow / (6.28981077 * 86400) / (cfg%scaling ** 3)
+            !Inflow condition: um^3 / s = (m^3 / s) / (cfg%scaling m/um)^3 = (bbl/day) * / ((6.28981077 bbl/m^3) * (86400 s/day)) / (cfg%scaling m/um)^3
+            cfg%r_inflow = cfg%r_inflow / (6.28981077_SR * 86400.0_SR) / (cfg%scaling ** 3)
 
-            !Well radius: in / (40 m/in * cfg%scaling m/um) = um
+            !Well radius: um = in / (40 in/m * cfg%scaling m/um)
             cfg%r_well_radius = cfg%r_well_radius / (40.0_SR * cfg%scaling)
 
-            !convert g from (m / s^2) to (m / s^2) / (cfg%scaling m / um) = (um / s^2) so
-            ![u] = [K / mu * (-grad p + rho * g)] = 1 um^2 / (Pa*(m/um) * s) * (Pa*(m/um)/um + (kg / um^3) * (um / s^2)) =
-            != um^2 / (m * s) + 1 / (kg/(um * s^2) * s) * kg * (1 / s^2) = um / s + um / s
+            !convert g: (um / s^2) = (m / s^2) / (cfg%scaling m / um)
             g = g / cfg%scaling
+
+            !In  total [u] = [K / nu * (-grad p + rho * g)] = 1 (m^2 / (cfg%scaling m/um)^2) / (Pa*(cfg%scaling m/um) * s) * (Pa*(cfg%scaling m/um)/um + (kg / m^3 * (cfg%scaling m/um)^3) * (m / s^2 / (cfg%scaling m / um))) =
+            != 1 m^2 / (Pa * s) / (cfg%scaling m/um)^3 * ((Pa / um)*(cfg%scaling m/um) + (Pa/m)*(cfg%scaling m/um)^2)
+            != 1 m^2 / (s * (cfg%scaling m/um)) * (1/m + 1/m) = 1 (m / s) / (cfg%scaling m/um)
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
