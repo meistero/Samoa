@@ -159,8 +159,13 @@
                     end if
                end associate
 #           else
+               if (cfg%s_test_case_name .eq. 'standing_wave') then
+                cfg%scaling = 10.0_GRID_SR
+                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+               else
                 cfg%scaling = 1.0_GRID_SR
                 cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                endif
 #			endif
 		end subroutine
 
@@ -315,8 +320,8 @@
                     call swe%euler%traverse(grid)
 
                     !call pressure solver
-                    call swe%lse_traversal%traverse(grid)
-                    i_lse_iterations = swe%pressure_solver%solve(grid)
+                    !call swe%lse_traversal%traverse(grid)
+                    !i_lse_iterations = swe%pressure_solver%solve(grid)
 
                     if (cfg%l_lse_output) then
                        ! call swe%lse_output%traverse(grid)
@@ -371,10 +376,12 @@
 
 				!do a time step
 				call swe%euler%traverse(grid)
-                call swe%lse_traversal%traverse(grid)
-				i_lse_iterations = swe%pressure_solver%solve(grid)
-				if (cfg%l_lse_output) then
-                    call swe%lse_output%traverse(grid)
+				if (cfg%l_swe_nh) then
+                    call swe%lse_traversal%traverse(grid)
+                    i_lse_iterations = swe%pressure_solver%solve(grid)
+                    if (cfg%l_lse_output) then
+                        call swe%lse_output%traverse(grid)
+                    end if
                 end if
 				i_time_step = i_time_step + 1
 

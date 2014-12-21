@@ -232,12 +232,21 @@
 			real (kind = GRID_SR), parameter					:: inner_height = 10.0
             real (kind = GRID_SR)                               :: xs(2)
 
+            !standing wave
+            real (kind=GRID_SR)                                 ::d=-5
+            real (kind=GRID_SR)                                 :: amplitude=0.1
+            real (kind=GRID_SR)                                 :: wavelength=20
+
             xs = cfg%scaling * x + cfg%offset
 
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
 #			else
+                if(cfg%s_test_case_name .eq. 'standing_wave') then
+                    Q%h= -d+ amplitude*(cos(2_GRID_SR*3.1415927_GRID_SR*(xs(1)-10_GRID_SR)/wavelength))
+                else
 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+                endif
 #			endif
 
 			Q%p = 0.0_GRID_SR
@@ -288,8 +297,17 @@
                 real (kind = GRID_SR), parameter					:: outer_height = -100.0
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
 
-                xs = cfg%scaling * x + cfg%offset
-				bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+
+                !standing wave parameters
+                real (kind=GRID_SR), parameter                       :: d=-5.0
+
+                if(cfg%s_test_case_name .eq. 'standing_wave') then
+                    xs = cfg%scaling * x + cfg%offset
+                    bathymetry = d
+                else
+                    xs = cfg%scaling * x + cfg%offset
+                    bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+                endif
 #			endif
 		end function
 	END MODULE

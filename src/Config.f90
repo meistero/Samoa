@@ -71,6 +71,7 @@ module config
             !integer			        	        :: i_CG_restart			                            !< CG restart interval
             logical                             :: l_lse_output                                     !< print out the linear equation system
             character(256)                      :: s_test_case_name
+            logical                             :: l_swe_nh
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -111,7 +112,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave -swe_nh"
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -175,6 +176,7 @@ module config
             config%i_lsolver = iget('samoa_lsolver')
             config%l_lse_output = lget('samoa_lseoutput')
             config%s_test_case_name= sget('samoa_test_case',256)
+            config%l_swe_nh = lget('samoa_swe_nh')
 #       endif
 
         if (rank_MPI == 0) then

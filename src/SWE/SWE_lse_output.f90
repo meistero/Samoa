@@ -153,6 +153,7 @@
 
 			real (kind = GRID_SR)       :: A(3, 3)
 			real (kind = GRID_SR)       :: qp(3)
+            real (kind = GRID_SR)       :: rhs(3)
 
 			real (kind = GRID_SR)       :: r_indices(3)		!< point data indices
 			integer (kind = GRID_SI)    :: indices(3)		!< point data indices
@@ -161,7 +162,7 @@
 			call gm_A%read(element, A)
 			call gv_qp%read(element, qp)
 			call gv_r%read(element, r_indices)
-            !call gv_rhs%read(element, rhs)
+            call gv_rhs%read(element, rhs)
 
 			indices(:) = int(r_indices(:), kind=GRID_SI)
 			!qp = samoa_basis_p_dofs_to_values(qp)
@@ -177,6 +178,7 @@
                     end do
 
                     traversal%qp(indices(i)) = qp(i)
+                    traversal%rhs(indices(i))= traversal%rhs(indices(i))+ rhs(i)
                end if
             end do
 		end subroutine
