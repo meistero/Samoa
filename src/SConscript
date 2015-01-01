@@ -71,6 +71,7 @@ f90_sources = [
 "SWE/SWE_non_hydrostatic_pressure_jacobi.f90",
 "SWE/SWE_lse_output.f90",
 "SWE/SWE_LSE_traversal.f90",
+"SWE/SWE_NH_traversal.f90",
 "geoclaw/c_bind_riemannsolvers.f90",
 "Samoa/Samoa.f90",
 "Samoa/Tools_quadrature_rule_base.f90",

@@ -1,0 +1,66 @@
+#include "Compilation_control.f90"
+
+#if defined (_SWE)
+        MODULE SWE_NH_traversal
+            use SFC_edge_traversal
+            use Samoa_swe
+
+        type num_traversal_data
+        end type
+
+        type(swe_gv_qp)  :: gv_qp
+
+#define _GT_NAME t_swe_nh_traversal
+
+#define _GT_NODES
+#define  _GT_EDGES
+#define _GT_EDGES_TEMP
+#define _GT_ELEMENT_OP element_op
+!#define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
+
+
+#include "SFC_generic_traversal_ringbuffer.f90"
+subroutine element_op(traversal, section, element)
+    type(t_swe_nh_traversal), intent(inout) :: traversal
+    type(t_grid_section), intent(inout) :: section
+    type(t_element_base), intent(inout), target	:: element
+
+
+real (kind=GRID_SR),dimension(2):: p, p_local
+real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area
+!logical, dimension(3)           :: is_dirichlet
+
+c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+p=element%cell%data_pers%Q(1)%p
+p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
+p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+h= element%cell%data_pers%Q(1)%h
+hu=p_local(1)
+hv=p_local(2)
+w= element%cell%data_pers%Q(1)%w
+dt=section%r_dt
+!is_dirichlet=element%cell%data_pers%is_dirichlet
+
+q1= element%nodes(1)%ptr%data_pers%qp(1)
+q2= element%nodes(2)%ptr%data_pers%qp(1)
+q3= element%nodes(3)%ptr%data_pers%qp(1)
+
+!correction q =q1 + (x/(2*c)) * (q2 - q1) + (y/(2*c))  * (q3 - q1)
+area= (2*c)** 2 *0.5_GRID_SR
+hu= hu - 0.5_GRID_SR* dt*(h*h * (q2-q1)/(2*c))
+hv= hv - 0.5_GRID_SR* dt*(h*h * (q3-q1)/(2*c))
+w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q2+q3))
+
+p_local(1)=hu
+p_local(2)=hv
+
+p(1:2) = samoa_barycentric_to_world_normal(element%transform_data, p_local(1:2))
+p(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+element%cell%data_pers%Q(1)%p=p
+element%cell%data_pers%Q(1)%w=w
+
+end subroutine
+end module
+#endif
