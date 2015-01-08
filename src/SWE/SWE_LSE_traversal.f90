@@ -19,7 +19,7 @@
 
 #define _GT_NODES
 #define  _GT_EDGES
-#		define _GT_EDGES_TEMP
+#define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 
@@ -36,6 +36,7 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     type(t_node_data), intent(inout) :: node
     node%data_pers%rhs = 0.0_GRID_SR
     node%data_pers%qp = 0.0_GRID_SR
+
     if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR .and. node%position(2) > 0.0_GRID_SR .and. node%position(2) < 1.0_GRID_SR ) then
             node%data_pers%is_dirichlet_boundary = .false.
     else
@@ -57,41 +58,101 @@ subroutine element_op(traversal, section, element)
     real (kind = GRID_SR)  :: mat(3, 3)
     real (kind=GRID_SR) :: c,dt
     real(kind=GRID_SR):: h,hu,hv,w
-    real (kind=GRiD_SR),dimension(2):: p, p_local
-    c=0.5_GRID_SR * element%cell%geometry%get_leg_size() !TODO
-    dt=section%r_dt !TODO
+    real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y
+    real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp
 
-    !write (*,*) 'element_op'
+    !nxvn=-1
+    !nxvp=1
+    !nyvp=0
+    !nxvn=0
+
+    !nxhn=0
+    !nxhp=0
+    !nyhn=-1
+    !nyhp=1
+
+
+    normal_x(1)=1
+    normal_x(2)=0
+
+    normal_y(1)=0
+    normal_y(2)=1
+
+
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    dt=section%r_dt
 
     h= element%cell%data_pers%Q(1)%h
-    !hu= element%cell%data_pers%Q(1)%p(1)
-    !hv= element%cell%data_pers%Q(1)%p(2)
-    p=element%cell%data_pers%Q(1)%p
+    hu= element%cell%data_pers%Q(1)%p(1)
+    hv= element%cell%data_pers%Q(1)%p(2)
     w= element%cell%data_pers%Q(1)%w
 
+    normal_x(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_x(1:2))
+    normal_x(1:2)= normal_x(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+
+    normal_y(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_y(1:2))
+    normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+
+    !write (*,*) 'h: ', h
+    !write (*,*) 'normal_x rotated: ',normal_x
+    !write (*,*) 'normal_y rotated: ',normal_y
+
+    nxvp=normal_x(1)
+    nyvp=normal_x(2)
+
+    nxhp=normal_y(1)
+    nyhp=normal_y(2)
+
+    nxvn=-nxvp
+    nyvn=-nyvp
+    nxhn=-nxhp
+    nyhn=-nyhp
+
+
+    !p=element%cell%data_pers%Q(1)%p
     !rotate p so it points in the right direction (no scaling!)
-    p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
-    p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-    hu=p_local(1)
-    hv=p_local(2)
-
-
-    mat= reshape([c*0.5_GRID_SR*dt*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR), -c*dt*0.5_GRID_SR*h*h+dt*0.5_GRID_SR*c*c, (1._GRID_SR/6._GRID_SR)*dt*c*c, &
-            -c*h*h*dt*0.5_GRID_SR+2*dt*c*c*(1._GRID_SR/12._GRID_SR), c*dt*0.5_GRID_SR*h*h+c*dt*0.5_GRID_SR*h*h+dt*c*c, -c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/12._GRID_SR),&
-            (1._GRID_SR/6._GRID_SR)*dt*c*c,-c*dt*0.5_GRID_SR*h*h+2*dt*c*c*0.25_GRID_SR, c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR) &
-            ],[3,3])
+    !p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
+    !p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+    !hu=p_local(1)
+    !hv=p_local(2)
+    !mat= reshape([c*0.5_GRID_SR*dt*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR), -c*dt*0.5_GRID_SR*h*h+dt*0.5_GRID_SR*c*c, (1._GRID_SR/6._GRID_SR)*dt*c*c, &
+         !   -c*h*h*dt*0.5_GRID_SR+2*dt*c*c*(1._GRID_SR/12._GRID_SR), c*dt*0.5_GRID_SR*h*h+c*dt*0.5_GRID_SR*h*h+dt*c*c, -c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/12._GRID_SR),&
+          !  (1._GRID_SR/6._GRID_SR)*dt*c*c,-c*dt*0.5_GRID_SR*h*h+2*dt*c*c*0.25_GRID_SR, c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR) &
+          !  ],[3,3])
     !write (*,*) 'matrix=',mat
     !write (*,*) ''
+    !rhs= [-c*hu+ 0.5_GRID_SR*c*c*w,c*hv+c*hu+c*c*w,-c*hv+0.5_GRID_SR*c*c*w]
+
+    mat(1,1)= 2*dt*c*c* (1_GRID_SR/3_GRID_SR)+ dt*0.25_GRID_SR*(-nxvn)
+    mat(1,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)+dt*0.25_GRID_SR*h*h*(nxvn+nyvn)
+    mat(1,3)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)+dt*0.25_GRID_SR*h*h*(-nyvn)
+
+    mat(2,1)= 0.5_GRID_SR*c*c*dt+ 0.25_GRID_SR*dt*h*h*(-nxhp-nxvp)
+    mat(2,2)= c*c*dt+ 0.25_GRID_SR *dt*h*h*(nxhp+nyhp+nxvp+nyvp)
+    mat(2,3)= 0.5_GRID_SR*c*c*dt + 0.25_GRID_SR*dt*h*h*(-nyhp-nyvp)
+
+    mat(3,1)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) - 0.25_GRID_SR*dt*h*h*nxhn
+    mat(3,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) +0.25_GRID_SR*dt*h*h *(nxhn+nyhn)
+    mat(3,3)= c*c*dt*(2_GRID_SR/3_GRID_SR) - 0.25_GRID_SR*dt*h*h*nyhn
 
 
-    rhs= [-c*hu+ 0.5_GRID_SR*c*c*w,c*hv+c*hu+c*c*w,-c*hv+0.5_GRID_SR*c*c*w]
 
+    rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*(nxhp+nxvp)-hv*(c*(nyhp+nyvp)), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]
+
+    if (element%nodes(1)%ptr%data_pers%is_dirichlet_boundary(1)) then
+        rhs(1)=0
+    endif
+
+    if (element%nodes(2)%ptr%data_pers%is_dirichlet_boundary(1)) then
+        rhs(2)=0
+    endif
+
+    if (element%nodes(3)%ptr%data_pers%is_dirichlet_boundary(1)) then
+        rhs(3)=0
+    endif
     !write (*,*) 'rhs=',rhs
-    !write (*,*) ''
 
     call gm_a%write(element, mat)
-        !call element operator
-        !call alpha_volume_op(element, saturation, p, rhs, is_dirichlet, element%cell%data_pers%base_permeability)
     call gv_rhs%add_to_element(element, rhs)
 end subroutine
 end MODULE
