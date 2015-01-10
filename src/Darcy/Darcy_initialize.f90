@@ -9,6 +9,7 @@
 	MODULE Darcy_initialize_pressure
 		use SFC_edge_traversal
 
+        use iso_c_binding
 		use Samoa_darcy
 		use Tools_noise
 
@@ -94,6 +95,7 @@
                 do i = 1, _DARCY_LAYERS
                     x(3) = (i - 0.5_SR) / real(_DARCY_LAYERS, SR)
 
+                    !horizontal permeability is assumed to be isotropic
                     base_permeability(i, :) = get_base_permeability(section, x, element%cell%geometry%i_depth / 2_GRID_SI)
                     porosity(i) = get_porosity(section, x)
                 end do
@@ -115,9 +117,15 @@
  			type(t_grid_section), intent(inout)					:: section
 			real (kind = GRID_SR), intent(in)		            :: x(:)						!< position in world coordinates
 			integer (kind = GRID_SI), intent(in)				:: lod						!< level of detail
-			real (kind = GRID_SR)								:: r_base_permeability		!< permeability tensor
+
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR)							:: r_base_permeability(2)	!< permeability tensor
+#           else
+                real (kind = GRID_SR)							:: r_base_permeability		!< permeability tensor
+#           endif
 
             real (kind = GRID_SR)                               :: xs(3)
+            real (kind = GRID_SR), target						:: buffer(3)
 
             xs(1:2) = cfg%scaling * x(1:2) + cfg%offset
             xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3)
@@ -129,10 +137,21 @@
                 section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #           endif
 
-            if (grid_min_x(cfg%afh_permeability) <= xs(1) .and. grid_min_y(cfg%afh_permeability) <= xs(2) &
-                    .and. xs(1) <= grid_max_x(cfg%afh_permeability) .and. xs(2) <= grid_max_y(cfg%afh_permeability)) then
+            if (grid_min_x(cfg%afh_permeability_X) <= xs(1) .and. grid_min_y(cfg%afh_permeability_X) <= xs(2) &
+                    .and. xs(1) <= grid_max_x(cfg%afh_permeability_X) .and. xs(2) <= grid_max_y(cfg%afh_permeability_X)) then
 
-                r_base_permeability = grid_get_float_3d(cfg%afh_permeability, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+
+                !assume horizontally isotropic permeability
+                assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
+
+#               if (_DARCY_LAYERS > 0)
+                    r_base_permeability = buffer(2:3)
+#               else
+                    r_base_permeability = buffer(1)
+#               endif
 
                 !convert from mD to m^2 to um^2
                 r_base_permeability = r_base_permeability * 9.869233e-16_SR / (cfg%scaling ** 2)
@@ -383,7 +402,7 @@
                 logical, intent(out)			                                    :: is_dirichlet(:, :)
                 real (kind = GRID_SR), intent(in)                                   :: base_permeability(:, :)
 
-                real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, inflow(3), edge_length, surface, dz
+                real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, inflow(3), edge_length, surface, dz, permeability_sum
                 real (kind = GRID_SR)                               :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3), lambda_t(_DARCY_LAYERS, 7)
                 integer                                             :: i
 
@@ -405,13 +424,16 @@
                         !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
                         !Split the inflow over all primary cells in each layer that share the dual cell column
 
-                        inflow = cfg%r_inflow / (8.0_SR * real(_DARCY_LAYERS, SR)) * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
+                        permeability_sum = sum(base_permeability(:, 1))
+                        if (permeability_sum > 0.0_SR) then
+                            inflow = cfg%r_inflow / (permeability_sum * 8.0_SR) * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
 
-                        forall(i = 1:_DARCY_LAYERS, base_permeability(i, 1) > 0.0_SR)
-                            rhs(i:i + 1, 1) = rhs(i:i + 1, 1) + inflow(1)
-                            rhs(i:i + 1, 2) = rhs(i:i + 1, 2) + inflow(2)
-                            rhs(i:i + 1, 3) = rhs(i:i + 1, 3) + inflow(3)
-                        end forall
+                            forall(i = 1:_DARCY_LAYERS)
+                                rhs(i:i + 1, 1) = rhs(i:i + 1, 1) + base_permeability(i, 1) * inflow(1)
+                                rhs(i:i + 1, 2) = rhs(i:i + 1, 2) + base_permeability(i, 1) * inflow(2)
+                                rhs(i:i + 1, 3) = rhs(i:i + 1, 3) + base_permeability(i, 1) * inflow(3)
+                            end forall
+                        end if
                     end if
                 end if
 

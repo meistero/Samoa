@@ -136,10 +136,14 @@
                 end select
 
 #               if defined(_ASAGI_NUMA)
-                    cfg%afh_permeability = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
+                    cfg%afh_permeability_X = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
+                    cfg%afh_permeability_Y = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
+                    cfg%afh_permeability_Z = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
                     cfg%afh_porosity = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
 #               else
-                    cfg%afh_permeability = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
+                    cfg%afh_permeability_X = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
+                    cfg%afh_permeability_Y = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
+                    cfg%afh_permeability_Z = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
                     cfg%afh_porosity = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
 #               endif
 
@@ -150,10 +154,18 @@
                     !$omp end parallel
 #               endif
 
-                i_error = asagi_open(cfg%afh_permeability, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
+                i_error = grid_set_param(cfg%afh_permeability_X, "variable-name", "z"); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(cfg%afh_permeability_X, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
+
+                i_error = grid_set_param(cfg%afh_permeability_Y, "variable-name", "Ky"); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(cfg%afh_permeability_Y, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
+
+                i_error = grid_set_param(cfg%afh_permeability_Z, "variable-name", "Kz"); assert_eq(i_error, GRID_SUCCESS)
+                i_error = asagi_open(cfg%afh_permeability_Z, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
+
                 i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
 
-                associate(afh_perm => cfg%afh_permeability, afh_phi => cfg%afh_porosity)
+                associate(afh_perm => cfg%afh_permeability_X, afh_phi => cfg%afh_porosity)
                     cfg%scaling = max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
                     cfg%offset = [0.5_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm) - cfg%scaling), 0.5_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm) - cfg%scaling)]
                     cfg%dz = real(grid_max_z(afh_perm) - grid_min_z(afh_perm), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
@@ -250,7 +262,9 @@
 			endif
 
 #			if defined(_ASAGI)
-				call asagi_close(cfg%afh_permeability)
+				call asagi_close(cfg%afh_permeability_X)
+				call asagi_close(cfg%afh_permeability_Y)
+				call asagi_close(cfg%afh_permeability_Z)
 				call asagi_close(cfg%afh_porosity)
 #			endif
 		end subroutine

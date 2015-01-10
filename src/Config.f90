@@ -55,7 +55,9 @@ module config
 #    	if defined(_DARCY)
             character(256)                      :: s_permeability_file                              !< permeability file
             character(256)                      :: s_porosity_file                                  !< porosity file
- 			integer					 		    :: afh_permeability			                        !< asagi file handle to permeability data
+ 			integer					 		    :: afh_permeability_X			                    !< asagi file handle to X-axis permeability data
+ 			integer					 		    :: afh_permeability_Y			                    !< asagi file handle to Y-axis permeability data
+ 			integer					 		    :: afh_permeability_Z			                    !< asagi file handle to Z-axis permeability data
  			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
             integer			        	        :: i_lsolver			                		    !< linear solver
             integer			        	        :: i_max_iterations			                		!< maximum linear iterations of the solver

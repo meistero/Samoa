@@ -24,7 +24,7 @@
 
 		!> Output cell data
 		type t_output_cell_data
-			real (kind = GRID_SR)			        :: permeability
+			real (kind = GRID_SR)			        :: permeability(3)
 			real (kind = GRID_SR)			        :: porosity
 			real (kind = GRID_SR)					:: u(3)
             integer (kind = GRID_SI)			    :: rank
@@ -116,7 +116,7 @@
                         e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
                         e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
-                            e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 3)
                             e_io = vtk%VTK_VAR_XML('porosity', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
                             e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
@@ -225,7 +225,7 @@
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability)
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability(1), traversal%cell_data%permeability(2), traversal%cell_data%permeability(3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'porosity', traversal%cell_data%porosity)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), traversal%cell_data%u(3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
@@ -291,7 +291,8 @@
                 do layer = 1, _DARCY_LAYERS
                     traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
                     traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-                    traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability(layer, 1) / 9.869233e-16_SR
+                    traversal%cell_data(traversal%i_cell_data_index)%permeability(1:2) = element%cell%data_pers%base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
+                    traversal%cell_data(traversal%i_cell_data_index)%permeability(3) = element%cell%data_pers%base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
                     traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity(layer)
 
                     call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 1) + p(layer + 1, 1)), u_w(1), u_n(1), g_local(1))
@@ -335,7 +336,7 @@
 
                 traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
                 traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-                traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR
+                traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
                 traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity
 
                 call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 1), u_w(1), u_n(1), g_local(1))
