@@ -270,8 +270,14 @@
 			real (kind = GRID_SR)               :: r_point_data_indices(_DARCY_LAYERS + 1, 3)		!< point data indices
 			integer (kind = GRID_SI)            :: point_data_indices(3)		!< point data indices
 
-            real (kind = GRID_SR)				:: g_local(3), edge_length, dz
+            real (kind = GRID_SR)				:: edge_length, dz
             real (kind = SR)                    :: u_w(3), u_n(3)
+
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR)			:: g_local(3)
+#           else
+                real (kind = GRID_SR)			:: g_local(2)
+#           endif
 
 			call gv_p%read_from_element(element, p)
 
