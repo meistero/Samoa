@@ -101,8 +101,13 @@
                     try(.false., "Invalid linear solver, must be in range 0 to 3")
             end select
 
-			!open log file
 			call date_and_time(s_date, s_time)
+
+#           if defined(_MPI)
+                call mpi_bcast(s_date, len(s_date), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+                call mpi_bcast(s_time, len(s_time), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+#           endif
+
 			write (darcy%vtk_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
 			write (darcy%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
 
