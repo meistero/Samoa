@@ -383,7 +383,7 @@
                     i_lse_iterations = darcy%pressure_solver%solve(grid)
                 end if
 
-				!compute velocity field
+				!compute velocity field (to determine the time step size)
 				call darcy%grad_p%traverse(grid)
 
 				!transport equation time step

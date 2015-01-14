@@ -231,6 +231,7 @@
 
 #		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
+#		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
 #		define	_GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 #		define	_GT_PRE_TRAVERSAL_OP			pre_traversal_op
@@ -307,6 +308,14 @@
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 		end subroutine
 
+		elemental subroutine node_last_touch_op(traversal, section, node)
+ 			type(t_darcy_init_saturation_traversal), intent(in)                     :: traversal
+ 			type(t_grid_section), intent(in)							:: section
+			type(t_node_data), intent(inout)			:: node
+
+			call flow_post_dof_op(node%data_pers%rhs, node%data_temp%is_dirichlet_boundary)
+		end subroutine
+
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
@@ -319,6 +328,15 @@
 			saturation = 0.0_SR
 			rhs = 0.0_SR
 			is_dirichlet = .false.
+		end subroutine
+
+		elemental subroutine flow_post_dof_op(rhs, is_dirichlet)
+			real (kind = GRID_SR), intent(inout)				:: rhs
+			logical, intent(in)			                        :: is_dirichlet
+
+            if (is_dirichlet) then
+                rhs = 0.0_SR
+            end if
 		end subroutine
 
 		subroutine alpha_volume_op(traversal, element, saturation, p, rhs, is_dirichlet, base_permeability)
@@ -417,7 +435,10 @@
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 
-                        saturation = 1.0_SR
+                        inflow = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
+                        saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + inflow(1)))
+                        saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + inflow(2)))
+                        saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + inflow(3)))
                         call gv_saturation%write_to_element(element, saturation)
 
                         !The inflow condition is given in um^3 / s
@@ -445,13 +466,18 @@
                         !production well:
                         !set a constant pressure condition and an outflow saturation condition
 
-                        is_dirichlet = .true.
-                        p = cfg%r_p_prod
+                        inflow = [pos_prod(1), 1.0_SR - (pos_prod(1) + pos_prod(2)), pos_prod(2)]
+
+                        is_dirichlet(:, 1) = inflow(1) > epsilon(1.0_SR)
+                        is_dirichlet(:, 2) = inflow(2) > epsilon(1.0_SR)
+                        is_dirichlet(:, 3) = inflow(3) > epsilon(1.0_SR)
+
+                        where (is_dirichlet)
+                            p = cfg%r_p_prod
+                        end where
 
                         call gv_p%write_to_element(element, p)
                         call gv_is_dirichlet%add_to_element(element, is_dirichlet)
-
-                        rhs = 0.0_SR
                     end if
                 end if
 
@@ -482,13 +508,13 @@
                 if (element%transform_data%plotter_data%orientation > 0) then
                     element%cell%data_pers%lambda_t = lambda_t
                 else
-                    element%cell%data_pers%lambda_t(:, 2) = lambda_t(:, 1)
                     element%cell%data_pers%lambda_t(:, 1) = lambda_t(:, 2)
-                    element%cell%data_pers%lambda_t(:, 5) = lambda_t(:, 3)
-                    element%cell%data_pers%lambda_t(:, 4) = lambda_t(:, 4)
+                    element%cell%data_pers%lambda_t(:, 2) = lambda_t(:, 1)
                     element%cell%data_pers%lambda_t(:, 3) = lambda_t(:, 5)
-                    element%cell%data_pers%lambda_t(:, 7) = lambda_t(:, 6)
+                    element%cell%data_pers%lambda_t(:, 4) = lambda_t(:, 4)
+                    element%cell%data_pers%lambda_t(:, 5) = lambda_t(:, 3)
                     element%cell%data_pers%lambda_t(:, 6) = lambda_t(:, 7)
+                    element%cell%data_pers%lambda_t(:, 7) = lambda_t(:, 6)
                 end if
             end subroutine
 #       else
@@ -514,7 +540,7 @@
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 
-                        saturation = 1.0_SR
+                        saturation = max(0.0_SR, min(1.0_SR, saturation + [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]))
                         call gv_saturation%write_to_element(element, saturation)
 
                         if (base_permeability > 0) then
@@ -536,8 +562,12 @@
                     if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
                         !production well:
                         !set a constant pressure condition and an outflow saturation condition
-                        is_dirichlet = .true.
-                        p = cfg%r_p_prod
+
+                        is_dirichlet = [pos_prod(1) > epsilon(1.0_SR), 1.0_SR - (pos_prod(1) + pos_prod(2)) > epsilon(1.0_SR), pos_prod(2) > epsilon(1.0_SR)]
+
+                        where (is_dirichlet)
+                            p = cfg%r_p_prod
+                        end where
 
                         call gv_p%write_to_element(element, p)
                         call gv_is_dirichlet%add_to_element(element, is_dirichlet)
@@ -562,13 +592,13 @@
                 if (element%transform_data%plotter_data%orientation > 0) then
                     element%cell%data_pers%lambda_t = lambda_t
                 else
-                    element%cell%data_pers%lambda_t(2) = lambda_t(1)
                     element%cell%data_pers%lambda_t(1) = lambda_t(2)
+                    element%cell%data_pers%lambda_t(2) = lambda_t(1)
                 end if
             end subroutine
 #       endif
 
-        elemental subroutine compute_rhs_1D(dx, area, base_permeability, pL, pR, lambda_wL, lambda_wR, lambda_nL, lambda_nR, g_local, rhsL, rhsR, lambda_t)
+        subroutine compute_rhs_1D(dx, area, base_permeability, pL, pR, lambda_wL, lambda_wR, lambda_nL, lambda_nR, g_local, rhsL, rhsR, lambda_t)
             real (kind = GRID_SR), intent(in)       :: area, dx, base_permeability, pL, pR, lambda_wL, lambda_wR, lambda_nL, lambda_nR, g_local
             real (kind = GRID_SR), intent(inout)    :: rhsL, rhsR, lambda_t
 

@@ -254,7 +254,6 @@
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(inout)       :: d(:)
-
                 if (element%transform_data%plotter_data%orientation > 0) then
                     call get_trace3D( &
                         d(1 : _DARCY_LAYERS + 1), d(_DARCY_LAYERS + 1 + 1 : 2 * (_DARCY_LAYERS + 1)), d(2 * (_DARCY_LAYERS + 1) + 1 : 3 * (_DARCY_LAYERS + 1)), &
