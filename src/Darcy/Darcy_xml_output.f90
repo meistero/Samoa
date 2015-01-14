@@ -16,26 +16,36 @@
 
 		!> Output point data
 		type t_output_point_data
-			real (kind = GRID_SR)				    :: coords(3)
-			real (kind = GRID_SR)			        :: p
-			real (kind = GRID_SR)			        :: S
-			real (kind = GRID_SR)			        :: rhs
+			real (kind = GRID_SR), allocatable				    :: coords(:, :)
+			real (kind = GRID_SR), allocatable			        :: p(:)
+			real (kind = GRID_SR), allocatable			        :: S(:)
+			real (kind = GRID_SR), allocatable			        :: rhs(:)
+
+			contains
+
+			procedure, pass :: create => point_data_create
+			procedure, pass :: destroy => point_data_destroy
 		end type
 
 		!> Output cell data
 		type t_output_cell_data
-			real (kind = GRID_SR)			        :: permeability(3)
-			real (kind = GRID_SR)			        :: porosity
-			real (kind = GRID_SR)					:: u(3)
-            integer (kind = GRID_SI)			    :: rank
-            integer (kind = GRID_SI)			    :: section_index
-			integer (BYTE)					        :: depth
-			integer (BYTE)					        :: refinement
+			real (kind = GRID_SR), allocatable			        :: permeability(:, :)
+			real (kind = GRID_SR), allocatable			        :: porosity(:)
+			real (kind = GRID_SR), allocatable					:: u(:, :)
+            integer (kind = GRID_SI), allocatable			    :: rank(:)
+            integer (kind = GRID_SI), allocatable			    :: section_index(:)
+			integer (BYTE), allocatable					        :: depth(:)
+			integer (BYTE), allocatable					        :: refinement(:)
+
+			contains
+
+			procedure, pass :: create => cell_data_create
+			procedure, pass :: destroy => cell_data_destroy
 		end type
 
         type num_traversal_data
-            type(t_output_point_data), allocatable		            :: point_data(:)
-            type(t_output_cell_data), allocatable			        :: cell_data(:)
+            type(t_output_point_data)                               :: point_data
+            type(t_output_cell_data)                                :: cell_data
             integer (kind = GRID_SI), allocatable			        :: i_connectivity(:)
             character(len=64)							            :: s_file_stamp
 
@@ -104,6 +114,7 @@
 #           else
                 if (rank_MPI == 0) then
                     write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+
                     e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
                         e_io = vtk%VTK_DAT_XML('pfield', 'OPEN')
                             e_io = vtk%VTK_VAR_XML('time', 1.0_GRID_SR, 1)
@@ -138,6 +149,7 @@
                                 end if
                             end do
                         end do
+
                     e_io = vtk%VTK_END_XML()
                 end if
 #           endif
@@ -162,9 +174,8 @@
 #           else
                 allocate(traversal%i_connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
 #           endif
-
-			allocate(traversal%point_data(i_points), stat = i_error); assert_eq(i_error, 0)
-			allocate(traversal%cell_data(i_cells), stat = i_error); assert_eq(i_error, 0)
+			call traversal%point_data%create(i_points)
+			call traversal%cell_data%create(i_cells)
 
 			traversal%i_cell_data_index = 1
 			traversal%i_point_data_index = 1
@@ -183,8 +194,8 @@
 			integer(4)													:: e_io, i
 
             grid_info = section%get_info()
-			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
 
+			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
 			i_points = (_DARCY_LAYERS + 1) * (grid_info%i_nodes + sum(grid_info%i_boundary_nodes))
 
 			allocate(i_offsets(i_cells), stat = i_error); assert_eq(i_error, 0)
@@ -214,7 +225,7 @@
                         e_io = vtk%VTK_VAR_XML(1, 'time', [section%r_time])
                     e_io = vtk%VTK_DAT_XML('field', 'CLOSE')
 
-                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), traversal%point_data%coords(3))
+                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(:, 1), traversal%point_data%coords(:, 2), traversal%point_data%coords(:, 3))
 
                     e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
 
@@ -225,9 +236,9 @@
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability(1), traversal%cell_data%permeability(2), traversal%cell_data%permeability(3))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability(:, 1), traversal%cell_data%permeability(:, 2), traversal%cell_data%permeability(:, 3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'porosity', traversal%cell_data%porosity)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(1), traversal%cell_data%u(2), traversal%cell_data%u(3))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(:, 1), traversal%cell_data%u(:, 2), traversal%cell_data%u(:, 3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
@@ -242,8 +253,9 @@
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
 
 			deallocate(traversal%i_connectivity, stat = i_error); assert_eq(i_error, 0)
-			deallocate(traversal%cell_data, stat = i_error); assert_eq(i_error, 0)
-			deallocate(traversal%point_data, stat = i_error); assert_eq(i_error, 0)
+
+			call traversal%point_data%destroy()
+			call traversal%cell_data%destroy()
 
 			traversal%i_output_iteration = traversal%i_output_iteration + 1
 		end subroutine
@@ -295,11 +307,11 @@
                 dz = cfg%dz
 
                 do layer = 1, _DARCY_LAYERS
-                    traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
-                    traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-                    traversal%cell_data(traversal%i_cell_data_index)%permeability(1:2) = element%cell%data_pers%base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    traversal%cell_data(traversal%i_cell_data_index)%permeability(3) = element%cell%data_pers%base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity(layer)
+                    traversal%cell_data%rank(traversal%i_cell_data_index) = rank_MPI
+                    traversal%cell_data%section_index(traversal%i_cell_data_index) = section%index
+                    traversal%cell_data%permeability(traversal%i_cell_data_index, 1:2) = element%cell%data_pers%base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
+                    traversal%cell_data%permeability(traversal%i_cell_data_index, 3) = element%cell%data_pers%base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
+                    traversal%cell_data%porosity(traversal%i_cell_data_index) = element%cell%data_pers%porosity(layer)
 
                     call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 1) + p(layer + 1, 1)), u_w(1), u_n(1), g_local(1))
                     call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 3) + p(layer + 1, 3)), u_w(2), u_n(2), g_local(2))
@@ -310,10 +322,10 @@
                     u_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, u_w(1:2))
                     u_w(1:2) = u_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                    traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u_w
+                    traversal%cell_data%u(traversal%i_cell_data_index, :) = cfg%scaling * u_w
 
-                    traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
-                    traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+                    traversal%cell_data%depth(traversal%i_cell_data_index) = element%cell%geometry%i_depth
+                    traversal%cell_data%refinement(traversal%i_cell_data_index) = element%cell%geometry%refinement
 
                     point_data_indices = int(r_point_data_indices(layer, :), kind=GRID_SI)
                     traversal%i_connectivity(6 * traversal%i_cell_data_index - 5 : 6 * traversal%i_cell_data_index - 3) = point_data_indices - 1
@@ -328,11 +340,11 @@
                     point_data_indices(:) = int(r_point_data_indices(layer, :), kind=GRID_SI)
 
                     forall (i = 1 : 3)
-                        traversal%point_data(point_data_indices(i))%coords(1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                        traversal%point_data(point_data_indices(i))%coords(3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
-                        traversal%point_data(point_data_indices(i))%p = p(layer, i) / (cfg%scaling * 6894.75729_SR)
-                        traversal%point_data(point_data_indices(i))%rhs = rhs(layer, i) * (cfg%scaling ** 3)
-                        traversal%point_data(point_data_indices(i))%S = saturation(layer, i)
+                        traversal%point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
+                        traversal%point_data%coords(point_data_indices(i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
+                        traversal%point_data%p(point_data_indices(i)) = p(layer, i) / (cfg%scaling * 6894.75729_SR)
+                        traversal%point_data%rhs(point_data_indices(i)) = rhs(layer, i) * (cfg%scaling ** 3)
+                        traversal%point_data%S(point_data_indices(i)) = saturation(layer, i)
                     end forall
                 end do
 #           else
@@ -340,10 +352,10 @@
 
                 point_data_indices(:) = int(r_point_data_indices(1, :), kind=GRID_SI)
 
-                traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
-                traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
-                traversal%cell_data(traversal%i_cell_data_index)%permeability = element%cell%data_pers%base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
-                traversal%cell_data(traversal%i_cell_data_index)%porosity = element%cell%data_pers%porosity
+                traversal%cell_data%rank(traversal%i_cell_data_index) = rank_MPI
+                traversal%cell_data%section_index(traversal%i_cell_data_index) = section%index
+                traversal%cell_data%permeability(traversal%i_cell_data_index, :) = element%cell%data_pers%base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
+                traversal%cell_data%porosity(traversal%i_cell_data_index) = element%cell%data_pers%porosity
 
                 call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 1), u_w(1), u_n(1), g_local(1))
                 call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 3), u_w(2), u_n(2), g_local(2))
@@ -352,17 +364,17 @@
                 u_w(1:2) = u_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
                 u_w(3) = 0.0_SR
 
-                traversal%cell_data(traversal%i_cell_data_index)%u = cfg%scaling * u_w
+                traversal%cell_data%u(traversal%i_cell_data_index, :) = cfg%scaling * u_w
 
-                traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
-                traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement
+                traversal%cell_data%depth(traversal%i_cell_data_index) = element%cell%geometry%i_depth
+                traversal%cell_data%refinement(traversal%i_cell_data_index) = element%cell%geometry%refinement
 
                 forall (i = 1 : 3)
-                    traversal%point_data(point_data_indices(i))%coords(1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                    traversal%point_data(point_data_indices(i))%coords(3) = 0.0_SR
-                    traversal%point_data(point_data_indices(i))%p = p(1, i) / (cfg%scaling * 6894.75729_SR)
-                    traversal%point_data(point_data_indices(i))%rhs = rhs(1, i) * (cfg%scaling ** 2)
-                    traversal%point_data(point_data_indices(i))%S = saturation(1, i)
+                    traversal%point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
+                    traversal%point_data%coords(point_data_indices(i), 3) = 0.0_SR
+                    traversal%point_data%p(point_data_indices(i)) = p(1, i) / (cfg%scaling * 6894.75729_SR)
+                    traversal%point_data%rhs(point_data_indices(i)) = rhs(1, i) * (cfg%scaling ** 2)
+                    traversal%point_data%S(point_data_indices(i)) = saturation(1, i)
                 end forall
 
                 traversal%i_connectivity(3 * traversal%i_cell_data_index - 2 : 3 * traversal%i_cell_data_index) = point_data_indices(1:3) - 1
@@ -401,6 +413,59 @@
 
 			r = real(i_point_data_index, GRID_SR)
 			i_point_data_index = i_point_data_index + 1
+		end subroutine
+
+
+		subroutine point_data_create(point_data, i_points)
+			class(t_output_point_data), intent(inout)		:: point_data
+			integer(kind = GRID_SI), intent(in)			    :: i_points
+
+			integer (kind = GRID_SI)						:: i_error
+
+			allocate(point_data%coords(i_points, 3), stat = i_error); assert_eq(i_error, 0)
+			allocate(point_data%p(i_points), stat = i_error); assert_eq(i_error, 0)
+			allocate(point_data%S(i_points), stat = i_error); assert_eq(i_error, 0)
+			allocate(point_data%rhs(i_points), stat = i_error); assert_eq(i_error, 0)
+		end subroutine
+
+		subroutine point_data_destroy(point_data)
+			class(t_output_point_data), intent(inout)		:: point_data
+
+			integer (kind = GRID_SI)						:: i_error
+
+			deallocate(point_data%coords, stat = i_error); assert_eq(i_error, 0)
+			deallocate(point_data%p, stat = i_error); assert_eq(i_error, 0)
+			deallocate(point_data%S, stat = i_error); assert_eq(i_error, 0)
+			deallocate(point_data%rhs, stat = i_error); assert_eq(i_error, 0)
+		end subroutine
+
+		subroutine cell_data_create(cell_data, i_cells)
+			class(t_output_cell_data), intent(inout)		:: cell_data
+			integer(kind = GRID_SI), intent(in)			    :: i_cells
+
+			integer (kind = GRID_SI)						:: i_error
+
+			allocate(cell_data%permeability(i_cells, 3), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%porosity(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%u(i_cells, 3), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%rank(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%section_index(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%depth(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%refinement(i_cells), stat = i_error); assert_eq(i_error, 0)
+		end subroutine
+
+		subroutine cell_data_destroy(cell_data)
+			class(t_output_cell_data), intent(inout)		:: cell_data
+
+			integer (kind = GRID_SI)						:: i_error
+
+			deallocate(cell_data%permeability, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%porosity, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%u, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%rank, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%section_index, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%depth, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%refinement, stat = i_error); assert_eq(i_error, 0)
 		end subroutine
 	END MODULE
 #endif
