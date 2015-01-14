@@ -47,6 +47,7 @@
         use SWE_gv_r_mod
         use SWE_gv_is_dirichlet_boundary_mod
         use SWE_gv_rhs_mod
+        use SWE_gv_original_lse_orientation_mod
 
 		use SWE_Q_space
 		use SWE_flux_space

@@ -90,6 +90,7 @@
 		type num_cell_data_pers
 			type(t_state), DIMENSION(_SWE_CELL_SIZE)									:: Q            	!< cell status vector
 			real (kind=GRID_SR), dimension(3,3)                                          :: A
+			integer, dimension(1)                                                        :: original_lse_orientation
 		END type num_cell_data_pers
 
 		!> Cell representation on an edge, this would typically be everything required from a cell to compute the flux function on an edge

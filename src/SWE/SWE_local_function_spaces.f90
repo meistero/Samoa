@@ -30,9 +30,26 @@ contains
             class(swe_gm_A), intent(in)	    :: gm_A
             type(t_element_base), intent(in)    :: element
             real (kind = GRID_SR), intent(out)  :: mat(3, 3)
+            real (kind=GRID_SR)       :: temp(3)
+
+            mat=element%cell%data_pers%A
+            !write(*,*) 'mat before permutation', mat
+
+            if( (element%transform_data%plotter_data%orientation) /= (element%cell%data_pers%original_lse_orientation(1))) then
+                !permute rows
+                temp(:)=mat(1,:)
+                mat(1,:)=mat(3,:)
+                mat(3,:)= temp(:)
+
+                !permute columns
+                temp(:)=mat(:,1)
+                mat(:,1)=mat(:,3)
+                mat(:,3)=temp(:)
+
+                !write(*,*) 'mat before permutation', mat
+            endif
 
 
-        mat=element%cell%data_pers%A
         end subroutine
 
 
@@ -41,6 +58,21 @@ contains
           type(t_element_base), intent(inout)    :: element
           real (kind = GRID_SR), intent(in)  :: mat(3, 3)
             integer (kind = GRID_SI)			    :: i,j
+            !real (kind=GRID_SR)       :: mat_perm(3,3), temp(3)
+
+            !mat_perm=mat
+
+        !if (element%transform_data%plotter_data%orientation < 0) then
+          !permute rows
+         ! mat_perm(1,:)=mat(3,:)
+          !mat_perm(3,:)=mat(1,:)
+
+
+          !permute columns
+          !temp(:)=mat_perm(:,1)
+          !mat_perm(:,1)=mat_perm(:,3)
+          !mat_perm(:,3)=temp(:)
+        !endif
 
           do i=1,3
             do j=1,3
@@ -91,7 +123,17 @@ contains
 
         !end subroutine
 
+MODULE SWE_gv_original_lse_orientation_mod
+ use SFC_data_types
 
+
+#		define _GV_TYPE_NAME		swe_gv_original_lse_orientation
+#		define _GV_TYPE				integer
+#		define _GV_NAME				original_lse_orientation
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
 
 #	define _GV_CELL_SIZE		_SWE_P_CELL_SIZE
 #	define _GV_EDGE_SIZE		_SWE_P_EDGE_SIZE

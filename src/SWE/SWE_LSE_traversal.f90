@@ -12,6 +12,7 @@
         type(swe_gv_rhs) :: gv_rhs
         type(swe_gv_qp)  :: gv_qp
         type(swe_gm_a)   :: gm_a
+        type(swe_gv_original_lse_orientation):: gv_original_lse_orientation
 
         type(swe_gv_is_dirichlet_boundary):: gv_is_dirichlet
 
@@ -59,7 +60,7 @@ subroutine element_op(traversal, section, element)
     real (kind=GRID_SR) :: c,dt
     real(kind=GRID_SR):: h,hu,hv,w
     real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y
-    real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp
+    real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
     !nxvn=-1
     !nxvp=1
@@ -93,6 +94,15 @@ subroutine element_op(traversal, section, element)
     normal_y(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_y(1:2))
     normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
+
+    m11=element%transform_data%plotter_data%jacobian_inv(1,1)
+    m12=element%transform_data%plotter_data%jacobian_inv(1,2)
+    m21=element%transform_data%plotter_data%jacobian_inv(2,1)
+    m22=element%transform_data%plotter_data%jacobian_inv(2,2)
+    s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+
+    write (*,*) s
+    write (*,*) element%transform_data%plotter_data%jacobian_inv
     !write (*,*) 'h: ', h
     !write (*,*) 'normal_x rotated: ',normal_x
     !write (*,*) 'normal_y rotated: ',normal_y
@@ -109,6 +119,12 @@ subroutine element_op(traversal, section, element)
     nyhn=-nyhp
 
 
+    !write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2)
+
+    !write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
+
+    !write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
+    !write (*,*) 'orientation: ' , element%transform_data%plotter_data%orientation
     !p=element%cell%data_pers%Q(1)%p
     !rotate p so it points in the right direction (no scaling!)
     !p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
@@ -123,17 +139,17 @@ subroutine element_op(traversal, section, element)
     !write (*,*) ''
     !rhs= [-c*hu+ 0.5_GRID_SR*c*c*w,c*hv+c*hu+c*c*w,-c*hv+0.5_GRID_SR*c*c*w]
 
-    mat(1,1)= 2*dt*c*c* (1_GRID_SR/3_GRID_SR)+ dt*0.25_GRID_SR*(-nxvn)
-    mat(1,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)+dt*0.25_GRID_SR*h*h*(nxvn+nyvn)
-    mat(1,3)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)+dt*0.25_GRID_SR*h*h*(-nyvn)
+    mat(1,1)= 2*dt*c*c* (1_GRID_SR/3_GRID_SR)- dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21)
+    mat(1,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)+dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
+    mat(1,3)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)-dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22)
 
-    mat(2,1)= 0.5_GRID_SR*c*c*dt+ 0.25_GRID_SR*dt*h*h*(-nxhp-nxvp)
-    mat(2,2)= c*c*dt+ 0.25_GRID_SR *dt*h*h*(nxhp+nyhp+nxvp+nyvp)
-    mat(2,3)= 0.5_GRID_SR*c*c*dt + 0.25_GRID_SR*dt*h*h*(-nyhp-nyvp)
+    mat(2,1)= 0.5_GRID_SR*c*c*dt -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21)
+    mat(2,2)= c*c*dt+ 0.25_GRID_SR *dt*h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22))
+    mat(2,3)= 0.5_GRID_SR*c*c*dt - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22))
 
-    mat(3,1)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) - 0.25_GRID_SR*dt*h*h*nxhn
-    mat(3,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) +0.25_GRID_SR*dt*h*h *(nxhn+nyhn)
-    mat(3,3)= c*c*dt*(2_GRID_SR/3_GRID_SR) - 0.25_GRID_SR*dt*h*h*nyhn
+    mat(3,1)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21)
+    mat(3,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) +0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
+    mat(3,3)= c*c*dt*(2_GRID_SR/3_GRID_SR) - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22)
 
 
 
@@ -152,6 +168,8 @@ subroutine element_op(traversal, section, element)
     endif
     !write (*,*) 'rhs=',rhs
 
+    !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
+    element%cell%data_pers%original_lse_orientation=element%transform_data%plotter_data%orientation
     call gm_a%write(element, mat)
     call gv_rhs%add_to_element(element, rhs)
 end subroutine
