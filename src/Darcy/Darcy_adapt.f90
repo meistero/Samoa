@@ -197,7 +197,7 @@
 			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
 			integer					:: i, level
 
-            !make sure, the effective volume never turns out to be 0
+            !make sure, the effective volume never reaches 0
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
@@ -263,7 +263,7 @@
  			type(t_grid_section), intent(in)							:: grid
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_pers%d, node%data_pers%A_d)
+			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
 		end subroutine
 
 		!merge ops
@@ -302,18 +302,20 @@
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(saturation, volume, p, d, A_d)
+		elemental subroutine pre_dof_op(saturation, volume, p, d, A_d, rhs)
 			real (kind = GRID_SR), intent(out)		:: saturation
 			real (kind = GRID_SR), intent(out)		:: volume
 			real (kind = GRID_SR), intent(out)		:: p
 			real (kind = GRID_SR), intent(out)		:: d
 			real (kind = GRID_SR), intent(out)		:: A_d
+			real (kind = GRID_SR), intent(out)		:: rhs
 
 			saturation = 0.0_GRID_SR
 			volume = 0.0_GRID_SR
 			p = 0.0_GRID_SR
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
+			rhs = 0.0_SR
 		end subroutine
 
 		elemental subroutine post_dof_op(saturation, p, volume)
