@@ -95,14 +95,15 @@ subroutine element_op(traversal, section, element)
     normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
 
-    m11=element%transform_data%plotter_data%jacobian_inv(1,1)
-    m12=element%transform_data%plotter_data%jacobian_inv(1,2)
-    m21=element%transform_data%plotter_data%jacobian_inv(2,1)
-    m22=element%transform_data%plotter_data%jacobian_inv(2,2)
-    s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+    m11=element%transform_data%plotter_data%jacobian(1,1)
+    m12=element%transform_data%plotter_data%jacobian(1,2)
+    m21=element%transform_data%plotter_data%jacobian(2,1)
+    m22=element%transform_data%plotter_data%jacobian(2,2)
+    s=1/sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
-    write (*,*) s
-    write (*,*) element%transform_data%plotter_data%jacobian_inv
+    !write (*,*) s
+    !write (*,*) element%transform_data%plotter_data%jacobian_inv
+
     !write (*,*) 'h: ', h
     !write (*,*) 'normal_x rotated: ',normal_x
     !write (*,*) 'normal_y rotated: ',normal_y

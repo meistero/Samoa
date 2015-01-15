@@ -27,7 +27,7 @@ subroutine element_op(traversal, section, element)
 
 
 real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, normal_x_r, normal_y_r
-real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area
+real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area, m11,m12,m21,m22,s
 !logical, dimension(3)           :: is_dirichlet
 
 !normal_x(1)=1
@@ -56,6 +56,12 @@ real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area
 !write (*,*) 'normal_x rotated back: ',normal_x
 !write (*,*) 'normal_y rotated back: ',normal_y
 
+m11=element%transform_data%plotter_data%jacobian(1,1)
+    m12=element%transform_data%plotter_data%jacobian(1,2)
+    m21=element%transform_data%plotter_data%jacobian(2,1)
+    m22=element%transform_data%plotter_data%jacobian(2,2)
+    s=1/sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+
 c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
 p=element%cell%data_pers%Q(1)%p
 !p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
@@ -72,10 +78,10 @@ q1= element%nodes(1)%ptr%data_pers%qp(1)
 q2= element%nodes(2)%ptr%data_pers%qp(1)
 q3= element%nodes(3)%ptr%data_pers%qp(1)
 
-!correction q =q1 + (x/(2*c)) * (q2 - q1) + (y/(2*c))  * (q3 - q1)
+!correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 area= (2*c)** 2 *0.5_GRID_SR
-hu= hu - 0.5_GRID_SR* dt*(h*h * (q2-q1)/(2*c))
-hv= hv - 0.5_GRID_SR* dt*(h*h * (q3-q1)/(2*c))
+hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q2-q1)/(2*c) + m12*((q3-q2)/(2*c))))
+hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q2-q1)/(2*c) + m22*((q3-q2)/(2*c))))
 w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q2+q3))
 
 !p_local(1)=hu
@@ -86,8 +92,8 @@ w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q
 
 p(1)=hu
 p(2)=hv
-!element%cell%data_pers%Q(1)%p=p
-!element%cell%data_pers%Q(1)%w=w
+element%cell%data_pers%Q(1)%p=p
+element%cell%data_pers%Q(1)%w=w
 
 end subroutine
 end module

@@ -136,9 +136,9 @@ MODULE _JACOBI_(1)
          !write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
 
          !write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
-         if (element%transform_data%plotter_data%orientation /= element%cell%data_pers%original_lse_orientation(1)) then
-         write (*,*) 'orientation changed '
-         endif
+         !if (element%transform_data%plotter_data%orientation /= element%cell%data_pers%original_lse_orientation(1)) then
+         !write (*,*) 'orientation changed '
+         !endif
 
         !add up matrix diagonal
         forall (i = 1 : _gv_size)
