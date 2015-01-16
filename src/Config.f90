@@ -116,7 +116,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 1.0d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lseoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lseoutput .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
