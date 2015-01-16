@@ -354,7 +354,7 @@
             logical, intent(out)			                        :: is_dirichlet(:, :)
 
 #           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), intent(in)                   :: base_permeability(:, :)
+                real (kind = GRID_SR), intent(inout)                :: base_permeability(:, :)
 
                 l_relevant = any(base_permeability > 0.0_GRID_SR)
 #           else
@@ -418,11 +418,11 @@
                 real (kind = GRID_SR), intent(inout)			                    :: p(:, :)
                 real (kind = GRID_SR), intent(out)									:: rhs(:, :)
                 logical, intent(out)			                                    :: is_dirichlet(:, :)
-                real (kind = GRID_SR), intent(in)                                   :: base_permeability(:, :)
+                real (kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
 
                 real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, inflow(3), edge_length, surface, dz, permeability_sum
                 real (kind = GRID_SR)                               :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3), lambda_t(_DARCY_LAYERS, 7)
-                integer                                             :: i
+                integer                                             :: i, layer
 
                 rhs = 0.0_SR
 
@@ -435,6 +435,7 @@
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 
+                        !assume the whole well is filled with water
                         inflow = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
                         saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + inflow(1)))
                         saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + inflow(2)))
@@ -461,6 +462,9 @@
                 pos_prod = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
                 pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
 
+                lambda_w = (saturation * saturation) / cfg%r_nu_w
+                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+
                 if (norm2(pos_prod) < 1.0_SR + radius) then
                     if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
                         !production well:
@@ -472,17 +476,22 @@
                         is_dirichlet(:, 2) = inflow(2) > epsilon(1.0_SR)
                         is_dirichlet(:, 3) = inflow(3) > epsilon(1.0_SR)
 
-                        where (is_dirichlet)
-                            p = cfg%r_p_prod
-                        end where
+                        do i = 1, 3
+                            if (is_dirichlet(1, i)) then
+                                p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
+
+                                do layer = _DARCY_LAYERS, 1, -1
+                                    p(layer, i) = p(layer + 1, i) - &
+                                        (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
+                                        / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
+                                end do
+                            end if
+                        end do
 
                         call gv_p%write_to_element(element, p)
                         call gv_is_dirichlet%add_to_element(element, is_dirichlet)
                     end if
                 end if
-
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = g
