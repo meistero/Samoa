@@ -22,6 +22,7 @@
 		type(darcy_gv_p)							:: gv_p
 		type(darcy_gv_saturation)					:: gv_saturation
 		type(darcy_gv_volume)						:: gv_volume
+		type(darcy_gv_mat_diagonal)					:: gv_p_volume
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
 
@@ -101,7 +102,8 @@
             volume(2) = src_element%cell%geometry%get_volume() * 0.5_SR
             volume(3) = src_element%cell%geometry%get_volume() * 0.25_SR
 
-			call gv_p%add_to_element( dest_element%t_element_base, [p_in(:, 1) * volume(1) * porosity, p_in(:, 2) * volume(2) * porosity, p_in(:, 3) * volume(3) * porosity])
+			call gv_p%add_to_element( dest_element%t_element_base, [p_in(:, 1) * volume(1), p_in(:, 2) * volume(2), p_in(:, 3) * volume(3)])
+			call gv_p_volume%add_to_element( dest_element%t_element_base, [spread(volume(1), 1, _DARCY_LAYERS + 1), spread(volume(2), 1, _DARCY_LAYERS + 1), spread(volume(3), 1, _DARCY_LAYERS + 1)])
 			call gv_saturation%add_to_element( dest_element%t_element_base, [saturation_in(:, 1) * volume(1) * porosity, saturation_in(:, 2) * volume(2) * porosity, saturation_in(:, 3) * volume(3) * porosity])
 			call gv_volume%add_to_element( dest_element%t_element_base, [volume(1) * porosity, volume(2) * porosity, volume(3) * porosity])
 
@@ -163,7 +165,8 @@
             volume(2) = sum(weights(:, 2))
             volume(3) = sum(weights(:, 3))
 
- 			call gv_p%add_to_element(dest_element%t_element_base, [p_in(:, 1) * porosity, p_in(:, 2) * porosity, p_in(:, 3) * porosity])
+ 			call gv_p%add_to_element(dest_element%t_element_base, p_in)
+			call gv_p_volume%add_to_element( dest_element%t_element_base, [spread(volume(1), 1, _DARCY_LAYERS + 1), spread(volume(2), 1, _DARCY_LAYERS + 1), spread(volume(3), 1, _DARCY_LAYERS + 1)])
 			call gv_saturation%add_to_element( dest_element%t_element_base, [saturation_in(:, 1) * porosity, saturation_in(:, 2) * porosity, saturation_in(:, 3) * porosity])
 			call gv_volume%add_to_element( dest_element%t_element_base, [volume(1) * porosity, volume(2) * porosity, volume(3) * porosity])
 
@@ -238,7 +241,8 @@
             volume(2) = sum(weights(:, 2))
             volume(3) = sum(weights(:, 3))
 
- 			call gv_p%add_to_element(dest_element%t_element_base, [p_in(:, 1) * porosity, p_in(:, 2) * porosity, p_in(:, 3) * porosity])
+ 			call gv_p%add_to_element(dest_element%t_element_base, p_in)
+			call gv_p_volume%add_to_element( dest_element%t_element_base, [spread(volume(1), 1, _DARCY_LAYERS + 1), spread(volume(2), 1, _DARCY_LAYERS + 1), spread(volume(3), 1, _DARCY_LAYERS + 1)])
 			call gv_saturation%add_to_element( dest_element%t_element_base, [saturation_in(:, 1) * porosity, saturation_in(:, 2) * porosity, saturation_in(:, 3) * porosity])
 			call gv_volume%add_to_element( dest_element%t_element_base, [volume(1) * porosity, volume(2) * porosity, volume(3) * porosity])
 
@@ -263,7 +267,7 @@
  			type(t_grid_section), intent(in)							:: grid
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
+			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
 		end subroutine
 
 		!merge ops
@@ -275,6 +279,7 @@
             local_node%data_pers%p = local_node%data_pers%p + neighbor_node%data_pers%p
             local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
             local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
+            local_node%data_temp%mat_diagonal = local_node%data_temp%mat_diagonal + neighbor_node%data_temp%mat_diagonal
         end subroutine
 
 		!last touch ops
@@ -296,16 +301,17 @@
  			type(t_grid_section), intent(inout)			    :: section
 			type(t_node_data), intent(inout)			    :: node
 
-			call post_dof_op(node%data_pers%saturation, node%data_pers%p, node%data_temp%volume)
+			call post_dof_op(node%data_pers%saturation, node%data_pers%p, node%data_temp%volume, node%data_temp%mat_diagonal)
 		end subroutine
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(saturation, volume, p, d, A_d, rhs)
+		elemental subroutine pre_dof_op(saturation, volume, p, mat_diagonal, d, A_d, rhs)
 			real (kind = GRID_SR), intent(out)		:: saturation
 			real (kind = GRID_SR), intent(out)		:: volume
 			real (kind = GRID_SR), intent(out)		:: p
+			real (kind = GRID_SR), intent(out)		:: mat_diagonal
 			real (kind = GRID_SR), intent(out)		:: d
 			real (kind = GRID_SR), intent(out)		:: A_d
 			real (kind = GRID_SR), intent(out)		:: rhs
@@ -313,20 +319,22 @@
 			saturation = 0.0_GRID_SR
 			volume = 0.0_GRID_SR
 			p = 0.0_GRID_SR
+			mat_diagonal = 0.0_GRID_SR
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
 			rhs = 0.0_SR
 		end subroutine
 
-		elemental subroutine post_dof_op(saturation, p, volume)
+		elemental subroutine post_dof_op(saturation, p, volume, p_volume)
  			real (kind = GRID_SR), intent(inout)	:: saturation
  			real (kind = GRID_SR), intent(inout)	:: p
 			real (kind = GRID_SR), intent(in)		:: volume
+			real (kind = GRID_SR), intent(in)	    :: p_volume
 
             !assert_pure(volume > 0.0_SR)
 
             saturation = saturation / volume
-            p = p / volume
+            p = p / p_volume
 
             !assert_pure(saturation <= 1.0_SR)
 		end subroutine
