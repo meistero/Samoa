@@ -356,17 +356,11 @@
 		end subroutine
 
         !> Update saturation and apply a divergence correction
-        !> EITHER: Eliminate divergence by removing excess mass from the saturation:
-        !> S_w \leftarrow S_w' / (S_w' + S_n') = (S_w + dt/V * f_w) / ((S_w + S_n) + dt/V * (f_w + f_n))
-        !> saturation = (saturation + dt / volume * flux_w) / (1.0_SR + dt / volume * (flux_w + flux_n))
         !>
-        !> OR: Eliminate divergence by removing excess mass from the flux:
+        !> Eliminate divergence by removing excess mass from the flux:
         !> S_w \leftarrow S_w + dt/V * (f_w - lambda_w / (lambda_w + lambda_n) * (f_w + f_n))
         !> S_n \leftarrow S_n + dt/V * (f_n - lambda_n / (lambda_w + lambda_n) * (f_w + f_n))
         !> \Rightarrow S_w + S_n \leftarrow S_w + S_n + dt/V * ((f_w + f_n) - (f_w + f_n))
-        !>
-        !> The second approach works better, maybe because it prevents an unphysical cell state instead of fixing it
-        !> Phase conservation is violated by both approaches however.
 		elemental subroutine post_dof_op_correction(dt, saturation, flux_w, flux_n, volume)
 			real (kind = GRID_SR), intent(in)		:: dt
 			real (kind = GRID_SR), intent(inout)	:: saturation
@@ -380,7 +374,7 @@
                 lambda_w = (saturation * saturation) / cfg%r_nu_w
                 lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
 
-                saturation = saturation - dt / volume * flux_w !(flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
+                saturation = saturation - dt / volume * (flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
             end if
 
             !assert_pure(saturation .le. 1.0_SR)
