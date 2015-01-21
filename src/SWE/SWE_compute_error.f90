@@ -132,7 +132,10 @@
             if (cfg%i_phase_nr > 0) then
 
                 ! file schreiben
-                write(pout_file_name, "(A, A, A, I2, A, I2, A, F6.5, A, F6.5, A, I3, A, I3, A)") "erroroutput", TRIM(traversal%s_file_stamp), "_dmin", cfg%i_min_depth, "_dmax", cfg%i_max_depth, "_cou", cfg%courant_number, "_dry", cfg%dry_tolerance, "_p", size_MPI, "_phase", cfg%i_phase_nr ,".txt"
+                !write(pout_file_name, "(A, A, A, I2, A, I2, A, F6.5, A, F6.5, A, I3, A, I3, A)") "erroroutput", TRIM(traversal%s_file_stamp), "_dmin", cfg%i_min_depth, "_dmax", cfg%i_max_depth, "_cou", cfg%courant_number, "_dry", cfg%dry_tolerance, "_p", size_MPI, "_phase", cfg%i_phase_nr ,".txt"
+                write(pout_file_name, "(A, I0, A, I0, A, F6.5, A, F6.5, A, I0, A, I0, A)") "erroroutput_dmin", cfg%i_min_depth, "_dmax", cfg%i_max_depth, "_cou", cfg%courant_number, "_dry", cfg%dry_tolerance, "_p", size_MPI, "_phase", cfg%i_phase_nr ,".txt"
+
+                !_log_write(1, '(A, A)') "pout_file_name : ", pout_file_name
 
                 open(unit=out_unit, file=pout_file_name, action="write", status="replace")
                     write(out_unit, "(A)") "dmin, dmax, cells, edges, cou, dry_tol, processes, sim_time, h_error_l1, h_error_l2, h_error_max, u_error_l1, u_error_l2, u_error_max"

@@ -329,10 +329,10 @@
 			i_refinement = 0
 			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 
-			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0E-3_GRID_SR) ** 2) then
+			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * cfg%r_refine) ** 2) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0E-3_GRID_SR) ** 2) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * cfg%r_refine * 0.5) ** 2) then
 				i_refinement = -1
 			endif
 

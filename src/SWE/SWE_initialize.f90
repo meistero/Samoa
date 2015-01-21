@@ -96,10 +96,10 @@
 			type(t_element_base), intent(inout)						:: element
 			type(t_state), dimension(_SWE_CELL_SIZE), intent(out)	:: Q
 
-			real (kind = GRID_SR), dimension(2)						:: pos
+			real (kind = GRID_SR), dimension(2)						:: pos, pos1, pos2, pos3
 			integer (kind = GRID_SI)								:: i
 			real (kind = GRID_SR), parameter		                :: r_test_points(2, 3) = reshape([1.0, 0.0, 0.0, 0.0, 0.0, 1.0], [2, 3])
-			real (kind = GRID_SR)                                   :: centroid_square(2), centroid_triangle(2)
+			real (kind = GRID_SR)                                   :: centroid_square(2), centroid_triangle(2), mincoord, maxcoord
 			type(t_state), dimension(3)								:: Q_test
 			real (kind = GRID_SR), dimension(_SWE_CELL_SIZE)		:: lambda
 
@@ -150,12 +150,29 @@
                         traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                     end if
 #               else
+#if defined(_SWE_DAMBREAK_CLASSIC)
+                    pos1 = samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 0.0_GRID_SR]) * cfg%scaling + cfg%offset
+                    pos2 = samoa_barycentric_to_world_point(element%transform_data, [1.0_GRID_SR, 0.0_GRID_SR]) * cfg%scaling + cfg%offset
+                    pos3 = samoa_barycentric_to_world_point(element%transform_data, [0.0_GRID_SR, 1.0_GRID_SR]) * cfg%scaling + cfg%offset
+                    mincoord = min(pos1(1), pos2(1))
+                    mincoord = min(mincoord, pos3(1))
+                    maxcoord = max(pos1(1), pos2(1))
+                    maxcoord = max(maxcoord, pos3(1))
+                    !write(*,*) "mincoord: ", mincoord, ", maxcoord: ", maxcoord
+                    
+                    if (mincoord <= 0.0_GRID_SR .and. maxcoord >= 0.0_GRID_SR) then
+                        element%cell%geometry%refinement = 1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                        !write (*,*) "cell refined between ", mincoord, " and ", maxcoord
+                    end if
+#else
                     if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0 .or. any(Q_test%h .ne. 0.0)) then
                         !refine coast lines and initial displacement
 
                         element%cell%geometry%refinement = 1
                         traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                     end if
+#endif
 #               endif
 			end if
 
