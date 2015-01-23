@@ -348,6 +348,9 @@ if env['compiler'] != 'intel':
 if env['target'] != 'release':
   program_name += '_' + env['target']
 
+if env['layers'] != '0':
+  program_name += '_l' + env['layers']
+
 if env['library']:
   program_name = 'lib' + program_name + '.so'
 
