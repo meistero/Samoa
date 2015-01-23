@@ -6,7 +6,7 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Thin_MPI_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Thin_Production_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
@@ -24,17 +24,17 @@ echo "Compiling..."
 
 echo "Running scenarios..."
 
-class=test
-limit=00:30:00
+class=micro
+limit=48:00:00
 
-layers=64
-postfix=_noomp_upwind_l$layers
+layers=85
+postfix=_noomp_upwind_l$layers 
 
 for asagimode in 2
 do
 	for sections in 1
 	do
-		for cores in 16 32 64 128 256 512
+		for cores in 16
 		do
 			processes=$cores
 			threads=1
@@ -53,8 +53,8 @@ do
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
-		    sed -i 's=-dmin 26=-dmin '$((26 - log_layers))'=g' $script
-	        sed -i 's=-dmax 40=-dmax 30=g' $script
+		    sed -i 's=-dmin 26=-dmin 8=g' $script
+	        sed -i 's=-dmax 40=-dmax 14=g' $script
 
 			llsubmit $script
 		done
