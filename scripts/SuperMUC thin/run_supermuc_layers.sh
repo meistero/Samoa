@@ -6,7 +6,7 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Thin_MPI_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Thin_Layers_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
@@ -17,29 +17,35 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-#scons config=supermuc.py scenario=darcy flux_solver=upwind layers=8 openmp=noomp -j4 &
-#scons config=supermuc.py scenario=swe openmp=noomp -j4 &
+#for layers in 0 1 4 8 16 32 64 85
+#do
+#    scons config=supermuc.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
+#done
 
-#wait %1 %2
+#wait %1 %2 %3 %4 %5 %6 %7 %8
 
 echo "Running scenarios..."
 
 class=test
 limit=00:30:00
 
-layers=64
-postfix=_noomp_upwind_l$layers
-
-for asagimode in 2
+for layers in 0 1 4 8 16 32 64 85
 do
-	for sections in 1
+    if [ $layers -ge 1 ]; then
+        postfix=_noomp_upwind_l$layers
+    else
+        postfix=_noomp_upwind
+    fi
+
+	for sections in 16
 	do
-		for cores in 16 32 64 128 256 512
+		for cores in 16
 		do
+            asagimode=2
 			processes=$cores
 			threads=1
 			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
-			log_layers=`echo "import numpy; print int(numpy.log2(1 + "$layers"))" | python`
+			size=`echo "import numpy; print int(numpy.log2(1 + "$layers"))" | python`
 
 			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
 			cat "$script_dir/run_supermuc_template.sh" > $script
@@ -53,7 +59,7 @@ do
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
-		    sed -i 's=-dmin 26=-dmin '$((26 - log_layers))'=g' $script
+		    sed -i 's=-dmin 26=-dmin '$((24 - size))'=g' $script
 	        sed -i 's=-dmax 40=-dmax 30=g' $script
 
 			llsubmit $script

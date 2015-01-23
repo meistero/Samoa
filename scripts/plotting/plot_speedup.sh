@@ -15,10 +15,12 @@ for file in darcy*.log ; do
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
 	sections=$(echo $file | grep -oE "_s[0-9]+" | grep -oE "[0-9]+")
+	layers=$(echo $file | grep -oE "_l[0-9]+" | grep -oE "[0-9]+")
 
 	processes=${processes:-1}
 	threads=${threads:-1}
 	sections=${sections:-1}
+    layers=${layers:-0}
 
     csplit $file "/Phase statistics:/" {*} &>/dev/null
 
@@ -26,6 +28,7 @@ for file in darcy*.log ; do
     for phase in xx* ; do
 	    echo -n $processes $threads $sections" " >> "darcy"$i".plt"
 	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+        echo -n $layers >> "darcy"$i".plt"
 	    echo "" >> "darcy"$i".plt"
 
         i=$(( $i + 1 ))
@@ -39,10 +42,12 @@ for file in swe*.log ; do
 	processes=$(echo $file | grep -oE "_p[0-9]+" | grep -oE "[0-9]+")
 	threads=$(echo $file | grep -oE "_t[0-9]+" | grep -oE "[0-9]+")
 	sections=$(echo $file | grep -oE "_s[0-9]+" | grep -oE "[0-9]+")
-	
+	layers=$(echo $file | grep -oE "_l[0-9]+" | grep -oE "[0-9]+")
+
 	processes=${processes:-1}
 	threads=${threads:-1}
 	sections=${sections:-1}
+    layers=${layers:-0}
 
     csplit $file "/Phase statistics:/" {*} &>/dev/null
 
@@ -103,7 +108,7 @@ do for [i=1:20] {
     set xrange [0:*]
     set yrange [0:*]
 
-    plot for [n=1:64] infile u (\$1*\$2):(\$3 == n ? \$4 : 1/0) ls n w linespoints t title(n)
+    plot for [n=1:64] infile u (\$1*\$2):(\$3 == n ? \$4 * (\$5 > 0 ? \$5 : 1) : 1/0) ls n w linespoints t title(n)
 
     outfile = sprintf('| ps2pdf - darcy%i_lin.pdf', i)
     set output outfile

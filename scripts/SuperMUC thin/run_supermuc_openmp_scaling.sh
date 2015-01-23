@@ -31,7 +31,7 @@ limit=02:00:00
 
 for asagimode in 2
 do
-	for postfix in _nompi _notasks_nompi
+	for postfix in _nompi_upwind _notasks_nompi_upwind
 	do
 	    for sections in 1 2 4 8 16 32
 	    do

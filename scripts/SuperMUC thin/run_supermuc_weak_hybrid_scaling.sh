@@ -25,7 +25,7 @@ wait %1 %2
 echo "Running scenarios..."
 
 limit=00:10:00
-postfix=""
+postfix=_upwind
 
 for asagimode in 2
 do
