@@ -95,18 +95,29 @@ subroutine element_op(traversal, section, element)
     normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
 
-    m11=element%transform_data%plotter_data%jacobian(1,1)
-    m12=element%transform_data%plotter_data%jacobian(1,2)
-    m21=element%transform_data%plotter_data%jacobian(2,1)
-    m22=element%transform_data%plotter_data%jacobian(2,2)
-    s=1/sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+    m11=element%transform_data%plotter_data%jacobian_inv(1,1)
+    m12=element%transform_data%plotter_data%jacobian_inv(1,2)
+    m21=element%transform_data%plotter_data%jacobian_inv(2,1)
+    m22=element%transform_data%plotter_data%jacobian_inv(2,2)
+    s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
-    !write (*,*) s
-    !write (*,*) element%transform_data%plotter_data%jacobian_inv
+
+
 
     !write (*,*) 'h: ', h
-    !write (*,*) 'normal_x rotated: ',normal_x
-    !write (*,*) 'normal_y rotated: ',normal_y
+    write (*,*) 'new element'
+    write (*,*) 's: ',s
+    write (*,*)  'dt: ', dt
+    write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2)
+
+    write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
+
+    write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
+
+     write (*,*) 'Jacobi rotate gradients/normal :',element%transform_data%plotter_data%jacobian_inv
+
+    write (*,*) 'normal_x rotated: ',normal_x
+    write (*,*) 'normal_y rotated: ',normal_y
 
     nxvp=normal_x(1)
     nyvp=normal_x(2)
@@ -120,11 +131,8 @@ subroutine element_op(traversal, section, element)
     nyhn=-nyhp
 
 
-    !write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2)
 
-    !write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
 
-    !write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
     !write (*,*) 'orientation: ' , element%transform_data%plotter_data%orientation
     !p=element%cell%data_pers%Q(1)%p
     !rotate p so it points in the right direction (no scaling!)
@@ -140,6 +148,8 @@ subroutine element_op(traversal, section, element)
     !write (*,*) ''
     !rhs= [-c*hu+ 0.5_GRID_SR*c*c*w,c*hv+c*hu+c*c*w,-c*hv+0.5_GRID_SR*c*c*w]
 
+
+
     mat(1,1)= 2*dt*c*c* (1_GRID_SR/3_GRID_SR)- dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21)
     mat(1,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)+dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
     mat(1,3)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR)-dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22)
@@ -152,6 +162,7 @@ subroutine element_op(traversal, section, element)
     mat(3,2)= 2*dt*c*c* (1_GRID_SR/12_GRID_SR) +0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
     mat(3,3)= c*c*dt*(2_GRID_SR/3_GRID_SR) - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22)
 
+    write (*,*) 'element diagonal', mat(1,1), ', ', mat(2,2), ' ,' , mat(3,3)
 
 
     rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*(nxhp+nxvp)-hv*(c*(nyhp+nyvp)), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]

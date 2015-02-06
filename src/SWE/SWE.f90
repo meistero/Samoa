@@ -381,8 +381,9 @@
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
                     call swe%lse_traversal%traverse(grid)
-                    i_lse_iterations = swe%pressure_solver%solve(grid)
-                    call swe%nh_traversal%traverse(grid)
+                    call swe%lse_output%traverse(grid)
+                    !i_lse_iterations = swe%pressure_solver%solve(grid)
+                    !call swe%nh_traversal%traverse(grid)
                     if (cfg%l_lse_output) then
                         call swe%lse_output%traverse(grid)
                     end if

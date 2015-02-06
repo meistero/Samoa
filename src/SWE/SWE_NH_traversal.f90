@@ -80,8 +80,8 @@ q3= element%nodes(3)%ptr%data_pers%qp(1)
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 area= (2*c)** 2 *0.5_GRID_SR
-hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q2-q1)/(2*c) + m12*((q3-q2)/(2*c))))
-hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q2-q1)/(2*c) + m22*((q3-q2)/(2*c))))
+hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2*c) + m12*((q3-q2)/(2*c))))
+hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2*c) + m22*((q3-q2)/(2*c))))
 w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q2+q3))
 
 !p_local(1)=hu
