@@ -119,9 +119,9 @@
 			type(t_node_data), intent(inout)			:: node
 			integer										:: i
 
-             node%data_pers%qp=0_GRID_SR
-             node%data_pers%rhs=0_GRID_SR
-             node%data_pers%r=0_GRID_SR
+             node%data_pers%qp=0.0_GRID_SR
+             node%data_pers%rhs=0.0_GRID_SR
+             node%data_pers%r=0.0_GRID_SR
         end subroutine
 
 

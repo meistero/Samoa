@@ -223,6 +223,7 @@
 			!init parameters
 			r_time_next_output = 0.0_GRID_SR
 
+
             if (rank_MPI == 0) then
                 !$omp master
                 _log_write(0, *) "SWE: setting initial values and a priori refinement.."
@@ -268,6 +269,7 @@
                 !$omp end master
 			end if
 
+
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
                 if (cfg%l_ascii_output) then
@@ -284,6 +286,8 @@
 
 				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
+
+
 
 			!print initial stats
 			if (cfg%i_stats_phases >= 0) then
@@ -376,13 +380,13 @@
 				end if
 
 				call swe%adaption%traverse(grid)
-
+                  call swe%lse_traversal%traverse(grid)
 				!do a time step
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
                     call swe%lse_traversal%traverse(grid)
-                    call swe%lse_output%traverse(grid)
-                    !i_lse_iterations = swe%pressure_solver%solve(grid)
+                    i_lse_iterations = swe%pressure_solver%solve(grid)
+                    write(*,*) 'iterations needed:' , i_lse_iterations
                     !call swe%nh_traversal%traverse(grid)
                     if (cfg%l_lse_output) then
                         call swe%lse_output%traverse(grid)

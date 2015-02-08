@@ -56,11 +56,11 @@ real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area, m11,m12,m21,m
 !write (*,*) 'normal_x rotated back: ',normal_x
 !write (*,*) 'normal_y rotated back: ',normal_y
 
-m11=element%transform_data%plotter_data%jacobian(1,1)
-    m12=element%transform_data%plotter_data%jacobian(1,2)
-    m21=element%transform_data%plotter_data%jacobian(2,1)
-    m22=element%transform_data%plotter_data%jacobian(2,2)
-    s=1/sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+m11=element%transform_data%plotter_data%jacobian_inv(1,1)
+    m12=element%transform_data%plotter_data%jacobian_inv(2,1)
+    m21=element%transform_data%plotter_data%jacobian_inv(1,2)
+    m22=element%transform_data%plotter_data%jacobian_inv(2,2)
+    s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
 c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
 p=element%cell%data_pers%Q(1)%p
@@ -78,8 +78,10 @@ q1= element%nodes(1)%ptr%data_pers%qp(1)
 q2= element%nodes(2)%ptr%data_pers%qp(1)
 q3= element%nodes(3)%ptr%data_pers%qp(1)
 
+write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
+
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
-area= (2*c)** 2 *0.5_GRID_SR
+area= (2.0_GRID_SR*c)*(2.0_GRID_SR*c) *0.5_GRID_SR
 hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2*c) + m12*((q3-q2)/(2*c))))
 hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2*c) + m22*((q3-q2)/(2*c))))
 w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q2+q3))
