@@ -54,8 +54,8 @@ MODULE _JACOBI_(1)
 #		endif
 
 #		define _GT_NODES
-#       define _GT_EDGES
-#       define _GT_EDGES_TEMP
+!#       define _GT_EDGES
+!#       define _GT_EDGES_TEMP
 #		define _GT_NO_COORDS
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
@@ -133,7 +133,7 @@ MODULE _JACOBI_(1)
         call gv_x%read(element, x)
         call gm_A%read(element, A)
 
-        write(*,*) 'qp of element in jacobi:', x
+        !write(*,*) 'qp of element in jacobi:', x
         assert_eq(x(1),x(1))
         assert_eq(x(2),x(2))
         assert_eq(x(3),x(3))

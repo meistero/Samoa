@@ -73,6 +73,7 @@ subroutine element_op(traversal, section, element)
     !nxhp=0
     !nyhn=-1
     !nyhp=1
+    !assert that q values are ok
     q1= element%nodes(1)%ptr%data_pers%qp(1)
     q2= element%nodes(2)%ptr%data_pers%qp(1)
     q3= element%nodes(3)%ptr%data_pers%qp(1)

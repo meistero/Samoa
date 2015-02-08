@@ -380,7 +380,6 @@
 				end if
 
 				call swe%adaption%traverse(grid)
-                  call swe%lse_traversal%traverse(grid)
 				!do a time step
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
