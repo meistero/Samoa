@@ -192,7 +192,7 @@ subroutine element_op(traversal, section, element)
     !assert_gt(mat(2,2),0.01)
     !assert_gt(mat(3,3),0.01)
 
-    rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*(nxhp+nxvp)-hv*(c*(nyhp+nyvp)), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]
+    rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]
 
     !write (*,*) 'rhs' , rhs
 

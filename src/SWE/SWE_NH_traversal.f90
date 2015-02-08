@@ -78,7 +78,7 @@ q1= element%nodes(1)%ptr%data_pers%qp(1)
 q2= element%nodes(2)%ptr%data_pers%qp(1)
 q3= element%nodes(3)%ptr%data_pers%qp(1)
 
-write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
+!write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 area= (2.0_GRID_SR*c)*(2.0_GRID_SR*c) *0.5_GRID_SR
