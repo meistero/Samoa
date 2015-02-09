@@ -237,9 +237,11 @@
             real (kind = GRID_SR)                   :: S_m
 
             !Upwind and F-Wave solver approximate the Riemann solution by a single shock wave with velocity
-            !xi = (f(S_r) - f(S_l)) / (S_r - S_l) = (S_r^2 - S_l^2) / (nu_w (S_r - S_l)) K (-grad p + rho_w g)
+            !xi = (f_w(S_r) - f_w(S_l)) / (S_r - S_l) = (S_r^2 / nu_w K (-grad p + rho_w g) - S_l^2 / nu_w K (-grad p + rho_w g)) / (S_r - S_l)
+            !   = (S_r^2 - S_l^2) / (nu_w (S_r - S_l)) K (-grad p + rho_w g)
+            !   = (S_l + S_r) / cfg%r_nu_w * K (-grad p + rho_w g)
+            !   = (S_l + S_r) / cfg%r_nu_w * u_w
             max_wave_speed = (S_l + S_r) / cfg%r_nu_w * abs(u_w)
-            !max_wave_speed = (1 - S_l + 1 - S_r) / cfg%r_nu_n * abs(u_n)
         end function
 
         elemental subroutine compute_velocity_1D(dx, area, base_permeability, pL, pR, u_w, u_n, g_local)

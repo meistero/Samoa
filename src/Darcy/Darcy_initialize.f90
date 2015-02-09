@@ -137,27 +137,31 @@
                 section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #           endif
 
-            if (grid_min_x(cfg%afh_permeability_X) <= xs(1) .and. grid_min_y(cfg%afh_permeability_X) <= xs(2) &
-                    .and. xs(1) <= grid_max_x(cfg%afh_permeability_X) .and. xs(2) <= grid_max_y(cfg%afh_permeability_X)) then
+#           if defined(_ASAGI)
+                if (grid_min_x(cfg%afh_permeability_X) <= xs(1) .and. grid_min_y(cfg%afh_permeability_X) <= xs(2) &
+                        .and. xs(1) <= grid_max_x(cfg%afh_permeability_X) .and. xs(2) <= grid_max_y(cfg%afh_permeability_X)) then
 
-                buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                    buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                    buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                    buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
 
-                !assume horizontally isotropic permeability
-                assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
+                    !assume horizontally isotropic permeability
+                    assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
 
-#               if (_DARCY_LAYERS > 0)
-                    r_base_permeability = buffer(2:3)
-#               else
-                    r_base_permeability = buffer(1)
-#               endif
+#                   if (_DARCY_LAYERS > 0)
+                        r_base_permeability = buffer(2:3)
+#                   else
+                        r_base_permeability = buffer(1)
+#                   endif
 
-                !convert from mD to m^2 to um^2
-                r_base_permeability = r_base_permeability * 9.869233e-16_SR / (cfg%scaling ** 2)
-            else
-                r_base_permeability = 0.0_SR
-            end if
+                    !convert from mD to m^2 to um^2
+                    r_base_permeability = r_base_permeability * 9.869233e-16_SR / (cfg%scaling ** 2)
+                else
+                    r_base_permeability = 0.0_SR
+                end if
+#           else
+                r_base_permeability = 5000.0_SR * 9.869233e-16_SR / (cfg%scaling ** 2)
+#           endif
 
 #           if defined(_ASAGI_TIMING)
                 section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
@@ -181,13 +185,17 @@
                 section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
 #           endif
 
-            if (grid_min_x(cfg%afh_porosity) <= xs(1) .and. grid_min_y(cfg%afh_porosity) <= xs(2) &
-                    .and. xs(1) <= grid_max_x(cfg%afh_porosity) .and. xs(2) <= grid_max_y(cfg%afh_porosity)) then
+#           if defined(_ASAGI)
+                if (grid_min_x(cfg%afh_porosity) <= xs(1) .and. grid_min_y(cfg%afh_porosity) <= xs(2) &
+                        .and. xs(1) <= grid_max_x(cfg%afh_porosity) .and. xs(2) <= grid_max_y(cfg%afh_porosity)) then
 
-                porosity = grid_get_float_3d(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-            else
-                porosity = 0.0d0
-            end if
+                    porosity = grid_get_float_3d(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                else
+                    porosity = 1.0e-8_SR
+                end if
+#           else
+                porosity = 0.2_SR
+#           endif
 
 #           if defined(_ASAGI_TIMING)
                 section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
@@ -303,7 +311,7 @@
                 local_node%data_pers%p = neighbor_node%data_pers%p
             end where
 
-			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
+			local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
 			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 		end subroutine
@@ -313,7 +321,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_post_dof_op(node%data_pers%rhs, node%data_temp%is_dirichlet_boundary)
+			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary)
 		end subroutine
 
 		!*******************************
@@ -330,9 +338,12 @@
 			is_dirichlet = .false.
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(rhs, is_dirichlet)
+		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet)
+			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(inout)				:: rhs
 			logical, intent(in)			                        :: is_dirichlet
+
+            saturation = min(1.0_SR, saturation)
 
             if (is_dirichlet) then
                 rhs = 0.0_SR
@@ -388,6 +399,19 @@
                 end if
             end if
 
+#           if !defined(_ASAGI)
+                pos_in = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
+
+                if (pos_in(1) < 0.5_SR) then
+                    saturation = 1.0_SR
+                    call gv_saturation%add_to_element(element, saturation)
+                end if
+
+                if (pos_in(1) < 0.5_SR + 1.5_SR * element%transform_data%custom_data%scaling .and. pos_in(1) > 0.5_SR - 1.5_SR * element%transform_data%custom_data%scaling) then
+                    l_refine_initial = .true.
+                end if
+#           endif
+
 #           if (_DARCY_LAYERS > 0)
                 call initialize_rhs(element, saturation, p, rhs, is_dirichlet, base_permeability)
 #           else
@@ -396,7 +420,7 @@
 
 			!check refinement condition
 
-			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > 0.1_SR
+			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > 0.05_SR
 			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > 0.01_SR * cfg%r_p_prod
 
 			!refine the cell if necessary (no coarsening in the initialization!)
@@ -440,7 +464,7 @@
                         saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + inflow(1)))
                         saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + inflow(2)))
                         saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + inflow(3)))
-                        call gv_saturation%write_to_element(element, saturation)
+                        call gv_saturation%add_to_element(element, saturation)
 
                         !The inflow condition is given in um^3 / s
                         !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
@@ -550,7 +574,7 @@
                         !set an inflow pressure condition and a constant saturation condition
 
                         saturation = max(0.0_SR, min(1.0_SR, saturation + [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]))
-                        call gv_saturation%write_to_element(element, saturation)
+                        call gv_saturation%add_to_element(element, saturation)
 
                         if (base_permeability > 0) then
                             !The inflow condition is given in um^3 / s

@@ -11,6 +11,7 @@
 
 		use SFC_edge_traversal
 		use Darcy_grad_p
+		use Darcy_transport_eq
 
 		use Samoa_darcy
 
@@ -271,26 +272,20 @@
 			type(t_grid_section), intent(inout)					:: section
 			type(t_element_base), intent(inout)					:: element
 
-			!local variables
-
-			integer (kind = GRID_SI)							:: i, layer
-
-			!local variables
-
-			real (kind = GRID_SR)               :: p(_DARCY_LAYERS + 1, 3)
-			real (kind = GRID_SR)               :: rhs(_DARCY_LAYERS + 1, 3)
-			real (kind = GRID_SR)				:: saturation(_DARCY_LAYERS + 1, 3)
-
-			real (kind = GRID_SR)               :: r_point_data_indices(_DARCY_LAYERS + 1, 3)		!< point data indices
-			integer (kind = GRID_SI)            :: point_data_indices(3)		!< point data indices
-
-            real (kind = GRID_SR)				:: edge_length, dz
-            real (kind = SR)                    :: u_w(3), u_n(3)
-
 #           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR)			:: g_local(3)
+                real(kind = GRID_SR)        :: p(_DARCY_LAYERS + 1, 3)
+                real(kind = GRID_SR)        :: rhs(_DARCY_LAYERS + 1, 3)
+                real(kind = GRID_SR)        :: saturation(_DARCY_LAYERS + 1, 3)
+
+                real (kind = GRID_SR)       :: r_point_data_indices(_DARCY_LAYERS + 1, 3)   !< point data indices
+                integer (kind = GRID_SI)    :: point_data_indices(_DARCY_LAYERS + 1, 3)		!< point data indices
 #           else
-                real (kind = GRID_SR)			:: g_local(2)
+                real(kind = GRID_SR)        :: p(3)
+                real(kind = GRID_SR)        :: rhs(3)
+                real(kind = GRID_SR)        :: saturation(3)
+
+                real (kind = GRID_SR)       :: r_point_data_indices(3)		!< point data indices
+                integer (kind = GRID_SI)    :: point_data_indices(3)		!< point data indices
 #           endif
 
 			call gv_p%read_from_element(element, p)
@@ -298,6 +293,50 @@
 			call gv_rhs%read_from_element(element, rhs)
 			call gv_r%read_from_element(element, r_point_data_indices)
 			call gv_saturation%read_from_element(element, saturation)
+
+			point_data_indices = int(r_point_data_indices, kind=GRID_SI)
+
+            call write_element_data(traversal%i_connectivity, section%index, element, p, rhs, saturation, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity, traversal%cell_data, traversal%i_cell_data_index, traversal%point_data, point_data_indices)
+		end subroutine
+
+
+        subroutine write_element_data(i_connectivity, section_index, element, p, rhs, saturation, base_permeability, porosity, cell_data, i_cell_data_index, point_data, point_data_indices)
+			type(t_element_base), intent(inout)	        :: element
+            type(t_output_cell_data), intent(inout)     :: cell_data
+            type(t_output_point_data), intent(inout)    :: point_data
+            integer  (kind = GRID_SI), intent(inout)    :: i_cell_data_index
+            integer (kind = GRID_SI), intent(inout)     :: i_connectivity(:)
+            integer  (kind = GRID_SI), intent(in)       :: section_index
+
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR), intent(in)	    :: p(:, :)
+                real (kind = GRID_SR), intent(in)	    :: rhs(:, :)
+                real (kind = GRID_SR), intent(in)	    :: base_permeability(:,:)
+                real (kind = GRID_SR), intent(in)	    :: porosity(:)
+                real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
+                integer (kind = GRID_SI), intent(in)    :: point_data_indices(:, :)
+
+                real (kind = SR)                :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3)
+                real (kind = SR)                :: u_w(7), u_n(7)
+                real (kind = GRID_SR)			:: g_local(3)
+#           else
+                real (kind = GRID_SR), intent(in)	    :: p(:)
+                real (kind = GRID_SR), intent(in)	    :: rhs(:)
+                real (kind = GRID_SR), intent(in)	    :: base_permeability
+                real (kind = GRID_SR), intent(in)	    :: porosity
+                real (kind = GRID_SR), intent(in)	    :: saturation(:)
+                integer (kind = GRID_SI), intent(in)    :: point_data_indices(:)
+
+                real (kind = SR)                :: lambda_w(3), lambda_n(3)
+                real (kind = SR)                :: u_w(2), u_n(2)
+                real (kind = GRID_SR)			:: g_local(2)
+#           endif
+
+            integer                         :: i, layer
+            real (kind = GRID_SR)			:: edge_length, dz, flux_w(3), flux_n(3)
+
+            lambda_w = (saturation * saturation) / cfg%r_nu_w
+            lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
 
             !rotate g so it points in the right direction (no scaling!)
             g_local = g
@@ -309,79 +348,94 @@
                 dz = cfg%dz
 
                 do layer = 1, _DARCY_LAYERS
-                    traversal%cell_data%rank(traversal%i_cell_data_index) = rank_MPI
-                    traversal%cell_data%section_index(traversal%i_cell_data_index) = section%index
-                    traversal%cell_data%permeability(traversal%i_cell_data_index, 1:2) = element%cell%data_pers%base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    traversal%cell_data%permeability(traversal%i_cell_data_index, 3) = element%cell%data_pers%base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    traversal%cell_data%porosity(traversal%i_cell_data_index) = element%cell%data_pers%porosity(layer)
+                    cell_data%rank(i_cell_data_index) = rank_MPI
+                    cell_data%section_index(i_cell_data_index) = section_index
+                    cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
+                    cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
+                    cell_data%porosity(i_cell_data_index) = porosity(layer)
 
-                    call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 1) + p(layer + 1, 1)), u_w(1), u_n(1), g_local(1))
-                    call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability(layer, 1), 0.5_SR * (p(layer, 2) + p(layer + 1, 2)), 0.5_SR * (p(layer, 3) + p(layer + 1, 3)), u_w(2), u_n(2), g_local(2))
-                    call compute_velocity_1D(dz, 1.0_SR, element%cell%data_pers%base_permeability(layer, 2), &
-                    (0.25_SR * p(layer, 1) + 0.5_SR * p(layer, 2) + 0.25_SR * p(layer, 3)), &
-                    (0.25_SR * p(layer + 1, 1) + 0.5_SR * p(layer + 1, 2) + 0.25_SR * p(layer + 1, 3)), u_w(3), u_n(3), g_local(3))
+                    !compute fluxes
 
-                    u_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, u_w(1:2))
-                    u_w(1:2) = u_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
+                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
 
-                    traversal%cell_data%u(traversal%i_cell_data_index, :) = cfg%scaling * u_w
+                    call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 1), p(layer + 1, 1), u_w(3), u_n(3), g_local(3))
+                    call compute_velocity_1D(dz, 0.50_SR, base_permeability(layer, 2), p(layer, 2), p(layer + 1, 2), u_w(4), u_n(4), g_local(3))
+                    call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 3), p(layer + 1, 3), u_w(5), u_n(5), g_local(3))
 
-                    traversal%cell_data%depth(traversal%i_cell_data_index) = element%cell%geometry%i_depth
-                    traversal%cell_data%refinement(traversal%i_cell_data_index) = element%cell%geometry%refinement
+                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
+                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
 
-                    point_data_indices = int(r_point_data_indices(layer, :), kind=GRID_SI)
-                    traversal%i_connectivity(6 * traversal%i_cell_data_index - 5 : 6 * traversal%i_cell_data_index - 3) = point_data_indices - 1
+                    flux_w = 0.0_SR
+                    flux_n = 0.0_SR
+                    call compute_upwind_flux(u_w(1), lambda_w(layer, 2), lambda_w(layer, 1), flux_n(1), flux_w(1))
+                    call compute_upwind_flux(u_w(2), lambda_w(layer, 2), lambda_w(layer, 3), flux_n(2), flux_w(2))
+                    call compute_upwind_flux(u_w(3), lambda_w(layer, 1), lambda_w(layer + 1, 1), flux_n(3), flux_w(3))
+                    call compute_upwind_flux(u_w(4), lambda_w(layer, 2), lambda_w(layer + 1, 2), flux_n(3), flux_w(3))
+                    call compute_upwind_flux(u_w(5), lambda_w(layer, 3), lambda_w(layer + 1, 3), flux_n(3), flux_w(3))
+                    call compute_upwind_flux(u_w(6), lambda_w(layer + 1, 2), lambda_w(layer + 1, 1), flux_n(1), flux_w(1))
+                    call compute_upwind_flux(u_w(7), lambda_w(layer + 1, 2), lambda_w(layer + 1, 3), flux_n(2), flux_w(2))
 
-                    point_data_indices = int(r_point_data_indices(layer + 1, :), kind=GRID_SI)
-                    traversal%i_connectivity(6 * traversal%i_cell_data_index - 2 : 6 * traversal%i_cell_data_index) = point_data_indices - 1
+                    flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
+                    flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                    traversal%i_cell_data_index = traversal%i_cell_data_index + 1
+                    cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
+
+                    cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
+                    cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
+
+                    i_connectivity(6 * i_cell_data_index - 5 : 6 * i_cell_data_index - 3) = point_data_indices(layer, :) - 1
+                    i_connectivity(6 * i_cell_data_index - 2 : 6 * i_cell_data_index) = point_data_indices(layer + 1, :) - 1
+
+                    i_cell_data_index = i_cell_data_index + 1
                 end do
 
                 do layer = 1, _DARCY_LAYERS + 1
-                    point_data_indices(:) = int(r_point_data_indices(layer, :), kind=GRID_SI)
-
                     forall (i = 1 : 3)
-                        traversal%point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                        traversal%point_data%coords(point_data_indices(i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
-                        traversal%point_data%p(point_data_indices(i)) = p(layer, i) / (cfg%scaling * 6894.75729_SR)
-                        traversal%point_data%rhs(point_data_indices(i)) = rhs(layer, i) * (cfg%scaling ** 3)
-                        traversal%point_data%S(point_data_indices(i)) = saturation(layer, i)
+                        point_data%coords(point_data_indices(layer, i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
+                        point_data%coords(point_data_indices(layer, i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
+                        point_data%p(point_data_indices(layer, i)) = p(layer, i) / (cfg%scaling * 6894.75729_SR)
+                        point_data%rhs(point_data_indices(layer, i)) = rhs(layer, i) * (cfg%scaling ** 3)
+                        point_data%S(point_data_indices(layer, i)) = saturation(layer, i)
                     end forall
                 end do
 #           else
                 edge_length = element%cell%geometry%get_leg_size()
 
-                point_data_indices(:) = int(r_point_data_indices(1, :), kind=GRID_SI)
+                cell_data%rank(i_cell_data_index) = rank_MPI
+                cell_data%section_index(i_cell_data_index) = section_index
+                cell_data%permeability(i_cell_data_index, :) = base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
+                cell_data%porosity(i_cell_data_index) = porosity
 
-                traversal%cell_data%rank(traversal%i_cell_data_index) = rank_MPI
-                traversal%cell_data%section_index(traversal%i_cell_data_index) = section%index
-                traversal%cell_data%permeability(traversal%i_cell_data_index, :) = element%cell%data_pers%base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
-                traversal%cell_data%porosity(traversal%i_cell_data_index) = element%cell%data_pers%porosity
+                !compute fluxes
 
-                call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 1), u_w(1), u_n(1), g_local(1))
-                call compute_velocity_1D(edge_length, 1.0_SR, element%cell%data_pers%base_permeability, p(1, 2), p(1, 3), u_w(2), u_n(2), g_local(2))
+                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
+                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
 
-                u_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, u_w(1:2))
-                u_w(1:2) = u_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-                u_w(3) = 0.0_SR
+                flux_w = 0.0_SR
+                flux_n = 0.0_SR
+                call compute_upwind_flux(u_w(1), lambda_w(2), lambda_w(1), flux_n(1), flux_w(1))
+                call compute_upwind_flux(u_w(2), lambda_w(2), lambda_w(3), flux_n(2), flux_w(2))
 
-                traversal%cell_data%u(traversal%i_cell_data_index, :) = cfg%scaling * u_w
+                flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
+                flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                traversal%cell_data%depth(traversal%i_cell_data_index) = element%cell%geometry%i_depth
-                traversal%cell_data%refinement(traversal%i_cell_data_index) = element%cell%geometry%refinement
+                cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
+
+                cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
+                cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
                 forall (i = 1 : 3)
-                    traversal%point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                    traversal%point_data%coords(point_data_indices(i), 3) = 0.0_SR
-                    traversal%point_data%p(point_data_indices(i)) = p(1, i) / (cfg%scaling * 6894.75729_SR)
-                    traversal%point_data%rhs(point_data_indices(i)) = rhs(1, i) * (cfg%scaling ** 2)
-                    traversal%point_data%S(point_data_indices(i)) = saturation(1, i)
+                    point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
+                    point_data%coords(point_data_indices(i), 3) = 0.0_SR
+                    point_data%p(point_data_indices(i)) = p(i) / (cfg%scaling * 6894.75729_SR)
+                    point_data%rhs(point_data_indices(i)) = rhs(i) * (cfg%scaling ** 2)
+                    point_data%S(point_data_indices(i)) = saturation(i)
                 end forall
 
-                traversal%i_connectivity(3 * traversal%i_cell_data_index - 2 : 3 * traversal%i_cell_data_index) = point_data_indices(1:3) - 1
+                i_connectivity(3 * i_cell_data_index - 2 : 3 * i_cell_data_index) = point_data_indices(1:3) - 1
 
-                traversal%i_cell_data_index = traversal%i_cell_data_index + 1
+                i_cell_data_index = i_cell_data_index + 1
 #           endif
 		end subroutine
 

@@ -137,6 +137,8 @@
 			integer (kind = BYTE), intent(in)			:: i_depth
 			integer (kind = BYTE), intent(out)			:: i_refinement
 
+            real (kind = GRID_SR), parameter            :: refinement_threshold = 5.0e-2_SR
+
             real (kind = GRID_SR)						:: r_sat_norm, r_p_norm
             logical 									:: l_coarsen_p, l_coarsen_sat, l_refine_sat, l_relevant
 
@@ -158,8 +160,8 @@
                 l_relevant = (base_permeability > 0.0_GRID_SR)
 #           endif
 
-			l_refine_sat = r_sat_norm > 0.1_GRID_SR
-			l_coarsen_sat = r_sat_norm < 0.02_GRID_SR
+			l_refine_sat = r_sat_norm > refinement_threshold
+			l_coarsen_sat = r_sat_norm < refinement_threshold / 5.0_SR
 			l_coarsen_p = r_p_norm < 0.003_GRID_SR * cfg%r_p_prod
 
 			!* refine the cell if the saturation becomes too steep
