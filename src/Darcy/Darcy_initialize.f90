@@ -573,8 +573,6 @@
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 
-                        _log_write(1, '("inflow: ", 3(X, F0.3), " saturation: ", 3(X, F0.3))') [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)], saturation
-
                         saturation = max(0.0_SR, min(1.0_SR, saturation + [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]))
                         call gv_saturation%add_to_element(element, [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)])
 
