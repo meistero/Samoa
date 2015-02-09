@@ -93,7 +93,9 @@ subroutine element_op(traversal, section, element)
     c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
     dt=section%r_dt
 
-    h= element%cell%data_pers%Q(1)%h
+    h= element%cell%data_pers%Q(1)%h     !-  element%cell%data_pers%Q(1)%b
+    write(*,*) 'h:', h
+
     hu= element%cell%data_pers%Q(1)%p(1)
     hv= element%cell%data_pers%Q(1)%p(2)
     w= element%cell%data_pers%Q(1)%w

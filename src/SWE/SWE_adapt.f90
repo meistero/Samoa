@@ -128,6 +128,7 @@
 				call t_basis_Q_split(Q_in%h, 	Q_out(:, 1)%h, 		Q_out(:, 2)%h)
 				call t_basis_Q_split(Q_in%p(1),	Q_out(:, 1)%p(1),	Q_out(:, 2)%p(1))
 				call t_basis_Q_split(Q_in%p(2),	Q_out(:, 1)%p(2),	Q_out(:, 2)%p(2))
+				call t_basis_Q_split(Q_in%w,	Q_out(:, 1)%w,	Q_out(:, 2)%w)
 
 				Q_in = Q_out(:, refinement_path(i))
 			end do
@@ -163,6 +164,7 @@
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(1),	    traversal%Q_in(:, 2)%p(1),	Q_out%p(1))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(2),	    traversal%Q_in(:, 2)%p(2),	Q_out%p(2))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%b,		traversal%Q_in(:, 2)%b,		Q_out%b)
+				call t_basis_Q_merge(traversal%Q_in(:, 1)%w,		traversal%Q_in(:, 2)%w,		Q_out%w)
 
                 !convert velocity back to momentum
                 !Q_out(1)%p = (Q_out(1)%h - Q_out(1)%b) * Q_out(1)%p

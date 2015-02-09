@@ -92,7 +92,7 @@
             call swe%lse_output%create()
 
             !call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
-            call pressure_solver_jacobi%create(real(0.01, GRID_SR))
+            call pressure_solver_jacobi%create(real(0.001, GRID_SR))
             allocate(swe%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
 		end subroutine
 

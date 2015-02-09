@@ -78,8 +78,8 @@ q1= element%nodes(1)%ptr%data_pers%qp(1)
 q2= element%nodes(2)%ptr%data_pers%qp(1)
 q3= element%nodes(3)%ptr%data_pers%qp(1)
 
-write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
-write (*,*) 'hu,hv,w before correction: ', hu,',',hv, ',',w
+!write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
+!write (*,*) 'hu,hv,w before correction: ', hu,',',hv, ',',w
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 area= (2.0_GRID_SR*c)*(2.0_GRID_SR*c) *0.5_GRID_SR
@@ -87,7 +87,7 @@ hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2*c) + m12*((q3-q2)/(2*c))))
 hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2*c) + m22*((q3-q2)/(2*c))))
 w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q2+q3))
 
-write (*,*) 'hu,hv,w after correction: ', hu,',',hv, ',' ,w
+!write (*,*) 'hu,hv,w after correction: ', hu,',',hv, ',' ,w
 
 !p_local(1)=hu
 !p_local(2)=hv
