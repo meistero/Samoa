@@ -464,7 +464,7 @@
                         saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + inflow(1)))
                         saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + inflow(2)))
                         saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + inflow(3)))
-                        call gv_saturation%add_to_element(element, saturation)
+                        call gv_saturation%add_to_element(element, spread(inflow, 1, _DARCY_LAYERS + 1))
 
                         !The inflow condition is given in um^3 / s
                         !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
@@ -573,8 +573,10 @@
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 
+                        _log_write(1, '("inflow: ", 3(X, F0.3), " saturation: ", 3(X, F0.3))') [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)], saturation
+
                         saturation = max(0.0_SR, min(1.0_SR, saturation + [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]))
-                        call gv_saturation%add_to_element(element, saturation)
+                        call gv_saturation%add_to_element(element, [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)])
 
                         if (base_permeability > 0) then
                             !The inflow condition is given in um^3 / s
