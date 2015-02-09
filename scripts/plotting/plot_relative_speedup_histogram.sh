@@ -120,8 +120,8 @@ do for [i=1:20] {
     outfile = sprintf('| ps2pdf - darcy%i_rel_hist.pdf', i)
     set output outfile
  
-    set yrange [0:GPVAL_DATA_Y_MAX]
-    set y2range [0:GPVAL_DATA_Y_MAX]
+    set yrange [0:GPVAL_Y_MAX]
+    set y2range [0:GPVAL_Y_MAX]
 
     replot
 }
@@ -142,8 +142,8 @@ do for [i=1:20] {
     outfile = sprintf('| ps2pdf - swe%i_rel_hist.pdf', i)
     set output outfile
 
-    set yrange [0:GPVAL_DATA_Y_MAX]
-    set y2range [0:GPVAL_DATA_Y_MAX]
+    set yrange [0:GPVAL_Y_MAX]
+    set y2range [0:GPVAL_Y_MAX]
 
     replot
 }
