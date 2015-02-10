@@ -162,7 +162,7 @@
 			call gm_A%read(element, A)
 			call gv_qp%read(element, qp)
 			call gv_r%read(element, r_indices)
-            call gv_rhs%read(element, rhs)
+
 
 			indices(:) = int(r_indices(:), kind=GRID_SI)
 			!qp = samoa_basis_p_dofs_to_values(qp)
@@ -179,7 +179,7 @@
                     end do
 
                     traversal%qp(indices(i)) = qp(i)
-                    traversal%rhs(indices(i))= traversal%rhs(indices(i))+ rhs(i)
+                    !traversal%rhs(indices(i))= traversal%rhs(indices(i))+ rhs(i) -> this should be wrong!
                end if
             end do
 		end subroutine
@@ -208,6 +208,10 @@
 			do i = 1, 1
 				call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i), .false.)
 			end do
+
+			if(node%data_pers%r(1) .ne. -1) then
+                traversal%rhs(int(node%data_pers%r(1), kind=GRID_SI))= node%data_pers%rhs(1)
+			end if
 		end subroutine
 
 		elemental subroutine pre_dof_op(i_point_data_index, r, is_dirichlet)
