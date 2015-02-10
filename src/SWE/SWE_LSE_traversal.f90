@@ -94,7 +94,7 @@ subroutine element_op(traversal, section, element)
     dt=section%r_dt
 
     h= element%cell%data_pers%Q(1)%h     !-  element%cell%data_pers%Q(1)%b
-    write(*,*) 'h:', h
+    !write(*,*) 'h:', h
 
     hu= element%cell%data_pers%Q(1)%p(1)
     hv= element%cell%data_pers%Q(1)%p(2)

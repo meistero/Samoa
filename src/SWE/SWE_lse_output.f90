@@ -174,6 +174,7 @@
                             traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
                         else
                             traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
+                            !write(*,*)  qp(j)
                         end if
                     end do
 

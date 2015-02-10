@@ -24,6 +24,8 @@
         use SWE_lse_output
         use SWE_lse_traversal
         use SWE_NH_traversal
+        use SWE_NH_test_traversal
+        use SWE_NH_residual_output_traversal
 
 		use Samoa_swe
 
@@ -42,6 +44,8 @@
 	        type(t_swe_lse_output_traversal)        :: lse_output
             type(t_swe_lse_traversal)               :: lse_traversal
             type(t_swe_nh_traversal)               ::  nh_traversal
+            type(t_swe_nh_test_traversal)               ::  nh_test_traversal
+            type(t_swe_nh_residual_output_traversal)               ::  nh_residual_output_traversal
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
 
@@ -89,10 +93,12 @@
             call swe%adaption%create()
             call swe%lse_traversal%create()
             call swe%nh_traversal%create()
+            call swe%nh_test_traversal%create()
+            call swe%nh_residual_output_traversal%create()
             call swe%lse_output%create()
 
             !call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p0, GRID_SR))
-            call pressure_solver_jacobi%create(real(0.001, GRID_SR))
+            call pressure_solver_jacobi%create(real(0.00001, GRID_SR))
             allocate(swe%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
 		end subroutine
 
@@ -189,6 +195,9 @@
             call swe%lse_output%destroy()
             call swe%lse_traversal%destroy()
             call swe%nh_traversal%destroy()
+            call swe%nh_test_traversal%destroy()
+            call swe%nh_residual_output_traversal%destroy()
+
 
             if (associated(swe%pressure_solver)) then
                 call swe%pressure_solver%destroy()
@@ -383,10 +392,16 @@
 				!do a time step
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
+                    !call swe%nh_test_traversal%traverse(grid)
                     call swe%lse_traversal%traverse(grid)
+                                     call swe%lse_output%traverse(grid)
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations
+                                     call swe%lse_output%traverse(grid)
+                    !call swe%nh_test_traversal%traverse(grid)
+                    !call swe%nh_residual_output_traversal%traverse(grid)
                     call swe%nh_traversal%traverse(grid)
+
                     if (cfg%l_lse_output) then
                         call swe%lse_output%traverse(grid)
                     end if
