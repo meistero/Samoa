@@ -343,7 +343,7 @@ MODULE _JACOBI
                 _log_write(2, '(A, I0, A, F0.10, A, ES17.10)') "   i: ", i_iteration, ", alpha: ", solver%jacobi%alpha, ", res: ", sqrt(r_sq)
                 !$omp end master
             end if
-            write(*,*) 'i: ',i_iteration, ' res:', sqrt(r_sq)
+            !write(*,*) 'i: ',i_iteration, ' res:', sqrt(r_sq)
 
             if (sqrt(r_sq) < solver%max_error) then
                 exit
