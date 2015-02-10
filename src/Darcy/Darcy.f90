@@ -324,7 +324,7 @@
                 end if
 
                 grid_info%i_cells = grid%get_cells(MPI_SUM, .true.)
-				if (darcy%init_saturation%i_refinements_issued .le. 0) then
+				if (i_initial_step .ge. cfg%i_max_depth .or. darcy%init_saturation%i_refinements_issued .le. 0) then
 					exit
 				endif
 
