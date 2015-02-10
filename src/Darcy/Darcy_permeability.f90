@@ -33,6 +33,7 @@
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
+#		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
 #		define _GT_EDGE_MPI_TYPE
 
@@ -113,6 +114,14 @@
 			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
 			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
+		end subroutine
+
+		elemental subroutine node_last_touch_op(traversal, section, node)
+ 			type(t_darcy_permeability_traversal), intent(in)            :: traversal
+ 			type(t_grid_section), intent(in)							:: section
+			type(t_node_data), intent(inout)			                :: node
+
+			node%data_pers%saturation = min(1.0_SR, node%data_pers%saturation)
 		end subroutine
 	END MODULE
 #endif

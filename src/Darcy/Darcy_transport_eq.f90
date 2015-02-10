@@ -12,6 +12,8 @@
 
 		use Samoa_darcy
 
+		public compute_upwind_flux
+
         type num_traversal_data
         end type
 
@@ -102,13 +104,13 @@
                 real(kind = GRID_SR)    :: volume(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: porosity(_DARCY_LAYERS + 1)
 
+                !Set porosity for each intermediate layer to the weighted average of lower and upper layer.
+                !The top and bottom layers have half the volume of the inner layers.
+                !We account for that by multiplying the porosity with 2 in the inner layers.
+
                 porosity = 0.0_SR
-
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * element%cell%data_pers%porosity
-
-                porosity(1) = 2.0_SR * porosity(1)
-                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + element%cell%data_pers%porosity
 #           else
                 real(kind = GRID_SR)    :: p(3)
                 real(kind = GRID_SR)    :: saturation(3)

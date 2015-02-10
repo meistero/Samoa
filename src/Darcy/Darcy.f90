@@ -194,10 +194,12 @@
 #           else
                 cfg%scaling = 1.0_SR
                 cfg%offset = [0.0_SR, 0.0_SR]
-                cfg%dz = 1.0_SR
+                cfg%dz = 1.0_SR / real(max(1, _DARCY_LAYERS), SR)
 
-                cfg%r_pos_in = [0.0_SR, 0.0_SR]
-                cfg%r_pos_prod = [1.0_SR, 1.0_SR]
+                cfg%r_pos_in = [0.5_SR, -0.5_SR]
+                cfg%r_pos_prod = [0.5_SR, -1.0_SR]
+                cfg%r_well_radius = 0.1_SR
+                cfg%r_inflow = 0.0_SR
 #			endif
 
             !Conversion rules:

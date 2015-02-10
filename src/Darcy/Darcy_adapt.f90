@@ -86,11 +86,8 @@
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
-
-                porosity(1) = 2.0_SR * porosity(1)
-                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + src_element%cell%data_pers%porosity
 #           else
                 porosity = porosity + src_element%cell%data_pers%porosity
 #           endif
@@ -128,11 +125,8 @@
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
-
-                porosity(1) = 2.0_SR * porosity(1)
-                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + src_element%cell%data_pers%porosity
 #           else
                 porosity = porosity + src_element%cell%data_pers%porosity
 #           endif
@@ -204,11 +198,8 @@
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
-
-                porosity(1) = 2.0_SR * porosity(1)
-                porosity(_DARCY_LAYERS + 1) = 2.0_SR * porosity(_DARCY_LAYERS + 1)
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + src_element%cell%data_pers%porosity
 #           else
                 porosity = porosity + src_element%cell%data_pers%porosity
 #           endif
