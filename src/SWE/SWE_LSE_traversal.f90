@@ -39,13 +39,7 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     !this is required, otw. NaN values occur after an Euler traversal, why?
     node%data_pers%qp = 0.0_GRID_SR
 
-
-    if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR .and. node%position(2) > 0.0_GRID_SR .and. node%position(2) < 1.0_GRID_SR ) then
-            node%data_pers%is_dirichlet_boundary = .false.
-    else
-            node%data_pers%is_dirichlet_boundary = .true.
-    end if
-
+    node%data_pers%is_dirichlet_boundary = .false.
 end subroutine
 
 
@@ -59,20 +53,12 @@ subroutine element_op(traversal, section, element)
     real (kind = GRID_SR) :: rhs(3)
     logical	:: is_dirichlet(3)
     real (kind = GRID_SR)  :: mat(3, 3)
-    real (kind=GRID_SR) :: c,dt
+    real (kind=GRID_SR) :: c,dt, half_hypo
     real(kind=GRID_SR):: h,hu,hv,w,q1,q2,q3
-    real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y
+    real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, midpoint12, midpoint13, midpoint23
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
-    !nxvn=-1
-    !nxvp=1
-    !nyvp=0
-    !nxvn=0
 
-    !nxhn=0
-    !nxhp=0
-    !nyhn=-1
-    !nyhp=1
     !assert that q values are ok
     q1= element%nodes(1)%ptr%data_pers%qp(1)
     q2= element%nodes(2)%ptr%data_pers%qp(1)
@@ -81,16 +67,14 @@ subroutine element_op(traversal, section, element)
     assert_eq(q2,q2)
     assert_eq(q3,q3)
 
-
-
     normal_x(1)=1
     normal_x(2)=0
 
     normal_y(1)=0
     normal_y(2)=1
 
-
     c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
     dt=section%r_dt
 
     h= element%cell%data_pers%Q(1)%h     !-  element%cell%data_pers%Q(1)%b
@@ -106,15 +90,11 @@ subroutine element_op(traversal, section, element)
     normal_y(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_y(1:2))
     normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
-
     m11=element%transform_data%plotter_data%jacobian_inv(1,1)
     m12=element%transform_data%plotter_data%jacobian_inv(2,1)
     m21=element%transform_data%plotter_data%jacobian_inv(1,2)
     m22=element%transform_data%plotter_data%jacobian_inv(2,2)
     s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
-
-
-
 
     !write (*,*) 'h: ', h
     !write (*,*) 'new element'
@@ -147,8 +127,6 @@ subroutine element_op(traversal, section, element)
     nxhn=-nxhp
     nyhn=-nyhp
 
-
-
     !write (*,*) 'rotation pressure test: x_rotated:' , s*(m11*1), ',' , s*(m21*1)
     !write (*,*) 'rotation pressure test: y_rotated:' , s*(m12*1), ',' , s*(m22*1)
 
@@ -156,25 +134,6 @@ subroutine element_op(traversal, section, element)
     assert_eq(nyvp, s*(m21))
     assert_eq(nxhp, s*(m12))
     assert_eq(nyhp, s*(m22))
-
-    !write (*,*) 'orientation: ' , element%transform_data%plotter_data%orientation
-    !p=element%cell%data_pers%Q(1)%p
-    !rotate p so it points in the right direction (no scaling!)
-    !p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
-    !p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-    !hu=p_local(1)
-    !hv=p_local(2)
-    !mat= reshape([c*0.5_GRID_SR*dt*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR), -c*dt*0.5_GRID_SR*h*h+dt*0.5_GRID_SR*c*c, (1._GRID_SR/6._GRID_SR)*dt*c*c, &
-         !   -c*h*h*dt*0.5_GRID_SR+2*dt*c*c*(1._GRID_SR/12._GRID_SR), c*dt*0.5_GRID_SR*h*h+c*dt*0.5_GRID_SR*h*h+dt*c*c, -c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/12._GRID_SR),&
-          !  (1._GRID_SR/6._GRID_SR)*dt*c*c,-c*dt*0.5_GRID_SR*h*h+2*dt*c*c*0.25_GRID_SR, c*dt*0.5_GRID_SR*h*h+2*dt*c*c*(1._GRID_SR/3._GRID_SR) &
-          !  ],[3,3])
-    !write (*,*) 'matrix=',mat
-    !write (*,*) ''
-    !rhs= [-c*hu+ 0.5_GRID_SR*c*c*w,c*hv+c*hu+c*c*w,-c*hv+0.5_GRID_SR*c*c*w]
-
-    !dt=1
-    !h=1
-    !c=1
 
     mat(1,1)= 2*dt*c*c* (1._GRID_SR/3._GRID_SR)- dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21)
     mat(2,1)= 2*dt*c*c* (1._GRID_SR/12._GRID_SR)+dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
@@ -196,21 +155,61 @@ subroutine element_op(traversal, section, element)
 
     rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]
 
-    !write (*,*) 'rhs' , rhs
+    midpoint12= (element%nodes(1)%ptr%position +element%nodes(2)%ptr%position) *0.5_GRID_SR
+    midpoint23= (element%nodes(2)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
+    midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
 
-
-    if (element%nodes(1)%ptr%data_pers%is_dirichlet_boundary(1)) then
-        rhs(1)=0
+    !leg on left boundary
+    if (midpoint12(1) .eq. 0) then
+        rhs(1)=rhs(1)- (-1)*c*hu
+        rhs(2)=rhs(2)- (-1)*c*hu
+    !leg on right boundary
+    elseif (midpoint12(1) .eq. 1) then
+        rhs(1)=rhs(1) - (1)*c*hu
+        rhs(2)=rhs(2) - (1)*c*hu
+    elseif (midpoint12(2) .eq. 0) then
+        rhs(1)=rhs(1) - (-1)*c*hv
+        rhs(2)=rhs(2) - (-1)*c*hv
+    elseif (midpoint12(2) .eq. 1) then
+        rhs(1)=rhs(1) - (1)*c*hv
+        rhs(2)=rhs(2) - (1)*c*hv
     endif
 
-    if (element%nodes(2)%ptr%data_pers%is_dirichlet_boundary(1)) then
-        rhs(2)=0
+    !leg on left boundary
+    if (midpoint23(1) .eq. 0) then
+        rhs(2)=rhs(2)- (-1)*c*hu
+        rhs(3)=rhs(3)- (-1)*c*hu
+    !leg on right boundary
+    elseif (midpoint23(1) .eq. 1) then
+        rhs(2)=rhs(2) - (1)*c*hu
+        rhs(3)=rhs(3) - (1)*c*hu
+    elseif (midpoint23(2) .eq. 0) then
+        rhs(2)=rhs(2) - (-1)*c*hv
+        rhs(3)=rhs(3) - (-1)*c*hv
+    elseif (midpoint23(2) .eq. 1) then
+        rhs(2)=rhs(2) - (1)*c*hv
+        rhs(3)=rhs(3) - (1)*c*hv
     endif
 
-    if (element%nodes(3)%ptr%data_pers%is_dirichlet_boundary(1)) then
-        rhs(3)=0
+
+
+    !leg on left boundary
+    if (midpoint13(1) .eq. 0) then
+        rhs(1)=rhs(1)- (-1)*half_hypo*hu
+        rhs(3)=rhs(3)- (-1)*half_hypo*hu
+    !leg on right boundary
+    elseif (midpoint13(1) .eq. 1) then
+        rhs(1)=rhs(1) - (1)*half_hypo*hu
+        rhs(3)=rhs(3) - (1)*half_hypo*hu
+    elseif (midpoint13(2) .eq. 0) then
+        rhs(1)=rhs(1) - (-1)*half_hypo*hv
+        rhs(3)=rhs(3) - (-1)*half_hypo*hv
+    elseif (midpoint13(2) .eq. 1) then
+        rhs(1)=rhs(1) - (1)*half_hypo*hv
+        rhs(3)=rhs(3) - (1)*half_hypo*hv
     endif
-    !write (*,*) 'rhs=',rhs
+
+
 
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
     element%cell%data_pers%original_lse_orientation=element%transform_data%plotter_data%orientation

@@ -104,11 +104,8 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			if (node%position(1) > 0.0_GRID_SR .and. node%position(1) < 1.0_GRID_SR .and. node%position(2) > 0.0_GRID_SR .and. node%position(2) < 1.0_GRID_SR ) then
 				node%data_pers%is_dirichlet_boundary = .false.
-			else
-				node%data_pers%is_dirichlet_boundary = .true.
-			end if
+
 
             call inner_node_first_touch_op(traversal, section, node)
 		end subroutine
