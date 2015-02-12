@@ -197,7 +197,7 @@
                     call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i), nodes(j)%data_pers%is_dirichlet_boundary(i))
 
                     traversal%rhs(int(nodes(j)%data_pers%r(1), kind=GRID_SI))= nodes(j)%data_pers%rhs(i)
-                    write(*,*) 'rhs in node_ft_op:' , nodes(j)%data_pers%rhs(i), ' write to index:',int(nodes(j)%data_pers%r(i), kind=GRID_SI)
+                    !write(*,*) 'rhs in node_ft_op:' , nodes(j)%data_pers%rhs(i), ' write to index:',int(nodes(j)%data_pers%r(i), kind=GRID_SI)
                 end do
             end do
 		end subroutine
@@ -216,7 +216,7 @@
 
 			!if(node%data_pers%r(1) .ne. -1) then
                 traversal%rhs(int(node%data_pers%r(1), kind=GRID_SI))= node%data_pers%rhs(1)
-                write(*,*) 'rhs in node_ft_op:' , node%data_pers%rhs(1), ' write to index:',int(node%data_pers%r(1), kind=GRID_SI)
+                !write(*,*) 'rhs in node_ft_op:' , node%data_pers%rhs(1), ' write to index:',int(node%data_pers%r(1), kind=GRID_SI)
 			!end if
 		end subroutine
 

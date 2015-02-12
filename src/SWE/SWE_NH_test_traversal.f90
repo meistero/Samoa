@@ -18,7 +18,7 @@
 #define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
-#define _GT_NODE_LAST_TOUCH_OP node_last_touch_op
+
 
 #include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -35,13 +35,6 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     node%data_pers%div = 0.0_GRID_SR
 end subroutine
 
-elemental subroutine node_last_touch_op(traversal,section, node)
-    type(t_swe_NH_test_traversal), intent(in) :: traversal
-    type(t_grid_section), intent(in) :: section
-    type(t_node_data), intent(inout) :: node
-
-
-end subroutine
 
 subroutine element_op(traversal, section, element)
     type(t_swe_NH_test_traversal), intent(inout) :: traversal
@@ -53,7 +46,6 @@ subroutine element_op(traversal, section, element)
     real (kind=GRID_SR),dimension(2):: normal_x, normal_y
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp, cont1_p,cont1_w, cont2_p,cont2_w, cont3_p,cont3_w
 
-    !assert that q values are ok
 
     normal_x(1)=1
     normal_x(2)=0
@@ -105,9 +97,9 @@ subroutine element_op(traversal, section, element)
     cont3_p=c*(nxhn*hu+nyhn*hv)
     cont3_w=0.5_GRID_SR*c*c*w
 
-    element%nodes(1)%ptr%data_pers%div(1)=element%nodes(1)%ptr%data_pers%r(1)+ cont1_p + cont1_w
-    element%nodes(2)%ptr%data_pers%div(1)=element%nodes(2)%ptr%data_pers%r(1)+ cont2_p + cont2_w
-    element%nodes(3)%ptr%data_pers%div(1)=element%nodes(3)%ptr%data_pers%r(1)+ cont3_p + cont3_w
+    element%nodes(1)%ptr%data_pers%div(1)=element%nodes(1)%ptr%data_pers%div(1)+ cont1_p + cont1_w
+    element%nodes(2)%ptr%data_pers%div(1)=element%nodes(2)%ptr%data_pers%div(1)+ cont2_p + cont2_w
+    element%nodes(3)%ptr%data_pers%div(1)=element%nodes(3)%ptr%data_pers%div(1)+ cont3_p + cont3_w
 
     end subroutine
 end MODULE
