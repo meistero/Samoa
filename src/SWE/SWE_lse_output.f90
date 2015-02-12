@@ -125,6 +125,7 @@
             write(fileunit, '("rhs:")')
             do i = 1, i_points
                 write(fileunit, '(ES23.15)') traversal%rhs(i)
+                !write(*, *) traversal%rhs(i)
             end do
             write(fileunit, '()')
 
@@ -173,7 +174,7 @@
                         if (indices(j) .ge. 0) then
                             traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
                         else
-                            traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
+                            !traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
                             !write(*,*)  qp(j)
                         end if
                     end do
@@ -194,6 +195,9 @@
             do j = 1, size(nodes)
                 do i = 1, 1
                     call pre_dof_op(traversal%i_point_data_index, nodes(j)%data_pers%r(i), nodes(j)%data_pers%is_dirichlet_boundary(i))
+
+                    traversal%rhs(int(nodes(j)%data_pers%r(1), kind=GRID_SI))= nodes(j)%data_pers%rhs(i)
+                    write(*,*) 'rhs in node_ft_op:' , nodes(j)%data_pers%rhs(i), ' write to index:',int(nodes(j)%data_pers%r(i), kind=GRID_SI)
                 end do
             end do
 		end subroutine
@@ -206,12 +210,14 @@
 			integer (kind = GRID_SI)						    :: i
 
 			do i = 1, 1
-				call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i), .false.)
+				call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(1), .false.)
 			end do
 
-			if(node%data_pers%r(1) .ne. -1) then
+
+			!if(node%data_pers%r(1) .ne. -1) then
                 traversal%rhs(int(node%data_pers%r(1), kind=GRID_SI))= node%data_pers%rhs(1)
-			end if
+                write(*,*) 'rhs in node_ft_op:' , node%data_pers%rhs(1), ' write to index:',int(node%data_pers%r(1), kind=GRID_SI)
+			!end if
 		end subroutine
 
 		elemental subroutine pre_dof_op(i_point_data_index, r, is_dirichlet)

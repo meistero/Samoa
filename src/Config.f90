@@ -72,6 +72,8 @@ module config
             logical                             :: l_lse_output                                     !< print out the linear equation system
             character(256)                      :: s_test_case_name
             logical                             :: l_swe_nh
+            double precision			        :: r_epsilon				                        !< linear solver error bound
+            logical                             ::divergence_test                                   !<output how "divergence-free" the non-hydrostatic solution is
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -95,7 +97,7 @@ module config
 
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
-        character(512)                          :: arguments
+        character(1024)                          :: arguments
         character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
@@ -112,7 +114,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave -swe_nh"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false."
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -177,6 +179,8 @@ module config
             config%l_lse_output = lget('samoa_lseoutput')
             config%s_test_case_name= sget('samoa_test_case',256)
             config%l_swe_nh = lget('samoa_swe_nh')
+            config%divergence_test=lget('samoa_divergence_test')
+            config%r_epsilon= rget('samoa_epsilon')
 #       endif
 
         if (rank_MPI == 0) then
