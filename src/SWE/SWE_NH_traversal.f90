@@ -69,6 +69,8 @@ p=element%cell%data_pers%Q(1)%p
 !p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 !p_local=p
 
+
+h=element%cell%data_pers%Q(1)%h -element%cell%data_pers%Q(1)%b
 hu=p(1)
 hv=p(2)
 

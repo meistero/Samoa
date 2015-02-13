@@ -81,7 +81,7 @@ subroutine element_op(traversal, section, element)
     half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
     dt=section%r_dt
 
-    h= element%cell%data_pers%Q(1)%h     !-  element%cell%data_pers%Q(1)%b
+    h= element%cell%data_pers%Q(1)%h -  element%cell%data_pers%Q(1)%b
     !write(*,*) 'h:', h
 
     hu= element%cell%data_pers%Q(1)%p(1)
