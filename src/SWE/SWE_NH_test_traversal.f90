@@ -42,7 +42,7 @@ subroutine element_op(traversal, section, element)
     type(t_element_base), intent(inout), target	:: element
 
     real (kind=GRID_SR) :: c
-    real(kind=GRID_SR):: hu,hv,w
+    real(kind=GRID_SR):: hu,hv,w1,w2,w3
     real (kind=GRID_SR),dimension(2):: normal_x, normal_y
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp, cont1_p,cont1_w, cont2_p,cont2_w, cont3_p,cont3_w
 
@@ -57,7 +57,10 @@ subroutine element_op(traversal, section, element)
 
     hu= element%cell%data_pers%Q(1)%p(1)
     hv= element%cell%data_pers%Q(1)%p(2)
-    w= element%cell%data_pers%Q(1)%w
+
+    w1= element%nodes(1)%ptr%data_pers%w(1)
+    w2= element%nodes(2)%ptr%data_pers%w(1)
+    w3= element%nodes(3)%ptr%data_pers%w(1)
 
     normal_x(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_x(1:2))
     normal_x(1:2)= normal_x(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
@@ -89,13 +92,13 @@ subroutine element_op(traversal, section, element)
 
     !contribution node 1 -> triangle -> only one boundary integral, normal
     cont1_p=c*(nxvn*hu+nyvn*hv)
-    cont1_w=0.5_GRID_SR*c*c*w
+    cont1_w=c*c* (w1/3.0_GRID_SR +w2/12.0_GRID_SR +w3/12.0_GRID_SR)
 
     cont2_p=c*((nxvp+nxhp)*hu+(nyvp+nyhp)*hv)
-    cont2_w=c*c*w
+    cont2_w=c*c*(w1/4.0_GRID_SR +w2/2.0_GRID_SR +w3/4.0_GRID_SR)
 
     cont3_p=c*(nxhn*hu+nyhn*hv)
-    cont3_w=0.5_GRID_SR*c*c*w
+    cont3_w=c*c* (w1/12.0_GRID_SR +w2/12.0_GRID_SR +w3/3.0_GRID_SR)
 
     element%nodes(1)%ptr%data_pers%div(1)=element%nodes(1)%ptr%data_pers%div(1)+ cont1_p + cont1_w
     element%nodes(2)%ptr%data_pers%div(1)=element%nodes(2)%ptr%data_pers%div(1)+ cont2_p + cont2_w

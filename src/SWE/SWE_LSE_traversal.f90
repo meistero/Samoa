@@ -54,7 +54,7 @@ subroutine element_op(traversal, section, element)
     logical	:: is_dirichlet(3)
     real (kind = GRID_SR)  :: mat(3, 3)
     real (kind=GRID_SR) :: c,dt, half_hypo
-    real(kind=GRID_SR):: h,hu,hv,w,q1,q2,q3
+    real(kind=GRID_SR):: h,hu,hv,w1,w2,w3,q1,q2,q3
     real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, midpoint12, midpoint13, midpoint23
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
@@ -66,6 +66,10 @@ subroutine element_op(traversal, section, element)
     assert_eq(q1,q1)
     assert_eq(q2,q2)
     assert_eq(q3,q3)
+
+    w1= element%nodes(1)%ptr%data_pers%w(1)
+    w2= element%nodes(2)%ptr%data_pers%w(1)
+    w3= element%nodes(3)%ptr%data_pers%w(1)
 
     normal_x(1)=1
     normal_x(2)=0
@@ -82,7 +86,6 @@ subroutine element_op(traversal, section, element)
 
     hu= element%cell%data_pers%Q(1)%p(1)
     hv= element%cell%data_pers%Q(1)%p(2)
-    w= element%cell%data_pers%Q(1)%w
 
     normal_x(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_x(1:2))
     normal_x(1:2)= normal_x(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
@@ -153,7 +156,7 @@ subroutine element_op(traversal, section, element)
     !assert_gt(mat(2,2),0.01)
     !assert_gt(mat(3,3),0.01)
 
-    rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]
+    rhs=[- c*c* (w1/3.0_GRID_SR +w2/12.0_GRID_SR +w3/12.0_GRID_SR)- c*nxvn*hu-c*nyvn*hv, -c*c*(w1/4.0_GRID_SR +w2/2.0_GRID_SR +w3/4.0_GRID_SR)-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* (w1/12.0_GRID_SR +w2/12.0_GRID_SR +w3/3.0_GRID_SR)- c*nxhn*hu-c*nyhn*hv ]
 
     midpoint12= (element%nodes(1)%ptr%position +element%nodes(2)%ptr%position) *0.5_GRID_SR
     midpoint23= (element%nodes(2)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR

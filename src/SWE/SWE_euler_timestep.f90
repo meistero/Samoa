@@ -236,7 +236,7 @@
 			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
-			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%w, rep%Q(1)%b)
+			bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
 
 			!OUTFLOW: copy values
 			!bnd_rep = rep%Q(1)
@@ -323,7 +323,7 @@
 			dQ%p(1) = sum(edge_lengths * fluxes%p(1))
 			dQ%p(2) = sum(edge_lengths * fluxes%p(2))
 			dQ%b = 0.0_GRID_SR
-			dQ%w=0.0_GRID_SR
+
 
 			!set refinement condition
 

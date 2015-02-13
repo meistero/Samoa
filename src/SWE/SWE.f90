@@ -392,18 +392,35 @@
 					exit
 				end if
 
+                write(*,*) 'grid_variables before adapt_traversal:'
+                    call swe%nh_variable_output%traverse(grid)
+
 				call swe%adaption%traverse(grid)
+
+				write(*,*) 'grid_variables before euler_traversal:'
+                    call swe%nh_variable_output%traverse(grid)
 				!do a time step
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
                     if(cfg%divergence_test) then
                     call swe%nh_test_traversal%traverse(grid)
                     end if
+
+                    write(*,*) 'grid_variables before lse_traversal:'
+                    call swe%nh_variable_output%traverse(grid)
+
                     call swe%lse_traversal%traverse(grid)
+
+                    !write(*,*) 'grid_variables after lse_traversal:'
+                    !call swe%nh_variable_output%traverse(grid)
+
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations
+
                     call swe%nh_traversal%traverse(grid)
-                    call swe%nh_variable_output%traverse(grid)
+
+
+
                     if(cfg%divergence_test) then
                     call swe%nh_test_traversal%traverse(grid)
                     call swe%nh_residual_output_traversal%traverse(grid)
@@ -412,6 +429,10 @@
                     if (cfg%l_lse_output) then
                         call swe%lse_output%traverse(grid)
                     end if
+
+                    write(*,*) 'grid_variables after nh_traversal:'
+                    call swe%nh_variable_output%traverse(grid)
+
                 end if
 				i_time_step = i_time_step + 1
 

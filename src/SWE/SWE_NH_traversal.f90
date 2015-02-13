@@ -28,7 +28,7 @@ subroutine element_op(traversal, section, element)
 
 
 real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, normal_x_r, normal_y_r
-real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area, m11,m12,m21,m22,s
+real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w1,w2,w3,area, m11,m12,m21,m22,s
 !logical, dimension(3)           :: is_dirichlet
 
 !normal_x(1)=1
@@ -58,10 +58,10 @@ real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w,area, m11,m12,m21,m
 !write (*,*) 'normal_y rotated back: ',normal_y
 
 m11=element%transform_data%plotter_data%jacobian_inv(1,1)
-    m12=element%transform_data%plotter_data%jacobian_inv(2,1)
-    m21=element%transform_data%plotter_data%jacobian_inv(1,2)
-    m22=element%transform_data%plotter_data%jacobian_inv(2,2)
-    s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
+m12=element%transform_data%plotter_data%jacobian_inv(2,1)
+m21=element%transform_data%plotter_data%jacobian_inv(1,2)
+m22=element%transform_data%plotter_data%jacobian_inv(2,2)
+s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
 c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
 p=element%cell%data_pers%Q(1)%p
@@ -71,7 +71,8 @@ p=element%cell%data_pers%Q(1)%p
 
 hu=p(1)
 hv=p(2)
-w= element%cell%data_pers%Q(1)%w
+
+
 dt=section%r_dt
 !is_dirichlet=element%cell%data_pers%is_dirichlet
 
@@ -79,14 +80,19 @@ q1= element%nodes(1)%ptr%data_pers%qp(1)
 q2= element%nodes(2)%ptr%data_pers%qp(1)
 q3= element%nodes(3)%ptr%data_pers%qp(1)
 
+w1= element%nodes(1)%ptr%data_pers%w(1)
+w2= element%nodes(2)%ptr%data_pers%w(1)
+w3= element%nodes(3)%ptr%data_pers%w(1)
 !write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
 !write (*,*) 'hu,hv,w before correction: ', hu,',',hv, ',',w
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
-area= (2.0_GRID_SR*c)*(2.0_GRID_SR*c) *0.5_GRID_SR
 hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2*c) + m12*((q3-q2)/(2*c))))
 hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2*c) + m22*((q3-q2)/(2*c))))
-w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q2+q3))
+
+w1=w1 + 2*dt* q1
+w2=w2 + 2*dt* q2
+w3=w3 + 2*dt* q3
 
 !write (*,*) 'hu,hv,w after correction: ', hu,',',hv, ',' ,w
 
@@ -99,7 +105,10 @@ w =w + (1._GRID_SR/area) * 2._GRID_SR* dt* (1._GRID_SR/3._GRID_SR)* (2*c*c*(q1+q
 p(1)=hu
 p(2)=hv
 element%cell%data_pers%Q(1)%p=p
-element%cell%data_pers%Q(1)%w=w
+element%nodes(1)%ptr%data_pers%w(1)=w1
+element%nodes(2)%ptr%data_pers%w(1)=w2
+element%nodes(3)%ptr%data_pers%w(1)=w3
+
 
 end subroutine
 end module

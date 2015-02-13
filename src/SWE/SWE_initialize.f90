@@ -91,7 +91,7 @@
 			type(t_state), dimension(_SWE_CELL_SIZE)			:: Q
 
 			real(kind=GRID_SR), dimension(3,3)          ::A
-			A= 0_GRID_SR
+			A= 0.0_GRID_SR
 
 			call alpha_volume_op(traversal, section, element, Q)
 
@@ -119,6 +119,7 @@
              node%data_pers%qp=0.0_GRID_SR
              node%data_pers%rhs=0.0_GRID_SR
              node%data_pers%r=0.0_GRID_SR
+             node%data_pers%w=0.0_GRID_SR
         end subroutine
 
 
@@ -247,7 +248,7 @@
 #			endif
 
 			Q%p = 0.0_GRID_SR
-			Q%w= 0.0_GRID_SR
+
 		end function
 
 		function get_bathymetry(section, x, t, lod) result(bathymetry)
