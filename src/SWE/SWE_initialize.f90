@@ -240,7 +240,7 @@
 				Q%h = 0.0_GRID_SR
 #			else
                 if(cfg%s_test_case_name .eq. 'standing_wave') then
-                    Q%h= -d+ amplitude*(cos(2_GRID_SR*3.1415927_GRID_SR*(xs(1)-10_GRID_SR)/wavelength))
+                    Q%h= amplitude*(cos(2_GRID_SR*3.1415927_GRID_SR*(xs(1)-10_GRID_SR)/wavelength))
                 else
 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
                 endif
