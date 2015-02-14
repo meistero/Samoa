@@ -22,6 +22,7 @@
 #define  _GT_EDGES
 #define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
+#define	_GT_INNER_ELEMENT_OP	inner_element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 
 
@@ -37,9 +38,19 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     type(t_node_data), intent(inout) :: node
     node%data_pers%rhs = 0.0_GRID_SR
     !this is required, otw. NaN values occur after an Euler traversal, why?
-    node%data_pers%qp = 0.0_GRID_SR
+    !node%data_pers%qp = 0.0_GRID_SR -> resolved!
 
     node%data_pers%is_dirichlet_boundary = .false.
+end subroutine
+
+
+subroutine inner_element_op(traversal, section, element)
+    type(t_swe_lse_traversal), intent(inout) :: traversal
+    type(t_grid_section), intent(inout) :: section
+    type(t_element_base), intent(inout), target	:: element
+
+
+
 end subroutine
 
 

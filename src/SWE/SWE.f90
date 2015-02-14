@@ -17,6 +17,7 @@
 		use SWE_xml_output
 		use SWE_ascii_output
 		use SWE_point_output
+		use SWE_point_output_time
 		use SWE_euler_timestep
 
         use Swe_pressure_solver_jacobi
@@ -50,6 +51,7 @@
             type(t_swe_nh_variable_output_traversal) :: nh_variable_output
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
+            type(t_swe_point_output_time_traversal)	    :: point_output_time
 
             class(t_linear_solver), pointer                 :: pressure_solver
             contains
@@ -78,6 +80,7 @@
 			write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (swe%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
             write (swe%point_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
+            write (swe%point_output_time%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (s_log_name, '(A, A)') TRIM(swe%xml_output%s_file_stamp), ".log"
 
 			if (l_log) then
@@ -201,6 +204,7 @@
             call swe%nh_test_traversal%destroy()
             call swe%nh_residual_output_traversal%destroy()
             call swe%nh_variable_output%destroy()
+            call swe%point_output_time%destroy()
 
 
             if (associated(swe%pressure_solver)) then
@@ -295,6 +299,10 @@
 
                 if (cfg%l_pointoutput) then
                     call swe%point_output%traverse(grid)
+                end if
+
+                if (cfg%l_pointoutput_time) then
+                    call swe%point_output_time%traverse(grid)
                 end if
 
 				r_time_next_output = r_time_next_output + cfg%r_output_time_step
@@ -403,7 +411,11 @@
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations
                     call swe%nh_traversal%traverse(grid)
+
+                    if(cfg%l_gv_output) then
                     call swe%nh_variable_output%traverse(grid)
+                    end if
+
                     if(cfg%divergence_test) then
                     call swe%nh_test_traversal%traverse(grid)
                     call swe%nh_residual_output_traversal%traverse(grid)
@@ -435,6 +447,10 @@
 
                     if (cfg%l_pointoutput) then
                         call swe%point_output%traverse(grid)
+                    end if
+
+                    if (cfg%l_pointoutput_time) then
+                    call swe%point_output_time%traverse(grid)
                     end if
 
 					r_time_next_output = r_time_next_output + cfg%r_output_time_step

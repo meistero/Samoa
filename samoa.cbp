@@ -1198,6 +1198,7 @@
 		<Unit filename="src/SWE/SWE_point_output.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="src/SWE/SWE_point_output_time.f90" />
 		<Unit filename="src/SWE/SWE_xml_output.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
