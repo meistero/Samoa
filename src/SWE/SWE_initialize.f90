@@ -296,7 +296,7 @@
 
 
                 !standing wave parameters
-                real (kind=GRID_SR), parameter                       :: d=-5.0
+                real (kind=GRID_SR), parameter                       :: d=-5.0_GRID_SR
 
                 if(cfg%s_test_case_name .eq. 'standing_wave') then
                     xs = cfg%scaling * x + cfg%offset

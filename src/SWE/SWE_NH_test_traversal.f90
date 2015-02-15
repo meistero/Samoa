@@ -11,6 +11,10 @@
         end type
 
         type(swe_gv_div) :: gv_div
+        type(swe_gv_rhs) :: gv_rhs
+        type(swe_gv_r) :: gv_r
+        type(swe_gv_qp) ::gv_qp
+        type(swe_gm_A):: gm_A
 
 #define _GT_NAME t_swe_nh_test_traversal
 
@@ -35,6 +39,7 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     type(t_node_data), intent(inout) :: node
     node%data_pers%div_old=node%data_pers%div
     node%data_pers%div = 0.0_GRID_SR
+    node%data_pers%r=node%data_pers%rhs
 end subroutine
 
 subroutine element_op(traversal, section, element)
@@ -61,53 +66,53 @@ subroutine element_op(traversal, section, element)
     midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
 
     !leg on left boundary
-    if (midpoint12(1) .eq. 0) then
-        div(1)=div(1)+ (-1)*c*hu
-        div(2)=div(2)+ (-1)*c*hu
+    if (midpoint12(1) .eq. 0.0_GRID_SR) then
+        div(1)=div(1)+ (-1.0_GRID_SR)*c*hu
+        div(2)=div(2)+ (-1.0_GRID_SR)*c*hu
     !leg on right boundary
-    elseif (midpoint12(1) .eq. 1) then
-        div(1)=div(1) + (1)*c*hu
-        div(2)=div(2) + (1)*c*hu
-    elseif (midpoint12(2) .eq. 0) then
-        div(1)=div(1) + (-1)*c*hv
-        div(2)=div(2) + (-1)*c*hv
-    elseif (midpoint12(2) .eq. 1) then
-        div(1)=div(1) + (1)*c*hv
-        div(2)=div(2) + (1)*c*hv
+    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
+        div(1)=div(1) + (1.0_GRID_SR)*c*hu
+        div(2)=div(2) + (1.0_GRID_SR)*c*hu
+    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
+        div(1)=div(1) + (-1.0_GRID_SR)*c*hv
+        div(2)=div(2) + (-1.0_GRID_SR)*c*hv
+    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
+        div(1)=div(1) + (1.0_GRID_SR)*c*hv
+        div(2)=div(2) + (1.0_GRID_SR)*c*hv
     endif
 
     !leg on left boundary
-    if (midpoint23(1) .eq. 0) then
-        div(2)=div(2)+ (-1)*c*hu
-        div(3)=div(3)+ (-1)*c*hu
+    if (midpoint23(1) .eq. 0.0_GRID_SR) then
+        div(2)=div(2)+ (-1.0_GRID_SR)*c*hu
+        div(3)=div(3)+ (-1.0_GRID_SR)*c*hu
     !leg on right boundary
-    elseif (midpoint23(1) .eq. 1) then
-        div(2)=div(2) + (1)*c*hu
-        div(3)=div(3) + (1)*c*hu
-    elseif (midpoint23(2) .eq. 0) then
-        div(2)=div(2) + (-1)*c*hv
-        div(3)=div(3) + (-1)*c*hv
-    elseif (midpoint23(2) .eq. 1) then
-        div(2)=div(2) + (1)*c*hv
-        div(3)=div(3) + (1)*c*hv
+    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
+        div(2)=div(2) + (1.0_GRID_SR)*c*hu
+        div(3)=div(3) + (1.0_GRID_SR)*c*hu
+    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
+        div(2)=div(2) + (-1.0_GRID_SR)*c*hv
+        div(3)=div(3) + (-1.0_GRID_SR)*c*hv
+    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
+        div(2)=div(2) + (1.0_GRID_SR)*c*hv
+        div(3)=div(3) + (1.0_GRID_SR)*c*hv
     endif
 
 
 
     !leg on left boundary
-    if (midpoint13(1) .eq. 0) then
-        div(1)=div(1)+ (-1)*half_hypo*hu
-        div(3)=div(3)+ (-1)*half_hypo*hu
+    if (midpoint13(1) .eq. 0.0_GRID_SR) then
+        div(1)=div(1)+ (-1.0_GRID_SR)*half_hypo*hu
+        div(3)=div(3)+ (-1.0_GRID_SR)*half_hypo*hu
     !leg on right boundary
-    elseif (midpoint13(1) .eq. 1) then
-        div(1)=div(1) + (1)*half_hypo*hu
-        div(3)=div(3) + (1)*half_hypo*hu
-    elseif (midpoint13(2) .eq. 0) then
-        div(1)=div(1) + (-1)*half_hypo*hv
-        div(3)=div(3) + (-1)*half_hypo*hv
-    elseif (midpoint13(2) .eq. 1) then
-        div(1)=div(1) + (1)*half_hypo*hv
-        div(3)=div(3) + (1)*half_hypo*hv
+    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
+        div(1)=div(1) + (1.0_GRID_SR)*half_hypo*hu
+        div(3)=div(3) + (1.0_GRID_SR)*half_hypo*hu
+    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
+        div(1)=div(1) + (-1.0_GRID_SR)*half_hypo*hv
+        div(3)=div(3) + (-1.0_GRID_SR)*half_hypo*hv
+    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
+        div(1)=div(1) + (1.0_GRID_SR)*half_hypo*hv
+        div(3)=div(3) + (1.0_GRID_SR)*half_hypo*hv
     endif
 
     call gv_div%add_to_element(element, div)
@@ -120,22 +125,30 @@ subroutine inner_element_op(traversal, section, element)
     type(t_element_base), intent(inout), target	:: element
 
     real (kind=GRID_SR) :: c
-    real(kind=GRID_SR):: hu,hv,w
+    real(kind=GRID_SR):: hu,hv,w, q1,q2,q3, dt
     real (kind=GRID_SR),dimension(2):: normal_x, normal_y
+    real (kind=GRID_SR),dimension(3,3)::A
+    real (kind=GRID_SR),dimension(3)::qp,r
+
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp, cont1_p,cont1_w, cont2_p,cont2_w, cont3_p,cont3_w
 
+    q1= element%nodes(1)%ptr%data_pers%qp(1)
+    q2= element%nodes(2)%ptr%data_pers%qp(1)
+    q3= element%nodes(3)%ptr%data_pers%qp(1)
 
-    normal_x(1)=1
-    normal_x(2)=0
+    normal_x(1)=1.0_GRID_SR
+    normal_x(2)=0.0_GRID_SR
 
-    normal_y(1)=0
-    normal_y(2)=1
+    normal_y(1)=0.0_GRID_SR
+    normal_y(2)=1.0_GRID_SR
 
     c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
 
     hu= element%cell%data_pers%Q(1)%p(1)
     hv= element%cell%data_pers%Q(1)%p(2)
     w= element%cell%data_pers%Q(1)%w
+    !=0
+    dt=section%r_dt
 
     normal_x(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_x(1:2))
     normal_x(1:2)= normal_x(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
@@ -168,16 +181,27 @@ subroutine inner_element_op(traversal, section, element)
     !contribution node 1 -> triangle -> only one boundary integral, normal
     cont1_p=c*(nxvn*hu+nyvn*hv)
     cont1_w=0.5_GRID_SR*c*c*w
+    !cont1_w= 0.5_GRID_SR*c*c*w + 2.0_GRID_SR*dt*c*c* ((1.0_GRID_SR/3.0_GRID_SR)*q1+(1.0_GRID_SR/12.0_GRID_SR)*q2+(1.0_GRID_SR/12.0_GRID_SR)*q3)
+
 
     cont2_p=c*((nxvp+nxhp)*hu+(nyvp+nyhp)*hv)
     cont2_w=c*c*w
+    !cont2_w= c*c*w + 2.0_GRID_SR*dt*c*c* ((1.0_GRID_SR/4.0_GRID_SR)*q1+(1.0_GRID_SR/2.0_GRID_SR)*q2+(1.0_GRID_SR/4.0_GRID_SR)*q3)
 
     cont3_p=c*(nxhn*hu+nyhn*hv)
     cont3_w=0.5_GRID_SR*c*c*w
+    !cont3_w= 0.5_GRID_SR*c*c*w + 2.0_GRID_SR*dt*c*c* ((1.0_GRID_SR/12.0_GRID_SR)*q1+(1.0_GRID_SR/12.0_GRID_SR)*q2+(1.0_GRID_SR/3.0_GRID_SR)*q3)
 
-    element%nodes(1)%ptr%data_pers%div(1)=element%nodes(1)%ptr%data_pers%div(1)+ cont1_p + cont1_w
+    element%nodes(1)%ptr%data_pers%div(1)=element%nodes(1)%ptr%data_pers%div(1)+ cont1_p  + cont1_w
     element%nodes(2)%ptr%data_pers%div(1)=element%nodes(2)%ptr%data_pers%div(1)+ cont2_p + cont2_w
     element%nodes(3)%ptr%data_pers%div(1)=element%nodes(3)%ptr%data_pers%div(1)+ cont3_p + cont3_w
+
+    !compute residual
+    call gv_qp%read(element, qp)
+    call gm_A%read(element, A)
+    r = -matmul(A, qp)
+
+    call gv_r%add(element, r)
 
     end subroutine
 end MODULE
