@@ -32,11 +32,17 @@ subroutine element_op(traversal, section, element)
 
 
 
-    write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2), 'divergence old:',element%nodes(1)%ptr%data_pers%div_old(1), ' divergence new: ',element%nodes(1)%ptr%data_pers%div(1)
+    write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2)
+    write (*,*) 'divergence old:',element%nodes(1)%ptr%data_pers%div_old(1), ' divergence new: ',element%nodes(1)%ptr%data_pers%div(1)
+    write (*,*) 'residual:', element%nodes(1)%ptr%data_pers%r(1)
 
-    write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2), 'divergence old:',element%nodes(2)%ptr%data_pers%div_old(1), ' divergence new: ',element%nodes(2)%ptr%data_pers%div(1)
+    write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
+    write (*,*) 'divergence old:',element%nodes(2)%ptr%data_pers%div_old(1), ' divergence new: ',element%nodes(2)%ptr%data_pers%div(1)
+     write (*,*) 'residual:', element%nodes(2)%ptr%data_pers%r(1)
 
-    write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2), 'divergence old:',element%nodes(3)%ptr%data_pers%div_old(1), ' divergence new: ',element%nodes(3)%ptr%data_pers%div(1)
+    write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
+    write (*,*) 'divergence old:',element%nodes(3)%ptr%data_pers%div_old(1), ' divergence new: ',element%nodes(3)%ptr%data_pers%div(1)
+     write (*,*) 'residual:', element%nodes(3)%ptr%data_pers%r(1)
 
     end subroutine
 end MODULE

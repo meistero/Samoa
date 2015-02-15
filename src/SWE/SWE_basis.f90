@@ -45,6 +45,8 @@
         use SWE_gv_qp_mod
         use SWE_gv_mat_diagonal_mod
         use SWE_gv_r_mod
+        use SWE_gv_div_mod
+        use SWE_gv_div_old_mod
         use SWE_gv_is_dirichlet_boundary_mod
         use SWE_gv_rhs_mod
         use SWE_gv_original_lse_orientation_mod

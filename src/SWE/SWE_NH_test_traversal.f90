@@ -10,6 +10,7 @@
         type num_traversal_data
         end type
 
+        type(swe_gv_div) :: gv_div
 
 #define _GT_NAME t_swe_nh_test_traversal
 
@@ -17,6 +18,7 @@
 #define _GT_EDGES
 #define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
+#define	_GT_INNER_ELEMENT_OP inner_element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 
 
@@ -35,8 +37,84 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     node%data_pers%div = 0.0_GRID_SR
 end subroutine
 
-
 subroutine element_op(traversal, section, element)
+    type(t_swe_NH_test_traversal), intent(inout) :: traversal
+    type(t_grid_section), intent(inout) :: section
+    type(t_element_base), intent(inout), target	:: element
+
+     real (kind=GRID_SR),dimension(2)::  midpoint12, midpoint13, midpoint23
+    real (kind=GRID_SR)             ::hu,hv,c, half_hypo
+    real (kind = GRID_SR) :: div(3)
+
+    call inner_element_op(traversal,section,element)
+
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
+
+    hu= element%cell%data_pers%Q(1)%p(1)
+    hv= element%cell%data_pers%Q(1)%p(2)
+
+    div=0.0_GRID_SR
+
+    midpoint12= (element%nodes(1)%ptr%position +element%nodes(2)%ptr%position) *0.5_GRID_SR
+    midpoint23= (element%nodes(2)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
+    midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
+
+    !leg on left boundary
+    if (midpoint12(1) .eq. 0) then
+        div(1)=div(1)+ (-1)*c*hu
+        div(2)=div(2)+ (-1)*c*hu
+    !leg on right boundary
+    elseif (midpoint12(1) .eq. 1) then
+        div(1)=div(1) + (1)*c*hu
+        div(2)=div(2) + (1)*c*hu
+    elseif (midpoint12(2) .eq. 0) then
+        div(1)=div(1) + (-1)*c*hv
+        div(2)=div(2) + (-1)*c*hv
+    elseif (midpoint12(2) .eq. 1) then
+        div(1)=div(1) + (1)*c*hv
+        div(2)=div(2) + (1)*c*hv
+    endif
+
+    !leg on left boundary
+    if (midpoint23(1) .eq. 0) then
+        div(2)=div(2)+ (-1)*c*hu
+        div(3)=div(3)+ (-1)*c*hu
+    !leg on right boundary
+    elseif (midpoint23(1) .eq. 1) then
+        div(2)=div(2) + (1)*c*hu
+        div(3)=div(3) + (1)*c*hu
+    elseif (midpoint23(2) .eq. 0) then
+        div(2)=div(2) + (-1)*c*hv
+        div(3)=div(3) + (-1)*c*hv
+    elseif (midpoint23(2) .eq. 1) then
+        div(2)=div(2) + (1)*c*hv
+        div(3)=div(3) + (1)*c*hv
+    endif
+
+
+
+    !leg on left boundary
+    if (midpoint13(1) .eq. 0) then
+        div(1)=div(1)+ (-1)*half_hypo*hu
+        div(3)=div(3)+ (-1)*half_hypo*hu
+    !leg on right boundary
+    elseif (midpoint13(1) .eq. 1) then
+        div(1)=div(1) + (1)*half_hypo*hu
+        div(3)=div(3) + (1)*half_hypo*hu
+    elseif (midpoint13(2) .eq. 0) then
+        div(1)=div(1) + (-1)*half_hypo*hv
+        div(3)=div(3) + (-1)*half_hypo*hv
+    elseif (midpoint13(2) .eq. 1) then
+        div(1)=div(1) + (1)*half_hypo*hv
+        div(3)=div(3) + (1)*half_hypo*hv
+    endif
+
+    call gv_div%add_to_element(element, div)
+
+end subroutine
+
+subroutine inner_element_op(traversal, section, element)
     type(t_swe_NH_test_traversal), intent(inout) :: traversal
     type(t_grid_section), intent(inout) :: section
     type(t_element_base), intent(inout), target	:: element

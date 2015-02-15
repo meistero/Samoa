@@ -49,24 +49,13 @@ subroutine inner_element_op(traversal, section, element)
     type(t_grid_section), intent(inout) :: section
     type(t_element_base), intent(inout), target	:: element
 
-
-
-end subroutine
-
-
-subroutine element_op(traversal, section, element)
-    type(t_swe_lse_traversal), intent(inout) :: traversal
-    type(t_grid_section), intent(inout) :: section
-    type(t_element_base), intent(inout), target	:: element
-
-
     real (kind = GRID_SR) :: qp(3)
     real (kind = GRID_SR) :: rhs(3)
-    logical	:: is_dirichlet(3)
+
     real (kind = GRID_SR)  :: mat(3, 3)
-    real (kind=GRID_SR) :: c,dt, half_hypo
+    real (kind=GRID_SR) :: c,dt
     real(kind=GRID_SR):: h,hu,hv,w,q1,q2,q3
-    real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, midpoint12, midpoint13, midpoint23
+    real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
 
@@ -85,7 +74,6 @@ subroutine element_op(traversal, section, element)
     normal_y(2)=1
 
     c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
-    half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
     dt=section%r_dt
 
     h= element%cell%data_pers%Q(1)%h -  element%cell%data_pers%Q(1)%b
@@ -166,6 +154,32 @@ subroutine element_op(traversal, section, element)
 
     rhs=[- c*c* 0.5_GRID_SR* w- c*nxvn*hu-c*nyvn*hv, -c*c*w-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* 0.5_GRID_SR* w- c*nxhn*hu-c*nyhn*hv ]
 
+     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
+    element%cell%data_pers%original_lse_orientation=element%transform_data%plotter_data%orientation
+    call gm_a%write(element, mat)
+    call gv_rhs%add_to_element(element, rhs)
+end subroutine
+
+
+subroutine element_op(traversal, section, element)
+    type(t_swe_lse_traversal), intent(inout) :: traversal
+    type(t_grid_section), intent(inout) :: section
+    type(t_element_base), intent(inout), target	:: element
+
+    real (kind=GRID_SR),dimension(2)::  midpoint12, midpoint13, midpoint23
+    real (kind=GRID_SR)             ::hu,hv,c, half_hypo
+    real (kind = GRID_SR) :: rhs(3)
+
+    call inner_element_op(traversal,section,element)
+
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
+
+    hu= element%cell%data_pers%Q(1)%p(1)
+    hv= element%cell%data_pers%Q(1)%p(2)
+
+    rhs=0.0_GRID_SR
+
     midpoint12= (element%nodes(1)%ptr%position +element%nodes(2)%ptr%position) *0.5_GRID_SR
     midpoint23= (element%nodes(2)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
     midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
@@ -220,12 +234,8 @@ subroutine element_op(traversal, section, element)
         rhs(3)=rhs(3) - (1)*half_hypo*hv
     endif
 
-
-
-    !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
-    element%cell%data_pers%original_lse_orientation=element%transform_data%plotter_data%orientation
-    call gm_a%write(element, mat)
     call gv_rhs%add_to_element(element, rhs)
+
 end subroutine
 end MODULE
 #endif
