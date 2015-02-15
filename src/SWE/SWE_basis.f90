@@ -43,6 +43,7 @@
 
 		use SWE_gm_A_mod
         use SWE_gv_qp_mod
+        use SWE_gv_w_mod
         use SWE_gv_mat_diagonal_mod
         use SWE_gv_r_mod
         use SWE_gv_div_mod

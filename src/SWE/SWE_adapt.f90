@@ -104,6 +104,8 @@
 
 			type(t_state), dimension(_SWE_CELL_SIZE)									:: Q
 			real (kind = GRID_SR), dimension(3)								            :: qp
+            real (kind = GRID_SR), dimension(3)								            :: w
+
 
 			call gv_Q%read( src_element%t_element_base, Q)
 			call gv_Q%write( dest_element%t_element_base, Q)
@@ -111,8 +113,8 @@
 			call gv_qp%read(src_element%t_element_base, qp)
 			call gv_qp%write(dest_element%t_element_base, qp)
 
-            call w_qp%read(src_element%t_element_base, w)
-			call w_qp%write(dest_element%t_element_base, w)
+            call gv_w%read(src_element%t_element_base, w)
+			call gv_w%write(dest_element%t_element_base, w)
 		end subroutine
 
 		subroutine refine_op(traversal, section, src_element, dest_element, refinement_path)

@@ -30,7 +30,7 @@ subroutine element_op(traversal, section, element)
     type(t_grid_section), intent(inout) :: section
     type(t_element_base), intent(inout), target	:: element
 
-    real(kind=GRID_SR):: h,hu,hv,w,q1,q2,q3,rhs1,rhs2,rhs3, r1, r2, r3
+    real(kind=GRID_SR):: h,hu,hv,w,q1,q2,q3,rhs1,rhs2,rhs3, r1, r2, r3,w1,w2,w3
 
     q1= element%nodes(1)%ptr%data_pers%qp(1)
     q2= element%nodes(2)%ptr%data_pers%qp(1)

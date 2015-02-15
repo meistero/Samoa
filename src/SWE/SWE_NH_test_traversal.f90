@@ -133,10 +133,6 @@ subroutine inner_element_op(traversal, section, element)
 
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp, cont1_p,cont1_w, cont2_p,cont2_w, cont3_p,cont3_w
 
-    q1= element%nodes(1)%ptr%data_pers%qp(1)
-    q2= element%nodes(2)%ptr%data_pers%qp(1)
-    q3= element%nodes(3)%ptr%data_pers%qp(1)
-
     normal_x(1)=1.0_GRID_SR
     normal_x(2)=0.0_GRID_SR
 

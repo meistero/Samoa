@@ -52,8 +52,6 @@ subroutine inner_element_op(traversal, section, element)
     real (kind = GRID_SR) :: qp(3), x_test(3)
     real (kind = GRID_SR) :: rhs(3)
 
-    real (kind = GRID_SR) :: qp(3)
-    real (kind = GRID_SR) :: rhs(3)
     logical	:: is_dirichlet(3)
     real (kind = GRID_SR)  :: mat(3, 3)
     real (kind=GRID_SR) :: c,dt
