@@ -27,35 +27,8 @@ subroutine element_op(traversal, section, element)
     type(t_element_base), intent(inout), target	:: element
 
 
-real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, normal_x_r, normal_y_r
-real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,w1,w2,w3,area, m11,m12,m21,m22,s
-!logical, dimension(3)           :: is_dirichlet
-
-!normal_x(1)=1
-!normal_x(2)=0
-
-!normal_y(1)=0
-!normal_y(2)=1
-
-!normal_x_r(1:2) = samoa_world_to_barycentric_normal(element%transform_data, normal_x(1:2))
-!normal_x_r(1:2) = normal_x_r(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-!normal_y_r(1:2) = samoa_world_to_barycentric_normal(element%transform_data, normal_y(1:2))
-!normal_y_r(1:2) = normal_y_r(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-
-!write (*,*) 'h: ', h
-!write (*,*) 'normal_x: ',normal_x, '  normal_x rotated:', normal_x_r
-!write (*,*) 'normal_y: ',normal_y, '  normal_y rotated:', normal_y_r
-
-!normal_x(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_x_r(1:2))
-!normal_x(1:2)= normal_x(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
-
-!normal_y(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_y_r(1:2))
-!normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
-
-!write (*,*) 'normal_x rotated back: ',normal_x
-!write (*,*) 'normal_y rotated back: ',normal_y
+real (kind=GRID_SR),dimension(2):: p
+real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,m11,m12,m21,m22,s, w1,w2,w3
 
 m11=element%transform_data%plotter_data%jacobian_inv(1,1)
 m12=element%transform_data%plotter_data%jacobian_inv(2,1)
@@ -65,10 +38,6 @@ s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
 c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
 p=element%cell%data_pers%Q(1)%p
-!p_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, p(1:2))
-!p_local(1:2) = p_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-!p_local=p
-
 
 h=element%cell%data_pers%Q(1)%h -element%cell%data_pers%Q(1)%b
 hu=p(1)
@@ -91,7 +60,6 @@ w3= element%nodes(3)%ptr%data_pers%w(1)
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2*c) + m12*((q3-q2)/(2*c))))
 hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2*c) + m22*((q3-q2)/(2*c))))
-
 w1=w1 + 2*dt* q1
 w2=w2 + 2*dt* q2
 w3=w3 + 2*dt* q3

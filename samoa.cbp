@@ -1161,9 +1161,12 @@
 		<Unit filename="src/SWE/SWE_LSE_traversal.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="src/SWE/SWE_NH_residual_output_traversal.f90" />
+		<Unit filename="src/SWE/SWE_NH_test_traversal.f90" />
 		<Unit filename="src/SWE/SWE_NH_traversal.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="src/SWE/SWE_NH_variable_output_traversal.f90" />
 		<Unit filename="src/SWE/SWE_adapt.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
@@ -1198,6 +1201,7 @@
 		<Unit filename="src/SWE/SWE_point_output.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="src/SWE/SWE_point_output_time.f90" />
 		<Unit filename="src/SWE/SWE_xml_output.f90">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>

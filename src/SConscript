@@ -66,6 +66,7 @@ f90_sources = [
 "SWE/ascii_output_view.f90",
 "SWE/ascii_output_model.f90",
 "SWE/SWE_point_output.f90",
+"SWE/SWE_point_output_time.f90",
 "SWE/SWE_euler_timestep.f90",
 "SWE/SWE_adapt.f90",
 "SWE/SWE_non_hydrostatic_pressure_jacobi.f90",

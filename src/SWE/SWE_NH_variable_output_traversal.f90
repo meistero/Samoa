@@ -30,7 +30,7 @@ subroutine element_op(traversal, section, element)
     type(t_grid_section), intent(inout) :: section
     type(t_element_base), intent(inout), target	:: element
 
-    real(kind=GRID_SR):: h,hu,hv,w1,w2,w3,q1,q2,q3,rhs1,rhs2,rhs3
+    real(kind=GRID_SR):: h,hu,hv,w,q1,q2,q3,rhs1,rhs2,rhs3, r1, r2, r3
 
     q1= element%nodes(1)%ptr%data_pers%qp(1)
     q2= element%nodes(2)%ptr%data_pers%qp(1)
@@ -40,6 +40,9 @@ subroutine element_op(traversal, section, element)
     rhs2= element%nodes(2)%ptr%data_pers%rhs(1)
     rhs3= element%nodes(3)%ptr%data_pers%rhs(1)
 
+    r1= element%nodes(1)%ptr%data_pers%r(1)
+    r2= element%nodes(2)%ptr%data_pers%r(1)
+    r3= element%nodes(3)%ptr%data_pers%r(1)
 
     h= element%cell%data_pers%Q(1)%h
     hu= element%cell%data_pers%Q(1)%p(1)
@@ -53,17 +56,17 @@ subroutine element_op(traversal, section, element)
     write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2)
     write (*,*) 'q:'    , q1
     write (*,*) 'rhs1:'    , rhs1
-    write (*,*) 'w1:'    , w1
+    write (*,*) 'r1:'    , r1
 
     write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
     write (*,*) 'q:'    , q2
     write (*,*) 'rhs2:'    , rhs2
-    write (*,*) 'w2:'    , w2
+    write (*,*) 'r2:'    , r2
 
     write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
     write (*,*) 'q:'    , q3
     write (*,*) 'rhs3:'    , rhs3
-    write (*,*) 'w3:'    , w3
+    write (*,*) 'r3:'    , r3
 
     write(*,*) 'element variables:'
     write(*,*) 'h:', h

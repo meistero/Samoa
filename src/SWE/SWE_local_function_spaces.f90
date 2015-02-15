@@ -45,6 +45,7 @@ contains
                 mat(:,1)=mat(:,3)
                 mat(:,3)=temp(:)
 
+
             endif
 
 
@@ -65,7 +66,9 @@ contains
           end do
 
         end subroutine
+
     END MODULE
+
 
 
 MODULE SWE_gv_original_lse_orientation_mod
@@ -96,12 +99,35 @@ MODULE SWE_gv_original_lse_orientation_mod
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
-	    MODULE SWE_gv_w_mod
+
+MODULE SWE_gv_w_mod
 		use SFC_data_types
 
 #		define _GV_TYPE_NAME		swe_gv_w
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				w
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
+
+ MODULE SWE_gv_div_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		swe_gv_div
+#		define _GV_TYPE				real (kind = GRID_SR)
+#		define _GV_NAME				div
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
+
+	   MODULE SWE_gv_div_old_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		swe_gv_div_old
+#		define _GV_TYPE				real (kind = GRID_SR)
+#		define _GV_NAME				div_old
 #		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"

@@ -73,7 +73,9 @@ module config
             character(256)                      :: s_test_case_name
             logical                             :: l_swe_nh
             double precision			        :: r_epsilon				                        !< linear solver error bound
-            logical                             ::divergence_test                                   !<output how "divergence-free" the non-hydrostatic solution is
+            logical                             ::divergence_test                                   !<output how "divergence-free" the solution is
+            logical					                :: l_pointoutput_time                           !< test points output on/off
+            logical                             ::l_gv_output                                  !gv_output
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -114,7 +116,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false."
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -156,7 +158,7 @@ module config
         config%s_testpoints = sget('samoa_stestpoints', 512)
 
 	if (len(trim(config%s_testpoints)) .ne. 2) then
-		config%l_pointoutput = .true.
+		!config%l_pointoutput = .true.
 		call parse_testpoints(config)
 	else
 		config%l_pointoutput = .false.
@@ -177,10 +179,12 @@ module config
             config%dry_tolerance = rget('samoa_drytolerance')
             config%i_lsolver = iget('samoa_lsolver')
             config%l_lse_output = lget('samoa_lseoutput')
+            config%l_gv_output = lget('samoa_gv_output')
             config%s_test_case_name= sget('samoa_test_case',256)
             config%l_swe_nh = lget('samoa_swe_nh')
             config%divergence_test=lget('samoa_divergence_test')
             config%r_epsilon= rget('samoa_epsilon')
+            config%l_pointoutput_time= lget('samoa_pointoutputtime')
 #       endif
 
         if (rank_MPI == 0) then

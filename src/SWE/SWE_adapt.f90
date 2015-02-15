@@ -22,6 +22,8 @@
         end type
 
 		type(t_gv_Q)							:: gv_Q
+		type(swe_gv_qp)							:: gv_qp
+		type(swe_gv_w)							:: gv_w
 		type(t_lfs_flux)						:: lfs_flux
 
 #		define _GT_NAME							t_swe_adaption_traversal
@@ -101,9 +103,16 @@
 			type(t_traversal_element), intent(inout)									:: dest_element
 
 			type(t_state), dimension(_SWE_CELL_SIZE)									:: Q
+			real (kind = GRID_SR), dimension(3)								            :: qp
 
 			call gv_Q%read( src_element%t_element_base, Q)
 			call gv_Q%write( dest_element%t_element_base, Q)
+
+			call gv_qp%read(src_element%t_element_base, qp)
+			call gv_qp%write(dest_element%t_element_base, qp)
+
+            call w_qp%read(src_element%t_element_base, w)
+			call w_qp%write(dest_element%t_element_base, w)
 		end subroutine
 
 		subroutine refine_op(traversal, section, src_element, dest_element, refinement_path)
