@@ -21,6 +21,16 @@
 #		include "Tools_lagrange_basis.f90"
 	END MODULE
 
+	MODULE SWE_nh_node_space
+		use SFC_data_types
+
+#		define _BF_TYPE_NAME		t_basis_lin_node
+#		define _BF_ORDER			1
+
+#		include "Tools_lagrange_basis.f90"
+	END MODULE
+
+
 	MODULE SWE_flux_space
 		use SFC_data_types
 
@@ -54,7 +64,7 @@
 
 		use SWE_Q_space
 		use SWE_flux_space
-
+		use SWE_nh_node_space
 
 		use Samoa
 
