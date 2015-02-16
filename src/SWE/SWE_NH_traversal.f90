@@ -53,7 +53,7 @@ m21=element%transform_data%plotter_data%jacobian_inv(1,2)
 m22=element%transform_data%plotter_data%jacobian_inv(2,2)
 s=sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
-c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
 p=element%cell%data_pers%Q(1)%p
 
 h=element%cell%data_pers%Q(1)%h -element%cell%data_pers%Q(1)%b

@@ -54,7 +54,7 @@ subroutine element_op(traversal, section, element)
 
     call inner_element_op(traversal,section,element)
 
-    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
     half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
 
     hu= element%cell%data_pers%Q(1)%p(1)
@@ -67,54 +67,54 @@ subroutine element_op(traversal, section, element)
     midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
 
     !leg on left boundary
-    if (midpoint12(1) .eq. 0.0_GRID_SR) then
-        div(1)=div(1)+ (-1.0_GRID_SR)*c*hu
-        div(2)=div(2)+ (-1.0_GRID_SR)*c*hu
-    !leg on right boundary
-    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
-        div(1)=div(1) + (1.0_GRID_SR)*c*hu
-        div(2)=div(2) + (1.0_GRID_SR)*c*hu
-    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
-        div(1)=div(1) + (-1.0_GRID_SR)*c*hv
-        div(2)=div(2) + (-1.0_GRID_SR)*c*hv
-    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
-        div(1)=div(1) + (1.0_GRID_SR)*c*hv
-        div(2)=div(2) + (1.0_GRID_SR)*c*hv
-    endif
-
-    !leg on left boundary
-    if (midpoint23(1) .eq. 0.0_GRID_SR) then
-        div(2)=div(2)+ (-1.0_GRID_SR)*c*hu
-        div(3)=div(3)+ (-1.0_GRID_SR)*c*hu
-    !leg on right boundary
-    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
-        div(2)=div(2) + (1.0_GRID_SR)*c*hu
-        div(3)=div(3) + (1.0_GRID_SR)*c*hu
-    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
-        div(2)=div(2) + (-1.0_GRID_SR)*c*hv
-        div(3)=div(3) + (-1.0_GRID_SR)*c*hv
-    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
-        div(2)=div(2) + (1.0_GRID_SR)*c*hv
-        div(3)=div(3) + (1.0_GRID_SR)*c*hv
-    endif
-
-
-
-    !leg on left boundary
-    if (midpoint13(1) .eq. 0.0_GRID_SR) then
-        div(1)=div(1)+ (-1.0_GRID_SR)*half_hypo*hu
-        div(3)=div(3)+ (-1.0_GRID_SR)*half_hypo*hu
-    !leg on right boundary
-    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
-        div(1)=div(1) + (1.0_GRID_SR)*half_hypo*hu
-        div(3)=div(3) + (1.0_GRID_SR)*half_hypo*hu
-    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
-        div(1)=div(1) + (-1.0_GRID_SR)*half_hypo*hv
-        div(3)=div(3) + (-1.0_GRID_SR)*half_hypo*hv
-    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
-        div(1)=div(1) + (1.0_GRID_SR)*half_hypo*hv
-        div(3)=div(3) + (1.0_GRID_SR)*half_hypo*hv
-    endif
+!    if (midpoint12(1) .eq. 0.0_GRID_SR) then
+!        div(1)=div(1)+ (-1.0_GRID_SR)*c*hu
+!        div(2)=div(2)+ (-1.0_GRID_SR)*c*hu
+!    !leg on right boundary
+!    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
+!        div(1)=div(1) + (1.0_GRID_SR)*c*hu
+!        div(2)=div(2) + (1.0_GRID_SR)*c*hu
+!    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
+!        div(1)=div(1) + (-1.0_GRID_SR)*c*hv
+!        div(2)=div(2) + (-1.0_GRID_SR)*c*hv
+!    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
+!        div(1)=div(1) + (1.0_GRID_SR)*c*hv
+!        div(2)=div(2) + (1.0_GRID_SR)*c*hv
+!    endif
+!
+!    !leg on left boundary
+!    if (midpoint23(1) .eq. 0.0_GRID_SR) then
+!        div(2)=div(2)+ (-1.0_GRID_SR)*c*hu
+!        div(3)=div(3)+ (-1.0_GRID_SR)*c*hu
+!    !leg on right boundary
+!    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
+!        div(2)=div(2) + (1.0_GRID_SR)*c*hu
+!        div(3)=div(3) + (1.0_GRID_SR)*c*hu
+!    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
+!        div(2)=div(2) + (-1.0_GRID_SR)*c*hv
+!        div(3)=div(3) + (-1.0_GRID_SR)*c*hv
+!    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
+!        div(2)=div(2) + (1.0_GRID_SR)*c*hv
+!        div(3)=div(3) + (1.0_GRID_SR)*c*hv
+!    endif
+!
+!
+!
+!    !leg on left boundary
+!    if (midpoint13(1) .eq. 0.0_GRID_SR) then
+!        div(1)=div(1)+ (-1.0_GRID_SR)*half_hypo*hu
+!        div(3)=div(3)+ (-1.0_GRID_SR)*half_hypo*hu
+!    !leg on right boundary
+!    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
+!        div(1)=div(1) + (1.0_GRID_SR)*half_hypo*hu
+!        div(3)=div(3) + (1.0_GRID_SR)*half_hypo*hu
+!    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
+!        div(1)=div(1) + (-1.0_GRID_SR)*half_hypo*hv
+!        div(3)=div(3) + (-1.0_GRID_SR)*half_hypo*hv
+!    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
+!        div(1)=div(1) + (1.0_GRID_SR)*half_hypo*hv
+!        div(3)=div(3) + (1.0_GRID_SR)*half_hypo*hv
+!    endif
 
     call gv_div%add_to_element(element, div)
 
@@ -139,7 +139,7 @@ subroutine inner_element_op(traversal, section, element)
     normal_y(1)=0.0_GRID_SR
     normal_y(2)=1.0_GRID_SR
 
-    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
 
     hu= element%cell%data_pers%Q(1)%p(1)
     hv= element%cell%data_pers%Q(1)%p(2)

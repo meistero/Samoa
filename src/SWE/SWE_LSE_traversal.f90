@@ -81,7 +81,7 @@ subroutine inner_element_op(traversal, section, element)
     normal_y(1)=0
     normal_y(2)=1
 
-    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size() *cfg%scaling
 
     dt=section%r_dt
 
@@ -207,54 +207,54 @@ subroutine element_op(traversal, section, element)
     midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
 
     !leg on left boundary
-    if (midpoint12(1) .eq. 0.0_GRID_SR) then
-        rhs(1)=rhs(1)- (-1.0_GRID_SR)*c*hu
-        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
-    !leg on right boundary
-    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
-        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hu
-        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
-    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
-        rhs(1)=rhs(1) - (-1.0_GRID_SR)*c*hv
-        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
-    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
-        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hv
-        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
-    endif
-
-    !leg on left boundary
-    if (midpoint23(1) .eq. 0.0_GRID_SR) then
-        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
-        rhs(3)=rhs(3)- (-1.0_GRID_SR)*c*hu
-    !leg on right boundary
-    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
-        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
-        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hu
-    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
-        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
-        rhs(3)=rhs(3) - (-1.0_GRID_SR)*c*hv
-    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
-        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
-        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hv
-    endif
-
-
-
-    !leg on left boundary
-    if (midpoint13(1) .eq. 0.0_GRID_SR) then
-        rhs(1)=rhs(1)- (-1.0_GRID_SR)*half_hypo*hu
-        rhs(3)=rhs(3)- (-1.0_GRID_SR)*half_hypo*hu
-    !leg on right boundary
-    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
-        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hu
-        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hu
-    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
-        rhs(1)=rhs(1) - (-1.0_GRID_SR)*half_hypo*hv
-        rhs(3)=rhs(3) - (-1.0_GRID_SR)*half_hypo*hv
-    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
-        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hv
-        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hv
-    endif
+!    if (midpoint12(1) .eq. 0.0_GRID_SR) then
+!        rhs(1)=rhs(1)- (-1.0_GRID_SR)*c*hu
+!        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
+!    !leg on right boundary
+!    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
+!        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hu
+!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
+!    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
+!        rhs(1)=rhs(1) - (-1.0_GRID_SR)*c*hv
+!        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
+!    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
+!        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hv
+!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
+!    endif
+!
+!    !leg on left boundary
+!    if (midpoint23(1) .eq. 0.0_GRID_SR) then
+!        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
+!        rhs(3)=rhs(3)- (-1.0_GRID_SR)*c*hu
+!    !leg on right boundary
+!    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
+!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
+!        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hu
+!    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
+!        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
+!        rhs(3)=rhs(3) - (-1.0_GRID_SR)*c*hv
+!    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
+!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
+!        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hv
+!    endif
+!
+!
+!
+!    !leg on left boundary
+!    if (midpoint13(1) .eq. 0.0_GRID_SR) then
+!        rhs(1)=rhs(1)- (-1.0_GRID_SR)*half_hypo*hu
+!        rhs(3)=rhs(3)- (-1.0_GRID_SR)*half_hypo*hu
+!    !leg on right boundary
+!    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
+!        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hu
+!        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hu
+!    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
+!        rhs(1)=rhs(1) - (-1.0_GRID_SR)*half_hypo*hv
+!        rhs(3)=rhs(3) - (-1.0_GRID_SR)*half_hypo*hv
+!    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
+!        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hv
+!        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hv
+!    endif
 
     call gv_rhs%add_to_element(element, rhs)
 
