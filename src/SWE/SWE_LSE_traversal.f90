@@ -71,6 +71,9 @@ subroutine inner_element_op(traversal, section, element)
     w1= element%nodes(1)%ptr%data_pers%w(1)
     w2= element%nodes(2)%ptr%data_pers%w(1)
     w3= element%nodes(3)%ptr%data_pers%w(1)
+    !w1=0
+    !w2=0
+    !w3=0
 
     normal_x(1)=1
     normal_x(2)=0
@@ -141,34 +144,38 @@ subroutine inner_element_op(traversal, section, element)
     assert_eq(nyhp, s*(m22))
 
 
-    mat(1,1)= - dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*dt*c*c* (1._GRID_SR/3._GRID_SR)
-    mat(1,2)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1._GRID_SR/12._GRID_SR)
-    mat(1,3)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1._GRID_SR/12._GRID_SR)
+    mat(1,1)= - dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/3.0_GRID_SR)
+    mat(1,2)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(1,3)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
 
     mat(2,1)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21) + 0.5_GRID_SR*c*c*dt
     mat(2,2)= 0.25_GRID_SR *dt*h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +c*c*dt
     mat(2,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22) + 0.5_GRID_SR*c*c*dt
 
-    mat(3,1)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1._GRID_SR/12._GRID_SR)
-    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1._GRID_SR/12._GRID_SR)
-    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22) +c*c*dt*(2._GRID_SR/3._GRID_SR)
+    mat(3,1)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22) +c*c*dt*(2.0_GRID_SR/3.0_GRID_SR)
 
     !write (*,*) 'element diagonal', mat(1,1), ', ', mat(2,2), ' ,' , mat(3,3)
-    !write (*,*) 'element matrix:'
-    !write( *,*)  mat(1,3)+mat(1,1)+mat(1,2)
-    !write( *,*)  mat(2,3)+mat(2,2)+mat(2,1)
-    !write( *,*)  mat(3,3)+mat(3,1)+mat(3,2)
+    write (*,*) 'element matrix:'
+    write(*,* ) mat(1,:)
+    write(*,* ) mat(2,:)
+    write(*,* ) mat(3,:)
+
+    write( *,*)  mat(1,3)+mat(1,1)+mat(1,2)
+    write( *,*)  mat(2,3)+mat(2,2)+mat(2,1)
+    write( *,*)  mat(3,3)+mat(3,1)+mat(3,2)
     !write (*,*) 'element matrix:', mat
-    !x_test(1)=1
-    !x_test(2)=1
-    !x_test(3)=1
+    x_test(1)=1
+    x_test(2)=1
+    x_test(3)=1
 
-    !write(*,*) 'A*x_test:' , matmul(mat, x_test)
-    !assert_gt(mat(1,1),0.01)
-    !assert_gt(mat(2,2),0.01)
-    !assert_gt(mat(3,3),0.01)
+    write(*,*) 'A*x_test:' , matmul(mat, x_test)
+    assert_gt(mat(1,1),0.01)
+    assert_gt(mat(2,2),0.01)
+    assert_gt(mat(3,3),0.01)
 
-    rhs=[- c*c* (w1/3.0_GRID_SR +w2/12.0_GRID_SR +w3/12.0_GRID_SR)- c*nxvn*hu-c*nyvn*hv, -c*c*(w1/4.0_GRID_SR +w2/2.0_GRID_SR +w3/4.0_GRID_SR)-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* (w1/12.0_GRID_SR +w2/12.0_GRID_SR +w3/3.0_GRID_SR)- c*nxhn*hu-c*nyhn*hv ]
+    rhs=[- c*c* ((w1/3.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/12.0_GRID_SR))- c*nxvn*hu-c*nyvn*hv, -c*c*((w1/4.0_GRID_SR) +(w2/2.0_GRID_SR) +(w3/4.0_GRID_SR))-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* ((w1/12.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/3.0_GRID_SR))- c*nxhn*hu-c*nyhn*hv ]
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
     element%cell%data_pers%original_lse_orientation=element%transform_data%plotter_data%orientation
     call gm_a%write(element, mat)

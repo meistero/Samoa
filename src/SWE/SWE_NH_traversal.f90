@@ -54,17 +54,18 @@ q3= element%nodes(3)%ptr%data_pers%qp(1)
 w1= element%nodes(1)%ptr%data_pers%w(1)
 w2= element%nodes(2)%ptr%data_pers%w(1)
 w3= element%nodes(3)%ptr%data_pers%w(1)
-!write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
-!write (*,*) 'hu,hv,w before correction: ', hu,',',hv, ',',w
+
+write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
+write (*,*) 'hu,hv,w1,w2,w3 before correction: ', hu,',',hv, ',',w1,',',w2,',',w3
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
-hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2*c) + m12*((q3-q2)/(2*c))))
-hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2*c) + m22*((q3-q2)/(2*c))))
-w1=w1 + 2*dt* q1
-w2=w2 + 2*dt* q2
-w3=w3 + 2*dt* q3
+hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
+hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
+w1=w1 + 2.0_GRID_SR*dt* q1
+w2=w2 + 2.0_GRID_SR*dt* q2
+w3=w3 + 2.0_GRID_SR*dt* q3
 
-!write (*,*) 'hu,hv,w after correction: ', hu,',',hv, ',' ,w
+write (*,*) 'hu,hv,w1,w2,w3 after correction: ', hu,',',hv, ',' ,w1,',',w2,',',w3
 
 !p_local(1)=hu
 !p_local(2)=hv

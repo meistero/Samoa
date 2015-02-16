@@ -119,6 +119,8 @@
              node%data_pers%qp=0.0_GRID_SR
              node%data_pers%rhs=0.0_GRID_SR
              node%data_pers%r=0.0_GRID_SR
+             node%data_pers%div=0.0_GRID_SR
+             node%data_pers%div_old=0.0_GRID_SR
              node%data_pers%w=0.0_GRID_SR
         end subroutine
 

@@ -403,6 +403,11 @@
                     call swe%nh_test_traversal%traverse(grid)
                     end if
                     call swe%lse_traversal%traverse(grid)
+
+                    if(cfg%l_gv_output) then
+                    call swe%nh_variable_output%traverse(grid)
+                    end if
+
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations
                     call swe%nh_traversal%traverse(grid)
@@ -443,6 +448,11 @@
                     if (cfg%l_pointoutput) then
                         call swe%point_output%traverse(grid)
                     end if
+
+                    if (cfg%l_pointoutput_time) then
+                        call swe%point_output_time%traverse(grid)
+                    end if
+
 
 					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if

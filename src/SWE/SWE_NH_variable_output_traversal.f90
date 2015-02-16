@@ -57,16 +57,22 @@ subroutine element_op(traversal, section, element)
     write (*,*) 'q:'    , q1
     write (*,*) 'rhs1:'    , rhs1
     write (*,*) 'r1:'    , r1
+    write (*,*) 'w1:'    , w1
+
 
     write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
     write (*,*) 'q:'    , q2
     write (*,*) 'rhs2:'    , rhs2
     write (*,*) 'r2:'    , r2
+    write (*,*) 'w2:'    , w2
+
 
     write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
     write (*,*) 'q:'    , q3
     write (*,*) 'rhs3:'    , rhs3
     write (*,*) 'r3:'    , r3
+    write (*,*) 'w3:'    , w3
+
 
     write(*,*) 'element variables:'
     write(*,*) 'h:', h
