@@ -395,7 +395,20 @@
 					exit
 				end if
 
+
+               ! write(*,*) 'before adaption'
+                !if(cfg%l_gv_output) then
+                 !   call swe%nh_variable_output%traverse(grid)
+                 !   end if
+
 				call swe%adaption%traverse(grid)
+
+				!write(*,*) 'after adaption'
+!                if(cfg%l_gv_output) then
+ !                   call swe%nh_variable_output%traverse(grid)
+  !                  end if
+
+
 				!do a time step
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
@@ -403,10 +416,6 @@
                     call swe%nh_test_traversal%traverse(grid)
                     end if
                     call swe%lse_traversal%traverse(grid)
-
-                    if(cfg%l_gv_output) then
-                    call swe%nh_variable_output%traverse(grid)
-                    end if
 
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations

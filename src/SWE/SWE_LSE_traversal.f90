@@ -157,20 +157,20 @@ subroutine inner_element_op(traversal, section, element)
     mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22) +c*c*dt*(2.0_GRID_SR/3.0_GRID_SR)
 
     !write (*,*) 'element diagonal', mat(1,1), ', ', mat(2,2), ' ,' , mat(3,3)
-    write (*,*) 'element matrix:'
-    write(*,* ) mat(1,:)
-    write(*,* ) mat(2,:)
-    write(*,* ) mat(3,:)
+    !write (*,*) 'element matrix:'
+    !write(*,* ) mat(1,:)
+    !write(*,* ) mat(2,:)
+    !write(*,* ) mat(3,:)
 
-    write( *,*)  mat(1,3)+mat(1,1)+mat(1,2)
-    write( *,*)  mat(2,3)+mat(2,2)+mat(2,1)
-    write( *,*)  mat(3,3)+mat(3,1)+mat(3,2)
+    !write( *,*)  mat(1,3)+mat(1,1)+mat(1,2)
+    !write( *,*)  mat(2,3)+mat(2,2)+mat(2,1)
+    !write( *,*)  mat(3,3)+mat(3,1)+mat(3,2)
     !write (*,*) 'element matrix:', mat
     x_test(1)=1
     x_test(2)=1
     x_test(3)=1
 
-    write(*,*) 'A*x_test:' , matmul(mat, x_test)
+    !write(*,*) 'A*x_test:' , matmul(mat, x_test)
     assert_gt(mat(1,1),0.01)
     assert_gt(mat(2,2),0.01)
     assert_gt(mat(3,3),0.01)

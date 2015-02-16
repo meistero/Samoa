@@ -17,10 +17,27 @@
 #define  _GT_EDGES
 #define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
-!#define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
+#define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 
 
 #include "SFC_generic_traversal_ringbuffer.f90"
+
+elemental subroutine node_first_touch_op(traversal, section, node)
+    type(t_swe_nh_traversal), intent(in) :: traversal
+    type(t_grid_section), intent(in) :: section
+    type(t_node_data), intent(inout) :: node
+
+    real (kind=GRID_SR)             ::dt
+
+    dt=section%r_dt
+
+    node%data_pers%w= node%data_pers%w + 2.0_GRID_SR*dt*node%data_pers%qp
+
+
+end subroutine
+
+
+
 subroutine element_op(traversal, section, element)
     type(t_swe_nh_traversal), intent(inout) :: traversal
     type(t_grid_section), intent(inout) :: section
@@ -28,7 +45,7 @@ subroutine element_op(traversal, section, element)
 
 
 real (kind=GRID_SR),dimension(2):: p
-real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,m11,m12,m21,m22,s, w1,w2,w3
+real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,m11,m12,m21,m22,s
 
 m11=element%transform_data%plotter_data%jacobian_inv(1,1)
 m12=element%transform_data%plotter_data%jacobian_inv(2,1)
@@ -51,21 +68,15 @@ q1= element%nodes(1)%ptr%data_pers%qp(1)
 q2= element%nodes(2)%ptr%data_pers%qp(1)
 q3= element%nodes(3)%ptr%data_pers%qp(1)
 
-w1= element%nodes(1)%ptr%data_pers%w(1)
-w2= element%nodes(2)%ptr%data_pers%w(1)
-w3= element%nodes(3)%ptr%data_pers%w(1)
 
-write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
-write (*,*) 'hu,hv,w1,w2,w3 before correction: ', hu,',',hv, ',',w1,',',w2,',',w3
+!write (*,*) 'q1: ', q1, 'q2: ',q2 , 'q3: ', q3
+!write (*,*) 'hu,hv,w1,w2,w3 before correction: ', hu,',',hv, ',',w1,',',w2,',',w3
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
 hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
-w1=w1 + 2.0_GRID_SR*dt* q1
-w2=w2 + 2.0_GRID_SR*dt* q2
-w3=w3 + 2.0_GRID_SR*dt* q3
 
-write (*,*) 'hu,hv,w1,w2,w3 after correction: ', hu,',',hv, ',' ,w1,',',w2,',',w3
+!write (*,*) 'hu,hv,w1,w2,w3 after correction: ', hu,',',hv, ',' ,w1,',',w2,',',w3
 
 !p_local(1)=hu
 !p_local(2)=hv
@@ -76,9 +87,7 @@ write (*,*) 'hu,hv,w1,w2,w3 after correction: ', hu,',',hv, ',' ,w1,',',w2,',',w
 p(1)=hu
 p(2)=hv
 element%cell%data_pers%Q(1)%p=p
-element%nodes(1)%ptr%data_pers%w(1)=w1
-element%nodes(2)%ptr%data_pers%w(1)=w2
-element%nodes(3)%ptr%data_pers%w(1)=w3
+
 
 
 end subroutine
