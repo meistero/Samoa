@@ -86,8 +86,8 @@
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + src_element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + src_element%cell%data_pers%porosity
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
 #           else
                 porosity = porosity + src_element%cell%data_pers%porosity
 #           endif
@@ -125,8 +125,8 @@
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + src_element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + src_element%cell%data_pers%porosity
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
 #           else
                 porosity = porosity + src_element%cell%data_pers%porosity
 #           endif
@@ -184,6 +184,20 @@
 #           endif
 		end subroutine
 
+		elemental function transform_perm(permeability) result(trans_permeability)
+            real (kind = SR), intent(in)    :: permeability
+            real (kind = SR)                :: trans_permeability
+
+            trans_permeability = 1.0_SR / permeability
+		end function
+
+		elemental function transform_perm_inv(trans_permeability) result(permeability)
+            real (kind = SR), intent(in)    :: trans_permeability
+            real (kind = SR)                :: permeability
+
+            permeability = 1.0_SR / trans_permeability
+		end function
+
 		subroutine coarsen_op(traversal, grid, src_element, dest_element, coarsening_path)
   			type(t_darcy_adaption_traversal), intent(inout)							    :: traversal
 			type(t_grid_section), intent(inout)										    :: grid
@@ -198,8 +212,8 @@
             porosity = epsilon(1.0_SR)
 
 #           if (_DARCY_LAYERS > 0)
-                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + src_element%cell%data_pers%porosity
-                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + src_element%cell%data_pers%porosity
+                porosity(1 : _DARCY_LAYERS) = porosity(1 : _DARCY_LAYERS) + 0.5_SR * src_element%cell%data_pers%porosity
+                porosity(2 : _DARCY_LAYERS + 1) = porosity(2 : _DARCY_LAYERS + 1) + 0.5_SR * src_element%cell%data_pers%porosity
 #           else
                 porosity = porosity + src_element%cell%data_pers%porosity
 #           endif
@@ -239,7 +253,7 @@
 
             !permeability and porosity: compute the average
 
-            dest_element%cell%data_pers%base_permeability = dest_element%cell%data_pers%base_permeability + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%base_permeability
+            dest_element%cell%data_pers%base_permeability = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability))
             dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%porosity
 		end subroutine
 
@@ -249,7 +263,7 @@
  			type(t_grid_section), intent(in)							:: grid
 			type(t_cell_data_ptr), intent(inout)				:: cell
 
-			cell%data_pers%base_permeability = 0.0_SR
+			cell%data_pers%base_permeability = transform_perm_inv(0.0_SR)
 			cell%data_pers%porosity = 0.0_SR
 		end subroutine
 
