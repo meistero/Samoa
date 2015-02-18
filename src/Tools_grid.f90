@@ -817,7 +817,7 @@ module Grid
 
 	!> Allocates all streams and stacks
 	subroutine grid_create(grid, dest_grid_sections, i_stack_size)
-		class(t_grid), target, intent(inout)		    :: grid
+		class(t_grid), intent(inout)		            :: grid
 		type(t_section_info_list), intent(inout)	    :: dest_grid_sections
 		integer (kind = GRID_SI), intent(in)	        :: i_stack_size(:)
 

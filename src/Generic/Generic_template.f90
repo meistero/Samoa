@@ -86,9 +86,9 @@
 		!element
 
 		subroutine element_op(traversal, section, element)
- 			type(t_generic_traversal), intent(inout)	        :: traversal
+ 			type(t_generic_traversal), intent(inout)	    :: traversal
  			type(t_grid_section), intent(inout)			    :: section
-			type(t_element_base), intent(inout), target		:: element
+			type(t_element_base), intent(inout)		        :: element
 
 			integer (kind = c_long_long)        :: cell_index
 			integer (kind = c_char)             :: refinement

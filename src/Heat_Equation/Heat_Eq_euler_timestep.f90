@@ -77,7 +77,7 @@
 
 		subroutine timestep_element_op(traversal, section, element)
 			type(t_grid_section), intent(inout)						:: grid
-			type(t_element_base), intent(inout), target		:: element
+			type(t_element_base), intent(inout)	        :: element
 
 			!local variables
 
