@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Debug" />
+<<<<<<< HEAD
 	<File name="src/SWE/SWE_adapt.f90" open="1" top="0" tabpos="9" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="7027" topLine="171" />
@@ -34,13 +35,49 @@
 	<File name="src/SWE/SWE_displace.f90" open="0" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="682" topLine="73" />
-		</Cursor>
-	</File>
-	<File name="src/Darcy/Darcy_permeability.f90" open="0" top="0" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+=======
+	<File name="src/SWE/SWE_adapt.f90" open="1" top="0" tabpos="8" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="378" topLine="0" />
+			<Cursor1 position="8464" topLine="174" />
 		</Cursor>
 	</File>
+	<File name="src/Solver/LinearSolver.f90" open="0" top="0" tabpos="27" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Generic/Generic_data_types.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="46" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_grad_p.f90" open="1" top="0" tabpos="28" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="32" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_initialize.f90" open="1" top="0" tabpos="17" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="12666" topLine="258" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_data_types.f90" open="0" top="0" tabpos="15" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3354" topLine="76" />
+		</Cursor>
+	</File>
+	<File name="src/Samoa/dunavant.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="249" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_adapt.f90" open="1" top="0" tabpos="12" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="510" topLine="23" />
+		</Cursor>
+	</File>
+<<<<<<< HEAD
 	<File name="src/Samoa/Tools_boundary_basis.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="205" />
@@ -119,6 +156,106 @@
 	<File name="src/SWE/SWE_NH_traversal.f90" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="1567" topLine="36" />
+=======
+	<File name="src/Samoa/Tools_hierarchical_basis.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="20527" topLine="346" />
+		</Cursor>
+	</File>
+	<File name="src/Compilation_control.f90" open="1" top="0" tabpos="14" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="804" topLine="34" />
+		</Cursor>
+	</File>
+	<File name="src/Flash/FLASH.f90" open="0" top="0" tabpos="9" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="332" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/ascii_output_model.f90" open="0" top="0" tabpos="24" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="122" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_edge_traversal.f90" open="1" top="0" tabpos="19" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="73971" topLine="1471" />
+		</Cursor>
+	</File>
+	<File name="src/Samoa/Tools_quadrature_rule.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="67" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_generic_adaptive_traversal.f90" open="0" top="0" tabpos="16" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="25730" topLine="583" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_NH_traversal.f90" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="449" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Solver/CG.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="3" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_NH_residual_output_traversal.f90" open="1" top="0" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="217" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="bin/build_samoa_darcy_gnu/samoa_darcy.mod" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1882" topLine="17" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_local_function_spaces.f90" open="1" top="0" tabpos="13" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="335" topLine="24" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_transport_eq.f90" open="1" top="0" tabpos="30" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="34" />
+		</Cursor>
+	</File>
+	<File name="bin/build_samoa_darcy_gnu/darcy.mod" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="21673" topLine="320" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE.f90" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="8726" topLine="144" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_local_function_spaces.f90" open="0" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="4" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3052" topLine="27" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_basis.f90" open="1" top="0" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1291" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_xml_output.f90" open="1" top="0" tabpos="24" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4730" topLine="111" />
+		</Cursor>
+	</File>
+	<File name="bin/build_samoa_darcy_gnu/grid.mod" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="146197" topLine="2238" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_lse_output.f90" open="0" top="0" tabpos="14" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="6871" topLine="168" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
 		</Cursor>
 	</File>
 	<File name="src/Samoa/Tools_hierarchical_basis.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -126,6 +263,7 @@
 			<Cursor1 position="20527" topLine="346" />
 		</Cursor>
 	</File>
+<<<<<<< HEAD
 	<File name="src/Samoa/Tools_quadrature_rule.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="67" />
@@ -134,6 +272,16 @@
 	<File name="src/Flash/FLASH_local_function_spaces.f90" open="0" top="0" tabpos="32" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="0" />
+=======
+	<File name="src/Solver/Jacobi.f90" open="0" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4096" topLine="96" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_basis.f90" open="1" top="0" tabpos="29" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1395" topLine="0" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
 		</Cursor>
 	</File>
 	<File name="src/Darcy/Darcy_lse_output.f90" open="0" top="0" tabpos="14" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -141,6 +289,7 @@
 			<Cursor1 position="6871" topLine="168" />
 		</Cursor>
 	</File>
+<<<<<<< HEAD
 	<File name="src/SWE/SWE_NH_test_traversal.f90" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="3966" topLine="170" />
@@ -159,23 +308,50 @@
 	<File name="src/Tools_list.f90" open="0" top="0" tabpos="16" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="217" />
-		</Cursor>
-	</File>
-	<File name="src/Samoa/Tools_lagrange_basis.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+=======
+	<File name="bin/build_samoa_darcy_gnu/conformity.mod" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="0" topLine="123" />
+			<Cursor1 position="4553" topLine="62" />
 		</Cursor>
 	</File>
+	<File name="src/Tools_stream.f90" open="0" top="0" tabpos="13" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2631" topLine="30" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_laplace_cg.f90" open="0" top="0" tabpos="28" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/ascii_output_view.f90" open="1" top="0" tabpos="7" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="589" topLine="0" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
+		</Cursor>
+	</File>
+	<File name="src/Generic/Generic_initialize.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1200" topLine="0" />
+		</Cursor>
+	</File>
+<<<<<<< HEAD
 	<File name="src/SFC_node_traversal.f90" open="0" top="0" tabpos="20" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="532" topLine="9" />
-		</Cursor>
-	</File>
-	<File name="src/Samoa/Tools_quadrature_rule_base.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+=======
+	<File name="src/Tools_grid.f90" open="0" top="0" tabpos="17" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="0" topLine="11" />
+			<Cursor1 position="0" topLine="177" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
 		</Cursor>
 	</File>
+	<File name="src/Darcy/Darcy.f90" open="1" top="0" tabpos="22" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="13657" topLine="404" />
+		</Cursor>
+	</File>
+<<<<<<< HEAD
 	<File name="src/SWE/SWE_non_hydrostatic_pressure_jacobi.f90" open="0" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="255" topLine="0" />
@@ -284,13 +460,124 @@
 	<File name="bin/build_samoa_darcy_gnu/ascii_output.mod" open="0" top="0" tabpos="21" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="95281" topLine="1446" />
-		</Cursor>
-	</File>
-	<File name="src/Tools_adaptive_traversal.f90" open="0" top="0" tabpos="12" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+=======
+	<File name="src/Tools_grid_variable.f90" open="1" top="0" tabpos="26" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="11959" topLine="387" />
+			<Cursor1 position="7146" topLine="222" />
 		</Cursor>
 	</File>
+	<File name="src/SWE/SWE_displace.f90" open="0" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="682" topLine="73" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_main.f90" open="0" top="0" tabpos="19" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="520" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_NH_test_traversal.f90" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="742" topLine="55" />
+		</Cursor>
+	</File>
+	<File name="src/Flash/FLASH_dg_element.f90" open="0" top="0" tabpos="33" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="88" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_permeability.f90" open="1" top="0" tabpos="31" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="378" topLine="75" />
+		</Cursor>
+	</File>
+	<File name="src/Tools_adaptive_traversal.f90" open="0" top="0" tabpos="19" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="5180" topLine="160" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_data_types.f90" open="1" top="0" tabpos="9" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3691" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_non_hydrostatic_pressure_jacobi.f90" open="0" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="255" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Flash/FLASH_local_function_spaces.f90" open="0" top="0" tabpos="32" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_point_output_time.f90" open="1" top="0" tabpos="15" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="5676" topLine="65" />
+		</Cursor>
+	</File>
+	<File name="bin/build_samoa_darcy_gnu/asagi.mod" open="0" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="57" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_generic_traversal_ringbuffer.f90" open="1" top="0" tabpos="21" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="10142" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_xml_output.f90" open="1" top="0" tabpos="32" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="117" />
+		</Cursor>
+	</File>
+	<File name="src/Samoa/Tools_quadrature_rule_base.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="11" />
+		</Cursor>
+	</File>
+	<File name="src/Flash/FLASH_adapt.f90" open="1" top="0" tabpos="25" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4745" topLine="89" />
+		</Cursor>
+	</File>
+	<File name="src/Flash/FLASH_initialize.f90" open="0" top="0" tabpos="31" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="201" />
+		</Cursor>
+	</File>
+	<File name="src/Tools_log.f90" open="0" top="0" tabpos="14" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="6" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_output.f90" open="0" top="0" tabpos="16" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1378" topLine="162" />
+		</Cursor>
+	</File>
+	<File name="src/Flash/FLASH_data_types.f90" open="0" top="0" tabpos="18" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3207" topLine="66" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_point_output.f90" open="0" top="0" tabpos="17" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3695" topLine="162" />
+		</Cursor>
+	</File>
+	<File name="src/Tools_local_function_space.f90" open="0" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4047" topLine="0" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_NH_variable_output_traversal.f90" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2159" topLine="35" />
+		</Cursor>
+	</File>
+<<<<<<< HEAD
 	<File name="src/SWE/SWE_lse_output.f90" open="0" top="0" tabpos="15" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="4420" topLine="33" />
@@ -309,6 +596,26 @@
 	<File name="bin/build_samoa_darcy_gnu/darcy.mod" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="21673" topLine="320" />
+=======
+	<File name="src/Flash/FLASH_euler_timestep.f90" open="1" top="0" tabpos="20" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1134" topLine="23" />
+		</Cursor>
+	</File>
+	<File name="src/Samoa/Tools_boundary_basis.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="205" />
+		</Cursor>
+	</File>
+	<File name="src/geoclaw/riemannsolvers_sp.f" open="0" top="0" tabpos="11" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="16864" topLine="567" />
+		</Cursor>
+	</File>
+	<File name="src/Config.f90" open="1" top="0" tabpos="11" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="8652" topLine="489" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
 		</Cursor>
 	</File>
 	<File name="src/SFC_generic_traversal_ringbuffer.f90" open="0" top="0" tabpos="12" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -316,6 +623,7 @@
 			<Cursor1 position="8861" topLine="245" />
 		</Cursor>
 	</File>
+<<<<<<< HEAD
 	<File name="src/Solver/LinearSolver.f90" open="0" top="0" tabpos="27" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="0" />
@@ -374,6 +682,71 @@
 	<File name="bin/build_samoa_darcy_gnu/samoa_darcy.mod" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="1882" topLine="17" />
+=======
+	<File name="src/SFC_traversal.f90" open="0" top="0" tabpos="21" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2341" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Heat_Equation/Heat_Eq_euler_timestep.f90" open="0" top="0" tabpos="22" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="8196" topLine="194" />
+		</Cursor>
+	</File>
+	<File name="src/Generic/samoa.h" open="0" top="0" tabpos="8" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_node_traversal.f90" open="0" top="0" tabpos="20" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="532" topLine="9" />
+		</Cursor>
+	</File>
+	<File name="src/Samoa/Samoa.f90" open="0" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="45" />
+		</Cursor>
+	</File>
+	<File name="src/Generic/Generic.f90" open="0" top="0" tabpos="0" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4234" topLine="104" />
+		</Cursor>
+	</File>
+	<File name="bin/build_samoa_darcy_gnu/ascii_output.mod" open="0" top="0" tabpos="21" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="95281" topLine="1446" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_lse_output.f90" open="0" top="0" tabpos="15" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4420" topLine="33" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_LSE_traversal.f90" open="1" top="0" tabpos="16" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="2341" topLine="68" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_initialize.f90" open="1" top="0" tabpos="27" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="7037" topLine="169" />
+		</Cursor>
+	</File>
+	<File name="src/Samoa/Tools_lagrange_basis.f90" open="1" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="182" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_data_types.f90" open="1" top="0" tabpos="23" split="0" active="1" splitpos="0" zoom_1="3" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="8762" topLine="205" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_euler_timestep.f90" open="1" top="1" tabpos="18" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="14521" topLine="166" />
+>>>>>>> 7d5521302eaa2415061cebde906fb8515a13b89b
 		</Cursor>
 	</File>
 </CodeBlocks_layout_file>

@@ -285,13 +285,24 @@
 
 			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
-			!refine also on the coasts
-			if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
-				cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
-			else if (b_norm < 300.0_GRID_SR) then
-				cell%geometry%refinement = max(cell%geometry%refinement, 0)
-			endif
+
+            if(cfg%s_test_case_name .eq. 'standing_wave') then
+!                    if (cell%geometry%i_depth > cfg%i_min_depth .and. b_norm < 5.02_GRID_SR) then
+!                        cell%geometry%refinement = -1
+
+             !       else if (b_norm > 5.05_GRID_SR  .and. cell%geometry%i_depth <cfg%i_max_depth) then
+             !           cell%geometry%refinement =1
+            !            traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+            !        endif
+            else
+                    !refine also on the coasts
+                    if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
+                        cell%geometry%refinement = 1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+                    else if (b_norm < 300.0_GRID_SR) then
+                        cell%geometry%refinement = max(cell%geometry%refinement, 0)
+                    endif
+            endif
 		end subroutine
 
 		!*******************************
@@ -330,10 +341,10 @@
 			i_refinement = 0
 			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
 
-			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
+			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 0.0006_GRID_SR) ** 2) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 0.0003_GRID_SR) ** 2) then
 				i_refinement = -1
 			endif
 

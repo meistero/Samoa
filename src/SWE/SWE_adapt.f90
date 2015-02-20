@@ -19,6 +19,8 @@
 
         type num_traversal_data
 			type(t_state), dimension(_SWE_CELL_SIZE, 2)							:: Q_in
+            real (kind = GRID_SR), dimension(3, 2)					:: qp_in
+            real (kind = GRID_SR), dimension(3, 2)					:: w_in
         end type
 
 		type(t_gv_Q)							:: gv_Q
@@ -127,10 +129,19 @@
 			type(t_state), dimension(_SWE_CELL_SIZE)									:: Q_in
 			type(t_state), dimension(_SWE_CELL_SIZE, 2)									:: Q_out
 
+            real (kind = GRID_SR), dimension(3)								            :: qp_in
+            real (kind = GRID_SR), dimension(3)								            :: w_in
+            real (kind = GRID_SR), dimension(3,2)								            :: qp_out
+            real (kind = GRID_SR), dimension(3,2)								            :: w_out
+
 			integer																		:: i
 			!state vector
 
-			call gv_Q%read( src_element%t_element_base, Q_in)
+			call gv_Q%read(src_element%t_element_base, Q_in)
+
+            call gv_qp%read(src_element%t_element_base, qp_in)
+
+            call gv_w%read(src_element%t_element_base, w_in)
 
             !convert momentum to velocity
 			!Q_in(1)%p = 1.0_GRID_SR / (Q_in(1)%h - Q_in(1)%b) * Q_in(1)%p
@@ -140,7 +151,12 @@
 				call t_basis_Q_split(Q_in%p(1),	Q_out(:, 1)%p(1),	Q_out(:, 2)%p(1))
 				call t_basis_Q_split(Q_in%p(2),	Q_out(:, 1)%p(2),	Q_out(:, 2)%p(2))
 
+				call t_basis_lin_node_split(qp_in, qp_out(:,1),qp_out(:,2) )
+				call t_basis_lin_node_split(w_in, w_out(:,1),w_out(:,2) )
+
 				Q_in = Q_out(:, refinement_path(i))
+				qp_in= qp_out(:,refinement_path(i))
+				w_in= w_out(:,refinement_path(i))
 			end do
 
 			Q_in%b = get_bathymetry(section, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), section%r_time, dest_element%cell%geometry%i_depth / 2_GRID_SI)
@@ -149,6 +165,8 @@
 			!Q_in(1)%p = (Q_in(1)%h - Q_in(1)%b) * Q_in(1)%p
 
 			call gv_Q%write( dest_element%t_element_base, Q_in)
+			call gv_qp%write( dest_element%t_element_base, qp_in)
+			call gv_w%write( dest_element%t_element_base, w_in)
 		end subroutine
 
 		subroutine coarsen_op(traversal, section, src_element, dest_element, refinement_path)
@@ -159,12 +177,16 @@
 			integer, dimension(:), intent(in)											:: refinement_path
 
 			type(t_state), dimension(_SWE_CELL_SIZE)									:: Q_out
+            real (kind = GRID_SR), dimension(3)					                        :: w_out
+            real (kind = GRID_SR), dimension(3)					                        :: qp_out
 			integer																		:: i
 
 			!state vector
 
 			i = refinement_path(1)
 			call gv_Q%read( src_element%t_element_base, traversal%Q_in(:, i))
+			call gv_w%read( src_element%t_element_base, traversal%w_in(:,i))
+            call gv_qp%read( src_element%t_element_base, traversal%qp_in(:,i))
 
             !convert momentum to velocity
 			!traversal%Q_in(1, i)%p = 1.0_GRID_SR / (traversal%Q_in(1, i)%h - traversal%Q_in(1, i)%b) * traversal%Q_in(1, i)%p
@@ -174,11 +196,16 @@
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(1),	    traversal%Q_in(:, 2)%p(1),	Q_out%p(1))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(2),	    traversal%Q_in(:, 2)%p(2),	Q_out%p(2))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%b,		traversal%Q_in(:, 2)%b,		Q_out%b)
+                call t_basis_Q_merge(traversal%qp_in(:, 1),		traversal%qp_in(:, 2),		qp_out)
+                call t_basis_Q_merge(traversal%w_in(:, 1),		traversal%w_in(:, 2),		w_out)
+
 
                 !convert velocity back to momentum
                 !Q_out(1)%p = (Q_out(1)%h - Q_out(1)%b) * Q_out(1)%p
 
 				call gv_Q%write( dest_element%t_element_base, Q_out)
+                call gv_qp%write( dest_element%t_element_base, qp_out)
+                call gv_w%write( dest_element%t_element_base, w_out)
 			end if
 		end subroutine
 

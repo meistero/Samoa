@@ -194,7 +194,7 @@ subroutine element_op(traversal, section, element)
 
     call inner_element_op(traversal,section,element)
 
-    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()
+    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
     half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
 
     hu= element%cell%data_pers%Q(1)%p(1)
