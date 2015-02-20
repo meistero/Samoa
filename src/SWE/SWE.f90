@@ -174,11 +174,17 @@
                end associate
 #           else
                if (cfg%s_test_case_name .eq. 'standing_wave') then
-                cfg%scaling = 10.0_GRID_SR
-                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
-               else
-                cfg%scaling = 1.0_GRID_SR
-                cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                    cfg%scaling = 10.0_GRID_SR
+                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                elseif (cfg%s_test_case_name .eq. 'solitary_wave') then
+                    cfg%scaling = 600.0_GRID_SR
+                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                elseif (cfg%s_test_case_name .eq. 'beach') then
+                    cfg%scaling = 80.0_GRID_SR
+                    cfg%offset = [-10.0_GRID_SR, 0.0_GRID_SR]
+                else
+                    cfg%scaling = 1.0_GRID_SR
+                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
                 endif
 #			endif
 		end subroutine

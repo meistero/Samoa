@@ -158,8 +158,11 @@
 
         if (rank_MPI == 0) then
             ! file schreiben
-            write(pout_file_name,"(A,A)") TRIM(traversal%s_file_stamp), ".txt"
-
+            if (cfg%l_swe_nh) then
+            write(pout_file_name,"(A,A)") TRIM(traversal%s_file_stamp), "_NH.txt"
+            else
+            write(pout_file_name,"(A,A)") TRIM(traversal%s_file_stamp), "_H.txt"
+            endif
 
             inquire(file=pout_file_name, exist=l_exists)
 

@@ -1,4 +1,4 @@
-function [t,eta] = importfile(filename, startRow, endRow)
+function [t_nh,eta_nh] = importfile(filename, startRow, endRow)
 %IMPORTFILE Import numeric data from a text file as column vectors.
 %   [VARNAME5,VARNAME6] = IMPORTFILE(FILENAME) Reads data from text file
 %   FILENAME for the default selection.
@@ -27,7 +27,7 @@ end
 formatSpec = '%*s%*s%f%f%[^\n\r]';
 
 %% Open the text file.
-fileID = fopen(filename,'r');
+fileID = fopen(strcat(filename,'_NH.txt'),'r');
 
 %% Read columns of data according to format string.
 % This call is based on the structure of the file used to generate this
@@ -52,11 +52,44 @@ fclose(fileID);
 % script.
 
 %% Allocate imported array to column variable names
-t = dataArray{:, 1};
-eta = dataArray{:, 2};
+t_nh = dataArray{:, 1};
+eta_nh = dataArray{:, 2};
+
+%% Open the text file.
+fileID = fopen(strcat(filename,'_H.txt'),'r');
+
+%% Read columns of data according to format string.
+% This call is based on the structure of the file used to generate this
+% code. If an error occurs for a different file, try regenerating the code
+% from the Import Tool.
+dataArray = textscan(fileID, formatSpec, endRow(1)-startRow(1)+1, 'Delimiter', delimiter, 'HeaderLines', startRow(1)-1, 'ReturnOnError', false);
+for block=2:length(startRow)
+    frewind(fileID);
+    dataArrayBlock = textscan(fileID, formatSpec, endRow(block)-startRow(block)+1, 'Delimiter', delimiter, 'HeaderLines', startRow(block)-1, 'ReturnOnError', false);
+    for col=1:length(dataArray)
+        dataArray{col} = [dataArray{col};dataArrayBlock{col}];
+    end
+end
+
+%% Close the text file.
+fclose(fileID);
+
+%% Post processing for unimportable data.
+% No unimportable data rules were applied during the import, so no post
+% processing code is included. To generate code which works for
+% unimportable data, select unimportable cells in a file and regenerate the
+% script.
+
+%% Allocate imported array to column variable names
+t_h = dataArray{:, 1};
+eta_h = dataArray{:, 2};
+
 
 hold on
-plot(t,eta)
+plot(t_nh,eta_nh,'r')
+plot(t_h,eta_h,'b')
+
+
 
 %% analytical solution
 lambda=20;
@@ -70,5 +103,12 @@ period=lambda/c
 x= [0:0.1:20];
 y=-a* cos((2*pi*9.9/lambda) + (2*pi*x/(lambda/c)));
 
-plot(x,y)
+plot(x,y,'k')
+xlabel('time t [s]')
+ylabel('water elevation eta [m]')
+title('h=5 m')
+xlim([0,14])
+
+legend('non-hydrostatic','hydrostatic','analytical')
+
 hold off

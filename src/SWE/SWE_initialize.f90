@@ -103,9 +103,27 @@
  			type(t_swe_init_traversal), intent(in)                       :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
+            real(kind=GRID_SR)                          ::u_xp,u_xm,eta_xp,eta_xm,xs,eta_xs,x
+            real (kind=GRID_SR), parameter                      ::amplitude_sol=2
+            real (kind=GRID_SR), parameter                      ::initial_crest=80
+            real (kind=GRID_SR), parameter                      ::d_sol=10
+            real (kind=GRID_SR), parameter					    ::g = 9.80665_GRID_SR		!< gravitational constant
+            real (kind=GRID_SR), parameter                      ::c_sol=sqrt(g*(amplitude_sol+d_sol))
+            real (kind=GRID_SR), parameter                       ::acc=0.00001_GRID_SR
+
 
 				node%data_pers%is_dirichlet_boundary = .false.
 
+                if(cfg%s_test_case_name .eq. 'solitary_wave') then
+                    x= node%position(1)
+                    xs = cfg%scaling * x + cfg%offset(1)
+                    eta_xp=amplitude_sol * (1.0_GRID_SR/(cosh((xs+acc-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))*(1.0_GRID_SR/(cosh((xs+acc-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))
+                    eta_xm=amplitude_sol * (1.0_GRID_SR/(cosh((xs-acc-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))*(1.0_GRID_SR/(cosh((xs-acc-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))
+                    eta_xs=amplitude_sol * (1.0_GRID_SR/(cosh((xs-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))*(1.0_GRID_SR/(cosh((xs-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))
+                    u_xp= c_sol * (eta_xp/(eta_xp+d_sol))
+                    u_xm= c_sol * (eta_xm/(eta_xm+d_sol))
+                    node%data_pers%w=-eta_xs *( u_xp-u_xm /(2.0_GRID_SR*acc))
+                endif
 
             call inner_node_first_touch_op(traversal, section, node)
 		end subroutine
@@ -189,12 +207,17 @@
                         traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                     end if
 #               else
-                    if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0 .or. any(Q_test%h .ne. 0.0)) then
+                    !if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0 .or. any(Q_test%h .ne. 0.0)) then
                         !refine coast lines and initial displacement
 
-                        element%cell%geometry%refinement = 1
-                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                    end if
+                     !   element%cell%geometry%refinement = 1
+                      !  traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                    !end if
+
+                    if ( maxval(Q_test%h - Q_test%b) > 5.03_GRID_SR) then
+                        element%cell%geometry%refinement =1
+                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+                    endif
 #               endif
 			end if
 
@@ -237,19 +260,50 @@
             real (kind=GRID_SR)                                 :: amplitude=0.1
             real (kind=GRID_SR)                                 :: wavelength=20
 
+            !solitary wave
+            real (kind=GRID_SR), parameter                      ::amplitude_sol=2
+            real (kind=GRID_SR), parameter                      ::initial_crest=80
+            real (kind=GRID_SR), parameter                      ::d_sol=10
+            real (kind=GRID_SR), parameter					    ::g = 9.80665_GRID_SR		!< gravitational constant
+            real (kind=GRID_SR), parameter                      ::c_sol=sqrt(g*(amplitude_sol+d_sol))
+
+            !wave run-up on a beach
+            real (kind=GRID_SR), parameter                     ::a_b=0.3
+            real (kind=GRID_SR), parameter                     ::x_as_b=19.85
+            real (kind=GRID_SR), parameter                     ::d_b=1
+            real (kind=GRID_SR), parameter                     ::alpha_b=atan(1.0_GRID_SR/x_as_b)
+            real (kind=GRID_SR), parameter                      ::x_s_b= (d_b/tan(alpha_b)) + sqrt(4.0_GRID_SR/(3.0_GRID_SR*a_b)) * acosh(sqrt(20.0_GRID_SR))
+
+
             xs = cfg%scaling * x + cfg%offset
 
 #			if defined(_ASAGI)
 				Q%h = 0.0_GRID_SR
+				Q%p = 0.0_GRID_SR
 #			else
                 if(cfg%s_test_case_name .eq. 'standing_wave') then
                     Q%h= amplitude*(cos(2_GRID_SR*3.1415927_GRID_SR*(xs(1)-10_GRID_SR)/wavelength))
+                    Q%p = 0.0_GRID_SR
+                elseif (cfg%s_test_case_name .eq. 'solitary_wave') then
+                    Q%h=amplitude_sol * (1.0_GRID_SR/(cosh((xs(1)-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))*(1.0_GRID_SR/(cosh((xs(1)-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))
+                    Q%p(1)=c_sol* (Q%h)
+                    Q%p(2)=0.0_GRID_SR
+                elseif (cfg%s_test_case_name .eq. 'beach') then
+                    if(xs(1)>0) then
+                    Q%h=a_b * (1.0_GRID_SR/cosh((xs(1)-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs(1)-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
+                    Q%p(1)=-Q%h*sqrt(g/d_b)
+                    Q%p(2)=0.0_GRID_SR
+                    else
+                    Q%h=0.0_GRID_SR
+                    Q%p(1)=0.0_GRID_SR
+                    Q%p(2)=0.0_GRID_SR
+                    endif
                 else
 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
                 endif
 #			endif
 
-			Q%p = 0.0_GRID_SR
+
 
 		end function
 
@@ -300,10 +354,29 @@
 
                 !standing wave parameters
                 real (kind=GRID_SR), parameter                       :: d=-5.0_GRID_SR
+                !solitary wave parameters
+                real (kind=GRID_SR), parameter                       :: d_sol=-10.0_GRID_SR
+                !wave run up on a beach
+                real (kind=GRID_SR), parameter                       :: d_b=-1.0_GRID_SR
+                real (kind=GRID_SR), parameter                       ::x_as_b=19.85_GRID_SR
+                real (kind=GRID_SR), parameter                       ::ascent_b=1.0_GRID_SR/19.85_GRID_SR
+
+
 
                 if(cfg%s_test_case_name .eq. 'standing_wave') then
-                    xs = cfg%scaling * x + cfg%offset
+                    !xs = cfg%scaling * x + cfg%offset
                     bathymetry = d
+                else if(cfg%s_test_case_name .eq. 'solitary_wave') then
+                    !xs = cfg%scaling * x + cfg%offset
+                    bathymetry = d_sol
+                elseif (cfg%s_test_case_name .eq. 'beach') then
+                    xs = cfg%scaling * x + cfg%offset
+                    if(xs(1)<=x_as_b) then
+                        bathymetry=-ascent_b*xs(1)
+                    else
+                        bathymetry=d_b
+                    endif
+
                 else
                     xs = cfg%scaling * x + cfg%offset
                     bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
