@@ -93,6 +93,8 @@
 			real(kind=GRID_SR), dimension(3,3)          ::A
 			A= 0.0_GRID_SR
 
+
+            !write(*,*) 'calling alpha vol op'
 			call alpha_volume_op(traversal, section, element, Q)
 
 			call gv_Q%write(element, Q)
@@ -103,14 +105,20 @@
  			type(t_swe_init_traversal), intent(in)                       :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
-            real(kind=GRID_SR)                          ::u_xp,u_xm,eta_xp,eta_xm,xs,eta_xs,x
+            real (kind=GRID_SR)                          ::u_xp,u_xm,eta_xp,eta_xm,xs,eta_xs,x
             real (kind=GRID_SR), parameter                      ::amplitude_sol=2
             real (kind=GRID_SR), parameter                      ::initial_crest=80
             real (kind=GRID_SR), parameter                      ::d_sol=10
             real (kind=GRID_SR), parameter					    ::g = 9.80665_GRID_SR		!< gravitational constant
             real (kind=GRID_SR), parameter                      ::c_sol=sqrt(g*(amplitude_sol+d_sol))
             real (kind=GRID_SR), parameter                       ::acc=0.00001_GRID_SR
-
+            !beach
+            real (kind=GRID_SR), parameter                     ::a_b=0.3
+            real (kind=GRID_SR), parameter                     ::x_as_b=19.85
+            real (kind=GRID_SR), parameter                     ::d_b=1
+            real (kind=GRID_SR), parameter                     ::alpha_b=atan(1.0_GRID_SR/x_as_b)
+            real (kind=GRID_SR), parameter                     ::x_s_b= (d_b/tan(alpha_b)) + sqrt(4.0_GRID_SR/(3.0_GRID_SR*a_b)) * acosh(sqrt(20.0_GRID_SR))
+            real (kind=GRID_SR)                                 ::u_b
 
 				node%data_pers%is_dirichlet_boundary = .false.
 
@@ -123,6 +131,19 @@
                     u_xp= c_sol * (eta_xp/(eta_xp+d_sol))
                     u_xm= c_sol * (eta_xm/(eta_xm+d_sol))
                     node%data_pers%w=-eta_xs *( u_xp-u_xm /(2.0_GRID_SR*acc))
+
+
+                elseif (cfg%s_test_case_name .eq. 'beach') then
+                    xs = cfg%scaling * x + cfg%offset(1)
+
+                    if(xs>0) then
+
+                    eta_xp=a_b * (1.0_GRID_SR/cosh((xs+acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs+acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
+                    eta_xm=a_b * (1.0_GRID_SR/cosh((xs-acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
+                    u_b=-a_b * (1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*sqrt(g/d_b)
+                    node%data_pers%w=u_b* (eta_xp-eta_xm)/2.0_GRID_SR*acc
+
+                    endif
                 endif
 
             call inner_node_first_touch_op(traversal, section, node)
@@ -170,9 +191,16 @@
 
 			if (element%cell%geometry%i_depth < cfg%i_min_depth) then
                 !refine if the minimum depth is not met
+                if (cfg%s_test_case_name .eq. 'solitary_wave') then
 
- 				element%cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=600 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=2) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=600 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=2) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=600 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=2 )) then
+                                element%cell%geometry%refinement =1
+                                traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                        endif
+                else
+                    element%cell%geometry%refinement = 1
+                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+				endif
             else if (element%cell%geometry%i_depth < cfg%i_max_depth) then
                 do i = 1, 3
                     Q_test(i) = get_initial_state(section, samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)), element%cell%geometry%i_depth / 2_GRID_SI)
@@ -213,13 +241,40 @@
                      !   element%cell%geometry%refinement = 1
                       !  traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                     !end if
+                    !write(*,*) maxval(Q_test%b)
+!                    write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1) ,','  ,element%nodes(1)%ptr%position(2)
+!
+!                    write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
+!
+!                    write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1) ,','  ,element%nodes(3)%ptr%position(2)
 
-                    if ( maxval(Q_test%h - Q_test%b) > 5.03_GRID_SR) then
-                        element%cell%geometry%refinement =1
-                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+                    if (cfg%s_test_case_name .eq. 'solitary_wave') then
+
+                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=600 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=2) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=600 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=2) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=600 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=2 )) then
+                              element%cell%geometry%refinement =1
+                              traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                        endif
+                    endif
+
+
+                    if (cfg%s_test_case_name .eq. 'standing_wave') then
+                        if ( maxval(Q_test%h - Q_test%b) > 5.03_GRID_SR) then
+                            element%cell%geometry%refinement =1
+                            traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+                        endif
                     endif
 #               endif
 			end if
+
+            if (cfg%s_test_case_name .eq. 'solitary_wave') then
+                if(element%cell%geometry%i_depth .gt. 2_GRID_DI) then
+                    if(.not. ((element%nodes(1)%ptr%position(1) *cfg%scaling <=600 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=2) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=600 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=2) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=600 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=2 ))) then
+
+                                      element%cell%geometry%refinement =-1
+                    endif
+                endif
+            endif
+
 
 			!estimate initial u_max
 
@@ -353,11 +408,11 @@
 
 
                 !standing wave parameters
-                real (kind=GRID_SR), parameter                       :: d=-5.0_GRID_SR
+                real (kind=GRID_SR), parameter                       ::d=-5.0_GRID_SR
                 !solitary wave parameters
-                real (kind=GRID_SR), parameter                       :: d_sol=-10.0_GRID_SR
+                real (kind=GRID_SR), parameter                       ::d_sol=-10.0_GRID_SR
                 !wave run up on a beach
-                real (kind=GRID_SR), parameter                       :: d_b=-1.0_GRID_SR
+                real (kind=GRID_SR), parameter                       ::d_b=-1.0_GRID_SR
                 real (kind=GRID_SR), parameter                       ::x_as_b=19.85_GRID_SR
                 real (kind=GRID_SR), parameter                       ::ascent_b=1.0_GRID_SR/19.85_GRID_SR
 
@@ -367,8 +422,13 @@
                     !xs = cfg%scaling * x + cfg%offset
                     bathymetry = d
                 else if(cfg%s_test_case_name .eq. 'solitary_wave') then
-                    !xs = cfg%scaling * x + cfg%offset
+                    xs = cfg%scaling * x + cfg%offset
+                    !write(*,*) xs
+                    if(xs(1)>600 .or. xs(2)>2) then
+                     bathymetry=100.0_GRID_SR
+                    else
                     bathymetry = d_sol
+                    endif
                 elseif (cfg%s_test_case_name .eq. 'beach') then
                     xs = cfg%scaling * x + cfg%offset
                     if(xs(1)<=x_as_b) then
