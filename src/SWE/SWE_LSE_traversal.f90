@@ -59,7 +59,9 @@ subroutine inner_element_op(traversal, section, element)
     real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, midpoint12, midpoint13, midpoint23
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
+    h= element%cell%data_pers%Q(1)%h -  element%cell%data_pers%Q(1)%b
 
+    if (h>cfg%dry_tolerance) then
     !assert that q values are ok
     q1= element%nodes(1)%ptr%data_pers%qp(1)
     q2= element%nodes(2)%ptr%data_pers%qp(1)
@@ -85,7 +87,7 @@ subroutine inner_element_op(traversal, section, element)
 
     dt=section%r_dt
 
-    h= element%cell%data_pers%Q(1)%h -  element%cell%data_pers%Q(1)%b
+
     !write(*,*) 'h:', h
 
     hu= element%cell%data_pers%Q(1)%p(1)
@@ -176,6 +178,11 @@ subroutine inner_element_op(traversal, section, element)
     assert_gt(mat(3,3),0.01)
 
     rhs=[- c*c* ((w1/3.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/12.0_GRID_SR))- c*nxvn*hu-c*nyvn*hv, -c*c*((w1/4.0_GRID_SR) +(w2/2.0_GRID_SR) +(w3/4.0_GRID_SR))-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* ((w1/12.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/3.0_GRID_SR))- c*nxhn*hu-c*nyhn*hv ]
+    else
+        mat=0.0_GRID_SR
+        rhs=0.0_GRID_SR
+    endif
+
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
     element%cell%data_pers%original_lse_orientation=element%transform_data%plotter_data%orientation
     call gm_a%write(element, mat)

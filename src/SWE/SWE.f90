@@ -180,7 +180,7 @@
                     cfg%scaling = 1024.0_GRID_SR
                     cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
                 elseif (cfg%s_test_case_name .eq. 'beach') then
-                    cfg%scaling = 80.0_GRID_SR
+                    cfg%scaling = 128.0_GRID_SR
                     cfg%offset = [-10.0_GRID_SR, 0.0_GRID_SR]
                 else
                     cfg%scaling = 1.0_GRID_SR
@@ -423,13 +423,15 @@
                     end if
                     call swe%lse_traversal%traverse(grid)
 
+                    if(cfg%l_gv_output) then
+                    call swe%nh_variable_output%traverse(grid)
+                    end if
+
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations
                     call swe%nh_traversal%traverse(grid)
 
-                    if(cfg%l_gv_output) then
-                    call swe%nh_variable_output%traverse(grid)
-                    end if
+
 
                     if(cfg%divergence_test) then
                     call swe%nh_test_traversal%traverse(grid)
