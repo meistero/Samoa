@@ -182,6 +182,9 @@
                 elseif (cfg%s_test_case_name .eq. 'beach') then
                     cfg%scaling = 128.0_GRID_SR
                     cfg%offset = [-10.0_GRID_SR, 0.0_GRID_SR]
+                elseif (cfg%s_test_case_name .eq. 'bar') then
+                    cfg%scaling = 256.0_GRID_SR
+                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
                 else
                     cfg%scaling = 1.0_GRID_SR
                     cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]

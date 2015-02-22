@@ -254,6 +254,8 @@
 			type(t_element_base), intent(inout)						:: element
 			type(num_cell_update), intent(in)						:: update1, update2, update3
 
+            real (kind=GRID_SR), parameter                      ::pi= 3.14159265359_GRID_SR
+
 			!local variables
 
 			type(t_state)   :: dQ(_SWE_CELL_SIZE)
@@ -265,7 +267,8 @@
 			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > 0.0_GRID_SR) then
                 element%cell%data_pers%Q(1)%h = element%cell%data_pers%Q(1)%b + cfg%dry_tolerance
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
-                !print '("Wetting:", 2(X, F0.0))', cfg%scaling * element%transform_data%custom_data%offset + cfg%offset
+                print '("Wetting:", 2(X, F0.0))', cfg%scaling * element%transform_data%custom_data%offset + cfg%offset
+                write (*,*) 'dQ%h: ', dQ(1)%h
             end if
 
             call gv_Q%add(element, dQ)
@@ -275,6 +278,14 @@
                 element%cell%data_pers%Q(1)%h = min(element%cell%data_pers%Q(1)%b, 0.0_GRID_SR)
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
            end if
+
+           if(cfg%s_test_case_name .eq. 'bar') then
+                if((element%nodes(1)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(2)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(3)%ptr%position(2)*cfg%scaling<=0.5)) then
+                    if(element%nodes(1)%ptr%position(1)==0 .or. element%nodes(2)%ptr%position(1)==0 .or. element%nodes(3)%ptr%position(1)==0) then
+                        element%cell%data_pers%Q(1)%h= 0.01*sin(2.0_GRID_SR* section%r_time* pi/2.02_GRID_SR)
+                    endif
+                endif
+           endif
 		end subroutine
 
 		subroutine cell_last_touch_op(traversal, section, cell)
@@ -296,7 +307,7 @@
             !        endif
              elseif(cfg%s_test_case_name .eq. 'beach') then
 
-            elseif(cfg%s_test_case_name .eq. 'solitary_wave') then
+            elseif((cfg%s_test_case_name .eq. 'solitary_wave') .or. (cfg%s_test_case_name .eq. 'bar')) then
                     if(minval(cell%data_pers%Q%b)>0) then
                         cell%geometry%refinement=-1
 
@@ -310,6 +321,7 @@
                         cell%geometry%refinement = max(cell%geometry%refinement, 0)
                     endif
             endif
+
 		end subroutine
 
 		!*******************************

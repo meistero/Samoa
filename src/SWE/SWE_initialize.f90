@@ -131,6 +131,8 @@
             real (kind=GRID_SR), parameter                     ::x_s_b= (d_b/tan(alpha_b)) + sqrt(4.0_GRID_SR/(3.0_GRID_SR*a_b)) * acosh(sqrt(20.0_GRID_SR))
             real (kind=GRID_SR)                                 ::u_b
 
+            real (kind=GRID_SR), parameter                      ::pi= 3.14159265359_GRID_SR
+
 				node%data_pers%is_dirichlet_boundary = .false.
                 node%data_pers%qp=0.0_GRID_SR
                 node%data_pers%rhs=0.0_GRID_SR
@@ -152,7 +154,7 @@
 
 
                 elseif (cfg%s_test_case_name .eq. 'beach') then
-                x= node%position(1)
+                    x= node%position(1)
                     xs = cfg%scaling * x + cfg%offset(1)
 
                     if(xs>0) then
@@ -162,6 +164,13 @@
                     u_b=-a_b * (1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*sqrt(g/d_b)
                     node%data_pers%w=u_b* (eta_xp-eta_xm)/(2.0_GRID_SR*acc)
 
+                    endif
+                elseif (cfg%s_test_case_name .eq. 'bar') then
+                    x= node%position(1)
+                    xs = cfg%scaling * x + cfg%offset(1)
+
+                    if(xs == 0.0_GRID_SR) then
+                        node%data_pers%w=0.01*pi*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
                     endif
                 endif
 
@@ -205,6 +214,12 @@
                 elseif (cfg%s_test_case_name .eq. 'beach') then
 
                         if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+                                element%cell%geometry%refinement =1
+                                traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                        endif
+                elseif (cfg%s_test_case_name .eq. 'bar') then
+
+                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=150 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=150 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=150 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.5 )) then
                                 element%cell%geometry%refinement =1
                                 traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
@@ -265,20 +280,25 @@
                               element%cell%geometry%refinement =1
                               traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
-                    endif
 
-                    if (cfg%s_test_case_name .eq. 'beach') then
+
+                    elseif (cfg%s_test_case_name .eq. 'beach') then
                         if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
                                 element%cell%geometry%refinement =1
                                 traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
-                    endif
 
-
-                    if (cfg%s_test_case_name .eq. 'standing_wave') then
+                    elseif (cfg%s_test_case_name .eq. 'standing_wave') then
                         if ( maxval(Q_test%h - Q_test%b) > 5.03_GRID_SR) then
                             element%cell%geometry%refinement =1
                             traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+                        endif
+
+                    elseif (cfg%s_test_case_name .eq. 'bar') then
+
+                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=150 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=150 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=150 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.5 )) then
+                                element%cell%geometry%refinement =1
+                                traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
                     endif
 #               endif
@@ -291,14 +311,21 @@
                                       element%cell%geometry%refinement =-1
                     endif
                 endif
-            endif
 
 
-            if (cfg%s_test_case_name .eq. 'beach') then
+
+            elseif (cfg%s_test_case_name .eq. 'beach') then
                 if(element%cell%geometry%i_depth .gt. 2_GRID_DI) then
                         if(.not. ((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 ))) then
                                 element%cell%geometry%refinement =-1
                         endif
+                endif
+
+            elseif (cfg%s_test_case_name .eq. 'bar') then
+                if(element%cell%geometry%i_depth .gt. 2_GRID_DI) then
+                    if(.not.((element%nodes(1)%ptr%position(1) *cfg%scaling <=150 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=150 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=150 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.5 ))) then
+                                element%cell%geometry%refinement =-1
+                    endif
                 endif
             endif
 
@@ -387,6 +414,11 @@
                         Q%p(2)=0.0_GRID_SR
                         endif
                     endif
+                elseif (cfg%s_test_case_name .eq. 'bar') then
+                     Q%h=0.0_GRID_SR
+                     Q%p(1)=0.0_GRID_SR
+                     Q%p(2)=0.0_GRID_SR
+
                 else
 				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
                 endif
@@ -449,6 +481,8 @@
                 real (kind=GRID_SR), parameter                       ::d_b=-1.0_GRID_SR
                 real (kind=GRID_SR), parameter                       ::x_as_b=19.85_GRID_SR
                 real (kind=GRID_SR), parameter                       ::ascent_b=1.0_GRID_SR/19.85_GRID_SR
+                !bar
+                real (kind=GRID_SR), parameter                       ::d_bar=-0.4_GRID_SR
 
 
 
@@ -474,6 +508,21 @@
                     else
                         bathymetry=100.0_GRID_SR
                     endif
+                elseif (cfg%s_test_case_name .eq. 'bar') then
+                     xs = cfg%scaling * x + cfg%offset
+                     if(xs(1)<=150 .and. xs(2)<=0.5) then
+                        if(xs(1)<=6 .or. xs(1)>=17) then
+                         bathymetry=d_bar
+                        else if (xs(1)>=6 .and. xs(1)<=12) then
+                            bathymetry=d_bar+(xs(1)-6)* (1.0_GRID_SR/20.0_GRID_SR)
+                        else if (xs(1)>=12 .and. xs(1)<=14) then
+                            bathymetry=-0.1_GRID_SR
+                        else if (xs(1)>=14 .and. xs(1)<=17) then
+                            bathymetry=-0.1_GRID_SR -(xs(1)-14)*(1.0_GRID_SR/10.0_GRID_SR)
+                        endif
+                     else
+                            bathymetry=100.0_GRID_SR
+                     endif
                 else
                     xs = cfg%scaling * x + cfg%offset
                     bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
