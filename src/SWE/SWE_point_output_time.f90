@@ -158,24 +158,26 @@
 
         if (rank_MPI == 0) then
             ! file schreiben
-            if (cfg%l_swe_nh) then
-            write(pout_file_name,"(A,A)") TRIM(traversal%s_file_stamp), "_NH.txt"
-            else
-            write(pout_file_name,"(A,A)") TRIM(traversal%s_file_stamp), "_H.txt"
-            endif
+            do i=1, size(r_testpoints, dim=1)
+                if (cfg%l_swe_nh) then
+                write(pout_file_name,"(A,A,F5.2,A)") TRIM(traversal%s_file_stamp), "_", cfg%r_testpoints(i,1) ,"_NH.txt"
+                else
+                write(pout_file_name,"(A,A,F5.2,A)") TRIM(traversal%s_file_stamp), "_", cfg%r_testpoints(i,1) ,"_H.txt"
+                endif
 
-            inquire(file=pout_file_name, exist=l_exists)
+                inquire(file=pout_file_name, exist=l_exists)
 
-            if (l_exists) then
-                open(unit=out_unit, file=pout_file_name, action="write", position="append", status="old")
-            else
-                open(unit=out_unit, file=pout_file_name, action="write", status="new")
-            end if
+                if (l_exists) then
+                    open(unit=out_unit, file=pout_file_name, action="write", position="append", status="old")
+                else
+                    open(unit=out_unit, file=pout_file_name, action="write", status="new")
+                end if
 
-                do i=1, size(r_testpoints, dim=1)
-                    write(out_unit, *) cfg%r_testpoints(i,1), ",", cfg%r_testpoints(i,2), ",", r_testpoints(i,3) ,",", r_testpoints(i,4)
-                end do
-            close(out_unit)
+
+                        write(out_unit, *) cfg%r_testpoints(i,1), ",", cfg%r_testpoints(i,2), ",", r_testpoints(i,3) ,",", r_testpoints(i,4)
+
+                close(out_unit)
+            end do
         end if
 
         traversal%i_output_iteration = traversal%i_output_iteration + 1
