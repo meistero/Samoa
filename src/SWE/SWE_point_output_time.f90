@@ -229,8 +229,9 @@
 
 		call gv_Q%read(element, Q)
 
-        epsvec = samoa_world_to_barycentric_vector(element%transform_data, [0.001_GRID_SR, 0.0_GRID_SR])
+        epsvec = samoa_world_to_barycentric_vector(element%transform_data, [0.00001_GRID_SR, 0.0_GRID_SR])
         eps = sqrt(dot_product(epsvec, epsvec))
+        !eps=0
 
 		do i=1, size(r_testpoints, dim=1)
 			!check ob koordinaten in aktueller zelle
@@ -246,6 +247,14 @@
 
                 r_testpoints(i,3) = section%r_time
                 r_testpoints(i,4) = h
+!                write(*,*) 'testpoint:',r_testpoints(i,1)* cfg%scaling
+!                write(*,*) "writing h: ",h
+!                write(*,*) 'element:'
+!                write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1)*cfg%scaling ,','  ,element%nodes(1)%ptr%position(2)*cfg%scaling
+!
+!    write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1)*cfg%scaling ,','  ,element%nodes(2)%ptr%position(2)*cfg%scaling
+!
+!    write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1)*cfg%scaling ,','  ,element%nodes(3)%ptr%position(2)*cfg%scaling
                 !r_testpoints(i,5) = h
                 !r_testpoints(i,6) = b
                 !r_testpoints(i,7) = dist
