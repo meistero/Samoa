@@ -264,12 +264,12 @@
                 element%cell%geometry%refinement, section%u_max, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
 
 			!if land is flooded, init water height to dry tolerance and velocity to 0
-			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h >= cfg%dry_tolerance) then
-                element%cell%data_pers%Q(1)%h = element%cell%data_pers%Q(1)%b + cfg%dry_tolerance
-                element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
-                print '("Wetting:", 2(X, F0.0))', cfg%scaling * element%transform_data%custom_data%offset + cfg%offset
-                write (*,*) 'dQ%h: ', dQ(1)%h
-            end if
+			!if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > 0.0_GRID_SR) then
+            !    element%cell%data_pers%Q(1)%h = element%cell%data_pers%Q(1)%b + cfg%dry_tolerance
+!                element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
+!                print '("Wetting:", 2(X, F0.0))', cfg%scaling * element%transform_data%custom_data%offset + cfg%offset
+!                write (*,*) 'dQ%h: ', dQ(1)%h
+!            end if
 
 !            if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > cfg%dry_tolerance) then
 !                element%cell%data_pers%Q(1)%h = 0.0_GRID_SR
@@ -278,17 +278,15 @@
 !                write (*,*) 'dQ%h: ', dQ(1)%h
 !            end if
 
-            if(abs(dQ(1)%h)>0.0001) then
                 call gv_Q%add(element, dQ)
-            endif
 
 
 			!if the water level falls below the dry tolerance, set water surface to 0 and velocity to 0
 			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance) then
 			    !write(*,*) 'drying'
-                !element%cell%data_pers%Q(1)%h = min(element%cell%data_pers%Q(1)%b, 0.0_GRID_SR)
+                element%cell%data_pers%Q(1)%h = min(element%cell%data_pers%Q(1)%b, 0.0_GRID_SR)
 
-                element%cell%data_pers%Q(1)%h = 0.0_GRID_SR
+                !element%cell%data_pers%Q(1)%h = 0.0_GRID_SR
 
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
            end if
@@ -478,6 +476,16 @@
 			hR = QR%h - QR%b
 			bL = QL%b
 			bR = QR%b
+
+!            if(hL<0) then
+!                hL=0.0_GRID_SR
+!            endif
+!
+!
+!            if(hR<0) then
+!                hR=0.0_GRID_SR
+!            endif
+
 
 #           if defined(_SWE_FWAVE)
                 call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)

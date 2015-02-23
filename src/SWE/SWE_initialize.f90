@@ -382,6 +382,7 @@
             real (kind=GRID_SR), parameter                     ::d_b=1
             real (kind=GRID_SR), parameter                     ::alpha_b=atan(1.0_GRID_SR/x_as_b)
             real (kind=GRID_SR), parameter                      ::x_s_b= (d_b/tan(alpha_b)) + sqrt(4.0_GRID_SR/(3.0_GRID_SR*a_b)) * acosh(sqrt(20.0_GRID_SR))
+            real (kind=GRID_SR), parameter                       ::ascent_b=1.0_GRID_SR/19.85_GRID_SR
 
 
             xs = cfg%scaling * x + cfg%offset
@@ -408,10 +409,13 @@
                     Q%p(1)=0.0_GRID_SR
                     Q%p(2)=0.0_GRID_SR
                     if(xs(1)<=70 .and. xs(2)<=1) then
+                        Q%h=0.0_GRID_SR
                         if(xs(1)>0) then
-                        Q%h=a_b * (1.0_GRID_SR/cosh((xs(1)-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs(1)-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
-                        Q%p(1)=-Q%h*sqrt(g/d_b)
-                        Q%p(2)=0.0_GRID_SR
+                        !Q%h=a_b * (1.0_GRID_SR/cosh((xs(1)-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs(1)-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
+                        !Q%p(1)=-Q%h*sqrt(g/d_b)
+                        elseif(xs(1)<=0) then
+
+                        !        Q%h=-ascent_b*xs(1)
                         endif
                     endif
                 elseif (cfg%s_test_case_name .eq. 'bar') then
