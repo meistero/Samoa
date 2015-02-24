@@ -174,7 +174,7 @@
                 end if
 
 
-                        write(out_unit, *) cfg%r_testpoints(i,1), ",", cfg%r_testpoints(i,2), ",", r_testpoints(i,3) ,",", r_testpoints(i,4)
+                        write(out_unit, "(E10.4,A,E10.4,A,E10.4,A,E10.4)") cfg%r_testpoints(i,1), " , ", cfg%r_testpoints(i,2), " , ", r_testpoints(i,3) ," , ", r_testpoints(i,4)
 
                 close(out_unit)
             end do
