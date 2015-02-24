@@ -1,0 +1,59 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% 	Template for seminar reports
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\documentclass[a4paper,pdftex]{scrartcl}
+
+\usepackage[utf8]{inputenc}   
+\usepackage{graphicx}
+
+% no page number on first page
+\pagestyle{empty}
+
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 	Paper title
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Implementing a Non-Hydrostatic Shallow
+Water Model in sam(oa)$^2$}
+\subtitle{Guided Research Project}
+
+\author{
+Philipp Samfaß\\
+Fakul\"at f\"ur Informatik\\Technische Universit\"at M\"unchen\\
+\it{Supervisor}: Univ.-Prof. Dr. Michael Bader\\
+\it{Advisors}: Oliver Meister, Kaveh Rahnema\\
+}
+
+\maketitle
+
+\tableofcontents
+
+% include abstract
+\input{abstract}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 	Sections, Subsections,...
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\input{introduction}
+
+\input{discretization}
+
+\input{implementation}
+
+\input{results}
+
+\input{conclusion}
+
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\end{document}
+
+
