@@ -22,8 +22,9 @@
 #define  _GT_EDGES
 #define _GT_EDGES_TEMP
 #define _GT_ELEMENT_OP element_op
-#define	_GT_INNER_ELEMENT_OP	inner_element_op
+!#define	_GT_INNER_ELEMENT_OP	inner_element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
+#define _GT_NODE_LAST_TOUCH_OP node_last_touch_op
 
 
 #include "SFC_generic_traversal_ringbuffer.f90"
@@ -43,8 +44,20 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     node%data_pers%is_dirichlet_boundary = .false.
 end subroutine
 
+elemental subroutine node_last_touch_op(traversal, section, node)
+    type(t_swe_lse_traversal), intent(in) :: traversal
+    type(t_grid_section), intent(in) :: section
+    type(t_node_data), intent(inout) :: node
 
-subroutine inner_element_op(traversal, section, element)
+
+       if (node%data_pers%is_dirichlet_boundary(1)) then
+            node%data_pers%rhs=0.0
+            node%data_pers%qp=0
+       endif
+end subroutine
+
+
+subroutine element_op(traversal, section, element)
     type(t_swe_lse_traversal), intent(inout) :: traversal
     type(t_grid_section), intent(inout) :: section
     type(t_element_base), intent(inout), target	:: element
@@ -147,15 +160,15 @@ subroutine inner_element_op(traversal, section, element)
 
 
     mat(1,1)= - dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/3.0_GRID_SR)
-    mat(1,2)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(1,3)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(2,1)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(3,1)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
 
-    mat(2,1)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21) + 0.5_GRID_SR*c*c*dt
+    mat(1,2)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21) + 0.5_GRID_SR*c*c*dt
     mat(2,2)= 0.25_GRID_SR *dt*h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +c*c*dt
-    mat(2,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22) + 0.5_GRID_SR*c*c*dt
+    mat(3,2)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22) + 0.5_GRID_SR*c*c*dt
 
-    mat(3,1)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(1,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(2,3)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
     mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22) +c*c*dt*(2.0_GRID_SR/3.0_GRID_SR)
 
     !write (*,*) 'element diagonal', mat(1,1), ', ', mat(2,2), ' ,' , mat(3,3)
@@ -181,6 +194,9 @@ subroutine inner_element_op(traversal, section, element)
     else
         mat=0.0_GRID_SR
         rhs=0.0_GRID_SR
+        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
     endif
 
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
@@ -190,81 +206,81 @@ subroutine inner_element_op(traversal, section, element)
 end subroutine
 
 
-subroutine element_op(traversal, section, element)
-    type(t_swe_lse_traversal), intent(inout) :: traversal
-    type(t_grid_section), intent(inout) :: section
-    type(t_element_base), intent(inout), target	:: element
-
-    real (kind=GRID_SR),dimension(2)::  midpoint12, midpoint13, midpoint23
-    real (kind=GRID_SR)             ::hu,hv,c, half_hypo
-    real (kind = GRID_SR) :: rhs(3)
-
-    call inner_element_op(traversal,section,element)
-
-    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
-    half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
-
-    hu= element%cell%data_pers%Q(1)%p(1)
-    hv= element%cell%data_pers%Q(1)%p(2)
-
-    rhs=0.0_GRID_SR
-
-    midpoint12= (element%nodes(1)%ptr%position +element%nodes(2)%ptr%position) *0.5_GRID_SR
-    midpoint23= (element%nodes(2)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
-    midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
-
-    !leg on left boundary
-!    if (midpoint12(1) .eq. 0.0_GRID_SR) then
-!        rhs(1)=rhs(1)- (-1.0_GRID_SR)*c*hu
-!        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
-!    !leg on right boundary
-!    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
-!        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hu
-!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
-!    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
-!        rhs(1)=rhs(1) - (-1.0_GRID_SR)*c*hv
-!        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
-!    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
-!        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hv
-!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
-!    endif
+!subroutine element_op(traversal, section, element)
+!    type(t_swe_lse_traversal), intent(inout) :: traversal
+!    type(t_grid_section), intent(inout) :: section
+!    type(t_element_base), intent(inout), target	:: element
+!
+!    real (kind=GRID_SR),dimension(2)::  midpoint12, midpoint13, midpoint23
+!    real (kind=GRID_SR)             ::hu,hv,c, half_hypo
+!    real (kind = GRID_SR) :: rhs(3)
+!
+!    call inner_element_op(traversal,section,element)
+!
+!    c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
+!    half_hypo= 0.5_GRID_SR* sqrt(8._GRID_SR)*c
+!
+!    hu= element%cell%data_pers%Q(1)%p(1)
+!    hv= element%cell%data_pers%Q(1)%p(2)
+!
+!    rhs=0.0_GRID_SR
+!
+!    midpoint12= (element%nodes(1)%ptr%position +element%nodes(2)%ptr%position) *0.5_GRID_SR
+!    midpoint23= (element%nodes(2)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
+!    midpoint13= (element%nodes(1)%ptr%position +element%nodes(3)%ptr%position) *0.5_GRID_SR
 !
 !    !leg on left boundary
-!    if (midpoint23(1) .eq. 0.0_GRID_SR) then
-!        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
-!        rhs(3)=rhs(3)- (-1.0_GRID_SR)*c*hu
-!    !leg on right boundary
-!    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
-!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
-!        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hu
-!    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
-!        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
-!        rhs(3)=rhs(3) - (-1.0_GRID_SR)*c*hv
-!    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
-!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
-!        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hv
-!    endif
+!!    if (midpoint12(1) .eq. 0.0_GRID_SR) then
+!!        rhs(1)=rhs(1)- (-1.0_GRID_SR)*c*hu
+!!        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
+!!    !leg on right boundary
+!!    elseif (midpoint12(1) .eq. 1.0_GRID_SR) then
+!!        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hu
+!!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
+!!    elseif (midpoint12(2) .eq. 0.0_GRID_SR) then
+!!        rhs(1)=rhs(1) - (-1.0_GRID_SR)*c*hv
+!!        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
+!!    elseif (midpoint12(2) .eq. 1.0_GRID_SR) then
+!!        rhs(1)=rhs(1) - (1.0_GRID_SR)*c*hv
+!!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
+!!    endif
+!!
+!!    !leg on left boundary
+!!    if (midpoint23(1) .eq. 0.0_GRID_SR) then
+!!        rhs(2)=rhs(2)- (-1.0_GRID_SR)*c*hu
+!!        rhs(3)=rhs(3)- (-1.0_GRID_SR)*c*hu
+!!    !leg on right boundary
+!!    elseif (midpoint23(1) .eq. 1.0_GRID_SR) then
+!!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hu
+!!        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hu
+!!    elseif (midpoint23(2) .eq. 0.0_GRID_SR) then
+!!        rhs(2)=rhs(2) - (-1.0_GRID_SR)*c*hv
+!!        rhs(3)=rhs(3) - (-1.0_GRID_SR)*c*hv
+!!    elseif (midpoint23(2) .eq. 1.0_GRID_SR) then
+!!        rhs(2)=rhs(2) - (1.0_GRID_SR)*c*hv
+!!        rhs(3)=rhs(3) - (1.0_GRID_SR)*c*hv
+!!    endif
+!!
+!!
+!!
+!!    !leg on left boundary
+!!    if (midpoint13(1) .eq. 0.0_GRID_SR) then
+!!        rhs(1)=rhs(1)- (-1.0_GRID_SR)*half_hypo*hu
+!!        rhs(3)=rhs(3)- (-1.0_GRID_SR)*half_hypo*hu
+!!    !leg on right boundary
+!!    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
+!!        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hu
+!!        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hu
+!!    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
+!!        rhs(1)=rhs(1) - (-1.0_GRID_SR)*half_hypo*hv
+!!        rhs(3)=rhs(3) - (-1.0_GRID_SR)*half_hypo*hv
+!!    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
+!!        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hv
+!!        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hv
+!!    endif
 !
+!   ! call gv_rhs%add_to_element(element, rhs)
 !
-!
-!    !leg on left boundary
-!    if (midpoint13(1) .eq. 0.0_GRID_SR) then
-!        rhs(1)=rhs(1)- (-1.0_GRID_SR)*half_hypo*hu
-!        rhs(3)=rhs(3)- (-1.0_GRID_SR)*half_hypo*hu
-!    !leg on right boundary
-!    elseif (midpoint13(1) .eq. 1.0_GRID_SR) then
-!        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hu
-!        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hu
-!    elseif (midpoint13(2) .eq. 0.0_GRID_SR) then
-!        rhs(1)=rhs(1) - (-1.0_GRID_SR)*half_hypo*hv
-!        rhs(3)=rhs(3) - (-1.0_GRID_SR)*half_hypo*hv
-!    elseif (midpoint13(2) .eq. 1.0_GRID_SR) then
-!        rhs(1)=rhs(1) - (1.0_GRID_SR)*half_hypo*hv
-!        rhs(3)=rhs(3) - (1.0_GRID_SR)*half_hypo*hv
-!    endif
-
-    call gv_rhs%add_to_element(element, rhs)
-
-end subroutine
+!end subroutine
 end MODULE
 #endif

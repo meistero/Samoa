@@ -31,7 +31,9 @@ elemental subroutine node_first_touch_op(traversal, section, node)
 
     dt=section%r_dt
 
+    if(.not. (node%data_pers%is_dirichlet_boundary(1))) then
     node%data_pers%w= node%data_pers%w + 2.0_GRID_SR*dt*node%data_pers%qp
+    endif
 
 
 end subroutine
@@ -73,9 +75,17 @@ q3= element%nodes(3)%ptr%data_pers%qp(1)
 !write (*,*) 'hu,hv,w1,w2,w3 before correction: ', hu,',',hv, ',',w1,',',w2,',',w3
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
-hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
-hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
+if( .not. (element%nodes(1)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(2)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(3)%ptr%data_pers%is_dirichlet_boundary(1)) .and. h>cfg%dry_tolerance) then
+    hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
+    hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
+else if(h>0) then
+        write(*,*) 'omitting correction in element: '
+        write (*,*) 'node 1: ' ,element%nodes(1)%ptr%position(1)*cfg%scaling ,','  ,element%nodes(1)%ptr%position(2)*cfg%scaling
 
+    write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1)*cfg%scaling ,','  ,element%nodes(2)%ptr%position(2)*cfg%scaling
+
+    write (*,*) 'node 3: ' ,element%nodes(3)%ptr%position(1)*cfg%scaling,','  ,element%nodes(3)%ptr%position(2)*cfg%scaling
+endif
 !write (*,*) 'hu,hv,w1,w2,w3 after correction: ', hu,',',hv, ',' ,w1,',',w2,',',w3
 
 !p_local(1)=hu

@@ -159,10 +159,10 @@
 
                     if(xs>0) then
 
-                    eta_xp=a_b * (1.0_GRID_SR/cosh((xs+acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs+acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
-                    eta_xm=a_b * (1.0_GRID_SR/cosh((xs-acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
-                    u_b=-a_b * (1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*sqrt(g/d_b)
-                    node%data_pers%w=u_b* (eta_xp-eta_xm)/(2.0_GRID_SR*acc)
+!                    eta_xp=a_b * (1.0_GRID_SR/cosh((xs+acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs+acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
+!                    eta_xm=a_b * (1.0_GRID_SR/cosh((xs-acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-acc-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))
+!                    u_b=-a_b * (1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*(1.0_GRID_SR/cosh((xs-x_s_b)*sqrt(3.0_GRID_SR*a_b/4.0_GRID_SR)))*sqrt(g/d_b)
+!                    node%data_pers%w=u_b* (eta_xp-eta_xm)/(2.0_GRID_SR*acc)
 
                     endif
                 elseif (cfg%s_test_case_name .eq. 'bar') then
@@ -170,7 +170,7 @@
                     xs = cfg%scaling * x + cfg%offset(1)
 
                     if(xs == 0.0_GRID_SR) then
-                        node%data_pers%w=0.01*pi*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+!                        node%data_pers%w=0.01*pi*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
                     endif
                 endif
 
