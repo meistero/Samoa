@@ -170,7 +170,8 @@
                     xs = cfg%scaling * x + cfg%offset(1)
 
                     if(xs == 0.0_GRID_SR) then
-!                        node%data_pers%w=0.01*pi*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+                        node%data_pers%w=0.01*pi*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+                        node%data_pers%is_dirichlet_boundary=.true.
                     endif
                 endif
 
@@ -515,15 +516,15 @@
                 elseif (cfg%s_test_case_name .eq. 'bar') then
                      xs = cfg%scaling * x + cfg%offset
                      if(xs(1)<=150 .and. xs(2)<=0.5) then
-                        if(xs(1)<=6 .or. xs(1)>=17) then
+                        !if(xs(1)<=6 .or. xs(1)>=17) then
                          bathymetry=d_bar
-                        else if (xs(1)>=6 .and. xs(1)<=12) then
-                            bathymetry=d_bar+(xs(1)-6)* (1.0_GRID_SR/20.0_GRID_SR)
-                        else if (xs(1)>=12 .and. xs(1)<=14) then
-                            bathymetry=-0.1_GRID_SR
-                        else if (xs(1)>=14 .and. xs(1)<=17) then
-                            bathymetry=-0.1_GRID_SR -(xs(1)-14)*(1.0_GRID_SR/10.0_GRID_SR)
-                        endif
+                        !else if (xs(1)>=6 .and. xs(1)<=12) then
+                        !    bathymetry=d_bar+(xs(1)-6)* (1.0_GRID_SR/20.0_GRID_SR)
+                        !else if (xs(1)>=12 .and. xs(1)<=14) then
+                        !    bathymetry=-0.1_GRID_SR
+                        !else if (xs(1)>=14 .and. xs(1)<=17) then
+                        !    bathymetry=-0.1_GRID_SR -(xs(1)-14)*(1.0_GRID_SR/10.0_GRID_SR)
+                        !endif
                      else
                             bathymetry=100.0_GRID_SR
                      endif

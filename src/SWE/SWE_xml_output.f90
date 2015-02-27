@@ -20,6 +20,10 @@
 		type t_output_point_data
 			type(t_state)											:: Q
 			real (kind = GRID_SR), dimension(2)						:: coords		!< position
+            real (kind=GRID_SR)                                     ::qp
+			real (kind=GRID_SR)                                     ::w
+			logical 									           :: is_dirichlet_boundary
+
 		end type t_output_point_data
 
 		!> Output cell dat
@@ -101,6 +105,10 @@
                             e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
                         end if
+                        if (i_element_order == 0) then
+                            e_io = vtk%VTK_VAR_XML('q', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('w', 1.0_GRID_SR, 1)
+                        endif
                     e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
@@ -230,6 +238,11 @@
                             r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / max(cfg%dry_tolerance, traversal%point_data%Q%h - traversal%point_data%Q%b)
                             e_io = vtk%VTK_VAR_XML(i_points, 'velocity',  r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
                         end if
+                        if(i_element_order==0) then
+                            e_io = vtk%VTK_VAR_XML(i_points, 'qp', traversal%point_data%qp)
+                            e_io = vtk%VTK_VAR_XML(i_points, 'w', traversal%point_data%w)
+                            !e_io = vtk%VTK_VAR_XML(i_points, 'is_dirichlet', int(traversal%point_data%is_dirichlet_boundary))
+                        endif
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
@@ -314,6 +327,9 @@
 				case (0)
 					forall (i = 1 : 3)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)) + cfg%offset
+                        traversal%point_data(traversal%i_point_data_index + i - 1)%qp = element%nodes(i)%ptr%data_pers%qp(1)
+                        traversal%point_data(traversal%i_point_data_index + i - 1)%w = element%nodes(i)%ptr%data_pers%w(1)
+
 					end forall
 
 					traversal%i_point_data_index = traversal%i_point_data_index + 3

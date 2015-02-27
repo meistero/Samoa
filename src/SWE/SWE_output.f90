@@ -20,6 +20,9 @@
 		type t_output_point_data
 			type(t_state)											:: Q
 			real (kind = GRID_SR), dimension(2)						:: coords		!< position
+			real (kind=GRID_SR)                                     ::qp
+			real (kind=GRID_SR)                                     ::w
+			logical 									           :: is_dirichlet_boundary
 		end type
 
 		!> Output cell data
@@ -153,6 +156,7 @@
                         e_io = vtk%VTK_VAR(i_points, 'water_height', traversal%point_data%Q%h)
                         e_io = vtk%VTK_VAR(i_points, 'bathymetry', traversal%point_data%Q%b)
 
+
                         r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
                         r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
                         e_io = vtk%VTK_VAR('vect', i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
@@ -163,6 +167,9 @@
                     if (i_element_order == 0) then
                         e_io = vtk%VTK_VAR(i_cells, 'water_height', traversal%cell_data%Q%h)
                         e_io = vtk%VTK_VAR(i_cells, 'bathymetry', traversal%cell_data%Q%b)
+                        e_io = vtk%VTK_VAR(i_points, 'q', traversal%point_data%qp)
+                        e_io = vtk%VTK_VAR(i_points, 'w', traversal%point_data%w)
+                        !e_io = vtk%VTK_VAR(i_points, 'is_dirichlet', traversal%point_data%is_dirichlet_boundary)
 
                         r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
                         r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
@@ -228,12 +235,15 @@
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%b = t_basis_Q_eval(r_test_points(:, i), Q%b)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%p(1) = t_basis_Q_eval(r_test_points(:, i), Q%p(1))
 						traversal%point_data(traversal%i_point_data_index + i - 1)%Q%p(2) = t_basis_Q_eval(r_test_points(:, i), Q%p(2))
+
 					end forall
 
 					traversal%i_point_data_index = traversal%i_point_data_index + 3
 				case (0)
 					forall (i = 1 : 3)
 						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i))
+						traversal%point_data(traversal%i_point_data_index + i - 1)%qp = element%nodes(i)%ptr%data_pers%qp(1)
+                        traversal%point_data(traversal%i_point_data_index + i - 1)%w = element%nodes(i)%ptr%data_pers%w(1)
 					end forall
 
 					traversal%i_point_data_index = traversal%i_point_data_index + 3
@@ -242,6 +252,7 @@
 					traversal%cell_data(traversal%i_cell_data_index)%Q%b = t_basis_Q_eval(r_test_point0, Q%b)
 					traversal%cell_data(traversal%i_cell_data_index)%Q%p(1) = t_basis_Q_eval(r_test_point0, Q%p(1))
 					traversal%cell_data(traversal%i_cell_data_index)%Q%p(2) = t_basis_Q_eval(r_test_point0, Q%p(2))
+
 			end select
 
 			traversal%i_cell_data_index = traversal%i_cell_data_index + 1

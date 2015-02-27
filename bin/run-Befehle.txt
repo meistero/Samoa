@@ -1,6 +1,8 @@
 run-Befehle:
 
 
+./samoa_swe_noomp_nompi_gnu_debug -dmin 14 -dmax 14 -test_case standing_wave -sections 1 -lseoutput .false. -tmax 12 -xmloutput -epsilon 0.1 -tout 0.1
+
  ./samoa_swe_noomp_nompi_gnu_debug -dmin 10 -dmax 20 -lseoutput .false. -epsilon 0.01 -test_case beach -sections 1 -xmloutput -tout 0.1 -swe_nh .false. -tmax 11 -dry_tolerance 0.00001
 
  ./samoa_swe_noomp_nompi_gnu_debug -dmin 26 -dmax 26 -lseoutput .false. -xmloutput -tout 0.1 -test_case bar -sections 1 -pointoutputtime -stestpoints 10.5 0.22,12.5 0.22,13.5 0.22,14.5 0.22,15.7 0.22,17.3 0.22,19.9 0.22,21.0 0.22 -tmax 40 -swe_nh .false.

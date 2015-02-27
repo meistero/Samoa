@@ -178,13 +178,13 @@ subroutine inner_element_op(traversal, section, element)
 
     !contribution node 1 -> triangle -> only one boundary integral, normal
     cont1_p=c*(nxvn*hu+nyvn*hv)
-    cont1_w=c*c* ((w1/3.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/12.0_GRID_SR))
+    cont1_w=c*c* ((w1/2.0_GRID_SR) )
 
     cont2_p=c*((nxvp+nxhp)*hu+(nyvp+nyhp)*hv)
-    cont2_w=c*c*((w1/4.0_GRID_SR) +(w2/2.0_GRID_SR) +(w3/4.0_GRID_SR))
+    cont2_w=c*c*((w2/1.0_GRID_SR))
 
     cont3_p=c*(nxhn*hu+nyhn*hv)
-    cont3_w=c*c* ((w1/12.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/3.0_GRID_SR))
+    cont3_w=c*c* ((w3/2.0_GRID_SR))
 
     element%nodes(1)%ptr%data_pers%div(1)=element%nodes(1)%ptr%data_pers%div(1)+ cont1_p  + cont1_w
     element%nodes(2)%ptr%data_pers%div(1)=element%nodes(2)%ptr%data_pers%div(1)+ cont2_p + cont2_w
