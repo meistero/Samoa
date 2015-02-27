@@ -53,6 +53,7 @@ elemental subroutine node_last_touch_op(traversal, section, node)
        if (node%data_pers%is_dirichlet_boundary(1)) then
             node%data_pers%rhs=0.0
             node%data_pers%qp=0
+            node%data_pers%w=0
        endif
 end subroutine
 
@@ -113,6 +114,9 @@ subroutine element_op(traversal, section, element)
     normal_y(1:2) = samoa_barycentric_to_world_normal(element%transform_data, normal_y(1:2))
     normal_y(1:2)= normal_y(1:2)* element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian))
 
+    assert_eq(sqrt(normal_x(1)**2 +normal_x(2)**2),1)
+    assert_eq(sqrt(normal_y(1)**2 +normal_y(2)**2),1)
+
     m11=element%transform_data%plotter_data%jacobian_inv(1,1)
     m12=element%transform_data%plotter_data%jacobian_inv(2,1)
     m21=element%transform_data%plotter_data%jacobian_inv(1,2)
@@ -160,15 +164,15 @@ subroutine element_op(traversal, section, element)
 
 
     mat(1,1)= - dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/3.0_GRID_SR)
-    mat(2,1)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(3,1)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(1,2)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(1,3)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
 
-    mat(1,2)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21) + 0.5_GRID_SR*c*c*dt
+    mat(2,1)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21) + 0.5_GRID_SR*c*c*dt
     mat(2,2)= 0.25_GRID_SR *dt*h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +c*c*dt
-    mat(3,2)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22) + 0.5_GRID_SR*c*c*dt
+    mat(2,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22) + 0.5_GRID_SR*c*c*dt
 
-    mat(1,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(2,3)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(3,1)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
     mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22) +c*c*dt*(2.0_GRID_SR/3.0_GRID_SR)
 
     !write (*,*) 'element diagonal', mat(1,1), ', ', mat(2,2), ' ,' , mat(3,3)
@@ -186,9 +190,9 @@ subroutine element_op(traversal, section, element)
     x_test(3)=1
 
     !write(*,*) 'A*x_test:' , matmul(mat, x_test)
-    assert_gt(mat(1,1),0.01)
-    assert_gt(mat(2,2),0.01)
-    assert_gt(mat(3,3),0.01)
+    assert_gt(abs(mat(1,1)),abs(mat(1,2))+abs(mat(1,3)))
+    assert_gt(abs(mat(2,2)),abs(mat(2,1))+abs(mat(2,3)))
+    assert_gt(abs(mat(3,3)),abs(mat(3,1))+abs(mat(3,2)))
 
     rhs=[- c*c* ((w1/3.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/12.0_GRID_SR))- c*nxvn*hu-c*nyvn*hv, -c*c*((w1/4.0_GRID_SR) +(w2/2.0_GRID_SR) +(w3/4.0_GRID_SR))-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* ((w1/12.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/3.0_GRID_SR))- c*nxhn*hu-c*nyhn*hv ]
     else
