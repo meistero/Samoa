@@ -189,7 +189,7 @@
 
                     write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
                     do i = 0, 4
-                        write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time, prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                        write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
                     end do
 
                     close(f_out)
