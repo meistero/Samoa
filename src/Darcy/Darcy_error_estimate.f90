@@ -109,9 +109,9 @@
 		!*******************************
 
 		subroutine element_op(traversal, section, element)
- 			type(t_darcy_error_estimate_traversal), intent(inout)		:: traversal
+ 			type(t_darcy_error_estimate_traversal), intent(inout)	:: traversal
  			type(t_grid_section), intent(inout)						:: section
-			type(t_element_base), intent(inout), target				:: element
+			type(t_element_base), intent(inout)			            :: element
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1, 3)
@@ -137,7 +137,8 @@
 			integer (kind = BYTE), intent(in)			:: i_depth
 			integer (kind = BYTE), intent(out)			:: i_refinement
 
-            real (kind = GRID_SR), parameter            :: refinement_threshold = 5.0e-2_SR
+!            real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
+            real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
 
             real (kind = GRID_SR)						:: r_sat_norm, r_p_norm
             logical 									:: l_coarsen_p, l_coarsen_sat, l_refine_sat, l_relevant
@@ -160,9 +161,13 @@
                 l_relevant = (base_permeability > 0.0_GRID_SR)
 #           endif
 
-			l_refine_sat = r_sat_norm > refinement_threshold
-			l_coarsen_sat = r_sat_norm < refinement_threshold / 5.0_SR
-			l_coarsen_p = r_p_norm < 0.003_GRID_SR * cfg%r_p_prod
+            !Criteria:
+            !refine a variable q if Delta q > threshold * Delta x / (x_max - x_min) * (q_max - q_min)
+            !coarsen a variable q if Delta q < threshold / 2 * Delta x / (x_max - x_min) * (q_max - q_min)
+
+			l_refine_sat = r_sat_norm > refinement_threshold * get_edge_size(cfg%i_max_depth)
+			l_coarsen_sat = r_sat_norm < refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth)
+			l_coarsen_p = r_p_norm < refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod / 4.0_SR
 
 			!* refine the cell if the saturation becomes too steep
 			!* coarsen the cell if pressure and saturation are constant within a cell

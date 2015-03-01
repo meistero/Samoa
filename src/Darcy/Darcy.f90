@@ -349,8 +349,8 @@
 
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
-				call darcy%xml_output%traverse(grid)
-				r_time_next_output = r_time_next_output + cfg%r_output_time_step
+				!call darcy%xml_output%traverse(grid)
+				!r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
 			!print initial stats

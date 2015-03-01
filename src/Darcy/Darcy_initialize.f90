@@ -364,6 +364,8 @@
             real (kind = GRID_SR), intent(inout)			        :: p(:, :)
             real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
 
+            real (kind = GRID_SR), parameter                        :: refinement_threshold = 1.0e1_SR
+
 			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2), radius
 			integer (kind = GRID_SI)	                            :: i_depth
 			logical 								                :: l_refine_initial, l_refine_solution, l_relevant
@@ -424,8 +426,8 @@
 
 			!check refinement condition
 
-			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > 0.05_SR
-			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > 0.003_SR * cfg%r_p_prod
+			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > refinement_threshold * get_edge_size(cfg%i_max_depth)
+			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > refinement_threshold * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod / 4.0_SR
 
 			!refine the cell if necessary (no coarsening in the initialization!)
 
@@ -496,8 +498,8 @@
 #                       elif defined(_DARCY_INJ_ALL_INFLOW)
                             !Using Peaceman's well model we consider the well as an internal boundary and assume that
                             !near the well the following conditions hold:
-                            !1) K_z is huge => p_z = rho_w g because lambda_w(S) K_z (-p_z + rho_w g) < Q / (r^2 pi) << K_z
-                            !2) p is radially symmetric and the derivative p_r is constant.
+                            !2) p is radially symmetric.
+                            !2) The radial derivative p_r is constant over r and z.
                             !
                             !Thus the inflow q is q(r,phi,z) = lambda_w(S) K_r(r,phi,z) (-p_r)
                             !With \integral_{well boundary} q(r,phi,z) * dS = Q we obtain
