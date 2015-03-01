@@ -162,39 +162,41 @@
                         end do
 
                     e_io = vtk%VTK_END_XML()
-
-                    !******************
-                    ! write global data
-                    !******************
-
-                    reduction_set(1:4) = grid%prod_w
-                    reduction_set(5:8) = grid%prod_n
-                    reduction_set(9:12) = grid%prod_w_acc
-                    reduction_set(13:16) = grid%prod_n_acc
-
-                    call reduce(reduction_set, MPI_SUM)
-
-                    prod_w(1:4) = reduction_set(1:4)
-                    prod_n(1:4) = reduction_set(5:8)
-                    prod_w_acc(1:4) = reduction_set(9:12)
-                    prod_n_acc(1:4) = reduction_set(13:16)
-
-                    prod_w(0) = sum(prod_w(1:4))
-                    prod_n(0) = sum(prod_n(1:4))
-                    prod_w_acc(0)= sum(prod_w_acc(1:4))
-                    prod_n_acc(0) = sum(prod_n_acc(1:4))
-
-                    write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
-                    open(unit=f_out, file=s_file_name, action="write", status="replace")
-
-                    write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
-                    do i = 0, 4
-                        write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
-                    end do
-
-                    close(f_out)
                 end if
 #           endif
+
+            !******************
+            ! write global data
+            !******************
+
+            reduction_set(1:4) = grid%prod_w
+            reduction_set(5:8) = grid%prod_n
+            reduction_set(9:12) = grid%prod_w_acc
+            reduction_set(13:16) = grid%prod_n_acc
+
+            call reduce(reduction_set, MPI_SUM)
+
+            if (rank_MPI == 0) then
+                prod_w(1:4) = reduction_set(1:4)
+                prod_n(1:4) = reduction_set(5:8)
+                prod_w_acc(1:4) = reduction_set(9:12)
+                prod_n_acc(1:4) = reduction_set(13:16)
+
+                prod_w(0) = sum(prod_w(1:4))
+                prod_n(0) = sum(prod_n(1:4))
+                prod_w_acc(0)= sum(prod_w_acc(1:4))
+                prod_n_acc(0) = sum(prod_n_acc(1:4))
+
+                write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
+                open(unit=f_out, file=s_file_name, action="write", status="replace")
+
+                write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
+                do i = 0, 4
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                end do
+
+                close(f_out)
+            end if
 
             traversal%i_output_iteration = traversal%i_output_iteration + 1
 		end subroutine
