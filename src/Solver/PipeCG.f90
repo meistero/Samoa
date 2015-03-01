@@ -227,19 +227,49 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(inout)			:: node
 
-        logical :: is_dirichlet(_gv_node_size)
+        logical                                     :: is_dirichlet(_gv_node_size)
+        integer                                     :: i
+        real(kind = GRID_SR)                        :: x(_gv_node_size)
+        real(kind = GRID_SR)                        :: r(_gv_node_size)
+        real(kind = GRID_SR)                        :: d(_gv_node_size)
+        real(kind = GRID_SR)                        :: v(_gv_node_size)
+        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_first_touch_op(traversal, section, node)
-        end if
+#       if defined(_DARCY)
+            !HACK: unfortunately the optimizer produces wrong code if some variables are managed by the grid variable classes,
+            !so we have to use direct access here
+
+            do i = 1, _gv_node_size
+                if (.not. is_dirichlet(i)) then
+                    call pre_dof_op(traversal%alpha, traversal%beta, node%data_pers%p(i), node%data_pers%r(i), node%data_pers%d(i), node%data_pers%A_d(i), node%data_temp%mat_diagonal(i))
+                end if
+            end do
+#       else
+            call gv_x%read(node, x)
+            call gv_r%read(node, r)
+            call gv_d%read(node, d)
+            call gv_v%read(node, v)
+
+            do i = 1, _gv_node_size
+                if (.not. is_dirichlet(i)) then
+                    call pre_dof_op(traversal%alpha, traversal%beta, x(i), r(i), d(i), v(i), trace_A(i))
+                end if
+            end do
+
+            call gv_x%write(node, x)
+            call gv_r%write(node, r)
+            call gv_d%write(node, d)
+            call gv_v%write(node, v)
+            call gv_trace_A%write(node, trace_A)
+#       endif
     end subroutine
 
     subroutine element_op(traversal, section, element)
-        type(_T_CG_(step_traversal)), intent(in)							:: traversal
-        type(t_grid_section), intent(in)							:: section
-        type(t_element_base), intent(inout), target		:: element
+        type(_T_CG_(step_traversal)), intent(in)    :: traversal
+        type(t_grid_section), intent(in)		    :: section
+        type(t_element_base), intent(inout)		    :: element
 
         !local variables
 
@@ -264,17 +294,20 @@ MODULE _CG_(step)
 
         logical                 :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)    :: empty(_gv_node_size)
+        real(kind = GRID_SR)    :: v(_gv_node_size)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_v%read(node, v)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_last_touch_op(traversal, section, node)
-        else
-            empty = 0.0_GRID_SR
-            call gv_r%write(node, empty)
-            call gv_d%write(node, empty)
-            call gv_v%write(node, empty)
-        end if
+        call post_dof_op(v, trace_A)
+
+        where(is_dirichlet)
+            v = 0.0_SR
+        end where
+
+        call gv_v%write(node, v)
     end subroutine
 
     elemental subroutine inner_node_last_touch_op(traversal, section, node)
@@ -294,27 +327,36 @@ MODULE _CG_(step)
     end subroutine
 
     pure subroutine node_reduce_op(traversal, section, node)
-        type(_T_CG_(step_traversal)), intent(inout)		    :: traversal
+        type(_T_CG_(step_traversal)), intent(inout)     :: traversal
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        logical :: is_dirichlet(_gv_node_size)
+        logical                 :: is_dirichlet(_gv_node_size)
+        real(kind = GRID_SR)    :: r(_gv_node_size), d(_gv_node_size)
+        real(kind = GRID_SR)    :: v(_gv_node_size), trace_A(_gv_node_size)
+        integer				    :: i
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_d%read(node, d)
+        call gv_v%read(node, v)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_reduce_op(traversal, section, node)
-        end if
+        do i = 1, _gv_node_size
+            if (.not. is_dirichlet(i)) then
+                call reduce_dof_op(traversal%d_u, traversal%v_u, traversal%r_C_r, traversal%r_sq, r(i), d(i), v(i), trace_A(i))
+            end if
+        end do
     end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
-        type(_T_CG_(step_traversal)), intent(inout)		    :: traversal
+        type(_T_CG_(step_traversal)), intent(inout)     :: traversal
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        real(kind = GRID_SR)                            :: r(_gv_node_size), d(_gv_node_size)
-        real(kind = GRID_SR)                            :: v(_gv_node_size), trace_A(_gv_node_size)
-        integer											:: i
+        real(kind = GRID_SR)    :: r(_gv_node_size), d(_gv_node_size)
+        real(kind = GRID_SR)    :: v(_gv_node_size), trace_A(_gv_node_size)
+        integer	                :: i
 
         call gv_r%read(node, r)
         call gv_d%read(node, d)
@@ -573,9 +615,9 @@ MODULE _CG_(exact)
     end subroutine
 
     subroutine element_op(traversal, section, element)
-        type(_T_CG_(exact_traversal)), intent(inout)		:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)	:: traversal
         type(t_grid_section), intent(inout)				:: section
-        type(t_element_base), intent(inout), target		:: element
+        type(t_element_base), intent(inout)		        :: element
 
         !local variables
         integer :: i
@@ -597,16 +639,26 @@ MODULE _CG_(exact)
 
         logical                 :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)	:: r(_gv_node_size)
+        real(kind = GRID_SR)    :: rhs(_gv_node_size)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_last_touch_op(traversal, section, node)
-        else
-            r(:) = 0.0_GRID_SR
+#       if defined(_gv_rhs)
+            call gv_rhs%read(node, rhs)
+#       else
+            rhs = 0.0_GRID_SR
+#       endif
 
-            call gv_r%write(node, r)
-        end if
+        call post_dof_op(r, rhs, trace_A)
+
+        where (is_dirichlet)
+            r = 0.0_SR
+        end where
+
+        call gv_r%write(node, r)
     end subroutine
 
     elemental subroutine inner_node_last_touch_op(traversal, section, node)
@@ -618,14 +670,14 @@ MODULE _CG_(exact)
         real(kind = GRID_SR)    :: rhs(_gv_node_size)
         real(kind = GRID_SR)    :: trace_A(_gv_node_size)
 
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
+
 #       if defined(_gv_rhs)
             call gv_rhs%read(node, rhs)
 #       else
             rhs = 0.0_GRID_SR
 #       endif
-
-        call gv_r%read(node, r)
-        call gv_trace_A%read(node, trace_A)
 
         call post_dof_op(r, rhs, trace_A)
 
@@ -637,13 +689,20 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical :: is_dirichlet(_gv_node_size)
+        logical                 :: is_dirichlet(_gv_node_size)
+        real (kind = GRID_SR)   :: r(_gv_node_size)
+        real (kind = GRID_SR)   :: trace_A(_gv_node_size)
+        integer					:: i
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_reduce_op(traversal, section, node)
-        end if
+        do i = 1, _gv_node_size
+            if (.not. is_dirichlet(i)) then
+                call reduce_dof_op(traversal%r_C_r, traversal%r_sq, r(i), trace_A(i))
+            end if
+        end do
     end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
@@ -651,10 +710,9 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        integer											:: i
-
-        real (kind = GRID_SR) :: r(_gv_node_size)
-        real (kind = GRID_SR) :: trace_A(_gv_node_size)
+        real (kind = GRID_SR)   :: r(_gv_node_size)
+        real (kind = GRID_SR)   :: trace_A(_gv_node_size)
+        integer				    :: i
 
         call gv_r%read(node, r)
         call gv_trace_A%read(node, trace_A)

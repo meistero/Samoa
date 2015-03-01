@@ -111,9 +111,9 @@
 		!*******************************
 
 		subroutine element_op(traversal, section, element)
- 			type(t_darcy_grad_p_traversal), intent(inout)				:: traversal
+ 			type(t_darcy_grad_p_traversal), intent(inout)	:: traversal
  			type(t_grid_section), intent(inout)				:: section
-			type(t_element_base), intent(inout), target		:: element
+			type(t_element_base), intent(inout)		        :: element
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR) :: S(_DARCY_LAYERS + 1, 3)

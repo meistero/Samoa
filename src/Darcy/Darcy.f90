@@ -116,7 +116,7 @@
 		end subroutine
 
 		subroutine load_scenario(grid)
-			type(t_grid), target, intent(inout)		:: grid
+			type(t_grid), intent(inout)		        :: grid
 
             integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
@@ -226,7 +226,7 @@
             cfg%r_rho_w = cfg%r_rho_w * (cfg%scaling ** 3)
             cfg%r_rho_n = cfg%r_rho_n * (cfg%scaling ** 3)
 
-            !Inflow condition: um^3 / s = (m^3 / s) / (cfg%scaling m/um)^3 = (bbl/day) * / ((6.28981077 bbl/m^3) * (86400 s/day)) / (cfg%scaling m/um)^3
+            !Inflow condition: um^3 / s = (m^3 / s) / (cfg%scaling m/um)^3 = (bbl/day) / ((6.28981077 bbl/m^3) * (86400 s/day)) / (cfg%scaling m/um)^3
             cfg%r_inflow = cfg%r_inflow / (6.28981077_SR * 86400.0_SR) / (cfg%scaling ** 3)
 
             !Well radius: um = in / (40 in/m * cfg%scaling m/um)

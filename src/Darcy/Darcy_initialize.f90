@@ -125,7 +125,7 @@
 #           endif
 
             real (kind = GRID_SR)                               :: xs(3)
-            real (kind = GRID_SR), target						:: buffer(3)
+            real (kind = GRID_SR)						        :: buffer(3)
 
             xs(1:2) = cfg%scaling * x(1:2) + cfg%offset
             xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3)
@@ -141,17 +141,22 @@
                 if (grid_min_x(cfg%afh_permeability_X) <= xs(1) .and. grid_min_y(cfg%afh_permeability_X) <= xs(2) &
                         .and. xs(1) <= grid_max_x(cfg%afh_permeability_X) .and. xs(2) <= grid_max_y(cfg%afh_permeability_X)) then
 
-                    buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                    buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                    buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-
-                    !assume horizontally isotropic permeability
-                    assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
-
 #                   if (_DARCY_LAYERS > 0)
-                        r_base_permeability = buffer(2:3)
+                        buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                        !buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                        buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+
+                        !assume horizontally isotropic permeability
+                        !assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
+
+                        r_base_permeability(1) = buffer(1)
+                        r_base_permeability(2) = buffer(3)
 #                   else
-                        r_base_permeability = buffer(1)
+                        buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                        !buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                        !buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+
+                        r_base_permeability(1) = buffer(1)
 #                   endif
 
                     !convert from mD to m^2 to um^2
@@ -230,6 +235,7 @@
 		type(darcy_gv_p)						:: gv_p
 		type(darcy_gv_rhs)						:: gv_rhs
 		type(darcy_gv_is_dirichlet_boundary)    :: gv_is_dirichlet
+		type(darcy_gv_volume)					:: gv_inflow
 
 		public initialize_rhs
 
@@ -237,7 +243,6 @@
 
 #		define _GT_NODES
 
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
@@ -268,37 +273,28 @@
 		!Geometry operators
 		!******************
 
-		elemental subroutine inner_node_first_touch_op(traversal, section, node)
- 			type(t_darcy_init_saturation_traversal), intent(in)                     :: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			:: node
-
-			call flow_pre_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary)
-		end subroutine
-
 		elemental subroutine node_first_touch_op(traversal, section, node)
  			type(t_darcy_init_saturation_traversal), intent(in)                     :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_pre_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary)
+			call flow_pre_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
  			type(t_darcy_init_saturation_traversal)                 :: traversal
  			type(t_grid_section), intent(inout)						:: section
-			type(t_element_base), intent(inout), target				:: element
+			type(t_element_base), intent(inout)				        :: element
 
 			real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1, 3)
 			real (kind = GRID_SR)   :: p(_DARCY_LAYERS + 1, 3)
 			real (kind = GRID_SR)   :: rhs(_DARCY_LAYERS + 1, 3)
-			logical		            :: is_dirichlet(_DARCY_LAYERS + 1, 3)
 
 			call gv_saturation%read_from_element(element, saturation)
 			call gv_p%read_from_element(element, p)
 
 			!call element operator
-			call alpha_volume_op(traversal, element, saturation, p, rhs, is_dirichlet, element%cell%data_pers%base_permeability)
+			call alpha_volume_op(traversal, element, saturation, p, rhs, element%cell%data_pers%base_permeability)
 
 			call gv_rhs%add_to_element(element, rhs)
 		end subroutine
@@ -314,6 +310,7 @@
 			local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
 			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
+			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
 
 		elemental subroutine node_last_touch_op(traversal, section, node)
@@ -321,48 +318,55 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary)
+			real (kind = GRID_SR) :: total_inflow
+
+            total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
+
+			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume, total_inflow)
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine flow_pre_dof_op(saturation, rhs, is_dirichlet)
+		elemental subroutine flow_pre_dof_op(saturation, rhs, is_dirichlet, inflow)
 			real (kind = GRID_SR), intent(out)					:: saturation
 			real (kind = GRID_SR), intent(out)					:: rhs
 			logical, intent(out)			                    :: is_dirichlet
+			real (kind = GRID_SR), intent(out)					:: inflow
 
 			saturation = 0.0_SR
 			rhs = 0.0_SR
 			is_dirichlet = .false.
+			inflow = 0.0_SR
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet)
+		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet, inflow, total_inflow)
 			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(inout)				:: rhs
+			real (kind = GRID_SR), intent(in)				    :: inflow
+			real (kind = GRID_SR), intent(in)				    :: total_inflow
 			logical, intent(in)			                        :: is_dirichlet
 
             saturation = min(1.0_SR, saturation)
+
+            rhs = rhs + cfg%r_inflow * inflow / total_inflow
 
             if (is_dirichlet) then
                 rhs = 0.0_SR
             end if
 		end subroutine
 
-		subroutine alpha_volume_op(traversal, element, saturation, p, rhs, is_dirichlet, base_permeability)
+		subroutine alpha_volume_op(traversal, element, saturation, p, rhs, base_permeability)
  			type(t_darcy_init_saturation_traversal)                             :: traversal
 			type(t_element_base), intent(inout)									:: element
-
+            real (kind = GRID_SR), intent(inout)		            :: saturation(:, :)
+            real (kind = GRID_SR), intent(inout)			        :: p(:, :)
+            real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
 
 			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2), radius
 			integer (kind = GRID_SI)	                            :: i_depth
 			logical 								                :: l_refine_initial, l_refine_solution, l_relevant
-
-            real (kind = GRID_SR), intent(inout)		            :: saturation(:, :)
-            real (kind = GRID_SR), intent(inout)			        :: p(:, :)
-            real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
-            logical, intent(out)			                        :: is_dirichlet(:, :)
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(inout)                :: base_permeability(:, :)
@@ -413,15 +417,15 @@
 #           endif
 
 #           if (_DARCY_LAYERS > 0)
-                call initialize_rhs(element, saturation, p, rhs, is_dirichlet, base_permeability)
+                call initialize_rhs(element, saturation, p, rhs, base_permeability)
 #           else
-                call initialize_rhs(element, saturation(1, :), p(1, :), rhs(1, :), is_dirichlet(1, :), base_permeability)
+                call initialize_rhs(element, saturation(1, :), p(1, :), rhs(1, :), base_permeability)
 #           endif
 
 			!check refinement condition
 
 			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > 0.05_SR
-			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > 0.01_SR * cfg%r_p_prod
+			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > 0.003_SR * cfg%r_p_prod
 
 			!refine the cell if necessary (no coarsening in the initialization!)
 
@@ -436,17 +440,18 @@
 		end subroutine
 
 #       if (_DARCY_LAYERS > 0)
-            subroutine initialize_rhs(element, saturation, p, rhs, is_dirichlet, base_permeability)
+            subroutine initialize_rhs(element, saturation, p, rhs, base_permeability)
                 type(t_element_base), intent(inout)				                    :: element
                 real (kind = GRID_SR), intent(inout)		                        :: saturation(:, :)
                 real (kind = GRID_SR), intent(inout)			                    :: p(:, :)
                 real (kind = GRID_SR), intent(out)									:: rhs(:, :)
-                logical, intent(out)			                                    :: is_dirichlet(:, :)
                 real (kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
 
-                real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, inflow(3), edge_length, surface, dz, permeability_sum
+                real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, weights(3), edge_length, surface, dz, permeability_sum
                 real (kind = GRID_SR)                               :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3), lambda_t(_DARCY_LAYERS, 7)
+                real (kind = GRID_SR)                               :: inflow(_DARCY_LAYERS + 1, 3)
                 integer                                             :: i, layer
+                logical		                                        :: is_dirichlet(_DARCY_LAYERS + 1, 3)
 
                 rhs = 0.0_SR
 
@@ -454,63 +459,152 @@
 
                 pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
 
-                if (norm2(pos_in) < 1.0_SR + radius) then
-                    if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + radius) then
+                lambda_w = (saturation * saturation) / cfg%r_nu_w
+                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+
+                if (norm2(pos_in) < 1.0_SR + epsilon(1.0_SR)) then
+                    if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + epsilon(1.0_SR)) then
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 
                         !assume the whole well is filled with water
-                        inflow = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
-                        saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + inflow(1)))
-                        saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + inflow(2)))
-                        saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + inflow(3)))
-                        call gv_saturation%add_to_element(element, spread(inflow, 1, _DARCY_LAYERS + 1))
+                        weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
+                        saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + weights(1)))
+                        saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + weights(2)))
+                        saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + weights(3)))
+                        call gv_saturation%add_to_element(element, spread(weights, 1, _DARCY_LAYERS + 1))
+
+                        lambda_w = (saturation * saturation) / cfg%r_nu_w
+                        lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
 
                         !The inflow condition is given in um^3 / s
                         !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
                         !Split the inflow over all primary cells in each layer that share the dual cell column
 
-                        permeability_sum = sum(base_permeability(:, 1))
-                        if (permeability_sum > 0.0_SR) then
-                            inflow = cfg%r_inflow / (permeability_sum * 8.0_SR) * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
+!#                       define _DARCY_INJ_TOP_INFLOW
+#                       define _DARCY_INJ_ALL_INFLOW
+!#                       define _DARCY_INJ_TOP_PRESSURE
+!#                       define _DARCY_INJ_ALL_PRESSURE
+#                       if defined(_DARCY_INJ_TOP_INFLOW)
+                            weights = cfg%r_inflow / 8.0_SR * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
 
-                            forall(i = 1:_DARCY_LAYERS)
-                                rhs(i:i + 1, 1) = rhs(i:i + 1, 1) + base_permeability(i, 1) * inflow(1)
-                                rhs(i:i + 1, 2) = rhs(i:i + 1, 2) + base_permeability(i, 1) * inflow(2)
-                                rhs(i:i + 1, 3) = rhs(i:i + 1, 3) + base_permeability(i, 1) * inflow(3)
-                            end forall
-                        end if
+                            !set inflow condition on the top layer
+                            rhs(_DARCY_LAYERS + 1, :) = rhs(_DARCY_LAYERS + 1, :) + weights
+
+                            !set a free flow permeability in the well
+                            base_permeability(:, 2) = 1.0e6 * 9.869233e-16_SR / (cfg%scaling ** 2)
+#                       elif defined(_DARCY_INJ_ALL_INFLOW)
+                            !Using Peaceman's well model we consider the well as an internal boundary and assume that
+                            !near the well the following conditions hold:
+                            !1) K_z is huge => p_z = rho_w g because lambda_w(S) K_z (-p_z + rho_w g) < Q / (r^2 pi) << K_z
+                            !2) p is radially symmetric and the derivative p_r is constant.
+                            !
+                            !Thus the inflow q is q(r,phi,z) = lambda_w(S) K_r(r,phi,z) (-p_r)
+                            !With \integral_{well boundary} q(r,phi,z) * dS = Q we obtain
+                            ! \integral_{well boundary} lambda_w(S) K_r(r,phi,z) (-p_r) dOmega = Q
+                            ! p_r = - Q / integral_(well boundary) lambda_w(S) K_r(r,phi,z) dOmega
+                            ! q(r,phi,z) = Q K_r(r,phi,z) / integral_(well boundary) K_r(r,phi,z) dOmega
+
+                            weights = 0.25_SR * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
+
+                            inflow = 0.0_SR
+
+                            !split local inflows in primary layer and assign half contributions to dual layers
+                            do i = 1, 3
+                                inflow(1:_DARCY_LAYERS, i) = inflow(1:_DARCY_LAYERS, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
+                                inflow(2:_DARCY_LAYERS + 1, i) = inflow(2:_DARCY_LAYERS + 1, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
+                            end do
+
+                            call gv_inflow%add_to_element(element, inflow)
+#                       elif defined(_DARCY_INJ_TOP_PRESSURE)
+                            weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
+
+                            is_dirichlet(_DARCY_LAYERS + 1, 1) = weights(1) > epsilon(1.0_SR)
+                            is_dirichlet(_DARCY_LAYERS + 1, 2) = weights(2) > epsilon(1.0_SR)
+                            is_dirichlet(_DARCY_LAYERS + 1, 3) = weights(3) > epsilon(1.0_SR)
+
+                            do i = 1, 3
+                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
+                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_in
+                                end if
+                            end do
+
+                            !set a free flow permeability in the well
+                            base_permeability(:, 2) = 1.0e6 * 9.869233e-16_SR / (cfg%scaling ** 2)
+
+                            call gv_p%write_to_element(element, p)
+                            call gv_is_dirichlet%add_to_element(element, is_dirichlet)
+#                       elif defined(_DARCY_INJ_ALL_PRESSURE)
+                            weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
+
+                            is_dirichlet(:, 1) = weights(1) > epsilon(1.0_SR)
+                            is_dirichlet(:, 2) = weights(2) > epsilon(1.0_SR)
+                            is_dirichlet(:, 3) = weights(3) > epsilon(1.0_SR)
+
+                            do i = 1, 3
+                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
+                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_in
+
+                                    do layer = _DARCY_LAYERS, 1, -1
+                                        p(layer, i) = p(layer + 1, i) - &
+                                            (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
+                                            / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
+                                    end do
+                                end if
+                            end do
+
+                            call gv_p%write_to_element(element, p)
+                            call gv_is_dirichlet%add_to_element(element, is_dirichlet)
+#                       else
+#                           error Injection condition must be defined!
+#                       endif
                     end if
                 end if
 
                 pos_prod = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
                 pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
 
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
-
                 if (norm2(pos_prod) < 1.0_SR + radius) then
                     if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
                         !production well:
                         !set a constant pressure condition and an outflow saturation condition
 
-                        inflow = [pos_prod(1), 1.0_SR - (pos_prod(1) + pos_prod(2)), pos_prod(2)]
+                        weights = [pos_prod(1), 1.0_SR - (pos_prod(1) + pos_prod(2)), pos_prod(2)]
 
-                        is_dirichlet(:, 1) = inflow(1) > epsilon(1.0_SR)
-                        is_dirichlet(:, 2) = inflow(2) > epsilon(1.0_SR)
-                        is_dirichlet(:, 3) = inflow(3) > epsilon(1.0_SR)
+!#                       define _DARCY_PROD_TOP_PRESSURE
+#                       define _DARCY_PROD_ALL_PRESSURE
+#                       if defined(_DARCY_PROD_TOP_PRESSURE)
+                            is_dirichlet(_DARCY_LAYERS + 1, 1) = weights(1) > epsilon(1.0_SR)
+                            is_dirichlet(_DARCY_LAYERS + 1, 2) = weights(2) > epsilon(1.0_SR)
+                            is_dirichlet(_DARCY_LAYERS + 1, 3) = weights(3) > epsilon(1.0_SR)
 
-                        do i = 1, 3
-                            if (is_dirichlet(1, i)) then
-                                p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
+                            do i = 1, 3
+                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
+                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
+                                end if
+                            end do
 
-                                do layer = _DARCY_LAYERS, 1, -1
-                                    p(layer, i) = p(layer + 1, i) - &
-                                        (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
-                                        / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
-                                end do
-                            end if
-                        end do
+                            !set a free flow permeability in the well
+                            base_permeability(:, 2) = 1.0e6 * 9.869233e-16_SR / (cfg%scaling ** 2)
+#                       elif defined(_DARCY_PROD_ALL_PRESSURE)
+                            is_dirichlet(:, 1) = weights(1) > epsilon(1.0_SR)
+                            is_dirichlet(:, 2) = weights(2) > epsilon(1.0_SR)
+                            is_dirichlet(:, 3) = weights(3) > epsilon(1.0_SR)
+
+                            do i = 1, 3
+                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
+                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
+
+                                    do layer = _DARCY_LAYERS, 1, -1
+                                        p(layer, i) = p(layer + 1, i) - &
+                                            (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
+                                            / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
+                                    end do
+                                end if
+                            end do
+#                       else
+#                           error Production condition must be defined!
+#                       endif
 
                         call gv_p%write_to_element(element, p)
                         call gv_is_dirichlet%add_to_element(element, is_dirichlet)
@@ -527,15 +621,15 @@
                 dz = cfg%dz
 
                 do i = 1, _DARCY_LAYERS
-                    call compute_rhs_1D(edge_length, 0.5_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), lambda_w(i, 2), lambda_w(i, 1), lambda_n(i, 2), lambda_n(i, 1), g_local(1), rhs(i, 2), rhs(i, 1), lambda_t(i, 1))
-                    call compute_rhs_1D(edge_length, 0.5_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), lambda_w(i, 2), lambda_w(i, 3), lambda_n(i, 2), lambda_n(i, 3), g_local(2), rhs(i, 2), rhs(i, 3), lambda_t(i, 2))
+                    call compute_rhs_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), lambda_w(i, 2), lambda_w(i, 1), lambda_n(i, 2), lambda_n(i, 1), g_local(1), rhs(i, 2), rhs(i, 1), lambda_t(i, 1))
+                    call compute_rhs_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), lambda_w(i, 2), lambda_w(i, 3), lambda_n(i, 2), lambda_n(i, 3), g_local(2), rhs(i, 2), rhs(i, 3), lambda_t(i, 2))
 
                     call compute_rhs_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 1), p(i + 1, 1), lambda_w(i, 1), lambda_w(i + 1, 1), lambda_n(i, 1), lambda_n(i + 1, 1), g_local(3), rhs(i, 1), rhs(i + 1, 1), lambda_t(i, 3))
                     call compute_rhs_1D(dz, 0.50_SR * surface, base_permeability(i, 2), p(i, 2), p(i + 1, 2), lambda_w(i, 2), lambda_w(i + 1, 2), lambda_n(i, 2), lambda_n(i + 1, 2), g_local(3), rhs(i, 2), rhs(i + 1, 2), lambda_t(i, 4))
                     call compute_rhs_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 3), p(i + 1, 3), lambda_w(i, 3), lambda_w(i + 1, 3), lambda_n(i, 3), lambda_n(i + 1, 3), g_local(3), rhs(i, 3), rhs(i + 1, 3), lambda_t(i, 5))
 
-                    call compute_rhs_1D(edge_length, 0.5_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), lambda_w(i + 1, 2), lambda_w(i + 1, 1), lambda_n(i + 1, 2), lambda_n(i + 1, 1), g_local(1), rhs(i + 1, 2), rhs(i + 1, 1), lambda_t(i, 6))
-                    call compute_rhs_1D(edge_length, 0.5_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), lambda_w(i + 1, 2), lambda_w(i + 1, 3), lambda_n(i + 1, 2), lambda_n(i + 1, 3), g_local(2), rhs(i + 1, 2), rhs(i + 1, 3), lambda_t(i, 7))
+                    call compute_rhs_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), lambda_w(i + 1, 2), lambda_w(i + 1, 1), lambda_n(i + 1, 2), lambda_n(i + 1, 1), g_local(1), rhs(i + 1, 2), rhs(i + 1, 1), lambda_t(i, 6))
+                    call compute_rhs_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), lambda_w(i + 1, 2), lambda_w(i + 1, 3), lambda_n(i + 1, 2), lambda_n(i + 1, 3), g_local(2), rhs(i + 1, 2), rhs(i + 1, 3), lambda_t(i, 7))
                 end do
 
                 if (element%transform_data%plotter_data%orientation > 0) then
@@ -551,16 +645,16 @@
                 end if
             end subroutine
 #       else
-            subroutine initialize_rhs(element, saturation, p, rhs, is_dirichlet, base_permeability)
+            subroutine initialize_rhs(element, saturation, p, rhs, base_permeability)
                 type(t_element_base), intent(inout)				                    :: element
                 real (kind = GRID_SR), intent(inout)		                        :: saturation(:)
                 real (kind = GRID_SR), intent(inout)			                    :: p(:)
                 real (kind = GRID_SR), intent(out)									:: rhs(:)
-                logical, intent(out)			                                    :: is_dirichlet(:)
                 real (kind = GRID_SR), intent(in)                                   :: base_permeability
 
                 real (kind = GRID_SR)					            :: pos_prod(2), pos_in(2), radius, inflow, edge_length
                 real (kind = GRID_SR)                               :: g_local(2), lambda_w(3), lambda_n(3), lambda_t(2)
+                logical		                                        :: is_dirichlet(3)
 
                 rhs = 0.0_SR
 

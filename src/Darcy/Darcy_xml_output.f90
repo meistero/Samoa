@@ -106,6 +106,10 @@
 			logical                                         :: l_exists
             type(t_vtk_writer)                              :: vtk
 
+            real (kind = GRID_SR)   :: reduction_set(16)
+            real (kind = GRID_SR)   :: prod_w(0:4), prod_n(0:4), prod_w_acc(0:4), prod_n_acc(0:4)
+            integer                 :: i, f_out
+
 #           if defined(_MPI)
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
@@ -114,6 +118,10 @@
 #               warning VTK output does not work for quad precision
 #           else
                 if (rank_MPI == 0) then
+                    !******************
+                    ! write VTK data
+                    !******************
+
                     write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
 
                     e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
@@ -154,6 +162,37 @@
                         end do
 
                     e_io = vtk%VTK_END_XML()
+
+                    !******************
+                    ! write global data
+                    !******************
+
+                    reduction_set(1:4) = grid%prod_w
+                    reduction_set(5:8) = grid%prod_n
+                    reduction_set(9:12) = grid%prod_w_acc
+                    reduction_set(13:16) = grid%prod_n_acc
+
+                    call reduce(reduction_set, MPI_SUM)
+
+                    prod_w(1:4) = reduction_set(1:4)
+                    prod_n(1:4) = reduction_set(5:8)
+                    prod_w_acc(1:4) = reduction_set(9:12)
+                    prod_n_acc(1:4) = reduction_set(13:16)
+
+                    prod_w(0) = sum(prod_w(1:4))
+                    prod_n(0) = sum(prod_n(1:4))
+                    prod_w_acc(0)= sum(prod_w_acc(1:4))
+                    prod_n_acc(0) = sum(prod_n_acc(1:4))
+
+                    write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
+                    open(unit=f_out, file=s_file_name, action="write", status="replace")
+
+                    write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
+                    do i = 0, 4
+                        write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time, prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                    end do
+
+                    close(f_out)
                 end if
 #           endif
 
@@ -333,7 +372,7 @@
 #           endif
 
             integer                         :: i, layer
-            real (kind = GRID_SR)			:: edge_length, dz, flux_w(3), flux_n(3)
+            real (kind = GRID_SR)			:: edge_length, dz, flux_w(3), dummy
 
             lambda_w = (saturation * saturation) / cfg%r_nu_w
             lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
@@ -356,28 +395,28 @@
 
                     !compute fluxes
 
-                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
+                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
+                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
 
                     call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 1), p(layer + 1, 1), u_w(3), u_n(3), g_local(3))
                     call compute_velocity_1D(dz, 0.50_SR, base_permeability(layer, 2), p(layer, 2), p(layer + 1, 2), u_w(4), u_n(4), g_local(3))
                     call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 3), p(layer + 1, 3), u_w(5), u_n(5), g_local(3))
 
-                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.5_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
+                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
+                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
 
                     flux_w = 0.0_SR
-                    flux_n = 0.0_SR
-                    call compute_upwind_flux(u_w(1), lambda_w(layer, 2), lambda_w(layer, 1), flux_n(1), flux_w(1))
-                    call compute_upwind_flux(u_w(2), lambda_w(layer, 2), lambda_w(layer, 3), flux_n(2), flux_w(2))
-                    call compute_upwind_flux(u_w(3), lambda_w(layer, 1), lambda_w(layer + 1, 1), flux_n(3), flux_w(3))
-                    call compute_upwind_flux(u_w(4), lambda_w(layer, 2), lambda_w(layer + 1, 2), flux_n(3), flux_w(3))
-                    call compute_upwind_flux(u_w(5), lambda_w(layer, 3), lambda_w(layer + 1, 3), flux_n(3), flux_w(3))
-                    call compute_upwind_flux(u_w(6), lambda_w(layer + 1, 2), lambda_w(layer + 1, 1), flux_n(1), flux_w(1))
-                    call compute_upwind_flux(u_w(7), lambda_w(layer + 1, 2), lambda_w(layer + 1, 3), flux_n(2), flux_w(2))
+                    dummy = 0.0_SR
+                    call compute_upwind_flux(u_w(1), lambda_w(layer, 2), lambda_w(layer, 1), flux_w(1), dummy)
+                    call compute_upwind_flux(u_w(2), lambda_w(layer, 2), lambda_w(layer, 3), flux_w(2), dummy)
+                    call compute_upwind_flux(u_w(3), lambda_w(layer, 1), lambda_w(layer + 1, 1), flux_w(3), dummy)
+                    call compute_upwind_flux(u_w(4), lambda_w(layer, 2), lambda_w(layer + 1, 2), flux_w(3), dummy)
+                    call compute_upwind_flux(u_w(5), lambda_w(layer, 3), lambda_w(layer + 1, 3), flux_w(3), dummy)
+                    call compute_upwind_flux(u_w(6), lambda_w(layer + 1, 2), lambda_w(layer + 1, 1), flux_w(1), dummy)
+                    call compute_upwind_flux(u_w(7), lambda_w(layer + 1, 2), lambda_w(layer + 1, 3), flux_w(2), dummy)
 
-                    flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
-                    flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+                    flux_w(1:2) = samoa_world_to_barycentric_normal(element%transform_data, flux_w(1:2))
+                    flux_w(1:2) = flux_w(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                     cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
 
@@ -413,12 +452,12 @@
                 call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
 
                 flux_w = 0.0_SR
-                flux_n = 0.0_SR
-                call compute_upwind_flux(u_w(1), lambda_w(2), lambda_w(1), flux_n(1), flux_w(1))
-                call compute_upwind_flux(u_w(2), lambda_w(2), lambda_w(3), flux_n(2), flux_w(2))
+                dummy = 0.0_SR
+                call compute_upwind_flux(u_w(1), lambda_w(2), lambda_w(1), flux_w(1), dummy)
+                call compute_upwind_flux(u_w(2), lambda_w(2), lambda_w(3), flux_w(2), dummy)
 
-                flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
-                flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+                flux_w(1:2) = samoa_world_to_barycentric_normal(element%transform_data, flux_w(1:2))
+                flux_w(1:2) = flux_w(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
 

@@ -114,7 +114,7 @@ MODULE _JACOBI_(1)
     subroutine element_op(traversal, section, element)
         type(_T_JACOBI_(traversal)), intent(inout)		:: traversal
         type(t_grid_section), intent(inout)				:: section
-        type(t_element_base), intent(inout), target		:: element
+        type(t_element_base), intent(inout)		        :: element
 
         !local variables
         integer :: i
@@ -128,34 +128,20 @@ MODULE _JACOBI_(1)
         call gv_trace_A%add(element, trace_A)
     end subroutine
 
-    subroutine node_last_touch_op(traversal, section, nodes)
-        type(_T_JACOBI_(traversal)), intent(in)			:: traversal
-        type(t_grid_section), intent(in)				:: section
-        type(t_node_data), intent(inout)				:: nodes(:)
-
-        logical :: is_dirichlet(_gv_node_size)
-        integer :: i
-
-        do i = 1, size(nodes)
-            call gv_dirichlet%read(nodes(i), is_dirichlet)
-
-            if (.not. any(is_dirichlet)) then
-                call inner_node_last_touch_op(traversal, section, nodes(i))
-            else
-                call gv_r%write(nodes(i), spread(0.0_GRID_SR, 1, _gv_node_size))
-            end if
-        end do
-    end subroutine
-
-    subroutine inner_node_last_touch_op(traversal, section, node)
+    elemental subroutine node_last_touch_op(traversal, section, node)
         type(_T_JACOBI_(traversal)), intent(in)			:: traversal
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        real(kind = GRID_SR)    :: x(_gv_node_size)
+        logical                 :: is_dirichlet(_gv_node_size)
+        real(kind = GRID_SR)    :: dx(_gv_node_size)
         real(kind = GRID_SR)    :: r(_gv_node_size)
         real(kind = GRID_SR)    :: rhs(_gv_node_size)
         real(kind = GRID_SR)    :: trace_A(_gv_node_size)
+
+        call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
 #       if defined(_gv_rhs)
             call gv_rhs%read(node, rhs)
@@ -163,12 +149,39 @@ MODULE _JACOBI_(1)
             rhs = 0.0_GRID_SR
 #       endif
 
+        call post_dof_op(traversal%alpha, dx, r, rhs, trace_A)
+
+        where (is_dirichlet)
+            dx = 0.0_SR
+            r = 0.0_SR
+        end where
+
+        call gv_x%add(node, dx)
+        call gv_r%write(node, r)
+    end subroutine
+
+    pure subroutine inner_node_last_touch_op(traversal, section, node)
+        type(_T_JACOBI_(traversal)), intent(in)			:: traversal
+        type(t_grid_section), intent(in)				:: section
+        type(t_node_data), intent(inout)				:: node
+
+        real(kind = GRID_SR)    :: dx(_gv_node_size)
+        real(kind = GRID_SR)    :: r(_gv_node_size)
+        real(kind = GRID_SR)    :: rhs(_gv_node_size)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
+
         call gv_r%read(node, r)
         call gv_trace_A%read(node, trace_A)
 
-        call post_dof_op(traversal%alpha, x, r, rhs, trace_A)
+#       if defined(_gv_rhs)
+            call gv_rhs%read(node, rhs)
+#       else
+            rhs = 0.0_GRID_SR
+#       endif
 
-        call gv_x%add(node, x)
+        call post_dof_op(traversal%alpha, dx, r, rhs, trace_A)
+
+        call gv_x%add(node, dx)
         call gv_r%write(node, r)
     end subroutine
 
@@ -177,23 +190,27 @@ MODULE _JACOBI_(1)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical :: is_dirichlet(_gv_node_size)
+        logical                 :: is_dirichlet(_gv_node_size)
+        real (kind = GRID_SR)   :: r(_gv_node_size)
+        integer					:: i
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_reduce_op(traversal, section, node)
-        end if
-    end subroutine
+        do i = 1, _gv_node_size
+            if (.not. is_dirichlet(i)) then
+                call reduce_dof_op(traversal%r_sq, r(i))
+            end if
+        end do
+   end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
         type(_T_JACOBI_(traversal)), intent(inout)	    :: traversal
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        integer											:: i
-
-        real (kind = GRID_SR) :: r(_gv_node_size)
+        real (kind = GRID_SR)   :: r(_gv_node_size)
+        integer				    :: i
 
         call gv_r%read(node, r)
 
@@ -228,16 +245,16 @@ MODULE _JACOBI_(1)
         trace_A = tiny(1.0_GRID_SR)
     end subroutine
 
-    elemental subroutine post_dof_op(alpha, x, r, rhs, trace_A)
+    elemental subroutine post_dof_op(alpha, dx, r, rhs, trace_A)
         real(kind = GRID_SR), intent(in)			:: alpha
-        real(kind = GRID_SR), intent(out)			:: x
+        real(kind = GRID_SR), intent(out)			:: dx
         real(kind = GRID_SR), intent(inout)			:: r
         real (kind = GRID_SR), intent(in)			:: rhs
         real(kind = GRID_SR), intent(in)			:: trace_A
 
         !so far, r assembled Ax, so now we set it to D^(-1)(b - Ax)
         r = (rhs - r) / trace_A
-        x = alpha * r
+        dx = alpha * r
     end subroutine
 
     pure subroutine reduce_dof_op(r_sq, r)
@@ -327,7 +344,7 @@ MODULE _JACOBI
                 !$omp end master
             end if
 
-            if (sqrt(r_sq) < solver%max_error) then
+            if (r_sq < solver%max_error * solver%max_error) then
                 exit
             end if
 

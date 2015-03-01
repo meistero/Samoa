@@ -19,6 +19,7 @@
 		type(darcy_gv_p)						:: gv_p
 		type(darcy_gv_rhs)						:: gv_rhs
 		type(darcy_gv_is_dirichlet_boundary)    :: gv_is_dirichlet
+		type(darcy_gv_volume)                   :: gv_inflow
 
 #		define _GT_NAME							t_darcy_permeability_traversal
 
@@ -76,28 +77,26 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			node%data_pers%rhs = 0.0_SR
-			node%data_temp%is_dirichlet_boundary = .false.
+			call flow_pre_dof_op(node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
  			type(t_darcy_permeability_traversal), intent(inout)		:: traversal
  			type(t_grid_section), intent(inout)						:: section
-			type(t_element_base), intent(inout), target				:: element
+			type(t_element_base), intent(inout)				        :: element
 
 			real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1, 3)
 			real (kind = GRID_SR)   :: p(_DARCY_LAYERS + 1, 3)
 			real (kind = GRID_SR)   :: rhs(_DARCY_LAYERS + 1, 3)
-			logical		            :: is_dirichlet(_DARCY_LAYERS + 1, 3)
 
 			call gv_saturation%read_from_element(element, saturation)
 			call gv_p%read_from_element(element, p)
 
 			!call element operator
 #           if (_DARCY_LAYERS > 0)
-                call initialize_rhs(element, saturation, p, rhs, is_dirichlet, element%cell%data_pers%base_permeability)
+                call initialize_rhs(element, saturation, p, rhs, element%cell%data_pers%base_permeability)
 #           else
-                call initialize_rhs(element, saturation(1,:), p(1,:), rhs(1,:), is_dirichlet(1,:), element%cell%data_pers%base_permeability)
+                call initialize_rhs(element, saturation(1,:), p(1,:), rhs(1,:), element%cell%data_pers%base_permeability)
 #           endif
 
 			call gv_rhs%add_to_element(element, rhs)
@@ -114,6 +113,7 @@
 			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
 			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
+			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
 
 		elemental subroutine node_last_touch_op(traversal, section, node)
@@ -121,7 +121,32 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			                :: node
 
-			node%data_pers%saturation = min(1.0_SR, node%data_pers%saturation)
+			real (kind = GRID_SR) :: total_inflow
+
+            total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
+
+			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%volume, total_inflow)
+		end subroutine
+
+		elemental subroutine flow_pre_dof_op(rhs, is_dirichlet, inflow)
+			real (kind = GRID_SR), intent(out)					:: rhs
+			logical, intent(out)			                    :: is_dirichlet
+			real (kind = GRID_SR), intent(out)					:: inflow
+
+			rhs = 0.0_SR
+			is_dirichlet = .false.
+			inflow = 0.0_SR
+		end subroutine
+
+		elemental subroutine flow_post_dof_op(saturation, rhs, inflow, total_inflow)
+			real (kind = GRID_SR), intent(inout)				:: saturation
+			real (kind = GRID_SR), intent(inout)				:: rhs
+			real (kind = GRID_SR), intent(in)				    :: inflow
+			real (kind = GRID_SR), intent(in)				    :: total_inflow
+
+            saturation = min(1.0_SR, saturation)
+
+            rhs = rhs + cfg%r_inflow * inflow / total_inflow
 		end subroutine
 	END MODULE
 #endif
