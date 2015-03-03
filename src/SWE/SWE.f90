@@ -183,7 +183,10 @@
                     cfg%scaling = 128.0_GRID_SR
                     cfg%offset = [-10.0_GRID_SR, 0.0_GRID_SR]
                 elseif (cfg%s_test_case_name .eq. 'bar') then
-                    cfg%scaling = 256.0_GRID_SR
+                    cfg%scaling = 128.0_GRID_SR
+                    cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
+                elseif (cfg%s_test_case_name .eq. 'sea_rest') then
+                    cfg%scaling = 10.0_GRID_SR
                     cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
                 else
                     cfg%scaling = 1.0_GRID_SR
@@ -430,8 +433,12 @@
                     call swe%nh_variable_output%traverse(grid)
                     end if
 
+
+
                     i_lse_iterations = swe%pressure_solver%solve(grid)
                     write(*,*) 'iterations needed:' , i_lse_iterations
+
+
                     call swe%nh_traversal%traverse(grid)
 
 

@@ -45,6 +45,10 @@
 #		define _GT_CELL_TO_EDGE_OP				cell_to_edge_op
 #		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
 
+
+#       define _GT_NODE_LAST_TOUCH_OP           node_last_touch_op
+#       define _GT_NODE_FIRST_TOUCH_OP          node_first_touch_op
+
 #		define _GT_NODE_MPI_TYPE
 
 #		include "SFC_generic_adaptive_traversal.f90"
@@ -196,8 +200,8 @@
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(1),	    traversal%Q_in(:, 2)%p(1),	Q_out%p(1))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%p(2),	    traversal%Q_in(:, 2)%p(2),	Q_out%p(2))
 				call t_basis_Q_merge(traversal%Q_in(:, 1)%b,		traversal%Q_in(:, 2)%b,		Q_out%b)
-                call t_basis_Q_merge(traversal%qp_in(:, 1),		traversal%qp_in(:, 2),		qp_out)
-                call t_basis_Q_merge(traversal%w_in(:, 1),		traversal%w_in(:, 2),		w_out)
+                call t_basis_lin_node_merge(traversal%qp_in(:, 1),		traversal%qp_in(:, 2),		qp_out)
+                call t_basis_lin_node_merge(traversal%w_in(:, 1),		traversal%w_in(:, 2),		w_out)
 
 
                 !convert velocity back to momentum
@@ -208,6 +212,58 @@
                 call gv_w%write( dest_element%t_element_base, w_out)
 			end if
 		end subroutine
+
+
+		elemental subroutine node_last_touch_op(traversal, section, node)
+ 			type(t_swe_adaption_traversal), intent(in)	    :: traversal
+ 			type(t_grid_section), intent(in)				    :: section
+			type(t_node_data), intent(inout)					:: node
+
+            if (cfg%s_test_case_name .eq. 'bar') then
+                if (node%position(1)* cfg%scaling == 0.0_GRID_SR .and. node%position(2)* cfg%scaling <= 0.5_GRID_SR) then
+                    node%data_pers%is_dirichlet_boundary = .true.
+                    node%data_pers%qp = 0.0_GRID_SR
+                end if
+            end if
+            node%data_pers%rhs=0.0
+		end subroutine
+
+
+		elemental subroutine node_first_touch_op(traversal, section, node)
+ 			type(t_swe_adaption_traversal), intent(in)	    :: traversal
+ 			type(t_grid_section), intent(in)				    :: section
+			type(t_node_data), intent(inout)					:: node
+
+
+                    node%data_pers%is_dirichlet_boundary = .false.
+
+		end subroutine
+
+
+!		subroutine element_op(traversal, section, element)
+!			type(t_swe_adaption_traversal), intent(inout)				    :: traversal
+!			type(t_grid_section), intent(inout)							:: section
+!			type(t_element_base), intent(inout)					:: element
+!
+!                  element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.false.
+!                  element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.false.
+!                  element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.false.
+!
+!
+!			if (cfg%s_test_case_name .eq. 'bar') then
+!                if((element%nodes(1)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(2)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(3)%ptr%position(2)*cfg%scaling<=0.5)) then
+!                    if((element%nodes(1)%ptr%position(1)==0 .and. element%nodes(2)%ptr%position(1)==0) .or. (element%nodes(2)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0) .or. (element%nodes(1)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
+!
+!                        write (*,*) 'yo!'
+!                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+!                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+!                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+!                    endif
+!                endif
+!            endif
+!		end subroutine
+
+
 
 		subroutine cell_last_touch_op(traversal, section, cell)
  			type(t_swe_adaption_traversal), intent(inout)	                :: traversal

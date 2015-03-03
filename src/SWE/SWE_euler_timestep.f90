@@ -267,6 +267,23 @@
 			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > 0.0_GRID_SR) then
                 element%cell%data_pers%Q(1)%h = element%cell%data_pers%Q(1)%b + cfg%dry_tolerance
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
+
+                if(cfg%s_test_case_name .eq. 'beach') then
+
+                        element%nodes(1)%ptr%data_pers%w=0
+                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.false.
+
+                        element%nodes(2)%ptr%data_pers%w=0
+                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.false.
+
+                        element%nodes(3)%ptr%data_pers%w=0
+                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.false.
+
+                endif
+
                 !print '("Wetting:", 2(X, F0.0))', cfg%scaling * element%transform_data%custom_data%offset + cfg%offset
                 !write (*,*) 'dQ%h: ', dQ(1)%h
             end if
@@ -290,12 +307,44 @@
                 !element%cell%data_pers%Q(1)%h = 0.0_GRID_SR
 
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
+
+                if(cfg%s_test_case_name .eq. 'beach' ) then
+                    if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+                        element%nodes(1)%ptr%data_pers%w=0
+                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+
+                        element%nodes(2)%ptr%data_pers%w=0
+                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+
+                        element%nodes(3)%ptr%data_pers%w=0
+                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+                    endif
+                endif
            end if
 
            if(cfg%s_test_case_name .eq. 'bar') then
                 if((element%nodes(1)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(2)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(3)%ptr%position(2)*cfg%scaling<=0.5)) then
-                    if(element%nodes(1)%ptr%position(1)==0 .or. element%nodes(2)%ptr%position(1)==0 .or. element%nodes(3)%ptr%position(1)==0) then
+                    if((element%nodes(1)%ptr%position(1)==0 .and. element%nodes(2)%ptr%position(1)==0) .or. (element%nodes(2)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0) .or. (element%nodes(1)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
                         element%cell%data_pers%Q(1)%h= 0.01*sin(2.0_GRID_SR* section%r_time* pi/2.02_GRID_SR)
+
+                         element%nodes(1)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+
+
+
+
+                        element%nodes(2)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+
+                        element%nodes(3)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+
                     endif
                 endif
            endif
@@ -478,22 +527,13 @@
 			bL = QL%b
 			bR = QR%b
 
-!            if(hL<0) then
-!                hL=0.0_GRID_SR
-!            endif
-!
-!
-!            if(hR<0) then
-!                hR=0.0_GRID_SR
-!            endif
-
 
 #           if defined(_SWE_FWAVE)
-                call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_FWAVE, 10, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_SSQ_FWAVE)
-                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 10, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_AUG_RIEMANN)
-                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 5, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           endif
 
 			fluxL%h = net_updatesL(1)

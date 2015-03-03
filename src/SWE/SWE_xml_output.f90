@@ -22,7 +22,8 @@
 			real (kind = GRID_SR), dimension(2)						:: coords		!< position
             real (kind=GRID_SR)                                     ::qp
 			real (kind=GRID_SR)                                     ::w
-			logical 									           :: is_dirichlet_boundary
+            real (kind=GRID_SR)                                     ::rhs
+			real (kind=GRID_SR) 									           :: is_dirichlet_boundary
 
 		end type t_output_point_data
 
@@ -108,6 +109,8 @@
                         if (i_element_order == 0) then
                             e_io = vtk%VTK_VAR_XML('q', 1.0_GRID_SR, 1)
                             e_io = vtk%VTK_VAR_XML('w', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('rhs', 1.0_GRID_SR, 1)
+                            e_io = vtk%VTK_VAR_XML('is_dirichlet', 1.0_GRID_SR, 1)
                         endif
                     e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
 
@@ -241,7 +244,8 @@
                         if(i_element_order==0) then
                             e_io = vtk%VTK_VAR_XML(i_points, 'qp', traversal%point_data%qp)
                             e_io = vtk%VTK_VAR_XML(i_points, 'w', traversal%point_data%w)
-                            !e_io = vtk%VTK_VAR_XML(i_points, 'is_dirichlet', int(traversal%point_data%is_dirichlet_boundary))
+                            e_io = vtk%VTK_VAR_XML(i_points, 'rhs', traversal%point_data%rhs)
+                            e_io = vtk%VTK_VAR_XML(i_points, 'is_dirichlet', traversal%point_data%is_dirichlet_boundary)
                         endif
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
@@ -325,12 +329,19 @@
 
 					traversal%i_point_data_index = traversal%i_point_data_index + 3
 				case (0)
-					forall (i = 1 : 3)
+					 do i = 1 , 3
 						traversal%point_data(traversal%i_point_data_index + i - 1)%coords = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)) + cfg%offset
                         traversal%point_data(traversal%i_point_data_index + i - 1)%qp = element%nodes(i)%ptr%data_pers%qp(1)
                         traversal%point_data(traversal%i_point_data_index + i - 1)%w = element%nodes(i)%ptr%data_pers%w(1)
+                        traversal%point_data(traversal%i_point_data_index + i - 1)%rhs = element%nodes(i)%ptr%data_pers%rhs(1)
+                        if(element%nodes(i)%ptr%data_pers%is_dirichlet_boundary(1)) then
+                            traversal%point_data(traversal%i_point_data_index + i - 1)%is_dirichlet_boundary=1
+                        else
+                            traversal%point_data(traversal%i_point_data_index + i - 1)%is_dirichlet_boundary=0
+                        endif
 
-					end forall
+
+					end do
 
 					traversal%i_point_data_index = traversal%i_point_data_index + 3
 
