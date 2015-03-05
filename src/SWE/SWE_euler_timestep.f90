@@ -533,7 +533,7 @@
 #           elif defined(_SWE_SSQ_FWAVE)
                 call c_bind_geoclaw_solver(GEOCLAW_SSQ_FWAVE, 10, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           elif defined(_SWE_AUG_RIEMANN)
-                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 5, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
+                call c_bind_geoclaw_solver(GEOCLAW_AUG_RIEMANN, 1, 3, hL, hR, pL(1), pR(1), pL(2), pR(2), bL, bR, real(cfg%dry_tolerance, GRID_SR), g, net_updatesL, net_updatesR, max_wave_speed)
 #           endif
 
 			fluxL%h = net_updatesL(1)

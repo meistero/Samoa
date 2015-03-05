@@ -190,15 +190,24 @@ subroutine element_op(traversal, section, element)
     assert_gt(abs(mat(2,2)),abs(mat(2,1))+abs(mat(2,3)))
     assert_gt(abs(mat(3,3)),abs(mat(3,1))+abs(mat(3,2)))
 
-    !w1=0
-    !w2=0
-    !w3=0
+!    w1=0
+!    w2=0
+!    w3=0
+!
+!    hv=0
+    !hu=0
 
-    !hv=0
-    !hu=1
+   ! write(*,*) 'test:', (nyhp+nyvp)
 
+  !  c=1
     rhs=[- c*c* ((w1/3.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/12.0_GRID_SR))- c*nxvn*hu-c*nyvn*hv, -c*c*((w1/4.0_GRID_SR) +(w2/2.0_GRID_SR) +(w3/4.0_GRID_SR))-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* ((w1/12.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/3.0_GRID_SR))- c*nxhn*hu-c*nyhn*hv ]
-   ! write (*,*) 'rhs: ', rhs
+
+!  if(rhs(2)>0.000001_GRID_SR) then
+!        write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
+!        write (*,*) 'rhs2add: ', rhs(2), ' cmp: ', -hu*c*(nxhp+nxvp)
+!        write (*,*) 'rhs2_curr: ',element%nodes(2)%ptr%data_pers%rhs
+!        write(*,*) 'test:', (nxhp+nxvp)
+!        endif
     else
         mat=0.0_GRID_SR
         rhs=0.0_GRID_SR

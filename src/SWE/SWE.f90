@@ -429,9 +429,6 @@
                     end if
                     call swe%lse_traversal%traverse(grid)
 
-                    if(cfg%l_gv_output) then
-                    call swe%nh_variable_output%traverse(grid)
-                    end if
 
 
 
@@ -464,6 +461,11 @@
 
 				!output grid
 				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+                    if(cfg%l_gv_output) then
+                    call swe%nh_variable_output%traverse(grid)
+                    end if
+
+
                     if (cfg%l_ascii_output) then
              	       call swe%ascii_output%traverse(grid)
                	    end if

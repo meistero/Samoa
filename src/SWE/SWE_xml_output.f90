@@ -348,7 +348,7 @@
 					traversal%cell_data(traversal%i_cell_data_index)%Q%h = t_basis_Q_eval(r_test_point0, Q%h)
 					traversal%cell_data(traversal%i_cell_data_index)%Q%b = t_basis_Q_eval(r_test_point0, Q%b)
 					traversal%cell_data(traversal%i_cell_data_index)%Q%p(1) = t_basis_Q_eval(r_test_point0, Q%p(1))
-					traversal%cell_data(traversal%i_cell_data_index)%Q%p(2) = t_basis_Q_eval(r_test_point0, Q%p(2))
+					traversal%cell_data(traversal%i_cell_data_index)%Q%p(2) = Q(1)%p(2)   ! t_basis_Q_eval(r_test_point0, Q%p(2))
 			end select
 
 			traversal%i_cell_data_index = traversal%i_cell_data_index + 1
