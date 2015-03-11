@@ -88,6 +88,8 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
+            assert_ne(grid%u_max,0.0)
+
             grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
 #           if defined(_ASAGI)
@@ -194,12 +196,36 @@
 			type(num_cell_rep), intent(in)									:: rep1, rep2
 			type(num_cell_update), intent(out)								:: update1, update2
 
+            type(t_state)													:: bnd_rep
+			type(t_update)													:: bnd_flux
+
+            !SLIP: reflect momentum at normal
+			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
+
+            !NOSLIP: invert momentum (stable)
+
+
+
 			_log_write(6, '(3X, A)') "swe skeleton op:"
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 1 in: ", rep1%Q
 			_log_write(6, '(4X, A, F0.3, 1X, F0.3, 1X, F0.3, 1X, F0.3)') "Q 2 in: ", rep2%Q
 
 #			if defined (_SWE_LF) || defined (_SWE_LF_BATH) || defined (_SWE_LLF) || defined (_SWE_LLF_BATH)
-				call compute_lf_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
+                if ((rep1%Q(1)%h .eq. 100.0_GRID_SR) .and. (rep2%Q(1)%h .ne. 100.0_GRID_SR) ) then
+                    bnd_rep = t_state(rep2%Q(1)%h, -rep2%Q(1)%p, rep2%Q(1)%b)
+                    call compute_lf_flux(edge%transform_data%normal, bnd_rep, rep2%Q(1), bnd_flux, update2%flux(1))
+                    update1%flux(1)%h=0.0
+                    update1%flux(1)%p=0.0
+                    update1%flux(1)%max_wave_speed=0.0
+                else if ((rep2%Q(1)%h .eq. 100.0_GRID_SR) .and. (rep1%Q(1)%h .ne. 100.0_GRID_SR) ) then
+                    bnd_rep = t_state(rep1%Q(1)%h, -rep1%Q(1)%p, rep1%Q(1)%b)
+                    call compute_lf_flux(edge%transform_data%normal, rep1%Q(1), bnd_rep, update1%flux(1), bnd_flux)
+                    update2%flux(1)%h=0.0
+                    update2%flux(1)%p=0.0
+                    update2%flux(1)%max_wave_speed=0.0
+                else
+                    call compute_lf_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
+                end if
 #			else
 				call compute_geoclaw_flux(edge%transform_data%normal, rep1%Q(1), rep2%Q(1), update1%flux(1), update2%flux(1))
 #			endif
@@ -437,6 +463,7 @@
             endif
 
 			u_max = max(u_max, maxval(fluxes%max_wave_speed))
+			!write (*,*) 'umax:', u_max
 
             do i = 1, _SWE_CELL_SIZE
                 dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-r_dt / volume)
@@ -474,6 +501,7 @@
 
 #               if defined(_SWE_LLF_BATH)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
+                    !write(*,*) 'alpha:',alpha
 #               else
                     alpha = 100.0_GRID_SR
 #               endif

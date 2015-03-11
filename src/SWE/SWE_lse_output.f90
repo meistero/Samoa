@@ -172,7 +172,7 @@
                 if (indices(i) .ge. 0) then
                     do j = 1, 3
                         if (indices(j) .ge. 0) then
-                            traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(j, i)
+                            traversal%A(indices(j), indices(i)) = traversal%A(indices(j), indices(i)) + A(i,j)
                         else
                             !traversal%rhs(indices(i)) = traversal%rhs(indices(i)) - A(j, i) * qp(j)
                             !write(*,*)  qp(j)

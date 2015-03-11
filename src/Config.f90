@@ -99,11 +99,13 @@ module config
 
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
-        character(1024)                          :: arguments
+        character(512)                          :: arguments
         character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !define default command arguments and default values for all scenarios
+        write(arguments, '(A)') 'test'
+        write(*,*) 'arguments: ', arguments
 
         write(arguments, '(A)') "-v .false. --version .false. -h .false. --help .false."
         write(arguments, '(A, A)') trim(arguments),   " -lbtime .false. -lbsplit .false. -lbserial .false. -lbcellweight 1.0d0 -lbbndweight 0.0d0"

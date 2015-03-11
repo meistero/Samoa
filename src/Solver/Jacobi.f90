@@ -265,8 +265,8 @@ MODULE _JACOBI_(1)
     pure subroutine reduce_dof_op(r_sq, r)
         real(kind = GRID_SR), intent(inout)			:: r_sq
         real(kind = GRID_SR), intent(in)			:: r
-
-        r_sq = r_sq + (r * r)
+        r_sq= max(r_sq,abs(r))
+        !r_sq = r_sq + (r * r)
     end subroutine
 END MODULE
 
@@ -345,7 +345,8 @@ MODULE _JACOBI
             end if
             !write(*,*) 'i: ',i_iteration, ' res:', sqrt(r_sq)
 
-            if (sqrt(r_sq) < solver%max_error) then
+            !if (sqrt(r_sq) < solver%max_error) then
+            if (r_sq < solver%max_error) then
                 exit
             end if
 

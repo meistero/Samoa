@@ -158,19 +158,24 @@ subroutine element_op(traversal, section, element)
     assert_eq(nxhp, s*(m12))
     assert_eq(nyhp, s*(m22))
 
+    ! dt=1
+    !c=1
+    !h=0
 
-    mat(1,1)= - dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/3.0_GRID_SR)
-    mat(1,2)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22)) + 2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(1,3)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
+    mat(1,1)= - dt*0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/2.0_GRID_SR)
+    mat(1,2)= dt*0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
+    mat(1,3)= -dt*0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22)
 
-    mat(2,1)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21) + 0.5_GRID_SR*c*c*dt
-    mat(2,2)= 0.25_GRID_SR *dt*h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +c*c*dt
-    mat(2,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22) + 0.5_GRID_SR*c*c*dt
+    mat(2,1)=  -0.25_GRID_SR*dt*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21)
+    mat(2,2)= 0.25_GRID_SR *dt*h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +2.0_GRID_SR*c*c*dt
+    mat(2,3)= - 0.25_GRID_SR*dt*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22)
 
-    mat(3,1)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21) +2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22)) +  2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/12.0_GRID_SR)
-    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22) +c*c*dt*(2.0_GRID_SR/3.0_GRID_SR)
+    mat(3,1)= - 0.25_GRID_SR*dt*h*h*s*(nxhn*m11+nyhn*m21)
+    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
+    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/2.0_GRID_SR)
 
+   ! c=0.5_GRID_SR * element%cell%geometry%get_leg_size() *cfg%scaling
+   ! mat=transpose(mat)
     !write (*,*) 'element diagonal', mat(1,1), ', ', mat(2,2), ' ,' , mat(3,3)
     !write (*,*) 'element matrix:'
     !write(*,* ) mat(1,:)
@@ -183,7 +188,7 @@ subroutine element_op(traversal, section, element)
     !write (*,*) 'element matrix:', mat
     x_test(1)=1
     x_test(2)=1
-    x_test(3)=1
+    x_test(3)=0
 
     !write(*,*) 'A*x_test:' , matmul(mat, x_test)
     assert_gt(abs(mat(1,1)),abs(mat(1,2))+abs(mat(1,3)))
@@ -200,7 +205,7 @@ subroutine element_op(traversal, section, element)
    ! write(*,*) 'test:', (nyhp+nyvp)
 
   !  c=1
-    rhs=[- c*c* ((w1/3.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/12.0_GRID_SR))- c*nxvn*hu-c*nyvn*hv, -c*c*((w1/4.0_GRID_SR) +(w2/2.0_GRID_SR) +(w3/4.0_GRID_SR))-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* ((w1/12.0_GRID_SR) +(w2/12.0_GRID_SR) +(w3/3.0_GRID_SR))- c*nxhn*hu-c*nyhn*hv ]
+    rhs=[- c*c* (w1/2.0_GRID_SR)- c*nxvn*hu-c*nyvn*hv, -c*c*((w2/1.0_GRID_SR) )-hu*c*(nxhp+nxvp)-hv*c*(nyhp+nyvp), - c*c* ((w3/2.0_GRID_SR))- c*nxhn*hu-c*nyhn*hv ]
 
 !  if(rhs(2)>0.000001_GRID_SR) then
 !        write (*,*) 'node 2: ' ,element%nodes(2)%ptr%position(1) ,','  ,element%nodes(2)%ptr%position(2)
@@ -211,9 +216,15 @@ subroutine element_op(traversal, section, element)
     else
         mat=0.0_GRID_SR
         rhs=0.0_GRID_SR
-!        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
-!        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
-!        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+                  if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+
+                            element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+                            element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+                            element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+                endif
     endif
 
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)

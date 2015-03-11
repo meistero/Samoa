@@ -75,7 +75,7 @@ q3= element%nodes(3)%ptr%data_pers%qp(1)
 !write (*,*) 'hu,hv,w1,w2,w3 before correction: ', hu,',',hv, ',',w1,',',w2,',',w3
 
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
-if( .not. (element%nodes(1)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(2)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(3)%ptr%data_pers%is_dirichlet_boundary(1)) .and. h>cfg%dry_tolerance) then
+if( .not. (element%nodes(1)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(2)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(3)%ptr%data_pers%is_dirichlet_boundary(1)) .and. h>cfg%dry_tolerance ) then! .and. (.not.(abs(q1)>3 .or. abs(q2)>3 .or. abs(q3)>3))) then
     hu= hu - 0.5_GRID_SR* dt*(h*h*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
     hv= hv - 0.5_GRID_SR* dt*(h*h*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
 else if(h>0) then

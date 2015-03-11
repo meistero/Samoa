@@ -194,6 +194,7 @@
 
                     else
                         node%data_pers%is_dirichlet_boundary=.true.
+                        node%data_pers%qp=0.0_GRID_SR
                     end if
                 elseif (cfg%s_test_case_name .eq. 'bar') then
                     x= node%position(1)
@@ -202,6 +203,7 @@
                     if(xs == 0.0_GRID_SR) then
                         node%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
                         node%data_pers%is_dirichlet_boundary=.true.
+                        node%data_pers%qp=0.0_GRID_SR
                     endif
                 endif
 
@@ -430,7 +432,7 @@
                             Q%h=amplitude_sol * (1.0_GRID_SR/(cosh((xs(1)-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))*(1.0_GRID_SR/(cosh((xs(1)-initial_crest)*sqrt(3*amplitude_sol/(4*d_sol **3)))))
                             Q%p(1)=c_sol* (Q%h)
                         else
-                            Q%h=0.0_GRID_SR
+                            Q%h=100.0_GRID_SR
                             Q%p(1)=0.0_GRID_SR
                         endif
                         Q%p(2)=0.0_GRID_SR
