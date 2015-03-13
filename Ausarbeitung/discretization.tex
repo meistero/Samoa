@@ -1,7 +1,51 @@
 
 \section{Numerical approach}
-\subsection{Overview: the non-hydrostatic correction}
+\subsection{Introduction: the non-hydrostatic correction}
 %kurze Hinführung, was muss diskretisiert werden, fractional step, rolle der korrekturformeln, algorithmus, integralform?
+The basis for the method presented in this paper are the non-hydrostatic shallow water equations as given by:
+
+\begin{align}
+\boxed{
+{\begin{bmatrix}
+h \\
+hu\\
+hv\\
+hw
+\end{bmatrix}}_{t}
++
+{\begin{bmatrix}
+hu \\
+hu^2+\frac{1}{2}gh^2\\
+huv\\
+huw
+\end{bmatrix}}_{x}
++
+{\begin{bmatrix}
+hv \\
+huv\\
+hv^2+\frac{1}{2}gh^2\\
+hvw
+\end{bmatrix}}_{y}
+=
+{\begin{bmatrix}
+0 \\
+-ghb_x -\left([hQ]_x+[q]_{z=b}b_x \right)\\
+-ghb_y -\left([hQ]_y+[q]_{z=b}b_y \right)\\
+[q]_{z=b}
+\end{bmatrix}_.}}
+\label{eq:govern}
+\end{align}
+
+Here, $h (x,y)=\eta (x,y) +b(x,y)$ denotes the height of the water column, $\eta (x,y)$ the free surface elevation above the mean sea level, $b (x,y)$ the bathymetry, $(u,v,w)$ the depth-averaged velocity vector, $g$ the gravity of Earth and a subscript the partial derivative with respect to the given coordinate. Further, $q (x,y,z)$ represents the non-hydrostatic portion of the pressure and $Q=\frac{1}{h} \int_{b}^{\eta} q \, dz$ the depth averaged non-hydrostatic pressure. These terms stem from the pressure decomposition
+\begin{equation}
+p= p_H + q = g* (\eta -z) +q
+\end{equation}
+into a hydrostatic portion $p_H$ and a non-hydrostatic part $q$.
+
+
+For a detailed derivation, various sources are available, refer e.g. to \cite{samfass14extension}, \cite{cui} or \cite{fuchs}.  
+
+
 \subsection{Discretization on Triangular Grids in SAMOA}
 %initial attempts: finite differences -> problems with number of unknowns, discontinuity
 %picture with examples for assembly of the equations, matrix-free jacobi

@@ -99,7 +99,7 @@ module config
 
         logical					                :: l_help, l_version
         integer          					    :: i, i_error
-        character(512)                          :: arguments
+        character(1024)                          :: arguments
         character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 

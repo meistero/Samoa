@@ -266,8 +266,8 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -fast -fno-alias -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -g -O0 -fcheck=all -fdump-core -fbacktrace -ffpe-trap=invalid,zero,overflow -Wall -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
-    env['LINKFLAGS'] += ' -g -O0 -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['F90FLAGS'] += '-fcore-dumo -g -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['LINKFLAGS'] += ' -g -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
 
 #In case the Intel compiler is active, add a vectorization report (can gnu do this too?)
 if env['compiler'] == 'intel':
