@@ -2,8 +2,9 @@
 \section{Numerical approach}
 \subsection{Introduction: the non-hydrostatic correction}
 %kurze Hinführung, was muss diskretisiert werden, fractional step, rolle der korrekturformeln, algorithmus, integralform?
-In the following, a short summary of the non-hydrostatic correction shall be presented. For a more self-contained and detailed discussion, please refer to  \cite{samfass14extension}, \cite{cui} and \cite{fuchs}. The basis for the method presented in this paper are the non-hydrostatic shallow water equations as given by:
+In the following, a short summary of the non-hydrostatic correction shall be presented. For a more self-contained and detailed discussion, please refer to  \cite{samfass14extension}, \cite{cui} and \cite{fuchs}. 
 
+The basis for the method presented in this paper are the non-hydrostatic shallow water equations as given by:
 \begin{align}
 \boxed{
 {\begin{bmatrix}
@@ -29,8 +30,8 @@ hVW
 =
 {\begin{bmatrix}
 0 \\
--ghb_x -\left([h \frac{q}{2}]_x+[q]_{z=b}b_x \right)\\
--ghb_y -\left([h \frac{q}{2}]_y+[q]_{z=b}b_y \right)\\
+-ghb_x -\left([ \frac{hq}{2}]_x+[q]_{z=b}b_x \right)\\
+-ghb_y -\left([ \frac{hq}{2}]_y+[q]_{z=b}b_y \right)\\
 [q]_{z=b}
 \end{bmatrix}_.}}
 \label{eq:govern}
@@ -40,7 +41,7 @@ Here, $h (x,y)=\eta (x,y) -b(x,y)$ denotes the height of the water column, $\eta
 \begin{equation}
 p= p_H + q = g (\eta -z) +q
 \end{equation}
-into a hydrostatic portion $p_H$ and a non-hydrostatic part $q$. In the hydrostatic shallow water equations, $p=p_H$ would be assumed. The non-hydrostatic shallow water equations \ref{eq:govern} involve certain assumptions which are reviewed subsequently.
+into a hydrostatic portion $p_H$ and a non-hydrostatic part $q$ as suggested in \cite{casu}. In the hydrostatic shallow water equations, $p=p_H$ would be assumed. The non-hydrostatic shallow water equations \ref{eq:govern} involve certain assumptions which are reviewed subsequently.
 
 We follow \cite{walters} and assume a linear vertical distribution of the non-hydrostatic pressure. Thus, for the depth-averaged non-hydrostatic pressure occuring during the depth-integration,
 \begin{equation}
@@ -50,9 +51,9 @@ holds since the non-hydrostatic pressure vanishes at the surface. In addition, t
 \begin{equation}
 W=  \frac{1}{h} \int_{b}^{\eta} w \, dz= \frac{1}{2} [w]_{z=\eta}.
 \end{equation}
-Thus, only the vertical velocity at the water surface will be computed in the model presented in this paper. We therefore drop the subscript for simplicity in the remainder of this paper, that is $w:=[w]_{z=\eta}$.
+Thus, only the vertical velocity at the water surface will be computed in the model. We therefore drop the subscript for simplicity in the remainder of this paper.
 
-In order to solve the non-hydrostatic shallow water equations \eqref{eq:govern} with these assumptions, we employ the commonly applied implicit fractional step scheme: in each time step, the hydrostatic shallow water equations are solved with the finite volume method first. After the hydrostatic solution has been computed, the discharges $hU$ and $hV$ and the vertical velocity $w$ at the surface will be corrected with the non-hydrostatic pressure $[q]_{z=b}:=\hat q$ at the bottom. This parameter will be obtained through a pressure projection as introduced in \cite{chorin}: it is computed as the solution to a system of linear equations in order to render each numerical control volume divergence-free. Naturally, the basis for the derivation of the system of linear equations will be the law of mass-conservation in the Navier-Stokes equations:
+In order to solve the non-hydrostatic shallow water equations \eqref{eq:govern} with these assumptions, we employ the commonly applied implicit fractional step scheme: in each time step, the hydrostatic shallow water equations are solved with the finite volume method first. After the hydrostatic solution has been computed, the discharges $hU$ and $hV$ and the vertical velocity $w$ at the surface will be corrected with the non-hydrostatic pressure $[q]_{z=b}:=\hat q$ at the bottom. This numerical parameter will be obtained by a pressure projection as introduced in \cite{chorin}: it is computed as the solution to a system of linear equations in order to render each numerical control volume divergence-free. Naturally, the basis for the derivation of the system of linear equations will be the law of mass-conservation of the Navier-Stokes equations:
 \begin{equation}
 \frac{\partial u}{\partial x}
 +
@@ -64,7 +65,7 @@ In order to solve the non-hydrostatic shallow water equations \eqref{eq:govern} 
 \label{eq:mass_consv}
 \end{equation}
 
-In order to derive the system of Poisson equations for the non-hydrostatic pressure, certain correction formulas will be plugged into the integral form of \eqref{eq:mass_consv} which will be discussed later in more detail. These formulas express how the discharges/velocities have to be corrected with the non-hydrostatic pressure and follow from a first-order Euler time-discretization of the governing equations \eqref{eq:govern}:
+In order to derive the system of Poisson equations for the non-hydrostatic pressure, correction formulas will be plugged into the integral form of \eqref{eq:mass_consv} and discretized in space, see Sec. TODO. These formulas express how the discharges/velocities have to be corrected with the non-hydrostatic pressure and follow from a first-order Euler time-discretization of the governing equations \eqref{eq:govern}:
 \begin{align}
 (hU)^{n+1}&= (\widetilde{hU})^{n+1} -\Delta t \left(\left[\frac{1}{2}h^{n}\hat{q}^{n+1}\right]_x+\hat q^{n+1}b_x\right)
 \\
@@ -72,7 +73,7 @@ In order to derive the system of Poisson equations for the non-hydrostatic press
 \\
 w^{n+1}&= \widetilde{w^{n+1}}+ 2\Delta t \frac{\hat q^{n+1}}{h^{n+1}}.
 \end{align}
-Here, the tilde is used to represent the intermediate quantities computed by the hydrostatic solver in each time-step. The hydrostatic solver has no impact on the vertical velocity, therefore $\widetilde{w^{n+1}}=w^{n}$. Further, note that for the vertical velocity correction formula, the vertical momentum equation in  \eqref{eq:govern} has been divided by $h$ and the non-linear terms have been neglected (cf. \cite{cui}).
+Here, the tilde is used to represent the intermediate quantities computed by the hydrostatic solver in each time-step. Note that for the vertical velocity correction formula, the vertical momentum equation in  \eqref{eq:govern} has been divided by $h$ and the non-linear terms have been neglected (cf. \cite{cui}). Because of the latter approximation, the hydrostatic solver does not have an impact on the vertical velocity ($\widetilde{w^{n+1}}=w^{n}$). 
 
 
 
@@ -80,6 +81,18 @@ Here, the tilde is used to represent the intermediate quantities computed by the
 
 
 \subsection{Discretization on Triangular Grids in \samoa}
+
+\subsubsection*{Introduction to \samoa}
+Before the spatial discretization of the non-hydrostatic pressure equation can be explained, some preliminary remarks on the simulation package \samoa and the numerical model for solving the hydrostatic shallow water equations have to be made.
+
+
+
+
+
+
+\subsubsection{•}
+
+
 %initial attempts: finite differences -> problems with number of unknowns, discontinuity
 %picture with examples for assembly of the equations, matrix-free jacobi
 %derivation of the element matrix, reference element
