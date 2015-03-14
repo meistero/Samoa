@@ -334,21 +334,21 @@
 
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
 
-                if(cfg%s_test_case_name .eq. 'beach' ) then
-                    if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
-                        element%nodes(1)%ptr%data_pers%w=0
-                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
-
-                        element%nodes(2)%ptr%data_pers%w=0
-                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
-
-                        element%nodes(3)%ptr%data_pers%w=0
-                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
-                    endif
-                endif
+!                if(cfg%s_test_case_name .eq. 'beach' ) then
+!                    if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+!                        element%nodes(1)%ptr%data_pers%w=0
+!                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+!
+!                        element%nodes(2)%ptr%data_pers%w=0
+!                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+!
+!                        element%nodes(3)%ptr%data_pers%w=0
+!                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+!                    endif
+!                endif
            end if
 
            if(cfg%s_test_case_name .eq. 'bar') then

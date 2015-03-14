@@ -205,7 +205,7 @@
 			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 
 			r_empty = 0.0_GRID_SR
-inspect core dump
+
 			if (i_element_order > 1) then
 				i_types = 22_1
 

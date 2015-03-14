@@ -193,8 +193,8 @@
 !                    node%data_pers%w=u_b* (eta_xp-eta_xm)/(2.0_GRID_SR*acc)
 
                     else
-                        node%data_pers%is_dirichlet_boundary=.true.
-                        node%data_pers%qp=0.0_GRID_SR
+                       ! node%data_pers%is_dirichlet_boundary=.true.
+                        !node%data_pers%qp=0.0_GRID_SR
                     end if
                 elseif (cfg%s_test_case_name .eq. 'bar') then
                     x= node%position(1)

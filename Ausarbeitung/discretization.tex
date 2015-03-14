@@ -2,51 +2,84 @@
 \section{Numerical approach}
 \subsection{Introduction: the non-hydrostatic correction}
 %kurze Hinführung, was muss diskretisiert werden, fractional step, rolle der korrekturformeln, algorithmus, integralform?
-The basis for the method presented in this paper are the non-hydrostatic shallow water equations as given by:
+In the following, a short summary of the non-hydrostatic correction shall be presented. For a more self-contained and detailed discussion, please refer to  \cite{samfass14extension}, \cite{cui} and \cite{fuchs}. The basis for the method presented in this paper are the non-hydrostatic shallow water equations as given by:
 
 \begin{align}
 \boxed{
 {\begin{bmatrix}
 h \\
-hu\\
-hv\\
-hw
+hU\\
+hV\\
+hW
 \end{bmatrix}}_{t}
 +
 {\begin{bmatrix}
-hu \\
-hu^2+\frac{1}{2}gh^2\\
-huv\\
-huw
+hU \\
+hU^2+\frac{1}{2}gh^2\\
+hUV\\
+hUW
 \end{bmatrix}}_{x}
 +
 {\begin{bmatrix}
-hv \\
-huv\\
-hv^2+\frac{1}{2}gh^2\\
-hvw
+hV \\
+hUV\\
+hV^2+\frac{1}{2}gh^2\\
+hVW
 \end{bmatrix}}_{y}
 =
 {\begin{bmatrix}
 0 \\
--ghb_x -\left([hQ]_x+[q]_{z=b}b_x \right)\\
--ghb_y -\left([hQ]_y+[q]_{z=b}b_y \right)\\
+-ghb_x -\left([h \frac{q}{2}]_x+[q]_{z=b}b_x \right)\\
+-ghb_y -\left([h \frac{q}{2}]_y+[q]_{z=b}b_y \right)\\
 [q]_{z=b}
 \end{bmatrix}_.}}
 \label{eq:govern}
 \end{align}
 
-Here, $h (x,y)=\eta (x,y) +b(x,y)$ denotes the height of the water column, $\eta (x,y)$ the free surface elevation above the mean sea level, $b (x,y)$ the bathymetry, $(u,v,w)$ the depth-averaged velocity vector, $g$ the gravity of Earth and a subscript the partial derivative with respect to the given coordinate. Further, $q (x,y,z)$ represents the non-hydrostatic portion of the pressure and $Q=\frac{1}{h} \int_{b}^{\eta} q \, dz$ the depth averaged non-hydrostatic pressure. These terms stem from the pressure decomposition
+Here, $h (x,y)=\eta (x,y) -b(x,y)$ denotes the height of the water column, $\eta (x,y)$ the free surface elevation above the mean sea level, $b (x,y)$ the bathymetry, $(U,V,W)$ the depth-averaged velocity vector, $g$ the gravity of Earth and a subscript the partial derivative with respect to the given coordinate. Further, $q (x,y,z)$ represents the non-hydrostatic portion of the pressure. These terms stem from the pressure decomposition
 \begin{equation}
-p= p_H + q = g* (\eta -z) +q
+p= p_H + q = g (\eta -z) +q
 \end{equation}
-into a hydrostatic portion $p_H$ and a non-hydrostatic part $q$.
+into a hydrostatic portion $p_H$ and a non-hydrostatic part $q$. In the hydrostatic shallow water equations, $p=p_H$ would be assumed. The non-hydrostatic shallow water equations \ref{eq:govern} involve certain assumptions which are reviewed subsequently.
+
+We follow \cite{walters} and assume a linear vertical distribution of the non-hydrostatic pressure. Thus, for the depth-averaged non-hydrostatic pressure occuring during the depth-integration,
+\begin{equation}
+\frac{1}{h} \int_{b}^{\eta} q \, dz= \frac{1}{2} [q]_{z=b}
+\end{equation}
+holds since the non-hydrostatic pressure vanishes at the surface. In addition, the vertical velocity component $w$ is approximated linearly in z-direction \cite{walters}. Hence, with the assumption of a zero vertical velocity at the bottom (cf. \cite{cui}):
+\begin{equation}
+W=  \frac{1}{h} \int_{b}^{\eta} w \, dz= \frac{1}{2} [w]_{z=\eta}.
+\end{equation}
+Thus, only the vertical velocity at the water surface will be computed in the model presented in this paper. We therefore drop the subscript for simplicity in the remainder of this paper, that is $w:=[w]_{z=\eta}$.
+
+In order to solve the non-hydrostatic shallow water equations \eqref{eq:govern} with these assumptions, we employ the commonly applied implicit fractional step scheme: in each time step, the hydrostatic shallow water equations are solved with the finite volume method first. After the hydrostatic solution has been computed, the discharges $hU$ and $hV$ and the vertical velocity $w$ at the surface will be corrected with the non-hydrostatic pressure $[q]_{z=b}:=\hat q$ at the bottom. This parameter will be obtained through a pressure projection as introduced in \cite{chorin}: it is computed as the solution to a system of linear equations in order to render each numerical control volume divergence-free. Naturally, the basis for the derivation of the system of linear equations will be the law of mass-conservation in the Navier-Stokes equations:
+\begin{equation}
+\frac{\partial u}{\partial x}
++
+\frac{\partial v}{\partial y}
++
+\frac{\partial w}{\partial z}
+=
+0.
+\label{eq:mass_consv}
+\end{equation}
+
+In order to derive the system of Poisson equations for the non-hydrostatic pressure, certain correction formulas will be plugged into the integral form of \eqref{eq:mass_consv} which will be discussed later in more detail. These formulas express how the discharges/velocities have to be corrected with the non-hydrostatic pressure and follow from a first-order Euler time-discretization of the governing equations \eqref{eq:govern}:
+\begin{align}
+(hU)^{n+1}&= (\widetilde{hU})^{n+1} -\Delta t \left(\left[\frac{1}{2}h^{n}\hat{q}^{n+1}\right]_x+\hat q^{n+1}b_x\right)
+\\
+(hV)^{n+1}&= (\widetilde{hV})^{n+1} -\Delta t \left(\left[\frac{1}{2}h^{n}\hat{q}^{n+1}\right]_y+\hat q^{n+1}b_y\right)
+\\
+w^{n+1}&= \widetilde{w^{n+1}}+ 2\Delta t \frac{\hat q^{n+1}}{h^{n+1}}.
+\end{align}
+Here, the tilde is used to represent the intermediate quantities computed by the hydrostatic solver in each time-step. The hydrostatic solver has no impact on the vertical velocity, therefore $\widetilde{w^{n+1}}=w^{n}$. Further, note that for the vertical velocity correction formula, the vertical momentum equation in  \eqref{eq:govern} has been divided by $h$ and the non-linear terms have been neglected (cf. \cite{cui}).
 
 
-For a detailed derivation, various sources are available, refer e.g. to \cite{samfass14extension}, \cite{cui} or \cite{fuchs}.  
+
+%For a detailed derivation, various sources are available, refer e.g. to \cite{samfass14extension}, \cite{cui} or \cite{fuchs}.  
 
 
-\subsection{Discretization on Triangular Grids in SAMOA}
+\subsection{Discretization on Triangular Grids in \samoa}
 %initial attempts: finite differences -> problems with number of unknowns, discontinuity
 %picture with examples for assembly of the equations, matrix-free jacobi
 %derivation of the element matrix, reference element
