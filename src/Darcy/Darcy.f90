@@ -377,12 +377,14 @@
 				!end if
 
                 !solve pressure equation
-                if (cfg%l_lse_output) then
+                if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
                     call darcy%lse_output%traverse(grid)
                     i_lse_iterations = darcy%pressure_solver%solve(grid)
                     call darcy%lse_output%traverse(grid)
+                else if (mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
+                    i_lse_iterations = darcy%pressure_solver%solve(grid)
                 else
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
+                    i_lse_iterations = 0
                 end if
 
 				!compute velocity field (to determine the time step size)

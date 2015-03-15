@@ -156,7 +156,7 @@
                         !buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
                         !buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
 
-                        r_base_permeability(1) = buffer(1)
+                        r_base_permeability = buffer(1)
 #                   endif
 
                     !convert from mD to m^2 to um^2
@@ -512,6 +512,7 @@
                             inflow = 0.0_SR
 
                             !split local inflows in primary layer and assign half contributions to dual layers
+
                             do i = 1, 3
                                 inflow(1:_DARCY_LAYERS, i) = inflow(1:_DARCY_LAYERS, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
                                 inflow(2:_DARCY_LAYERS + 1, i) = inflow(2:_DARCY_LAYERS + 1, i) + 0.5_SR * base_permeability(:, 1) * weights(i)

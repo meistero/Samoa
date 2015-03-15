@@ -60,8 +60,9 @@ module config
  			integer					 		    :: afh_permeability_Z			                    !< asagi file handle to Z-axis permeability data
  			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
             integer			        	        :: i_lsolver			                		    !< linear solver
-            integer			        	        :: i_max_iterations			                		!< maximum linear iterations of the solver
+            integer			        	        :: i_max_iterations			                		!< maximum iterations of the linear solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
+            integer			        	        :: i_lse_skip			                            !< number of time steps between each linear solver solution
             logical                             :: l_lse_output                                     !< print out the linear equation system
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
@@ -116,7 +117,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -cg_restart 256 -lseoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false."
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -179,6 +180,7 @@ module config
 			config%r_p_in = rget('samoa_p_in')
 			config%r_p_prod = rget('samoa_p_prod')
             config%i_max_iterations = iget('samoa_max_iter')
+            config%i_lse_skip = iget('samoa_lse_skip')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
             config%l_lse_output = lget('samoa_lseoutput')
@@ -234,6 +236,7 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod, " psi)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
+                    PRINT '(A, I0)',        "	-lse_skip			    number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
                     PRINT '(A, L, A)',     "	-lseoutput             enable LSE output (value: ", config%l_lse_output, ")"
 #         	    elif defined(_SWE)
