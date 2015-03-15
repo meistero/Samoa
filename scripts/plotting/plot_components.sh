@@ -26,7 +26,7 @@ for file in darcy*.log ; do
 
     i=0
     for phase in xx* ; do
-	    echo -n $(($processes * $threads * $layers)) \"$processes{/Symbol \\264}$threads{l}$layers\"" " >> "darcy"$i".plt"
+	    echo -n $(($processes * $threads * $layers)) \"$layers\"" " >> "darcy"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "integrity: [-]*[0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "load balancing: [-]*[0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
@@ -101,7 +101,7 @@ done
 gnuplot &>/dev/null << EOT
 
 set terminal postscript enhanced color font ',20'
-set xlabel "Cores (processes {/Symbol \\264} threads)"
+set xlabel "Layers"
 set key below font ",20" spacing 1.0 width -2
 set xtics rotate
 set yrange [0:*]
@@ -131,19 +131,19 @@ set boxwidth 0.75
 do for [i=1:20] {
     infile = sprintf('darcy%i.plt', i)
 
-    set title "Darcy component breakdown"
+    set title "Component breakdown"
     set ylabel "Sec. per Mio. Elements per core"
 
     unset output
 
-    plot infile u (10 / \$15 / (\$18 + 1)) ls 7 t "Pressure Solver", \
-	    '' u (1 / \$11 / (\$18 + 1)) ls 5 t "Gradient", \
-	    '' u (1 / \$9 / (\$18 + 1)) ls 4 t "Transport", \
-	    '' u (2 / \$13 / (\$18 + 1)) ls 6 t "Permeability", \
-	    '' u (\$5 / \$3 * 1 / \$4 / (\$18 + 1)) ls 2 t "Conformity", \
-        '' u ((\$3 - \$7) / \$3 * 1 / \$4 / (\$18 + 1)):xtic(2) ls 1 t "Adaption", \
-	    '' u (\$7 / \$3 * 1 / \$4 / (\$18 + 1)) ls 8 t "Neighbor search", \
-	    '' u (\$6 / \$3 * 1 / \$4 / (\$18 + 1)) ls 3 t "Load Balancing"
+    plot infile u (10 / \$15 / (\$18 > 0 ? \$18 : 1)) ls 7 t "Pressure Solver", \
+	    '' u (1 / \$11 / (\$18 > 0 ? \$18 : 1)) ls 5 t "Gradient", \
+	    '' u (1 / \$9 / (\$18 > 0 ? \$18 : 1)) ls 4 t "Transport", \
+	    '' u (2 / \$13 / (\$18 > 0 ? \$18 : 1)) ls 6 t "Permeability", \
+	    '' u (\$5 / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)) ls 2 t "Conformity", \
+        '' u ((\$3 - \$7) / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)):xtic(2) ls 1 t "Adaption", \
+	    '' u (\$7 / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)) ls 8 t "Neighbor search", \
+	    '' u (\$6 / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)) ls 3 t "Load Balancing"
 
     outfile = sprintf('| ps2pdf - darcy%i_components.pdf', i)
     set output outfile

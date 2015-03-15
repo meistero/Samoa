@@ -37,7 +37,7 @@ do
         postfix=_noomp_upwind
     fi
 
-	for sections in 16
+	for sections in 8
 	do
 		for cores in 16
 		do
@@ -45,7 +45,8 @@ do
 			processes=$cores
 			threads=1
 			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
-			size=`echo "import numpy; print int(numpy.log2(1 + "$layers"))" | python`
+			log_cores=`echo "import numpy; print int(numpy.log2("$cores"))" | python`
+			log_layers=`echo "import numpy; print int(numpy.log2(1 + "$layers"))" | python`
 
 			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
 			cat "$script_dir/run_supermuc_template.sh" > $script
@@ -59,8 +60,9 @@ do
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
-		    sed -i 's=-dmin 26=-dmin '$((24 - size))'=g' $script
-	        sed -i 's=-dmax 40=-dmax 30=g' $script
+		    sed -i 's=-dmin 26=-dmin '$((22 - log_layers + log_cores))'=g' $script
+	        sed -i 's=-dmax 40=-dmax '$((23 + log_cores))'=g' $script
+	        sed -i 's=$add_options= =g' $script
 
 			llsubmit $script
 		done

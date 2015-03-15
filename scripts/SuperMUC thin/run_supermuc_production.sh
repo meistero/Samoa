@@ -17,24 +17,21 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-#scons config=supermuc.py scenario=darcy flux_solver=upwind layers=8 openmp=noomp -j4 &
-#scons config=supermuc.py scenario=swe openmp=noomp -j4 &
-
-#wait %1 %2
+layers=85
+#scons config=supermuc.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4
 
 echo "Running scenarios..."
 
 class=micro
 limit=48:00:00
 
-layers=85
 postfix=_noomp_upwind_l$layers 
 
 for asagimode in 2
 do
 	for sections in 1
 	do
-		for cores in 16
+		for cores in 64 512
 		do
 			processes=$cores
 			threads=1
@@ -53,8 +50,9 @@ do
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
-		    sed -i 's=-dmin 26=-dmin 8=g' $script
-	        sed -i 's=-dmax 40=-dmax 14=g' $script
+		    sed -i 's=-dmin 26=-dmin 14=g' $script
+	        sed -i 's=-dmax 40=-dmax 20=g' $script
+	        sed -i 's=$add_options=-tsteps -1 -tmax 1.728e8 -max_iter -1 -xmloutput -tout 86.4e4 -courant 0.5 -lbserial =g' $script
 
 			llsubmit $script
 		done
