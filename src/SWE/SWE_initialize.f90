@@ -109,10 +109,10 @@
                         element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
 
 
-
-                        element%nodes(2)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
-                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+!
+!                        element%nodes(2)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
+!                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
 
 
 

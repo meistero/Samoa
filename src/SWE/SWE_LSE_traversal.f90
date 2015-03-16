@@ -76,12 +76,12 @@ subroutine element_op(traversal, section, element)
 
     if (h>=cfg%dry_tolerance) then
     !assert that q values are ok
-    q1= element%nodes(1)%ptr%data_pers%qp(1)
-    q2= element%nodes(2)%ptr%data_pers%qp(1)
-    q3= element%nodes(3)%ptr%data_pers%qp(1)
-    assert_eq(q1,q1)
-    assert_eq(q2,q2)
-    assert_eq(q3,q3)
+!    q1= element%nodes(1)%ptr%data_pers%qp(1)
+!    q2= element%nodes(2)%ptr%data_pers%qp(1)
+!    q3= element%nodes(3)%ptr%data_pers%qp(1)
+!    assert_eq(q1,q1)
+!    assert_eq(q2,q2)
+!    assert_eq(q3,q3)
 
     w1= element%nodes(1)%ptr%data_pers%w(1)
     w2= element%nodes(2)%ptr%data_pers%w(1)
@@ -229,7 +229,7 @@ subroutine element_op(traversal, section, element)
     else
         mat=0.0_GRID_SR
         rhs=0.0_GRID_SR
-                  if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+                  !if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
 
 
                           ! element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
@@ -238,7 +238,7 @@ subroutine element_op(traversal, section, element)
                           !  element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
                           !  element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
                           !  element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
-                endif
+                !endif
     endif
 
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
