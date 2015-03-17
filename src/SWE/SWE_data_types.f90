@@ -112,6 +112,8 @@
 		!> temporary scenario data on a node (deleted after each traversal)
 		type num_node_data_temp
                         real (kind = GRID_SR), dimension(1)					   :: mat_diagonal
+                        real (kind = GRID_SR), dimension(1)					   :: area_ctrl_vol
+                        real (kind = GRID_SR), dimension(1)					   :: h_sum_inv
 		END type num_node_data_temp
 
 		!> temporary scenario data on an edge (deleted after each traversal)

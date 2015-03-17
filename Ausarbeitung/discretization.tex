@@ -72,6 +72,7 @@ In order to derive the system of Poisson equations for the non-hydrostatic press
 (hV)^{n+1}&= (\widetilde{hV})^{n+1} -\Delta t \left(\left[\frac{1}{2}h^{n}\hat{q}^{n+1}\right]_y+\hat q^{n+1}b_y\right)
 \\
 w^{n+1}&= \widetilde{w^{n+1}}+ 2\Delta t \frac{\hat q^{n+1}}{h^{n+1}}.
+\label{eq:correction}
 \end{align}
 Here, the tilde is used to represent the intermediate quantities computed by the hydrostatic solver in each time-step. Note that for the vertical velocity correction formula, the vertical momentum equation in  \eqref{eq:govern} has been divided by $h$ and the non-linear terms have been neglected (cf. \cite{cui}). Because of the latter approximation, the hydrostatic solver does not have an impact on the vertical velocity ($\widetilde{w^{n+1}}=w^{n}$). 
 
@@ -87,11 +88,11 @@ Before the spatial discretization of the non-hydrostatic pressure equation can b
 
 \samoa is a parallel framework for solving partial differential equations on dynamically adaptive triangular meshes. It uses the Sierpinski space-filling curve in order to provide memory and cache-efficient algorithms for grid generation, refinement and traversal and supports finite element, finite volume and discontinuous-Galerkin discretizations \cite{meister11software}.  
 
-In this paper, we focus only on the SWE subpackage in \samoa which implements the finite volume method for solving the 2D-hydrostatic shallow water equations based on the theory in \cite{leveque}. For each finite volume cell $i$, a cell average or state $Q_i^{n}= (h_i^{n},[hU]_i^{n},[hV]_i^{n})^T$ is determined. In order to compute $Q_i^{n+1}$ during a timestep, each $Q_i^{n}$ is updated with the numerical fluxes which are computed by solving Riemann problems on the cell edges. The timestep $dt$ is restricted by the CFL-condition and thus varies depending on the scenario and the grid resolution.  
+In this paper, we focus only on the SWE subpackage in \samoa which implements the finite volume method for solving the 2D-hydrostatic shallow water equations based on the theory in \cite{leveque}. For each finite volume cell or element $i$, a cell average or state $Q_i^{n}= (h_i^{n},[hU]_i^{n},[hV]_i^{n})^T$ is determined. In order to compute $Q_i^{n+1}$ during a timestep, each $Q_i^{n}$ is updated with the numerical fluxes which are computed by solving Riemann problems on the cell edges. The timestep $dt$ is restricted by the CFL-condition and thus varies depending on the scenario and the grid resolution.  
 
-Regarding the grid generation, \samoa starts with a square that is divided by its diagonal into two right triangles/cells as its computation domain. Initially, these two triangles are then refined recursively into smaller right triangles through bisection until a sufficient grid resolution is obtained (cf. \ref{fig:adapt_grid}). Cells can also be refined during the simulation in an analogous manner. The state of new cells generated in this process is determined using a simple interpolation according to the (constant) basis functions. On the other hand, the reverse process (i.e. coarsening) might happen as well: two right triangles of the same refinement depth are merged into a single one by computing an average of the two cell states.
+Regarding the grid generation, \samoa starts with a square that is divided by its diagonal into two right triangles/cells as its computation domain. Initially, these two elements are then refined recursively into smaller right triangles through bisection until a sufficient grid resolution is obtained (cf. \ref{fig:adapt_grid}). Cells can also be refined during the simulation in an analogous manner. The state of new cells generated in this process is determined using a simple interpolation according to the (constant) basis functions. On the other hand, the reverse process (i.e. coarsening) might happen as well: two right triangles of the same refinement depth are merged into a single one by computing an average of the two cell states.
 
-A key element used in \samoa is the grid traversal through which access to the grid variables is granted. During such an traversal, different operators are called such as the element operator ELEMENT\_OP which is being called for each element. The NODE\_FIRST\_TOUCH\_OP and NODE\_LAST\_TOUCH\_OP operators allow for a different treatment of a node depending on whether the node is visited for the first or for the last time in a traversal.
+A key concept used in \samoa is the grid traversal through which access to the grid variables is granted. During such an traversal, different operators are called such as the element operator ELEMENT\_OP which is being called for each element. The NODE\_FIRST\_TOUCH\_OP and NODE\_LAST\_TOUCH\_OP operators allow for a different treatment of a node depending on whether the node is visited for the first or for the last time in a traversal.
 
 \begin{figure}
 \centering
@@ -102,14 +103,54 @@ A key element used in \samoa is the grid traversal through which access to the g
 \draw[->] (6.5,1) -- +(0.5,0);
 \draw (8,0) rectangle ++(2,2) -- (8,0) ++(0,2) -- ++(2,-2) ++(0,1) -- +(-1,0);
 \end{tikzpicture}
-\caption{Example refinement: in the first step, both cells are refined while in the second, only the rightmost cell is refined.}
+\caption{Example refinement: in the first step, both elements are refined while in the second, only the rightmost element is refined.}
 \label{fig:adapt_grid}
 \end{figure}
 
 \subsubsection*{Dual Grid Discretization}
 The non-hydrostatic extension as reviewed previously introduces two additional degrees of freedom: the vertical velocity $w$ at the water surface and the non-hydrostatic pressure correction parameter $\hat q$ at the bottom. In \cite{samfass14extension}, these quantities were co-located with the other variables $h,hU,hV$ in the centers of the rectangular cells. The non-hydrostatic correction formulas were discretized using finite differences to obtain the system of linear equations for $\hat q$. However, the realization of this approach is not directly applicable in \samoa. First, the adaptivity of the grid would be problematic for determining the mesh-width of the differences which would be necessary in order to compute the non-hydrostatic pressure gradients. Second, accessing neighbouring cell data would be required for the assembly of the global matrix for the non-hydrostatic pressure. However, the underlying traversal concept of \samoa does not allow this. 
 
-In order to circumvent these difficulties, we propose to use a dual grid for the control volumes for the non-hydrostatic pressure. 
+In order to circumvent these difficulties, we propose to use a dual grid for the control volumes for the non-hydrostatic pressure. Instead of placing $w, \hat q$ in the cell center, we position these variables on the nodes. For each $\hat q$ on a given vertex, the control volume being rendered divergence-free with the continuity equation will then involve all the elements that are adjacent to this node. This will finally allow for a matrix-free solution of the system of linear equations.
+
+\begin{figure}
+\centering
+\begin{tikzpicture}
+
+\draw [fill=blue, fill opacity=0.5, dashed, line width=0.1cm] (0,1.25) -- (1.25,2.5)-- (2.5,1.25)-- (1.25,0) -- cycle; 
+\draw [fill=blue, fill opacity=0.5, dashed, line width=0.1cm] (2.5,1.25) -- (3.75,2.5)-- (5,1.25)-- (3.75,0) -- cycle; 
+\draw [fill=blue, fill opacity=0.5, dashed, line width=0.1cm] (0,3.75) -- (1.25,5)-- (2.5,3.75)-- (1.25,2.5) -- cycle; 
+\draw [fill=blue, fill opacity=0.5, dashed, line width=0.1cm] (2.5,3.75) -- (3.75,5)-- (5,3.75)-- (3.75,2.5) -- cycle;
+\draw [fill=green, fill opacity=0.5, dashed, line width=0.1cm] (1.25,2.5) -- (2.5,3.75)-- (3.75,2.5)-- (2.5,1.25) -- cycle;
+\draw  (0,0) rectangle (5,5);
+\draw  (0,0) -- (5,5);
+\draw  (0,5) -- (5,0);
+
+\draw  (2.5,0) -- (2.5,5);
+\draw  (0,2.5) -- (5,2.5);
+\draw  (0,2.5) -- (2.5,5) -- (5,2.5) -- (2.5,0) -- cycle;
+
+\draw (8,0) rectangle ++(5,5) -- (8,0) ++(0,5) -- ++(5,-5) ++(0,2.5) -- +(-2.5,0);
+\draw [fill=orange, fill opacity=0.5, dashed, line width=0.1cm] (8,2.5) -- (10.5,5) -- (11.75,3.75) -- (11.75,1.25) -- (10.5,0) --cycle;
+
+
+\node  [fill=black,circle,inner sep=2pt] at (2.5,2.5) {};
+\node  [fill=black,circle,inner sep=2pt] at (1.25,1.25) {};
+\node  [fill=black,circle,inner sep=2pt] at (1.25,3.75) {};
+\node  [fill=black,circle,inner sep=2pt] at (3.75,3.75) {};
+\node  [fill=black,circle,inner sep=2pt] at (3.75,1.25) {};
+\node  [fill=black,circle,inner sep=2pt] at (10.5,2.5) {};
+\end{tikzpicture}
+\caption{Control volumes/dual grid cells (dashed) for the non-hydrostatic pressure: the left picture shows the two kinds (green and blue) of dual grid cells that might occur in a grid of uniform refinement depth. On the right, a control volume for the non-uniform case is depicted. Note that an inner element (containing no part of the boundary) will contribute to three different control volumes. }
+\label{fig:control_vols}
+\end{figure}
+
+We start deriving the system of linear equations for the non-hydrostatic pressure by integrating \eqref{eq:mass_consv} over a control volume. By the Gaussian divergence theorem and Fubini, we get
+\begin{equation}
+\int_{\Gamma_{d}} n_x \, hU d\Gamma + \int_{\Gamma_{d}} n_y \, hV d\Gamma + \int_{\Omega_d} w d\Omega_d =0 
+\label{eq:cont_int}
+\end{equation}
+where $\Gamma_{d}$ denotes the boundary, $n=(n_x,n_y)$ its outward pointing normal vector and $\Omega_d$ the area of the dual cell. Next, the non-hydrostatic correction formulas \eqref{eq:correction} are plugged into \eqref{eq:cont_int}. 
+
 
 %initial attempts: finite differences -> problems with number of unknowns, discontinuity
 %picture with examples for assembly of the equations, matrix-free jacobi

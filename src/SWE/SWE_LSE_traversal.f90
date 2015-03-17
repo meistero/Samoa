@@ -174,17 +174,17 @@ subroutine element_op(traversal, section, element)
 !    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
 !    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/2.0_GRID_SR)
 
-    mat(1,1)= - 0.25_GRID_SR*s*h*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR)
-    mat(1,2)= 0.25_GRID_SR*s*h*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
-    mat(1,3)= -0.25_GRID_SR*s*h*h*(nxvn*m12+nyvn*m22)
+    mat(1,1)= - 0.25_GRID_SR*s*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR) /h
+    mat(1,2)= 0.25_GRID_SR*s*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
+    mat(1,3)= -0.25_GRID_SR*s*h*(nxvn*m12+nyvn*m22)
 
-    mat(2,1)=  -0.25_GRID_SR*h*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21)
-    mat(2,2)= 0.25_GRID_SR *h*h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +2.0_GRID_SR*c*c
-    mat(2,3)= - 0.25_GRID_SR*h*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22)
+    mat(2,1)=  -0.25_GRID_SR*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21)
+    mat(2,2)= 0.25_GRID_SR *h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +2.0_GRID_SR*c*c/h
+    mat(2,3)= - 0.25_GRID_SR*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22)
 
-    mat(3,1)= - 0.25_GRID_SR*h*h*s*(nxhn*m11+nyhn*m21)
-    mat(3,2)= 0.25_GRID_SR*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
-    mat(3,3)=  - 0.25_GRID_SR*h*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR)
+    mat(3,1)= - 0.25_GRID_SR*h*s*(nxhn*m11+nyhn*m21)
+    mat(3,2)= 0.25_GRID_SR*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
+    mat(3,3)=  - 0.25_GRID_SR*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR)/h
 
 
    ! c=0.5_GRID_SR * element%cell%geometry%get_leg_size() *cfg%scaling

@@ -1,114 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
 <CodeBlocks_layout_file>
 	<ActiveTarget name="Debug" />
-	<File name="src/Tools_log.f90" open="1" top="0" tabpos="34" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SWE/SWE_adapt.f90" open="0" top="0" tabpos="17" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="2653" topLine="75" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_data_types.f90" open="1" top="0" tabpos="14" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="0" topLine="68" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_point_output.f90" open="1" top="0" tabpos="29" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="0" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="src/SFC_traversal.f90" open="1" top="0" tabpos="25" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="0" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_LSE_traversal.f90" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="8916" topLine="276" />
-		</Cursor>
-	</File>
-	<File name="src/SFC_edge_traversal.f90" open="1" top="0" tabpos="8" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="42843" topLine="38" />
-		</Cursor>
-	</File>
-	<File name="src/SFC_main.f90" open="1" top="0" tabpos="35" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="0" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="src/Config.f90" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="7358" topLine="96" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_initialize.f90" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="3889" topLine="514" />
-		</Cursor>
-		<Folding>
-			<Collapse line="50" />
-			<Collapse line="62" />
-			<Collapse line="72" />
-		</Folding>
-	</File>
-	<File name="src/SWE/SWE_output.f90" open="1" top="0" tabpos="24" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="6443" topLine="157" />
-		</Cursor>
-	</File>
-	<File name="src/Compilation_control.f90" open="1" top="0" tabpos="32" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="6897" topLine="93" />
-		</Cursor>
-	</File>
-	<File name="src/Darcy/Darcy_output.f90" open="1" top="0" tabpos="19" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="0" topLine="235" />
-		</Cursor>
-	</File>
-	<File name="src/Solver/PipeCG.f90" open="1" top="0" tabpos="33" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="23533" topLine="663" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_NH_test_traversal.f90" open="1" top="0" tabpos="28" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="6452" topLine="147" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_local_function_spaces.f90" open="1" top="0" tabpos="37" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="3730" topLine="142" />
+			<Cursor1 position="5639" topLine="126" />
 		</Cursor>
 	</File>
 	<File name="src/SWE/SWE_displace.f90" open="1" top="0" tabpos="15" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="0" topLine="58" />
+			<Cursor1 position="0" topLine="55" />
 		</Cursor>
 	</File>
-	<File name="src/SWE/SWE_adapt.f90" open="1" top="0" tabpos="17" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="9612" topLine="210" />
-		</Cursor>
-	</File>
-	<File name="src/SFC_data_types.f90" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="11595" topLine="251" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE.f90" open="1" top="0" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="17461" topLine="99" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_non_hydrostatic_pressure_jacobi.f90" open="1" top="0" tabpos="23" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SWE/SWE_non_hydrostatic_pressure_jacobi.f90" open="0" top="0" tabpos="23" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="938" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="src/Darcy/Darcy_xml_output.f90" open="1" top="0" tabpos="30" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="73" topLine="290" />
 		</Cursor>
 	</File>
 	<File name="src/Darcy/Darcy_data_types.f90" open="1" top="0" tabpos="11" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -116,48 +21,9 @@
 			<Cursor1 position="4571" topLine="77" />
 		</Cursor>
 	</File>
-	<File name="src/SWE/SWE_NH_residual_output_traversal.f90" open="1" top="0" tabpos="36" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SFC_generic_traversal_ringbuffer.f90" open="0" top="0" tabpos="27" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="0" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_NH_traversal.f90" open="1" top="0" tabpos="18" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="1634" topLine="50" />
-		</Cursor>
-	</File>
-	<File name="src/Conformity/Conformity.f90" open="1" top="0" tabpos="7" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="3432" topLine="388" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_euler_timestep.f90" open="1" top="1" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="17276" topLine="195" />
-		</Cursor>
-		<Folding>
-			<Collapse line="55" />
-			<Collapse line="86" />
-			<Collapse line="105" />
-			<Collapse line="128" />
-			<Collapse line="137" />
-			<Collapse line="177" />
-			<Collapse line="250" />
-		</Folding>
-	</File>
-	<File name="src/SWE/SWE_basis.f90" open="1" top="0" tabpos="13" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="582" topLine="9" />
-		</Cursor>
-	</File>
-	<File name="src/SWE/SWE_lse_output.f90" open="1" top="0" tabpos="22" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="3007" topLine="50" />
-		</Cursor>
-	</File>
-	<File name="src/Solver/Jacobi.f90" open="1" top="0" tabpos="21" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
-		<Cursor>
-			<Cursor1 position="11631" topLine="335" />
 		</Cursor>
 	</File>
 	<File name="src/Tools_grid.f90" open="1" top="0" tabpos="10" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
@@ -165,17 +31,42 @@
 			<Cursor1 position="16832" topLine="452" />
 		</Cursor>
 	</File>
-	<File name="src/Tools_grid_variable.f90" open="1" top="0" tabpos="31" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SWE/SWE_output.f90" open="1" top="0" tabpos="19" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="0" topLine="162" />
+			<Cursor1 position="6443" topLine="157" />
 		</Cursor>
 	</File>
-	<File name="src/Darcy/Darcy.f90" open="1" top="0" tabpos="20" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SWE/SWE_NH_traversal.f90" open="1" top="1" tabpos="17" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="0" topLine="0" />
+			<Cursor1 position="3446" topLine="87" />
 		</Cursor>
 	</File>
-	<File name="src/SFC_generic_traversal_ringbuffer.f90" open="1" top="0" tabpos="27" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SFC_data_types.f90" open="1" top="0" tabpos="6" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="11595" topLine="251" />
+		</Cursor>
+	</File>
+	<File name="src/Conformity/Conformity.f90" open="1" top="0" tabpos="7" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3432" topLine="388" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_LSE_traversal.f90" open="1" top="0" tabpos="1" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="9721" topLine="309" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_adapt.f90" open="1" top="0" tabpos="16" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="5202" topLine="103" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_output.f90" open="0" top="0" tabpos="19" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="232" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_generic_adaptive_traversal.f90" open="0" top="0" tabpos="26" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="0" topLine="0" />
 		</Cursor>
@@ -185,19 +76,125 @@
 			<Cursor1 position="8513" topLine="188" />
 		</Cursor>
 	</File>
-	<File name="src/Darcy/Darcy_adapt.f90" open="1" top="0" tabpos="16" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/Tools_log.f90" open="1" top="0" tabpos="26" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="8819" topLine="208" />
+			<Cursor1 position="2653" topLine="75" />
 		</Cursor>
+	</File>
+	<File name="src/Solver/Jacobi.f90" open="1" top="0" tabpos="18" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="11631" topLine="332" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_edge_traversal.f90" open="1" top="0" tabpos="8" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="42843" topLine="38" />
+		</Cursor>
+	</File>
+	<File name="src/Config.f90" open="1" top="0" tabpos="2" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="11757" topLine="168" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_point_output.f90" open="1" top="0" tabpos="21" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Tools_grid_variable.f90" open="1" top="0" tabpos="23" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="162" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_local_function_spaces.f90" open="1" top="0" tabpos="29" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3730" topLine="142" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy_xml_output.f90" open="1" top="0" tabpos="22" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="73" topLine="287" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_initialize.f90" open="1" top="0" tabpos="3" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3889" topLine="501" />
+		</Cursor>
+		<Folding>
+			<Collapse line="50" />
+			<Collapse line="62" />
+			<Collapse line="72" />
+		</Folding>
+	</File>
+	<File name="src/SFC_main.f90" open="1" top="0" tabpos="27" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SFC_traversal.f90" open="0" top="0" tabpos="25" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_NH_test_traversal.f90" open="1" top="0" tabpos="20" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="1323" topLine="183" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_NH_residual_output_traversal.f90" open="1" top="0" tabpos="28" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="31" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_lse_output.f90" open="0" top="0" tabpos="22" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="3007" topLine="50" />
+		</Cursor>
+	</File>
+	<File name="src/Darcy/Darcy.f90" open="0" top="0" tabpos="20" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="0" topLine="0" />
+		</Cursor>
+	</File>
+	<File name="src/Compilation_control.f90" open="1" top="0" tabpos="24" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="6897" topLine="90" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_euler_timestep.f90" open="1" top="0" tabpos="5" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="21819" topLine="369" />
+		</Cursor>
+		<Folding>
+			<Collapse line="55" />
+			<Collapse line="86" />
+			<Collapse line="105" />
+			<Collapse line="137" />
+		</Folding>
 	</File>
 	<File name="src/Tools_adaptive_traversal.f90" open="1" top="0" tabpos="9" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
 			<Cursor1 position="22546" topLine="0" />
 		</Cursor>
 	</File>
-	<File name="src/SFC_generic_adaptive_traversal.f90" open="1" top="0" tabpos="26" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+	<File name="src/SWE/SWE.f90" open="1" top="0" tabpos="4" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
 		<Cursor>
-			<Cursor1 position="0" topLine="0" />
+			<Cursor1 position="17461" topLine="99" />
+		</Cursor>
+	</File>
+	<File name="src/Solver/PipeCG.f90" open="1" top="0" tabpos="25" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="23533" topLine="663" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_data_types.f90" open="1" top="0" tabpos="14" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="4095" topLine="104" />
+		</Cursor>
+	</File>
+	<File name="src/SWE/SWE_basis.f90" open="1" top="0" tabpos="13" split="0" active="1" splitpos="0" zoom_1="0" zoom_2="0">
+		<Cursor>
+			<Cursor1 position="550" topLine="9" />
 		</Cursor>
 	</File>
 </CodeBlocks_layout_file>

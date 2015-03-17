@@ -264,7 +264,7 @@
 			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
-            if (edge%transform_data%normal(1)==-1 .and. edge%transform_data%normal(2)==0) then
+            if (cfg%s_test_case_name .eq. 'bar' .and. edge%transform_data%normal(1)==-1 .and. edge%transform_data%normal(2)==0) then
 
                 !!bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),sqrt( 9.81*(0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)+0.4)), -0.4)
                 !p(1)=2*sqrt(9.81*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR))*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)
@@ -286,7 +286,7 @@
 #			endif
 
 !            if( cfg%s_test_case_name .eq. 'bar') then
-!                if (edge%transform_data%normal(1)==-1 .and. edge%transform_data%normal(2)==0) then
+!               if (edge%transform_data%normal(1)==-1 .and. edge%transform_data%normal(2)==0) then
 !                    write(*,*) update%flux
 !                    update%flux(1)%h=0
 !                    update%flux(1)%p(1)=-0.5 * 9.81 * (0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)+0.4)*(0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)+0.4)
@@ -477,11 +477,6 @@
                 else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 0.0003_GRID_SR) ** 2) then
                     i_refinement = -1
                 endif
-            endif
-
-
-            if(cfg%s_test_case_name .eq. 'solitary_wave') then
-
             endif
 
 			u_max = max(u_max, maxval(fluxes%max_wave_speed))
