@@ -99,7 +99,7 @@
 
 
 			if (cfg%s_test_case_name .eq. 'bar') then
-                if((element%nodes(1)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(2)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(3)%ptr%position(2)*cfg%scaling<=0.5)) then
+                if((element%nodes(1)%ptr%position(2)*cfg%scaling<=0.09375) .and. (element%nodes(2)%ptr%position(2)*cfg%scaling<=0.09375) .and. (element%nodes(3)%ptr%position(2)*cfg%scaling<=0.09375)) then
                     if((element%nodes(1)%ptr%position(1)==0 .and. element%nodes(2)%ptr%position(1)==0) .or. (element%nodes(2)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0) .or. (element%nodes(1)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
 
 
@@ -193,8 +193,8 @@
 !                    node%data_pers%w=u_b* (eta_xp-eta_xm)/(2.0_GRID_SR*acc)
 
                     else
-                       ! node%data_pers%is_dirichlet_boundary=.true.
-                        !node%data_pers%qp=0.0_GRID_SR
+                        node%data_pers%is_dirichlet_boundary=.true.
+                        node%data_pers%qp=0.0_GRID_SR
                     end if
                 elseif (cfg%s_test_case_name .eq. 'bar') then
                     x= node%position(1)
@@ -252,7 +252,7 @@
                         endif
                 elseif (cfg%s_test_case_name .eq. 'bar') then
 
-                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=64 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=128 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=128 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.5 )) then
+                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=64 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.09375) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=64 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.09375) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=64 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.09375 )) then
                                 element%cell%geometry%refinement =1
                                 traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
@@ -329,7 +329,7 @@
 
                     elseif (cfg%s_test_case_name .eq. 'bar') then
 
-                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=128 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=128 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=128 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.5 )) then
+                        if((element%nodes(1)%ptr%position(1) *cfg%scaling <=64 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.09375) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=64 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.09375) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=64 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.09375 )) then
                                 element%cell%geometry%refinement =1
                                 traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
@@ -356,7 +356,7 @@
 
             elseif (cfg%s_test_case_name .eq. 'bar') then
                 if(element%cell%geometry%i_depth .gt. 2_GRID_DI) then
-                    if(.not.((element%nodes(1)%ptr%position(1) *cfg%scaling <=128 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=128 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.5) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=128 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.5 ))) then
+                    if(.not.((element%nodes(1)%ptr%position(1) *cfg%scaling <=64 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=0.09375) .or. (element%nodes(2)%ptr%position(1)*cfg%scaling <=64 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=0.09375) .or. (element%nodes(3)%ptr%position(1)*cfg%scaling <=64 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=0.09375 ))) then
                                 element%cell%geometry%refinement =-1
                     endif
                 endif
@@ -554,7 +554,7 @@
                     endif
                 elseif (cfg%s_test_case_name .eq. 'bar') then
                      xs = cfg%scaling * x + cfg%offset
-                     if(xs(1)<=128 .and. xs(2)<=0.5) then
+                     if(xs(1)<=64 .and. xs(2)<=0.09375) then
                         if(xs(1)<=6 .or. xs(1)>=17) then
                          bathymetry=d_bar
                         else if (xs(1)>=6 .and. xs(1)<=12) then

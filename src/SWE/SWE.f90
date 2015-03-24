@@ -183,7 +183,7 @@
                     cfg%scaling = 128.0_GRID_SR
                     cfg%offset = [-10.0_GRID_SR, 0.0_GRID_SR]
                 elseif (cfg%s_test_case_name .eq. 'bar') then
-                    cfg%scaling = 128.0_GRID_SR
+                    cfg%scaling = 64.0_GRID_SR
                     cfg%offset = [0.0_GRID_SR, 0.0_GRID_SR]
                 elseif (cfg%s_test_case_name .eq. 'sea_rest') then
                     cfg%scaling = 10.0_GRID_SR

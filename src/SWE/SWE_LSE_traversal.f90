@@ -229,16 +229,16 @@ subroutine element_op(traversal, section, element)
     else
         mat=0.0_GRID_SR
         rhs=0.0_GRID_SR
-                  !if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+                  if(cfg%s_test_case_name .eq. 'beach' .and. (element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
 
 
-                          ! element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
-                          !  element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
-                          !  element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
-                          !  element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
-                          !  element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
-                          !  element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
-                !endif
+                           element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+                            element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+                            element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+                endif
     endif
 
     !call gv_original_lse_orientation%write(element, element%transform_data%plotter_data%orientation)
