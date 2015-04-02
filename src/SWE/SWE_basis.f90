@@ -61,7 +61,7 @@
         use SWE_gv_is_dirichlet_boundary_mod
         use SWE_gv_rhs_mod
         use SWE_gv_original_lse_orientation_mod
-
+        use SWE_gv_h_old
 		use SWE_Q_space
 		use SWE_flux_space
 		use SWE_nh_node_space

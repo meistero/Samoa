@@ -197,7 +197,16 @@ MODULE SWE_gv_w_mod
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
+	MODULE SWE_gv_h_old
+		use SFC_data_types
 
+#		define _GV_TYPE_NAME		t_gv_h_old
+#		define _GV_TYPE				real (kind=GRID_SR)
+#		define _GV_NAME				h_old
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
 
 #	define _LFS_type_NAME			t_lfs_flux
 #	define _LFS_CELL_SIZE			0

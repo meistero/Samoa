@@ -264,20 +264,14 @@
 			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
-            if (cfg%s_test_case_name .eq. 'bar' .and. edge%transform_data%normal(1)==-1 .and. edge%transform_data%normal(2)==0) then
+           if (cfg%s_test_case_name .eq. 'bar' .and. ((edge%transform_data%normal(1)==-1 .and. edge%transform_data%normal(2)==0) .or. (edge%transform_data%normal(1)==1 .and. edge%transform_data%normal(2)==0))) then
 
-                !!bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),sqrt( 9.81*(0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)+0.4)), -0.4)
-                !p(1)=2*sqrt(9.81*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR))*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)
-                !sp(2)=0
-                !bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),p, -0.4)
+                !bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),sqrt( 9.81*(0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)+0.4)), -0.4)
+            !    p(1)=2*sqrt(9.81*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR))*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)
+           !     sp(2)=0
+          !      bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),p, -0.4)
                 bnd_rep = rep%Q(1)
-		else if (cfg%s_test_case_name .eq. 'bar' .and. edge%transform_data%normal(1)==1 .and. edge%transform_data%normal(2)==0) then
 
-                !!bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),sqrt( 9.81*(0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)+0.4)), -0.4)
-                !p(1)=2*sqrt(9.81*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR))*0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR)
-                !sp(2)=0
-                !bnd_rep = t_state( 0.01*sin(2.0_GRID_SR* grid%r_time* pi/2.02_GRID_SR),p, -0.4)
-                bnd_rep = rep%Q(1)
             else
                 bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
             endif
@@ -362,21 +356,21 @@
 
                 element%cell%data_pers%Q(1)%p = [0.0_GRID_SR, 0.0_GRID_SR]
 
-                if(cfg%s_test_case_name .eq. 'beach' ) then
-                    if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
-                        element%nodes(1)%ptr%data_pers%w=0
-                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
-
-                        element%nodes(2)%ptr%data_pers%w=0
-                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
-
-                        element%nodes(3)%ptr%data_pers%w=0
-                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
-                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
-                    endif
-                endif
+!                if(cfg%s_test_case_name .eq. 'beach' ) then
+!                    if((element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+!                        element%nodes(1)%ptr%data_pers%w=0
+!                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+!
+!                        element%nodes(2)%ptr%data_pers%w=0
+!                        element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+!
+!                        element%nodes(3)%ptr%data_pers%w=0
+!                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
+!                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
+!                    endif
+!                endif
            end if
 
            if(cfg%s_test_case_name .eq. 'bar') then
@@ -409,31 +403,19 @@
                         element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
 
 
-
-
                         element%nodes(2)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
                         element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
-
-!                        element%nodes(3)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
-!                        element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
-!                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
 
                     endif
 
-                       if((element%nodes(2)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
+                    if((element%nodes(2)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
                         element%cell%data_pers%Q(1)%h= 0.01*sin(2.0_GRID_SR* section%r_time* pi/2.02_GRID_SR)
                         !if(element%nodes(1)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0) then
-!                        element%nodes(1)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
-!                        element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
-!                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
-
-
-
-
                         element%nodes(2)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
                         element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+
 
                         element%nodes(3)%ptr%data_pers%w=0.01*(pi/2.02_GRID_SR)*cos(2.0_GRID_SR*pi*section%r_time/2.02_GRID_SR)
                         element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
@@ -442,16 +424,13 @@
                     endif
 
 
+                    if((element%nodes(1)%ptr%position(1)==1 .and. element%nodes(3)%ptr%position(1)==1)) then
 
-                    if((element%nodes(1)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
-
-                        element%nodes(1)%ptr%data_pers%w=0.0
+                        element%nodes(1)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
 
-
-
-                        element%nodes(3)%ptr%data_pers%w=0.0
+                         element%nodes(3)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
 
@@ -459,34 +438,26 @@
 
                     if((element%nodes(1)%ptr%position(1)==1 .and. element%nodes(2)%ptr%position(1)==1)) then
 
-                        element%nodes(1)%ptr%data_pers%w=0
                         element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+                         element%nodes(1)%ptr%data_pers%w=0.0_GRID_SR
 
-
-
-
-                        element%nodes(2)%ptr%data_pers%w=0
+                         element%nodes(2)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
-
 
                     endif
 
-                       if((element%nodes(2)%ptr%position(1)==1 .and. element%nodes(3)%ptr%position(1)==1)) then
-
-
-                        element%nodes(2)%ptr%data_pers%w=0
+                    if((element%nodes(2)%ptr%position(1)==1 .and. element%nodes(3)%ptr%position(1)==1)) then
                         element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
+                        element%nodes(2)%ptr%data_pers%w=0.0_GRID_SR
 
-                        element%nodes(3)%ptr%data_pers%w=0
+                        element%nodes(3)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
 
                     endif
-
-
 
                 endif
            endif

@@ -68,11 +68,12 @@ subroutine element_op(traversal, section, element)
     logical	:: is_dirichlet(3)
     real (kind = GRID_SR)  :: mat(3, 3)
     real (kind=GRID_SR) :: c,dt
-    real(kind=GRID_SR):: h,hu,hv,w1,w2,w3,q1,q2,q3
+    real(kind=GRID_SR):: h,hu,hv,w1,w2,w3,q1,q2,q3, h_old
     real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, midpoint12, midpoint13, midpoint23
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
     h= element%cell%data_pers%Q(1)%h -  element%cell%data_pers%Q(1)%b
+    h_old= element%cell%data_pers%h_old(1) -  element%cell%data_pers%Q(1)%b
 
     if (h>=cfg%dry_tolerance) then
     !assert that q values are ok
@@ -174,17 +175,17 @@ subroutine element_op(traversal, section, element)
 !    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
 !    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/2.0_GRID_SR)
 
-    mat(1,1)= - 0.25_GRID_SR*s*h*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR) /h
-    mat(1,2)= 0.25_GRID_SR*s*h*(nxvn*(m11+m12)+nyvn*(m21+m22))
-    mat(1,3)= -0.25_GRID_SR*s*h*(nxvn*m12+nyvn*m22)
+    mat(1,1)= - 0.25_GRID_SR*s*h_old*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR) /h
+    mat(1,2)= 0.25_GRID_SR*s*h_old*(nxvn*(m11+m12)+nyvn*(m21+m22))
+    mat(1,3)= -0.25_GRID_SR*s*h_old*(nxvn*m12+nyvn*m22)
 
-    mat(2,1)=  -0.25_GRID_SR*h*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21)
-    mat(2,2)= 0.25_GRID_SR *h*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +2.0_GRID_SR*c*c/h
-    mat(2,3)= - 0.25_GRID_SR*h*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22)
+    mat(2,1)=  -0.25_GRID_SR*h_old*s*(nxhp*m11+nyhp*m21+nxvp*m11+nyvp*m21)
+    mat(2,2)= 0.25_GRID_SR *h_old*s*(nxhp*(m11+m12)+nyhp*(m21+m22)+nxvp*(m11+m12)+nyvp*(m21+m22)) +2.0_GRID_SR*c*c/h
+    mat(2,3)= - 0.25_GRID_SR*h_old*s*(nxhp*m12+nyhp*m22+nxvp*m12+nyvp*m22)
 
-    mat(3,1)= - 0.25_GRID_SR*h*s*(nxhn*m11+nyhn*m21)
-    mat(3,2)= 0.25_GRID_SR*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
-    mat(3,3)=  - 0.25_GRID_SR*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR)/h
+    mat(3,1)= - 0.25_GRID_SR*h_old*s*(nxhn*m11+nyhn*m21)
+    mat(3,2)= 0.25_GRID_SR*h_old*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
+    mat(3,3)=  - 0.25_GRID_SR*h_old*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR)/h
 
 
    ! c=0.5_GRID_SR * element%cell%geometry%get_leg_size() *cfg%scaling

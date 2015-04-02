@@ -27,6 +27,7 @@
 		type(swe_gv_qp)							:: gv_qp
 		type(swe_gv_w)							:: gv_w
 		type(t_lfs_flux)						:: lfs_flux
+		type(t_gv_h_old)                      :: gv_h_old
 
 #		define _GT_NAME							t_swe_adaption_traversal
 
@@ -111,10 +112,14 @@
 			type(t_state), dimension(_SWE_CELL_SIZE)									:: Q
 			real (kind = GRID_SR), dimension(3)								            :: qp
             real (kind = GRID_SR), dimension(3)								            :: w
+            real (kind=GRID_SR), dimension(1)                                           ::h_old
 
 
 			call gv_Q%read( src_element%t_element_base, Q)
 			call gv_Q%write( dest_element%t_element_base, Q)
+
+			call gv_h_old%read( src_element%t_element_base, h_old)
+			call gv_h_old%write( dest_element%t_element_base, h_old)
 
 			call gv_qp%read(src_element%t_element_base, qp)
 			call gv_qp%write(dest_element%t_element_base, qp)
@@ -219,12 +224,12 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)					:: node
 
-            if (cfg%s_test_case_name .eq. 'bar') then
-                if (node%position(1)* cfg%scaling == 0.0_GRID_SR .and. node%position(2)* cfg%scaling <= 0.5_GRID_SR) then
-                    node%data_pers%is_dirichlet_boundary = .true.
-                    node%data_pers%qp = 0.0_GRID_SR
-                end if
-            end if
+!            if (cfg%s_test_case_name .eq. 'bar') then
+!                if (node%position(1)* cfg%scaling == 0.0_GRID_SR .and. node%position(2)* cfg%scaling <= 0.5_GRID_SR) then
+!                    node%data_pers%is_dirichlet_boundary = .true.
+!                    node%data_pers%qp = 0.0_GRID_SR
+!                end if
+!            end if
             node%data_pers%rhs=0.0
 		end subroutine
 
@@ -254,7 +259,6 @@
 !                if((element%nodes(1)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(2)%ptr%position(2)*cfg%scaling<=0.5) .and. (element%nodes(3)%ptr%position(2)*cfg%scaling<=0.5)) then
 !                    if((element%nodes(1)%ptr%position(1)==0 .and. element%nodes(2)%ptr%position(1)==0) .or. (element%nodes(2)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0) .or. (element%nodes(1)%ptr%position(1)==0 .and. element%nodes(3)%ptr%position(1)==0)) then
 !
-!                        write (*,*) 'yo!'
 !                        element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
 !                        element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
 !                        element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.

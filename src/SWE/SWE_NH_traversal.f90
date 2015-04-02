@@ -63,7 +63,7 @@ subroutine element_op(traversal, section, element)
 
 
 real (kind=GRID_SR),dimension(2):: p
-real (kind=GRID_SR)             :: hu,hv,dt,h, q1,q2, q3,c,m11,m12,m21,m22,s, area_tri, area_sq
+real (kind=GRID_SR)             :: hu,hv,dt,h,h_old, q1,q2, q3,c,m11,m12,m21,m22,s, area_tri, area_sq
 
 m11=element%transform_data%plotter_data%jacobian_inv(1,1)
 m12=element%transform_data%plotter_data%jacobian_inv(2,1)
@@ -75,6 +75,7 @@ c=0.5_GRID_SR * element%cell%geometry%get_leg_size()*cfg%scaling
 p=element%cell%data_pers%Q(1)%p
 
 h=element%cell%data_pers%Q(1)%h -element%cell%data_pers%Q(1)%b
+h_old= element%cell%data_pers%h_old(1) -  element%cell%data_pers%Q(1)%b
 hu=p(1)
 hv=p(2)
 
@@ -93,8 +94,8 @@ q3= element%nodes(3)%ptr%data_pers%qp(1)
 !correction q =q2 + (x/(2*c)) * (q1 - q2) + (y/(2*c))  * (q3 - q2)
 
 if( .not. (element%nodes(1)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(2)%ptr%data_pers%is_dirichlet_boundary(1) .or. element%nodes(3)%ptr%data_pers%is_dirichlet_boundary(1)) .and. h>cfg%dry_tolerance ) then! .and. (.not.(abs(q1)>3 .or. abs(q2)>3 .or. abs(q3)>3))) then
-    hu= hu - 0.5_GRID_SR* dt*(h*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
-    hv= hv - 0.5_GRID_SR* dt*(h*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
+    hu= hu - 0.5_GRID_SR* dt*(h_old*s* (m11 *(q1-q2)/(2.0_GRID_SR*c) + m12*((q3-q2)/(2.0_GRID_SR*c))))
+    hv= hv - 0.5_GRID_SR* dt*(h_old*s* (m21 *(q1-q2)/(2.0_GRID_SR*c) + m22*((q3-q2)/(2.0_GRID_SR*c))))
 end if
 !else if(h>0) then
 !        write(*,*) 'omitting correction in element: '
