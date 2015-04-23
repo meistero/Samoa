@@ -201,6 +201,8 @@
 #           endif
         end subroutine
 
+        !> 14 * 3 * #layers DOPS
+        !> 7 * #layers DRWS
         subroutine apply3D(x1, x2, x3, r1, r2, r3, lambda_t)
             real (kind = GRID_SR), intent(in)       :: x1(:), x2(:), x3(:)
             real (kind = GRID_SR), intent(inout)    :: r1(:), r2(:), r3(:)
@@ -233,6 +235,7 @@
             r2(2 : _DARCY_LAYERS + 1) = r2(2 : _DARCY_LAYERS + 1) + lambda_t(:, 7) * (x2(2 : _DARCY_LAYERS + 1) -  x3(2 : _DARCY_LAYERS + 1))
         end subroutine
 
+        !> 4 * 3 = 12 DOPS
         subroutine apply2D(x1, x2, x3, r1, r2, r3, lambda_t)
             real (kind = GRID_SR), intent(in)       :: x1, x2, x3
             real (kind = GRID_SR), intent(inout)    :: r1, r2, r3
@@ -274,6 +277,7 @@
 #           endif
         end subroutine
 
+        !> 14 * #layers FLOPS
         subroutine get_trace3D(d1, d2, d3, lambda_t)
             real (kind = GRID_SR), intent(inout)    :: d1(:), d2(:), d3(:)
             real (kind = GRID_SR), intent(in)       :: lambda_t(:, :)
@@ -305,6 +309,7 @@
             d2(2 : _DARCY_LAYERS + 1) = d2(2 : _DARCY_LAYERS + 1) + lambda_t(:, 7)
         end subroutine
 
+        !> 4 FLOPS
         subroutine get_trace2D(d1, d2, d3, lambda_t)
             real (kind = GRID_SR), intent(inout)    :: d1, d2, d3
             real (kind = GRID_SR), intent(in)       :: lambda_t(:)
