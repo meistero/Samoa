@@ -188,11 +188,14 @@
                 prod_n_acc(0) = sum(prod_n_acc(1:4))
 
                 write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
+
+                f_out = get_free_file_unit()
+
                 open(unit=f_out, file=s_file_name, action="write", status="replace")
 
                 write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
                 do i = 0, 4
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (tiny(1.0_SR) + prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (tiny(1.0_SR) + sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
                 end do
 
                 close(f_out)
