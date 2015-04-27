@@ -348,9 +348,9 @@ module Section_info_list
 
 		total_sections = size_MPI * cfg%i_threads * cfg%i_sections_per_thread
 		!Compute average section circumference
-		quality = sum(grid_info%i_boundary_edges) / total_sections * (sqrt(2.0_SR) / 3.0_SR + 2.0_SR/3.0_SR)
+		quality = sum(grid_info%i_boundary_edges) / real(total_sections, SR) * (sqrt(2.0_SR) / 3.0_SR + 2.0_SR/3.0_SR)
 		!Divide by ideal circumference of a square section
-		quality = quality * 0.25_SR / sqrt(real(grid_info%i_cells, SR) / (2.0 * total_sections))
+		quality = quality * 0.25_SR / sqrt(real(grid_info%i_cells, SR) / (2.0_SR * real(total_sections, SR)))
 
 		_log_write(0, "(A)")			"  Info:"
 		_log_write(0, '(A)')			""

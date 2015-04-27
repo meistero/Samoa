@@ -188,14 +188,14 @@
             real (kind = SR), intent(in)    :: permeability
             real (kind = SR)                :: trans_permeability
 
-            trans_permeability = 1.0_SR / permeability
+            trans_permeability = permeability
 		end function
 
 		elemental function transform_perm_inv(trans_permeability) result(permeability)
             real (kind = SR), intent(in)    :: trans_permeability
             real (kind = SR)                :: permeability
 
-            permeability = 1.0_SR / trans_permeability
+            permeability = trans_permeability
 		end function
 
 		subroutine coarsen_op(traversal, grid, src_element, dest_element, coarsening_path)

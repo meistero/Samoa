@@ -123,69 +123,73 @@
 			character(256)					        :: s_file_name
 
 #			if defined(_ASAGI)
-                !convert ASAGI mode to ASAGI hints
+                cfg%afh_permeability_X = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_permeability_Y = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_permeability_Z = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_porosity = asagi_grid_create(ASAGI_FLOAT)
+
+                call asagi_grid_set_comm(cfg%afh_permeability_X, MPI_COMM_WORLD)
+                call asagi_grid_set_comm(cfg%afh_permeability_Y, MPI_COMM_WORLD)
+                call asagi_grid_set_comm(cfg%afh_permeability_Z, MPI_COMM_WORLD)
+                call asagi_grid_set_comm(cfg%afh_porosity, MPI_COMM_WORLD)
+
+                call asagi_grid_set_threads(cfg%afh_permeability_X, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_permeability_Y, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_permeability_Z, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_porosity, cfg%i_threads)
+
+                !convert ASAGI mode to ASAGI parameters
 
                 select case(cfg%i_asagi_mode)
                     case (0)
-                        i_asagi_hints = GRID_NO_HINT
+                        !i_asagi_hints = GRID_NO_HINT
                     case (1)
-                        i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        !i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        call asagi_grid_set_param(cfg%afh_permeability_X, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_permeability_Y, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_permeability_Z, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_porosity, "grid", "pass_through")
                     case (2)
-                        i_asagi_hints = GRID_NOMPI
+                        !i_asagi_hints = GRID_NOMPI
                     case (3)
-                        i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
+                        !i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
                     case (4)
-                        i_asagi_hints = GRID_LARGE_GRID
+                        !i_asagi_hints = GRID_LARGE_GRID
+                        call asagi_grid_set_param(cfg%afh_permeability_X, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_permeability_Y, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_permeability_Z, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_porosity, "grid", "cache")
                     case default
                         try(.false., "Invalid asagi mode, must be in range 0 to 4")
                 end select
 
-#               if defined(_ASAGI_NUMA)
-                    cfg%afh_permeability_X = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_permeability_Y = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_permeability_Z = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_porosity = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-#               else
-                    cfg%afh_permeability_X = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_permeability_Y = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_permeability_Z = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_porosity = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-#               endif
+                call asagi_grid_set_param(cfg%afh_permeability_X, "variable-name", "z")
+                call asagi_grid_set_param(cfg%afh_permeability_Y, "variable-name", "Ky")
+                call asagi_grid_set_param(cfg%afh_permeability_Z, "variable-name", "Kz")
 
-#               if defined(_ASAGI_NUMA)
-                    !$omp parallel private(i_error)
-						i_error = grid_register_thread(cfg%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
-						i_error = grid_register_thread(cfg%afh_porosity); assert_eq(i_error, GRID_SUCCESS)
-                    !$omp end parallel
-#               endif
-
-                i_error = grid_set_param(cfg%afh_permeability_X, "variable-name", "z"); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_permeability_X, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
-
-                i_error = grid_set_param(cfg%afh_permeability_Y, "variable-name", "Ky"); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_permeability_Y, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
-
-                i_error = grid_set_param(cfg%afh_permeability_Z, "variable-name", "Kz"); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_permeability_Z, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
-
-                i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
+                !$omp parallel private(i_error), copyin(cfg)
+                    i_error = asagi_grid_open(cfg%afh_permeability_X, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_permeability_Y, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_permeability_Z, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                !$omp end parallel
 
                 associate(afh_perm => cfg%afh_permeability_X, afh_phi => cfg%afh_porosity)
-                    cfg%scaling = max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
-                    cfg%offset = [0.5_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm) - cfg%scaling), 0.5_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm) - cfg%scaling)]
-                    cfg%dz = real(grid_max_z(afh_perm) - grid_min_z(afh_perm), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
+                    cfg%scaling = max((asagi_grid_max(afh_perm, 0) - asagi_grid_min(afh_perm, 0)), (asagi_grid_max(afh_perm, 1) - asagi_grid_min(afh_perm, 1)))
+                    cfg%offset = [0.5_SR * (asagi_grid_min(afh_perm, 0) + asagi_grid_max(afh_perm, 0) - cfg%scaling), 0.5_SR * (asagi_grid_min(afh_perm, 1) + asagi_grid_max(afh_perm, 1) - cfg%scaling)]
+                    cfg%dz = real(asagi_grid_max(afh_perm, 2) - asagi_grid_min(afh_perm, 2), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
 
                     cfg%r_pos_in = ([0.0_GRID_SR, 0.0_GRID_SR] - cfg%offset) / cfg%scaling
-                    cfg%r_pos_prod = ([grid_max_x(afh_perm), grid_max_y(afh_perm)] - cfg%offset) / cfg%scaling
+                    cfg%r_pos_prod = ([asagi_grid_max(afh_perm, 0), asagi_grid_max(afh_perm, 1)] - cfg%offset) / cfg%scaling
 
                     if (rank_MPI == 0) then
                         _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
-                            trim(cfg%s_permeability_file), grid_min_x(afh_perm), grid_max_x(afh_perm),  grid_min_y(afh_perm), grid_max_y(afh_perm),  grid_min_z(afh_perm), grid_max_z(afh_perm)
-                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') grid_delta_x(afh_perm), grid_delta_y(afh_perm), grid_delta_z(afh_perm)
+                            trim(cfg%s_permeability_file), asagi_grid_min(afh_perm, 0), asagi_grid_max(afh_perm, 0), asagi_grid_min(afh_perm, 1), asagi_grid_max(afh_perm, 1),  asagi_grid_min(afh_perm, 2), asagi_grid_max(afh_perm, 2)
+                        !_log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)
 
                         _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
-                            trim(cfg%s_porosity_file), grid_min_x(afh_phi), grid_max_x(afh_phi),  grid_min_y(afh_phi), grid_max_y(afh_phi),  grid_min_z(afh_phi), grid_max_z(afh_phi)
-                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') grid_delta_x(afh_phi), grid_delta_y(afh_phi), grid_delta_z(afh_phi)
+                            trim(cfg%s_porosity_file), asagi_grid_min(afh_phi, 0), asagi_grid_max(afh_phi, 0), asagi_grid_min(afh_phi, 1), asagi_grid_max(afh_phi, 1),  asagi_grid_min(afh_phi, 2), asagi_grid_max(afh_phi, 2)
+                        !_log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_phi, 0), asagi_grid_delta(afh_phi, 1), asagi_grid_delta(afh_phi, 2)
 
                         _log_write(1, '(" Darcy: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
                         _log_write(1, '(" Darcy: injection position: [", F0.2, ", ", F0.2, "], production position [", F0.2, ", ", F0.2, "]")'), cfg%r_pos_in, cfg%r_pos_prod
@@ -269,10 +273,10 @@
 			endif
 
 #			if defined(_ASAGI)
-				call asagi_close(cfg%afh_permeability_X)
-				call asagi_close(cfg%afh_permeability_Y)
-				call asagi_close(cfg%afh_permeability_Z)
-				call asagi_close(cfg%afh_porosity)
+				call asagi_grid_close(cfg%afh_permeability_X)
+				call asagi_grid_close(cfg%afh_permeability_Y)
+				call asagi_grid_close(cfg%afh_permeability_Z)
+				call asagi_grid_close(cfg%afh_porosity)
 #			endif
 		end subroutine
 

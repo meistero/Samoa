@@ -201,13 +201,10 @@ if env['asagi'] != 'noasagi':
   env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir'])
   env.Append(LIBPATH = env['asagi_dir'])
 
-  if env['asagi'] == 'numa':
-    env['F90FLAGS'] += ' -D_ASAGI_NUMA'
-
   if env['openmp'] == 'noomp':
-    env.Append(LIBS = ['asagi_nomt'])
+    env.Append(LIBS = ['asagi_nomt', 'numa', 'netcdf'])
   else:
-    env.Append(LIBS = ['asagi'])
+    env.Append(LIBS = ['asagi', 'numa', 'netcdf'])
 
 #Enable or disable timing of ASAGI calls
 if env['asagi_timing']:

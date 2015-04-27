@@ -29,7 +29,7 @@ MODULE SFC_data_types
     use Tools_parallel_operators
 
 #	if defined(_ASAGI)
-		use asagi, asagi_create => grid_create, asagi_open => grid_open, asagi_close => grid_close, asagi_get_float => grid_get_float
+		use asagi
 #	endif
 
     implicit none

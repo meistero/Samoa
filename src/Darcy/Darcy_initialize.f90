@@ -138,13 +138,13 @@
 #           endif
 
 #           if defined(_ASAGI)
-                if (grid_min_x(cfg%afh_permeability_X) <= xs(1) .and. grid_min_y(cfg%afh_permeability_X) <= xs(2) &
-                        .and. xs(1) <= grid_max_x(cfg%afh_permeability_X) .and. xs(2) <= grid_max_y(cfg%afh_permeability_X)) then
+                if (asagi_grid_min(cfg%afh_permeability_X, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_permeability_X, 1) <= xs(2) &
+                        .and. xs(1) <= asagi_grid_max(cfg%afh_permeability_X, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_permeability_X, 1)) then
 
 #                   if (_DARCY_LAYERS > 0)
-                        buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                        !buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                        buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                        buffer(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
+                        buffer(3) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
 
                         !assume horizontally isotropic permeability
                         !assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
@@ -152,9 +152,9 @@
                         r_base_permeability(1) = buffer(1)
                         r_base_permeability(2) = buffer(3)
 #                   else
-                        buffer(1) = grid_get_double_3d(cfg%afh_permeability_X, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                        !buffer(2) = grid_get_double_3d(cfg%afh_permeability_Y, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
-                        !buffer(3) = grid_get_double_3d(cfg%afh_permeability_Z, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                        buffer(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
+                        !buffer(3) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
 
                         r_base_permeability = buffer(1)
 #                   endif
@@ -191,10 +191,10 @@
 #           endif
 
 #           if defined(_ASAGI)
-                if (grid_min_x(cfg%afh_porosity) <= xs(1) .and. grid_min_y(cfg%afh_porosity) <= xs(2) &
-                        .and. xs(1) <= grid_max_x(cfg%afh_porosity) .and. xs(2) <= grid_max_y(cfg%afh_porosity)) then
+                if (asagi_grid_min(cfg%afh_porosity, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_porosity, 1) <= xs(2) &
+                        .and. xs(1) <= asagi_grid_max(cfg%afh_porosity, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_porosity, 1)) then
 
-                    porosity = grid_get_float_3d(cfg%afh_porosity, dble(xs(1)), dble(xs(2)), dble(xs(3)), 0)
+                    porosity = asagi_grid_get_float(cfg%afh_porosity, real(xs, c_double), 0)
                 else
                     porosity = 1.0e-8_SR
                 end if
