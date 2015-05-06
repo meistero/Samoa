@@ -7,7 +7,11 @@
 
 module Tools_mpi
 #	if defined(_MPI)
-        include 'mpif.h'
+#       if defined(__GFORTRAN__)
+            use mpi
+#       else
+            include 'mpif.h'
+#       endif
 #	else
 		enum, bind(c)
 		    enumerator :: MPI_REQUEST_NULL = 0, MPI_STATUS_SIZE
@@ -195,9 +199,9 @@ MODULE Tools_log
     end function
 
     pure function term_reset() result(str)
-        character(5) :: str
+        character(4) :: str
 
-        character(5), parameter :: seq = CHAR(27) // "[0m"
+        character(4), parameter :: seq = CHAR(27) // "[0m"
 
         str = seq
     end function
