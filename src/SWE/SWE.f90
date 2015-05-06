@@ -13,7 +13,7 @@
 		use SWE_adapt
 		use SWE_initialize
 		use SWE_displace
-		!use SWE_output
+		use SWE_output
 		use SWE_xml_output
 		use SWE_ascii_output
 		use SWE_point_output
@@ -29,9 +29,9 @@
 		type t_swe
             type(t_swe_init_traversal)              :: init
             type(t_swe_displace_traversal)          :: displace
-            !type(t_swe_output_traversal)            :: output
+            type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
-            type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
+            type(t_swe_ascii_output_traversal)      :: ascii_output
 	        type(t_swe_point_output_traversal)	    :: point_output
 
             type(t_swe_euler_timestep_traversal)    :: euler
@@ -64,7 +64,7 @@
                 call mpi_bcast(s_time, len(s_time), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-			!write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
+            write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (swe%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
             write (swe%point_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
 			write (s_log_name, '(A, A)') TRIM(swe%xml_output%s_file_stamp), ".log"
@@ -77,7 +77,7 @@
 
 			call swe%init%create()
             call swe%displace%create()
-            !call swe%output%create()
+            call swe%output%create()
             call swe%xml_output%create()
             call swe%ascii_output%create()
             call swe%euler%create()
@@ -85,7 +85,7 @@
 		end subroutine
 
 		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
-			type(t_grid), target, intent(inout)     :: grid
+			type(t_grid), intent(inout)             :: grid
             character(*), intent(in)                :: ncd_bath, ncd_displ
             double precision, optional,intent(in)   :: scaling, offset(2)
 
@@ -162,7 +162,7 @@
 
 			call swe%init%destroy()
             call swe%displace%destroy()
-            !call swe%output%destroy()
+            call swe%output%destroy()
             call swe%xml_output%destroy()
             call swe%ascii_output%destroy()
             call swe%point_output%destroy()
