@@ -168,8 +168,8 @@
                         e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
                     endif
 
-                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
-                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
+                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', int(traversal%cell_data%depth))
+                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', int(traversal%cell_data%refinement))
                 e_io = vtk%VTK_END()
 #           endif
 

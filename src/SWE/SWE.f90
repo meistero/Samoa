@@ -85,7 +85,7 @@
 		end subroutine
 
 		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
-			type(t_grid), target, intent(inout)     :: grid
+			type(t_grid), intent(inout)             :: grid
             character(*), intent(in)                :: ncd_bath, ncd_displ
             double precision, optional,intent(in)   :: scaling, offset(2)
 
