@@ -20,16 +20,16 @@
 		type t_output_point_data
 			type(t_state)											:: Q
 			real (kind = GRID_SR), dimension(2)						:: coords		!< position
-		end type t_output_point_data
+		end type
 
-		!> Output cell dat
+		!> Output cell data
 		type t_output_cell_data
 			type(t_state)											:: Q
 			integer (kind = GRID_SI)								:: rank
 			integer (kind = GRID_SI)								:: section_index
-			integer (kind = BYTE)										:: depth
-			integer (kind = BYTE)										:: refinement
-		end type t_output_cell_data
+			integer (kind = BYTE)									:: depth
+			integer (kind = BYTE)									:: refinement
+		end type
 
         type num_traversal_data
             type(t_output_point_data), allocatable		            :: point_data(:)
@@ -48,7 +48,6 @@
 #		define _GT_NAME								t_swe_xml_output_traversal
 
 #		define _GT_EDGES
-#		define _GT_EDGES_TEMP
 
 #		define _GT_PRE_TRAVERSAL_OP					pre_traversal_op
 #		define _GT_POST_TRAVERSAL_OP				post_traversal_op
