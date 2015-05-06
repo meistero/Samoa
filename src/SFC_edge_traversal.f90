@@ -373,7 +373,7 @@ module SFC_edge_traversal
     subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_color)
         type(t_grid), intent(inout)						    :: grid
         type(t_integer_list), intent(inout)                 :: rank_list
-        type(t_int64_list), allocatable, intent(out)        :: neighbor_min_distances(:)
+        type(t_int64_list), allocatable, intent(inout)      :: neighbor_min_distances(:)
         integer (BYTE), intent(in)				            :: i_color
 
         integer(kind = GRID_DI), allocatable                :: local_min_distances(:)
@@ -409,7 +409,8 @@ module SFC_edge_traversal
                 call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
  		    end do
 
-            call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+            call mpi_waitall(i_neighbors, requests(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+            call mpi_waitall(i_neighbors, requests(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 		    do i_comm = 1, i_neighbors
                 call neighbor_min_distances(i_comm)%resize(i_neighbor_sections(i_comm))
@@ -422,7 +423,8 @@ module SFC_edge_traversal
                 call mpi_isend(local_min_distances(1), i_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
  		    end do
 
-            call mpi_waitall(2 * i_neighbors, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+            call mpi_waitall(i_neighbors, requests(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+            call mpi_waitall(i_neighbors, requests(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
             do i_comm = 1, i_neighbors
                 _log_write(4, '(4X, A, I0)') "rank: ", rank_list%elements(i_comm)
@@ -443,7 +445,7 @@ module SFC_edge_traversal
         type(t_int64_list), intent(in)                  :: neighbor_min_distances_red(:), neighbor_min_distances_green(:)
 
         integer (KIND = GRID_SI)			            :: i_section, i_first_local_section, i_last_local_section
-        integer (kind = BYTE)			                    :: i_color
+        integer (kind = BYTE)			                :: i_color
         type(t_grid_section), pointer					:: section
 
         _log_write(4, '(3X, A, I0, X, I0)') "create destination comm list: #neighbors: ", src_neighbor_list_red%get_size(), src_neighbor_list_red%get_size()
@@ -1042,13 +1044,13 @@ module SFC_edge_traversal
 
                             if (mpi_edge_size > 0) then
                                 assert_ne(comm%send_requests(1), MPI_REQUEST_NULL)
-                                call mpi_wait(comm%send_requests(1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                                call mpi_wait(comm%send_requests(1), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                                 assert_eq(comm%send_requests(1), MPI_REQUEST_NULL)
                             end if
 
                             if (mpi_node_size > 0) then
                                 assert_ne(comm%send_requests(2), MPI_REQUEST_NULL)
-                                call mpi_wait(comm%send_requests(2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                                call mpi_wait(comm%send_requests(2), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                                 assert_eq(comm%send_requests(2), MPI_REQUEST_NULL)
                             end if
                         end if
@@ -1098,13 +1100,13 @@ module SFC_edge_traversal
 
                     if (mpi_edge_size > 0) then
                         assert_ne(comm%recv_requests(1), MPI_REQUEST_NULL)
-                        call mpi_wait(comm%recv_requests(1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                        call mpi_wait(comm%recv_requests(1), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                         assert_eq(comm%recv_requests(1), MPI_REQUEST_NULL)
                     end if
 
                     if (mpi_node_size > 0) then
                         assert_ne(comm%recv_requests(2), MPI_REQUEST_NULL)
-                        call mpi_wait(comm%recv_requests(2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                        call mpi_wait(comm%recv_requests(2), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                         assert_eq(comm%recv_requests(2), MPI_REQUEST_NULL)
                     end if
                 end if
@@ -1312,7 +1314,7 @@ module SFC_edge_traversal
 
         integer (kind = GRID_DI)                        :: i_total_load, i_max_load
         integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_section
-        integer, pointer, save                          :: i_rank_out(:), i_section_index_out(:), i_rank_in(:)
+        integer, pointer                                :: i_rank_out(:), i_section_index_out(:), i_rank_in(:)
         type(t_grid)						            :: grid_temp
         integer	(BYTE)  		                        :: i_color
         logical                                         :: l_early_exit
@@ -1536,18 +1538,20 @@ module SFC_edge_traversal
 
         !> uses a distributed algorithm to compute the new partitiion
         !> this approach scales well, but requires local methods and cannot achieve optimal load balance
-        subroutine compute_partition_distributed(grid, i_rank_out, i_section_index_out, i_rank_in, l_early_exit)
+        subroutine compute_partition_distributed(grid, i_rank_out_local, i_section_index_out_local, i_rank_in_local, l_early_exit)
 		    type(t_grid), intent(inout)		                :: grid
-		    integer, pointer, intent(out)                   :: i_rank_out(:), i_section_index_out(:), i_rank_in(:)
+		    integer, pointer, intent(inout)                 :: i_rank_out_local(:), i_section_index_out_local(:), i_rank_in_local(:)
 		    logical, intent(out)                            :: l_early_exit
 
-            integer, allocatable, save                      :: i_sections_out(:), i_sections_in(:), i_partial_sections_in(:), i_partial_sections_out(:), i_delta_out(:), requests_out(:, :), requests_in(:, :)
+            integer, pointer, save                          :: i_rank_out(:) => null(), i_section_index_out(:) => null(), i_rank_in(:) => null()
+            integer, allocatable, save                      :: i_sections_out(:), i_sections_in(:), i_partial_sections_in(:), i_partial_sections_out(:), i_delta_out(:), requests_out(:, :), requests_in(:)
             integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_rank, i_section, i_comm
             integer									        :: i_first_rank_out, i_last_rank_out, i_first_rank_in, i_last_rank_in
             type(t_grid_section), pointer					:: section
             integer						                    :: i_error, i_sections, requests(2)
             integer	(BYTE)  		                        :: i_color
             integer (kind = GRID_DI)					    :: load, partial_load, total_load, rank_imbalance
+            character (len=100)                             :: msg
 
 	        l_early_exit = .false.
         	call grid%get_local_sections(i_first_local_section, i_last_local_section)
@@ -1575,6 +1579,26 @@ module SFC_edge_traversal
             end if
 
 			call reduce(rank_imbalance, MPI_MAX)
+
+			!allocate arrays on first call
+			if (.not. associated(i_rank_out)) then
+                allocate(i_rank_out(0), stat=i_error); assert_eq(i_error, 0)
+                allocate(i_section_index_out(0), stat=i_error); assert_eq(i_error, 0)
+            end if
+
+            if (.not. allocated(i_sections_out)) then
+                allocate(i_sections_out(0), stat=i_error); assert_eq(i_error, 0)
+                allocate(i_partial_sections_out(0), stat=i_error); assert_eq(i_error, 0)
+                allocate(i_delta_out(0), stat=i_error); assert_eq(i_error, 0)
+                allocate(requests_out(0, 0), stat=i_error); assert_eq(i_error, 0)
+            end if
+
+            if (.not. allocated(i_sections_in)) then
+                allocate(i_sections_in(0), stat=i_error); assert_eq(i_error, 0)
+                allocate(i_partial_sections_in(0), stat=i_error); assert_eq(i_error, 0)
+                allocate(requests_in(0), stat=i_error, errmsg=msg); if (i_error .ne. 0) then; print *, msg; end if; assert_eq(i_error, 0)
+            end if
+
 	        !$omp end single copyprivate(rank_imbalance, i_sections, load, partial_load, total_load)
 
 	        !exit early if the imbalance cannot be improved
@@ -1591,29 +1615,25 @@ module SFC_edge_traversal
             i_last_rank_out = (partial_load * size_MPI - 1) / total_load		!round up and subtract 1
 
 			!allocate space for variables that are stored per output section
-			if (.not. associated(i_rank_out) .or. size(i_rank_out) .ne. i_sections) then
-                if (associated(i_rank_out)) then
-                    deallocate(i_rank_out, stat = i_error); assert_eq(i_error, 0)
-                    deallocate(i_section_index_out, stat = i_error); assert_eq(i_error, 0)
-                end if
+			if (size(i_rank_out) .ne. i_sections) then
+                deallocate(i_rank_out, stat = i_error); assert_eq(i_error, 0)
+                deallocate(i_section_index_out, stat = i_error); assert_eq(i_error, 0)
 
                 allocate(i_rank_out(i_sections), stat=i_error); assert_eq(i_error, 0)
                 allocate(i_section_index_out(i_sections), stat=i_error); assert_eq(i_error, 0)
             end if
 
 			!allocate space for variables that are stored per output rank
-            if (.not. allocated(i_sections_out) .or. lbound(i_sections_out, 1) .ne. i_first_rank_out .or. ubound(i_sections_out, 1) .ne. i_last_rank_out) then
-                if (allocated(i_sections_out)) then
-                    deallocate(i_sections_out, stat=i_error); assert_eq(i_error, 0)
-                    deallocate(i_partial_sections_out, stat=i_error); assert_eq(i_error, 0)
-                    deallocate(i_delta_out, stat=i_error); assert_eq(i_error, 0)
-                    deallocate(requests_out, stat=i_error); assert_eq(i_error, 0)
-                end if
+            if (lbound(i_sections_out, 1) .ne. i_first_rank_out .or. ubound(i_sections_out, 1) .ne. i_last_rank_out) then
+                deallocate(i_sections_out, stat=i_error); assert_eq(i_error, 0)
+                deallocate(i_partial_sections_out, stat=i_error); assert_eq(i_error, 0)
+                deallocate(i_delta_out, stat=i_error); assert_eq(i_error, 0)
+                deallocate(requests_out, stat=i_error); assert_eq(i_error, 0)
 
                 allocate(i_sections_out(i_first_rank_out : i_last_rank_out), stat=i_error); assert_eq(i_error, 0)
                 allocate(i_partial_sections_out(i_first_rank_out : i_last_rank_out), stat=i_error); assert_eq(i_error, 0)
                 allocate(i_delta_out(i_first_rank_out : i_last_rank_out), stat=i_error); assert_eq(i_error, 0)
-                allocate(requests_out(2, i_first_rank_out : i_last_rank_out), stat=i_error); assert_eq(i_error, 0)
+                allocate(requests_out(i_first_rank_out : i_last_rank_out, 2), stat=i_error); assert_eq(i_error, 0)
             end if
 
 			i_sections_out = 0
@@ -1652,8 +1672,8 @@ module SFC_edge_traversal
 			!and the last input rank for all my output ranks except the last one
 
             do i_rank = i_first_rank_out + 1, i_last_rank_out
-                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank, 1, MPI_COMM_WORLD, requests_out(1, i_rank), i_error); assert_eq(i_error, 0)
-                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank - 1, 2, MPI_COMM_WORLD, requests_out(2, i_rank - 1), i_error); assert_eq(i_error, 0)
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank, 1, MPI_COMM_WORLD, requests_out(i_rank, 1), i_error); assert_eq(i_error, 0)
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank - 1, 2, MPI_COMM_WORLD, requests_out(i_rank - 1, 2), i_error); assert_eq(i_error, 0)
 
                 _log_write(3, '("send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_rank, 1
                 _log_write(3, '("send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_rank - 1, 2
@@ -1661,31 +1681,30 @@ module SFC_edge_traversal
 
 			!check if i am first or last input rank for first and last output rank (meaning an exact match)
 			if ((partial_load - load) * size_MPI == total_load * i_first_rank_out) then
-                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_first_rank_out, 1, MPI_COMM_WORLD, requests_out(1, i_first_rank_out), i_error); assert_eq(i_error, 0)
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_first_rank_out, 1, MPI_COMM_WORLD, requests_out(i_first_rank_out, 1), i_error); assert_eq(i_error, 0)
                _log_write(3, '("first send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_first_rank_out, 1
 			end if
 
 			if (partial_load * size_MPI == total_load * (i_last_rank_out + 1)) then
-                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_last_rank_out, 2, MPI_COMM_WORLD, requests_out(2, i_last_rank_out), i_error); assert_eq(i_error, 0)
+                call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_last_rank_out, 2, MPI_COMM_WORLD, requests_out(i_last_rank_out, 2), i_error); assert_eq(i_error, 0)
                 _log_write(3, '("last send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_last_rank_out, 2
 			end if
 
-			call mpi_waitall(size(requests_out), requests_out, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-			call mpi_waitall(size(requests), requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(2, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 			_log_write(3, '(4X, "count sections: out ranks ", I0, " to ", I0, " in ranks: ", I0, " to ", I0)') i_first_rank_out, i_last_rank_out, i_first_rank_in, i_last_rank_in
 
 			!now that I know which ranks I get data from, allocate an array that stores the number of sections I get from each source rank
-            if (.not. allocated(i_sections_in) .or. lbound(i_sections_in, 1) .ne. i_first_rank_in .or. ubound(i_sections_in, 1) .ne. i_last_rank_in) then
-                if (allocated(i_sections_in)) then
-                    deallocate(i_sections_in, stat=i_error); assert_eq(i_error, 0)
-                    deallocate(i_partial_sections_in, stat=i_error); assert_eq(i_error, 0)
-                    deallocate(requests_in, stat=i_error); assert_eq(i_error, 0)
-                end if
+            if (lbound(i_sections_in, 1) .ne. i_first_rank_in .or. ubound(i_sections_in, 1) .ne. i_last_rank_in) then
+                deallocate(i_sections_in, stat=i_error); assert_eq(i_error, 0)
+                deallocate(i_partial_sections_in, stat=i_error); assert_eq(i_error, 0)
+                deallocate(requests_in, stat=i_error, errmsg=msg); if (i_error .ne. 0) then; print *, msg; end if; assert_eq(i_error, 0)
 
                 allocate(i_sections_in(i_first_rank_in : i_last_rank_in), stat=i_error); assert_eq(i_error, 0)
                 allocate(i_partial_sections_in(i_first_rank_in : i_last_rank_in), stat=i_error); assert_eq(i_error, 0)
-                allocate(requests_in(2, i_first_rank_in : i_last_rank_in), stat=i_error); assert_eq(i_error, 0)
+                allocate(requests_in(i_first_rank_in : i_last_rank_in), stat=i_error, errmsg=msg); if (i_error .ne. 0) then; print *, msg; end if; assert_eq(i_error, 0)
             end if
 
 			i_sections_in = 0
@@ -1695,24 +1714,26 @@ module SFC_edge_traversal
 	        !$omp single
  		    !Communicate the number of sections sent to the destination ranks / received from the source ranks
 
+			_log_write(3, '(4X, "send number of outgoing sections and receive number of incoming sections per rank")')
+
 	        assert_veq(requests_in, MPI_REQUEST_NULL)
 	        assert_veq(requests_out, MPI_REQUEST_NULL)
 
 			do i_rank = i_first_rank_in, i_last_rank_in
-				call mpi_irecv(i_sections_in(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_in(1, i_rank), i_error); assert_eq(i_error, 0)
+				call mpi_irecv(i_sections_in(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_in(i_rank), i_error); assert_eq(i_error, 0)
         	end do
 
 			do i_rank = i_first_rank_out, i_last_rank_out
-                call mpi_isend(i_sections_out(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_out(1, i_rank), i_error); assert_eq(i_error, 0)
+                call mpi_isend(i_sections_out(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_out(i_rank, 1), i_error); assert_eq(i_error, 0)
         	end do
 
-	        call mpi_waitall(size(requests_out), requests_out, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-	    	call mpi_waitall(size(requests_in), requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+ 	    	call mpi_waitall(i_last_rank_in - i_first_rank_in + 1, requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 	        assert_veq(requests_out, MPI_REQUEST_NULL)
 			assert_veq(requests_in, MPI_REQUEST_NULL)
 
-			_log_write(3, '(4X, "prefix sums:")')
+			_log_write(3, '(4X, "communicate new index of first incoming section per rank")')
 
 			!compute prefix sum over number of input sections and output sections to find out which rank gets which section indices assigned
 	        call prefix_sum(i_partial_sections_in, i_sections_in)
@@ -1720,11 +1741,11 @@ module SFC_edge_traversal
 
 			!communicate this info again
 			do i_rank = i_first_rank_out, i_last_rank_out
-                call mpi_irecv(i_delta_out(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_out(1, i_rank), i_error); assert_eq(i_error, 0)
+                call mpi_irecv(i_delta_out(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_out(i_rank, 1), i_error); assert_eq(i_error, 0)
         	end do
 
 			do i_rank = i_first_rank_in, i_last_rank_in
-                call mpi_isend(i_partial_sections_in(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_in(1, i_rank), i_error); assert_eq(i_error, 0)
+                call mpi_isend(i_partial_sections_in(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_in(i_rank), i_error); assert_eq(i_error, 0)
         	end do
 
             if (.not. associated(i_rank_in) .or. size(i_rank_in) .ne. sum(i_sections_in)) then
@@ -1743,8 +1764,10 @@ module SFC_edge_traversal
                 end if
             end do
 
+			call mpi_waitall(size(requests_out(:, 1)), requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 	    	call mpi_waitall(size(requests_in), requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-		    call mpi_waitall(size(requests_out), requests_out, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+
+			_log_write(3, '(4X, "compute new indices of all outgoing sections")')
 
         	i_delta_out = i_delta_out - i_partial_sections_out
 	        !$omp end single
@@ -1753,6 +1776,11 @@ module SFC_edge_traversal
 	        do i_section = i_first_local_section, i_last_local_section
 	            i_section_index_out(i_section) = i_delta_out(i_rank_out(i_section)) + i_section
 	        end do
+
+            !pass private copies of the array pointers back to caller function
+            i_rank_out_local => i_rank_out
+            i_section_index_out_local => i_section_index_out
+	        i_rank_in_local => i_rank_in
         end subroutine
 
         subroutine midpoint_cutoff(l, s)
@@ -1843,11 +1871,12 @@ module SFC_edge_traversal
 
         !> uses a serial algorithm to compute the new partition
         !> this approach scales badly, but can apply global methods and can achieve optimal load balance
-        subroutine compute_partition_serial(grid, i_rank_out, i_section_index_out, i_rank_in, l_early_exit)
+        subroutine compute_partition_serial(grid, i_rank_out_local, i_section_index_out_local, i_rank_in_local, l_early_exit)
 		    type(t_grid), intent(inout)		                :: grid
-		    integer, pointer, intent(out)                   :: i_rank_out(:), i_section_index_out(:), i_rank_in(:)
+		    integer, pointer, intent(inout)                 :: i_rank_out_local(:), i_section_index_out_local(:), i_rank_in_local(:)
 		    logical, intent(out)                            :: l_early_exit
 
+            integer, pointer, save                          :: i_rank_out(:) => null(), i_section_index_out(:) => null(), i_rank_in(:) => null()
             integer, allocatable, save                      :: all_sections(:), displacements(:), all_ranks(:), all_section_indices_out(:)
             integer, allocatable, save                      :: requests_in(:), requests_out(:)
             integer (kind = GRID_DI), allocatable, save     :: all_load(:), local_load(:)
@@ -1930,7 +1959,6 @@ module SFC_edge_traversal
                 allocate(requests_in(i_sections_in), stat=i_error); assert_eq(i_error, 0)
             end if
 
-
 			!allocate space for variables that are stored per output section
 			if (.not. associated(i_rank_out) .or. size(i_rank_out) .ne. i_sections_out) then
                 if (associated(i_rank_out)) then
@@ -1970,6 +1998,11 @@ module SFC_edge_traversal
             call mpi_waitall(i_sections_in, requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
             call mpi_waitall(i_sections_out, requests_out, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
             !$omp end single
+
+            !pass private copies of the array pointers back to caller function
+            i_rank_out_local => i_rank_out
+            i_section_index_out_local => i_section_index_out
+            i_rank_in_local => i_rank_in
         end subroutine
 
         subroutine send_recv_comm_changes(src_grid, i_rank_out, i_section_index_out, i_rank_in)
@@ -2108,13 +2141,13 @@ module SFC_edge_traversal
 
 		    do i_section = i_first_dest_section, i_last_dest_section
                 if (i_rank_in(i_section) .ne. rank_MPI) then
-                    call mpi_wait(dest_requests(i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                    call mpi_wait(dest_requests(i_section), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
 
                     call dest_grid%sections%elements_alloc(i_section)%create(dest_infos(i_section))
                 end if
  		    end do
 
-		    call mpi_waitall(size(src_requests), src_requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+		    call mpi_waitall(i_last_src_section - i_first_src_section + 1, src_requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 			deallocate(src_infos, stat=i_error); assert_eq(i_error, 0)
 			deallocate(dest_infos, stat=i_error); assert_eq(i_error, 0)
@@ -2200,7 +2233,7 @@ module SFC_edge_traversal
                     case (0)
 						!do nothing
                     case default
-                        call mpi_waitall(11, src_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                        call mpi_waitall(11, src_requests(:, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
                         call section%destroy()
                 end select
@@ -2215,7 +2248,7 @@ module SFC_edge_traversal
                     case (0)
 						!do nothing
 					case default
-                        call mpi_waitall(11, dest_requests(1, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+                        call mpi_waitall(11, dest_requests(:, i_section), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
                         !$omp atomic
                         src_grid%max_dest_stack(RED) = src_grid%max_dest_stack(RED) + section%max_dest_stack(RED) - section%min_dest_stack(RED) + 1

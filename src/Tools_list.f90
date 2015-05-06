@@ -63,7 +63,7 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
     integer (kind = GRID_SI), intent(in), optional  :: i_src_start_arg, i_dest_start_arg, i_count_arg
 
     integer (kind = GRID_SI)                :: i_src_start, i_dest_start, i_count
-	integer                                 :: i_error
+	integer                                 :: i_error, i
     _T, pointer                             :: elements_temp(:)
 
     allocate(elements_temp(i_elements), stat = i_error); assert_eq(i_error, 0)
@@ -87,7 +87,14 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
     end if
 
     if (associated(list%elements)) then
-        elements_temp(i_dest_start : i_dest_start + i_count - 1) = list%elements_alloc(i_src_start : i_src_start + i_count - 1)
+        !HOTFIX: GFortran does not support defined subarray assignment for derived types
+#       if defined(__GFORTRAN__)
+            do i = 0, i_count - 1
+                elements_temp(i_dest_start + i) = list%elements_alloc(i_src_start  + i)
+            end do
+#       else
+            elements_temp(i_dest_start : i_dest_start + i_count - 1) = list%elements_alloc(i_src_start : i_src_start + i_count - 1)
+#       endif
     end if
 
     list%elements_alloc => elements_temp
@@ -113,7 +120,7 @@ subroutine add_after(list, i_current_element, element)
     integer (kind = GRID_SI), intent(in)    :: i_current_element
 	_T, intent(in)							:: element
 
-	integer                                 :: i_error
+	integer                                 :: i_error, i
     _T, pointer                             :: elements_temp(:)
 
     if (.not. associated(list%elements_alloc)) then
@@ -121,9 +128,23 @@ subroutine add_after(list, i_current_element, element)
         elements_temp(1) = element
     else
         allocate(elements_temp(size(list%elements_alloc) + 1), stat = i_error); assert_eq(i_error, 0)
+
+    !HOTFIX: GFortran does not support defined subarray assignment for derived types
+#   if defined(__GFORTRAN__)
+        do i = 1, i_current_element
+             elements_temp(i) = list%elements_alloc(i)
+        end do
+
+        elements_temp(i_current_element + 1) = element
+
+        do i = i_current_element + 2, size(list%elements_alloc) + 1
+            elements_temp(i) = list%elements_alloc(i - 1)
+        end do
+#   else
         elements_temp(1 : i_current_element) = list%elements_alloc(1 : i_current_element)
         elements_temp(i_current_element + 1) = element
         elements_temp(i_current_element + 2 : ) = list%elements_alloc(i_current_element + 1 : )
+#   endif
 
         if (associated(list%elements_alloc)) then
             deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
@@ -145,7 +166,7 @@ subroutine remove_at(list, i_current_element)
 	class(_CNT), intent(inout)		                :: list						!< list object
 	integer, intent(in)                     	    :: i_current_element
 
-	integer                                         :: i_error
+	integer                                         :: i_error, i
     _T, pointer                                     :: elements_temp(:)
 
     assert(associated(list%elements_alloc))
@@ -153,8 +174,21 @@ subroutine remove_at(list, i_current_element)
     assert_le(i_current_element, size(list%elements_alloc))
 
     allocate(elements_temp(size(list%elements_alloc) - 1), stat = i_error); assert_eq(i_error, 0)
-    elements_temp(1 : i_current_element - 1) = list%elements_alloc(1 : i_current_element - 1)
-    elements_temp(i_current_element : size(list%elements_alloc) - 1) = list%elements_alloc(i_current_element + 1 : size(list%elements_alloc))
+
+    !HOTFIX: GFortran does not support defined subarray assignment for derived types
+#   if defined(__GFORTRAN__)
+        do i = 1, i_current_element - 1
+            elements_temp(i) = list%elements_alloc(i)
+        end do
+
+        do i = i_current_element, size(list%elements_alloc) - 1
+            elements_temp(i) = list%elements_alloc(i + 1)
+        end do
+#   else
+        elements_temp(1 : i_current_element - 1) = list%elements_alloc(1 : i_current_element - 1)
+        elements_temp(i_current_element : size(list%elements_alloc) - 1) = list%elements_alloc(i_current_element + 1 : size(list%elements_alloc))
+#   endif
+
     deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
 
     list%elements_alloc => elements_temp
@@ -172,7 +206,7 @@ function merge(list1, list2) result(list)
 	type(_CNT)		                        :: list						!< list object
 
 	_T, pointer				                :: elements_temp(:)
-	integer                                 :: total_size, i_error
+	integer                                 :: total_size, i_error, i
 
     !merge array parts
 
@@ -189,11 +223,25 @@ function merge(list1, list2) result(list)
         allocate(elements_temp(total_size), stat = i_error); assert_eq(i_error, 0)
 
         if (associated(list1%elements)) then
-            elements_temp(1 : size(list1%elements)) = list1%elements
+            !HOTFIX: GFortran does not support defined subarray assignment for derived types
+#           if defined(__GFORTRAN__)
+                do i = 1, size(list1%elements)
+                    elements_temp(i) = list1%elements(i)
+                end do
+#           else
+                elements_temp(1 : size(list1%elements)) = list1%elements
+#           endif
         end if
 
         if (associated(list2%elements)) then
-            elements_temp(total_size - size(list2%elements) + 1 : total_size) = list2%elements
+            !HOTFIX: GFortran does not support defined subarray assignment for derived types
+#           if defined(__GFORTRAN__)
+                do i = 1, size(list2%elements)
+                    elements_temp(total_size - size(list2%elements) + i) = list2%elements(i)
+                end do
+#           else
+                elements_temp(total_size - size(list2%elements) + 1 : total_size) = list2%elements
+#           endif
         end if
 
         list%elements_alloc => elements_temp

@@ -634,7 +634,7 @@ MODULE SFC_data_types
                     _log_write(7, '(2X, 2(F0.4, X), /, 2X, 2(F0.4, X))') p_cell_data%jacobian_inv
                     _log_write(7, '(X, "determinant: ")')
                     _log_write(7, '(2X, F0.4)') p_cell_data%det_jacobian
-                    _log_write(7, '()')
+                    _log_write(7, '("")')
 
                     edge_vectors(:, 1) = matmul(p_cell_data%jacobian, [0.0_GRID_SR, 1.0_GRID_SR])
                     edge_vectors(:, 2) = matmul(p_cell_data%jacobian, [1.0_GRID_SR, -1.0_GRID_SR])
