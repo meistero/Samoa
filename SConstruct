@@ -132,16 +132,16 @@ if env['mpi'] == 'default':
   env['LINK'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'mpich2':
-  env['F90'] = 'MPICH_F90=' + fc + ' mpif90'
-  env['LINK'] = 'MPICH_F90=' + fc + ' mpif90'
+  env['F90'] = 'MPICH_F90=' + fc + ' mpif90.mpich2'
+  env['LINK'] = 'MPICH_F90=' + fc + ' mpif90.mpich2'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'openmpi':
-  env['F90'] = 'OMPI_FC=' + fc + ' mpif90'
-  env['LINK'] = 'OMPI_FC=' + fc + ' mpif90'
+  env['F90'] = 'OMPI_FC=' + fc + ' mpif90.openmpi'
+  env['LINK'] = 'OMPI_FC=' + fc + ' mpif90.openmpi'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'intel':
-  env['F90'] = 'I_MPI_F90=' + fc + ' mpif90'
-  env['LINK'] = 'I_MPI_F90=' + fc + ' mpif90'
+  env['F90'] = 'I_MPI_F90=' + fc + ' mpif90.intel'
+  env['LINK'] = 'I_MPI_F90=' + fc + ' mpif90.intel'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'nompi':
   env['F90'] = fc
@@ -266,8 +266,8 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -fast -fno-alias -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += '  -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
-    env['LINKFLAGS'] += ' -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['F90FLAGS'] += ' -Ofast -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['LINKFLAGS'] += '  -Ofast -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
 
 #In case the Intel compiler is active, add a vectorization report (can gnu do this too?)
 if env['compiler'] == 'intel':
