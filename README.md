@@ -19,8 +19,8 @@ Website: [Samoa](https://github.com/meistero/Samoa)
 The following prerequisites are necessary in order to install and run sam(oa)²:
 * [git](http://git-scm.com/)
 * [scons](http://www.scons.org/)
-* [ASAGI](https://github.com/tum-i5/ASAGI)
 * gfortran 4.7 or higher OR Intel Fortran Compiler 13.0 or higher
+* (Optional) [ASAGI](https://github.com/tum-i5/ASAGI) and netcdf data files for production runs (not publicly available, contact the developers)
 
 ## Installation
 
@@ -101,6 +101,10 @@ Typical settings are:
 
     scons asagi_dir=<asagi_dir> compiler=gnu scenario=darcy -j<threads>
     scons asagi_dir=<asagi_dir> compiler=intel target=debug scenario=swe -j<threads>
+
+If you wish to simulate simple scenarios that do not require data files you can also disable asagi with the flag
+
+    scons asagi=noasagi ...
 
 Executables will be created in the directory samoa_dir/bin and should be run from samoa_dir.
 
