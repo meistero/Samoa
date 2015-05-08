@@ -1,5 +1,5 @@
 language: c++
-install: sudo apt-get install gfortran g77 scons mpich2 openmpi
+install: sudo apt-getinstall -qq gfortran scons mpich2 openmpi
 env:
  global:
   OMP_NUM_THREADS=4
@@ -13,4 +13,6 @@ env:
   OPENMP=notasks
   OPENMP=noomp
 
-script: scons compiler=$COMPILER target=$TARGET mpi=$MPI openmp=$OPENMP asagi=$ASAGI -j2
+install: scons compiler=$COMPILER target=$TARGET mpi=$MPI openmp=$OPENMP asagi=$ASAGI -j2
+
+script: echo "Hi!"
