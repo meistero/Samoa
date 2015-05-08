@@ -1,0 +1,12 @@
+language: fortran
+compiler:
+  - gfortran
+
+# Install prerequisites
+sudo apt-get install gfortran g77 scons
+
+#build a debug target
+scons compiler=gnu target=debug mpi=noomp openmp=notasks
+
+#build a release target
+scons compiler=gnu target=release mpi=noomp openmp=notasks
