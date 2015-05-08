@@ -3,6 +3,8 @@ install: sudo apt-get install gfortran g77 scons mpich2 openmpi
 env:
  global:
   OMP_NUM_THREADS=4
+  ASAGI=noasagi
+  COMPILER=gnu
  matrix:
   TARGET=debug
   TARGET=release
@@ -11,4 +13,4 @@ env:
   OPENMP=notasks
   OPENMP=noomp
 
-script: scons compiler=gnu target=$TARGET mpi=$MPI openmp=$OPENMP -j2
+script: scons compiler=$COMPILER target=$TARGET mpi=$MPI openmp=$OPENMP asagi=$ASAGI -j2
