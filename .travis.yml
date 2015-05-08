@@ -6,6 +6,7 @@ env:
   ASAGI=noasagi
   COMPILER=gnu
   ASSERTIONS=no
+  LAYERS=0
  matrix:
   TARGET=debug ASSERTIONS=yes
   TARGET=release
@@ -14,8 +15,9 @@ env:
   OPENMP=notasks
   OPENMP=noomp
   SCENARIO=darcy FLUX_SOLVER=upwind
-  SCENARIO=swe FLUX_SOLVER=aug_riemann
-  SCENARIO=swe FLUX_SOLVER=fwave
+  SCENARIO=darcy FLUX_SOLVER=upwind LAYERS=8
+  SCENARIO=swe FLUX_SOLVER=llf_bath
+  SCENARIO=swe
 
 before_script: scons scenario=$DARCY compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI flux_solver=$FLUX_SOLVER -j2
 
