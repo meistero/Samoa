@@ -1,12 +1,14 @@
-language: fortran
-compiler:
-  - gfortran
+language: c++
+install: sudo apt-get install gfortran g77 scons mpich2 openmpi
+env:
+ global:
+  OMP_NUM_THREADS=4
+ matrix:
+  TARGET=debug
+  TARGET=release
+  MPI=mpich2
+  MPI=openmpi
+  OPENMP=notasks
+  OPENMP=noomp
 
-# Install prerequisites
-sudo apt-get install gfortran g77 scons
-
-#build a debug target
-scons compiler=gnu target=debug mpi=noomp openmp=notasks
-
-#build a release target
-scons compiler=gnu target=release mpi=noomp openmp=notasks
+script: scons compiler=gnu target=$TARGET mpi=$MPI openmp=$OPENMP -j2
