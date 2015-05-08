@@ -10,6 +10,7 @@ env:
   - COMPILER=gnu
   - ASSERTIONS=no
   - LAYERS=0
+  - FLUX_SOLVER=aug_riemann
  matrix:
   - TARGET=debug ASSERTIONS=yes
   - TARGET=release
