@@ -72,7 +72,7 @@ vars.AddVariables(
 
   BoolVariable( 'asagi_timing', 'switch on timing of all ASAGI calls', False),
 
-  PathVariable( 'asagi_dir', 'ASAGI directory', '../ASAGI'),
+  PathVariable( 'asagi_dir', 'ASAGI directory', '.'),
 
   EnumVariable( 'precision', 'floating point precision', 'double',
                 allowed_values=('single', 'double', 'quad')
