@@ -1,7 +1,7 @@
 language: c++
 
 install: 
- - sudo apt-getinstall -qq gfortran scons mpich2 openmpi
+ - sudo apt-get install -qq gfortran scons mpich2 openmpi
 
 env:
  global:
