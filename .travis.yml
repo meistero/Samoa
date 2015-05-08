@@ -5,14 +5,18 @@ env:
   OMP_NUM_THREADS=4
   ASAGI=noasagi
   COMPILER=gnu
+  ASSERTIONS=no
  matrix:
-  TARGET=debug
+  TARGET=debug ASSERTIONS=yes
   TARGET=release
   MPI=mpich2
   MPI=openmpi
   OPENMP=notasks
   OPENMP=noomp
+  SCENARIO=darcy FLUX_SOLVER=upwind
+  SCENARIO=swe FLUX_SOLVER=aug_riemann
+  SCENARIO=swe FLUX_SOLVER=fwave
 
-install: scons compiler=$COMPILER target=$TARGET mpi=$MPI openmp=$OPENMP asagi=$ASAGI -j2
+before_script: scons scenario=$DARCY compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI flux_solver=$FLUX_SOLVER -j2
 
 script: echo "Hi!"
