@@ -11,12 +11,12 @@ env:
   - ASSERTIONS=no
   - LAYERS=0
   - MPI=default
-  - OPENMP=tasks
+  - COMPILER=gnu
+  - OPENMP=notasks
   - TARGET=release
   - SCENARIO=darcy
   - FLUX_SOLVER=upwind
   - LAYERS=0
-  - COMPILER=gnu
  matrix:
   - TARGET=debug ASSERTIONS=yes
   - MPI=mpich2
