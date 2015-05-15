@@ -27,6 +27,6 @@ env:
   - SCENARIO=swe FLUX_SOLVER=aug_riemann
 
 before_script: 
- - scons scenario=$DARCY compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI layers=$LAYERS flux_solver=$FLUX_SOLVER -j2
+ - scons scenario=$SCENARIO compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI layers=$LAYERS flux_solver=$FLUX_SOLVER -j2
 
 script: echo "Hi!"
