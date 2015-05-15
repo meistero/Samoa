@@ -16,6 +16,7 @@ env:
   - SCENARIO=darcy
   - FLUX_SOLVER=upwind
   - LAYERS=0
+  - COMPILER=gnu
  matrix:
   - TARGET=debug ASSERTIONS=yes
   - MPI=mpich2
