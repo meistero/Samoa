@@ -45,10 +45,11 @@
         subroutine create_edge_mpi_type(mpi_edge_type)
             integer, intent(out)            :: mpi_edge_type
 
-            type(t_edge_data)               :: edge
-            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
-
 #           if defined(_MPI)
+                type(t_edge_data)                       :: edge
+                integer                                 :: blocklengths(2), types(2), disps(2), i_error
+                integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
                 blocklengths(1) = 1
                 blocklengths(2) = 1
 
@@ -61,11 +62,9 @@
                 call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
                 call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(sizeof(edge), extent)
-
-                call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(0, extent)
+                call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
+                assert_eq(sizeof(edge), ub)
+                assert_eq(0, lb)
 #           endif
         end subroutine
 

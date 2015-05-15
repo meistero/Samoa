@@ -85,10 +85,11 @@ MODULE _CG_(step)
     subroutine create_node_mpi_type(mpi_node_type)
         integer, intent(out)    :: mpi_node_type
 
-        type(t_node_data)               :: node
-        integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
-
 #       if defined(_MPI)
+            type(t_node_data)                       :: node
+            integer                                 :: blocklengths(4), types(4), disps(4), type_size, i_error
+            integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
             blocklengths(1) = 1
             blocklengths(2) = 1
             blocklengths(3) = 1
@@ -104,24 +105,26 @@ MODULE _CG_(step)
             types(3) = MPI_DOUBLE_PRECISION
             types(4) = MPI_UB
 
-            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
             call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(sizeof(node), extent)
+            call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)
+            call MPI_Type_get_extent(mpi_node_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(16, extent)
+            assert_eq(0, lb)
+            assert_eq(16, type_size)
+            assert_eq(sizeof(node), ub)
 #       endif
     end subroutine
 
     subroutine create_edge_mpi_type(mpi_edge_type)
         integer, intent(out)            :: mpi_edge_type
 
-        type(t_edge_data)               :: edge
-        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
-
 #       if defined(_MPI)
+            type(t_edge_data)                       :: edge
+            integer                                 :: blocklengths(2), types(2), disps(2), type_size, i_error
+            integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
             blocklengths(1) = 1
             blocklengths(2) = 1
 
@@ -134,11 +137,12 @@ MODULE _CG_(step)
             call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
             call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(sizeof(edge), extent)
+            call MPI_Type_size(mpi_edge_type, type_size, i_error); assert_eq(i_error, 0)
+            call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(0, extent)
+            assert_eq(0, lb)
+            assert_eq(0, type_size)
+            assert_eq(sizeof(edge), ub)
 #       endif
     end subroutine
 
@@ -507,17 +511,18 @@ MODULE _CG_(exact)
     subroutine create_node_mpi_type(mpi_node_type)
         integer, intent(out)            :: mpi_node_type
 
-        type(t_node_data)               :: node
-        integer                         :: blocklengths(4), types(4), disps(4), i_error, extent
-
 #       if defined(_MPI)
+            type(t_node_data)                       :: node
+            integer                                 :: blocklengths(4), types(4), disps(4), type_size, i_error
+            integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
             blocklengths(1) = 1
             blocklengths(2) = 1
             blocklengths(3) = 1
             blocklengths(4) = 1
 
             disps(1) = 0
-            disps(2) = loc(node%data_pers%r) - loc(node)
+            disps(2) = loc(node%data_pers%A_d) - loc(node)
             disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
             disps(4) = sizeof(node)
 
@@ -526,24 +531,26 @@ MODULE _CG_(exact)
             types(3) = MPI_DOUBLE_PRECISION
             types(4) = MPI_UB
 
-            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
             call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(sizeof(node), extent)
+            call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)
+            call MPI_Type_get_extent(mpi_node_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(16, extent)
+            assert_eq(0, lb)
+            assert_eq(16, type_size)
+            assert_eq(sizeof(node), ub)
 #       endif
     end subroutine
 
     subroutine create_edge_mpi_type(mpi_edge_type)
         integer, intent(out)            :: mpi_edge_type
 
-        type(t_edge_data)               :: edge
-        integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
-
 #       if defined(_MPI)
+            type(t_edge_data)                       :: edge
+            integer                                 :: blocklengths(2), types(2), disps(2), type_size, i_error
+            integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
             blocklengths(1) = 1
             blocklengths(2) = 1
 
@@ -556,11 +563,12 @@ MODULE _CG_(exact)
             call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
             call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(sizeof(edge), extent)
+            call MPI_Type_size(mpi_edge_type, type_size, i_error); assert_eq(i_error, 0)
+            call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-            call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-            assert_eq(0, extent)
+            assert_eq(0, lb)
+            assert_eq(0, type_size)
+            assert_eq(sizeof(edge), ub)
 #       endif
     end subroutine
 
