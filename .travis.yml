@@ -24,7 +24,7 @@ env:
   - MPI=nompi
   - OPENMP=noomp
   - SCENARIO=darcy FLUX_SOLVER=upwind LAYERS=8
-  - SCENARIO=swe FLUX_SOLVER=llf_bath
+  - SCENARIO=swe FLUX_SOLVER=llfbath
   - SCENARIO=swe FLUX_SOLVER=aug_riemann
 
 before_script: 
