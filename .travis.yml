@@ -10,18 +10,21 @@ env:
   - COMPILER=gnu
   - ASSERTIONS=no
   - LAYERS=0
-  - FLUX_SOLVER=aug_riemann
+  - MPI=default
+  - OPENMP=tasks
+  - TARGET=release
+  - SCENARIO=darcy
+  - FLUX_SOLVER=upwind
+  - LAYERS=0
  matrix:
   - TARGET=debug ASSERTIONS=yes
-  - TARGET=release
   - MPI=mpich2
-  - MPI=openmpi
-  - OPENMP=notasks
+  - MPI=openmpi OPENMP=notasks
+  - MPI=nompi
   - OPENMP=noomp
-  - SCENARIO=darcy FLUX_SOLVER=upwind
   - SCENARIO=darcy FLUX_SOLVER=upwind LAYERS=8
   - SCENARIO=swe FLUX_SOLVER=llf_bath
-  - SCENARIO=swe
+  - SCENARIO=swe FLUX_SOLVER=aug_riemann
 
 before_script: 
  - scons scenario=$DARCY compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI layers=$LAYERS flux_solver=$FLUX_SOLVER -j2
