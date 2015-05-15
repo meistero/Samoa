@@ -114,5 +114,4 @@ For execution parameters refer to the online help by calling the executable with
 
 ##Build status
 
-![Travis build status not found](https://travis-ci.org/meistero/Samoa.svg)
-
+[![Build Status](https://travis-ci.org/meistero/Samoa.svg)](https://travis-ci.org/meistero/Samoa)
