@@ -435,7 +435,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
             !traverse all unnecessary elements of the source section with an empty traversal
             do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_cell = i_src_cell + empty_leaf(traversal%threads(i_thread), traversal%children(i_src_section), src_grid%threads%elements(i_thread), src_section)
+                i_src_cell = i_src_cell + empty_leaf(traversal%threads(i_thread), traversal%children(i_dest_section), src_grid%threads%elements(i_thread), src_section)
             end do
         end if
 
