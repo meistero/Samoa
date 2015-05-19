@@ -62,7 +62,7 @@
                 call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
                 call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)
+                call MPI_Type_size(mpi_edge_type, type_size, i_error); assert_eq(i_error, 0)
                 call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
 
                 assert_eq(0, lb)
