@@ -105,7 +105,7 @@ MODULE _CG_(step)
             types(3) = MPI_DOUBLE_PRECISION
             types(4) = MPI_UB
 
-            call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
             call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
 
             call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)
@@ -522,7 +522,7 @@ MODULE _CG_(exact)
             blocklengths(4) = 1
 
             disps(1) = 0
-            disps(2) = loc(node%data_pers%A_d) - loc(node)
+            disps(2) = loc(node%data_pers%r) - loc(node)
             disps(3) = loc(node%data_temp%mat_diagonal) - loc(node)
             disps(4) = sizeof(node)
 
@@ -531,7 +531,7 @@ MODULE _CG_(exact)
             types(3) = MPI_DOUBLE_PRECISION
             types(4) = MPI_UB
 
-            call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
+            call MPI_Type_struct(4, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
             call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
 
             call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)

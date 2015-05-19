@@ -141,8 +141,8 @@
 			integer (kind = BYTE), intent(in)			:: i_depth
 			integer (kind = BYTE), intent(out)			:: i_refinement
 
-!            real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
-            real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
+            real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
+!            real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
 
             real (kind = GRID_SR)						:: r_sat_norm, r_p_norm
             logical 									:: l_coarsen_p, l_coarsen_sat, l_refine_sat, l_relevant

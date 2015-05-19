@@ -47,7 +47,7 @@
 
 #           if defined(_MPI)
                 type(t_edge_data)                       :: edge
-                integer                                 :: blocklengths(2), types(2), disps(2), i_error
+                integer                                 :: blocklengths(2), types(2), disps(2), type_size, i_error
                 integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
 
                 blocklengths(1) = 1
@@ -62,9 +62,12 @@
                 call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
                 call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
+                call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)
                 call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
-                assert_eq(sizeof(edge), ub)
+
                 assert_eq(0, lb)
+                assert_eq(0, type_size)
+                assert_eq(sizeof(edge), ub)
 #           endif
         end subroutine
 
