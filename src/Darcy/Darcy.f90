@@ -128,10 +128,12 @@
                 cfg%afh_permeability_Z = asagi_grid_create(ASAGI_FLOAT)
                 cfg%afh_porosity = asagi_grid_create(ASAGI_FLOAT)
 
-                call asagi_grid_set_comm(cfg%afh_permeability_X, MPI_COMM_WORLD)
-                call asagi_grid_set_comm(cfg%afh_permeability_Y, MPI_COMM_WORLD)
-                call asagi_grid_set_comm(cfg%afh_permeability_Z, MPI_COMM_WORLD)
-                call asagi_grid_set_comm(cfg%afh_porosity, MPI_COMM_WORLD)
+#               if defined(_MPI)
+                    call asagi_grid_set_comm(cfg%afh_permeability_X, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_permeability_Y, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_permeability_Z, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_porosity, MPI_COMM_WORLD)
+#               endif
 
                 call asagi_grid_set_threads(cfg%afh_permeability_X, cfg%i_threads)
                 call asagi_grid_set_threads(cfg%afh_permeability_Y, cfg%i_threads)
