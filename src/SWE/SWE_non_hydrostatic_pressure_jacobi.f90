@@ -24,9 +24,9 @@
 
 #   define _gm_A                swe_gm_A
 #   define _gv_x                swe_gv_qp
+#   define _gv_rhs              swe_gv_rhs
 
 #   define _gv_r                swe_gv_r
-#   define _gv_rhs              swe_gv_rhs
 #   define _gv_trace_A          swe_gv_mat_diagonal
 #   define _gv_dirichlet        swe_gv_is_dirichlet_boundary
 

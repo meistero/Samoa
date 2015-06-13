@@ -20,6 +20,8 @@ type swe_gm_A
             contains
             procedure, pass :: read_from_element
             procedure, pass :: write_to_element
+            procedure, pass :: apply
+            procedure, pass :: get_trace
 
             generic:: read => read_from_element
             generic:: write=> write_to_element
@@ -67,6 +69,28 @@ contains
 
         end subroutine
 
+        subroutine apply(gm_A, element, x, r)
+            class(swe_gm_A), intent(in)         :: gm_A
+            type(t_element_base), intent(in)    :: element
+            real(kind = GRID_SR), intent(in)    :: x(3)
+            real(kind = GRID_SR), intent(inout) :: r(3)
+
+            real(kind = GRID_SR)                :: mat(3, 3)
+
+            r = matmul(element%cell%data_pers%A, x)
+        end subroutine
+
+        subroutine get_trace(gm_A, element, d)
+            class(swe_gm_A), intent(in)         :: gm_A
+            type(t_element_base), intent(in)    :: element
+            real(kind = GRID_SR), intent(inout) :: d(3)
+
+            real(kind = GRID_SR)                :: mat(3, 3)
+
+            d(1) = element%cell%data_pers%A(1,1)
+            d(2) = element%cell%data_pers%A(2,2)
+            d(3) = element%cell%data_pers%A(3,3)
+        end subroutine
     END MODULE
 
 

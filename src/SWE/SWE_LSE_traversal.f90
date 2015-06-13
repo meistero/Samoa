@@ -25,7 +25,7 @@
 !#define	_GT_INNER_ELEMENT_OP	inner_element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 #define _GT_NODE_LAST_TOUCH_OP node_last_touch_op
-
+#define _GT_NODE_MERGE_OP node_merge_op
 
 #include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -37,7 +37,9 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     type(t_swe_lse_traversal), intent(in) :: traversal
     type(t_grid_section), intent(in) :: section
     type(t_node_data), intent(inout) :: node
+
     node%data_pers%rhs = 0.0_GRID_SR
+
     !this is required, otw. NaN values occur after an Euler traversal, why?
     !node%data_pers%qp = 0.0_GRID_SR -> resolved!
 
@@ -80,9 +82,9 @@ subroutine element_op(traversal, section, element)
 !    q1= element%nodes(1)%ptr%data_pers%qp(1)
 !    q2= element%nodes(2)%ptr%data_pers%qp(1)
 !    q3= element%nodes(3)%ptr%data_pers%qp(1)
-!    assert_eq(q1,q1)
-!    assert_eq(q2,q2)
-!    assert_eq(q3,q3)
+    assert_eq(q1,q1)
+    assert_eq(q2,q2)
+    assert_eq(q3,q3)
 
     w1= element%nodes(1)%ptr%data_pers%w(1)
     w2= element%nodes(2)%ptr%data_pers%w(1)
@@ -175,6 +177,10 @@ subroutine element_op(traversal, section, element)
 !    mat(3,2)= 0.25_GRID_SR*dt*h*h*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
 !    mat(3,3)=  - 0.25_GRID_SR*dt*h*h*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*dt*c*c* (1.0_GRID_SR/2.0_GRID_SR)
 
+    assert_eq(h_old,h_old)
+    assert_eq(nxvn,nxvn)
+    assert_eq(nyvn,nyvn)
+
     mat(1,1)= - 0.25_GRID_SR*s*h_old*(nxvn*m11+nyvn*m21) +2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR) /h
     mat(1,2)= 0.25_GRID_SR*s*h_old*(nxvn*(m11+m12)+nyvn*(m21+m22))
     mat(1,3)= -0.25_GRID_SR*s*h_old*(nxvn*m12+nyvn*m22)
@@ -248,6 +254,19 @@ subroutine element_op(traversal, section, element)
     call gv_rhs%add_to_element(element, rhs)
 end subroutine
 
+subroutine node_merge_op(local_node, neighbor_node)
+    type(t_node_data), intent(inout)			    :: local_node
+    type(t_node_data), intent(in)				    :: neighbor_node
+
+    real (kind = GRID_SR) :: rhs(1)
+
+    assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
+    assert_eq(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
+    assert_eq(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
+
+    call gv_rhs%read(neighbor_node, rhs)
+    call gv_rhs%add(local_node, rhs)
+end subroutine
 
 !subroutine element_op(traversal, section, element)
 !    type(t_swe_lse_traversal), intent(inout) :: traversal

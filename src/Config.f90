@@ -76,6 +76,7 @@ module config
             logical                             ::divergence_test                                   !<output how "divergence-free" the solution is
             logical					                :: l_pointoutput_time                           !< test points output on/off
             logical                             ::l_gv_output                                  !gv_output
+            integer			        	        :: i_max_iterations
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -118,7 +119,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -max_iter -1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false."
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -187,6 +188,7 @@ module config
             config%divergence_test=lget('samoa_divergence_test')
             config%r_epsilon= rget('samoa_epsilon')
             config%l_pointoutput_time= lget('samoa_pointoutputtime')
+            config%i_max_iterations = iget('samoa_max_iter')
 #       endif
 
         if (rank_MPI == 0) then
@@ -238,6 +240,7 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
                     PRINT '(A, L, A)',     "	-lseoutput             enable LSE output (value: ", config%l_lse_output, ")"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
+                    PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A,A,A)',    "   -test_case <value>      experiment to use (value: ", trim(config%s_test_case_name), ")"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"

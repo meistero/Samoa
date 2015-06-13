@@ -19,6 +19,7 @@
 #define _GT_ELEMENT_OP element_op
 #define _GT_NODE_FIRST_TOUCH_OP node_first_touch_op
 #define _GT_NODE_LAST_TOUCH_OP node_last_touch_op
+#define _GT_NODE_MERGE_OP node_merge_op
 
 #include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -31,7 +32,6 @@ elemental subroutine node_first_touch_op(traversal, section, node)
     real (kind=GRID_SR)             ::dt
 
     dt=section%r_dt
-
 
     node%data_temp%area_ctrl_vol=0.0
     node%data_temp%h_sum_inv=0.0
@@ -48,9 +48,8 @@ elemental subroutine node_last_touch_op(traversal, section, node)
     dt=section%r_dt
 
     if(.not. (node%data_pers%is_dirichlet_boundary(1))) then
-    node%data_pers%w= node%data_pers%w + 2.0_GRID_SR*dt*node%data_pers%qp *node%data_temp%h_sum_inv /node%data_temp%area_ctrl_vol
+        node%data_pers%w= node%data_pers%w + 2.0_GRID_SR*dt*node%data_pers%qp *node%data_temp%h_sum_inv /node%data_temp%area_ctrl_vol
     endif
-
 
 end subroutine
 
@@ -129,8 +128,47 @@ p(1)=hu
 p(2)=hv
 element%cell%data_pers%Q(1)%p=p
 
+!if( element%nodes(1)%ptr%position(1) == 0.5_GRID_SR .and. element%nodes(1)%ptr%position(2) == 0.5_GRID_SR ) then
 
+!    open(unit=99999,file='out.txt',status='unknown',access='sequential',position='append',action='write')
+!!    write(99999,*) 'rhs: ', element%nodes(1)%ptr%data_pers%rhs
+!!    write(99999,*) 'w: ', element%nodes(1)%ptr%data_pers%w
+!!    write(99999,*) 'qp: ', element%nodes(1)%ptr%data_pers%qp
+!!    write(99999,*) 'r: ', element%nodes(1)%ptr%data_pers%r
+!!    !write(99999,*) 'mat_diag: ', element%nodes(1)%ptr%data_pers%mat_diagonal(1)
+!!    write(99999,*) 'is_dirichlet: ', element%nodes(1)%ptr%data_pers%is_dirichlet_boundary
+!!    write(99999,*) 'A: ', element%cell%data_pers%A
+!!    write(99999,*) 'Q: ', element%cell%data_pers%Q
+!!    write(99999,'()')
+!    write(99999,*) element%nodes(1)%ptr%position, element%nodes(1)%ptr%data_pers%rhs, element%nodes(1)%ptr%data_pers%w, element%nodes(1)%ptr%data_pers%qp, element%nodes(1)%ptr%data_pers%r, element%cell%data_pers%A
+!    write(99999,*) element%nodes(2)%ptr%position, element%nodes(2)%ptr%data_pers%rhs, element%nodes(2)%ptr%data_pers%w, element%nodes(2)%ptr%data_pers%qp, element%nodes(2)%ptr%data_pers%r, element%cell%data_pers%A
+!    write(99999,*) element%nodes(3)%ptr%position, element%nodes(3)%ptr%data_pers%rhs, element%nodes(3)%ptr%data_pers%w, element%nodes(3)%ptr%data_pers%qp, element%nodes(3)%ptr%data_pers%r, element%cell%data_pers%A
+!    close(unit=99999)
 
+!endif
 end subroutine
+
+
+subroutine node_merge_op(local_node, neighbor_node)
+    type(t_node_data), intent(inout)			    :: local_node
+    type(t_node_data), intent(in)				    :: neighbor_node
+
+    assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
+    assert_eq(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
+    assert_eq(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
+    assert_eq(local_node%data_pers%rhs(1), neighbor_node%data_pers%rhs(1))
+    assert_eq(local_node%data_pers%r(1), neighbor_node%data_pers%r(1))
+
+!    if( local_node%position(1) == 0.5_GRID_SR .and. local_node%position(2) == 0.5_GRID_SR .and. neighbor_node%position(1) == 0.5_GRID_SR .and. neighbor_node%position(2) == 0.5_GRID_SR ) then
+!        write(*,*) 'rhs: ', local_node%data_pers%rhs
+!        write(*,*) 'w: ', local_node%data_pers%w
+!        write(*,*) 'qp: ', local_node%data_pers%qp
+!        write(*,*) 'r: ', local_node%data_pers%r
+!    endif
+
+    local_node%data_temp%h_sum_inv = local_node%data_temp%h_sum_inv + neighbor_node%data_temp%h_sum_inv
+    local_node%data_temp%area_ctrl_vol = local_node%data_temp%area_ctrl_vol + neighbor_node%data_temp%area_ctrl_vol
+end subroutine
+
 end module
 #endif
