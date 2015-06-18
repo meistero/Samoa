@@ -364,7 +364,7 @@
             real (kind = GRID_SR), intent(inout)			        :: p(:, :)
             real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
 
-            real (kind = GRID_SR), parameter                        :: refinement_threshold = 1.0e1_SR
+            real (kind = GRID_SR), parameter                        :: refinement_threshold = 3.0e1_SR
 
 			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2), radius
 			integer (kind = GRID_SI)	                            :: i_depth
@@ -483,19 +483,8 @@
                         !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
                         !Split the inflow over all primary cells in each layer that share the dual cell column
 
-!#                       define _DARCY_INJ_TOP_INFLOW
-#                       define _DARCY_INJ_ALL_INFLOW
-!#                       define _DARCY_INJ_TOP_PRESSURE
-!#                       define _DARCY_INJ_ALL_PRESSURE
-#                       if defined(_DARCY_INJ_TOP_INFLOW)
-                            weights = cfg%r_inflow / 8.0_SR * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
-
-                            !set inflow condition on the top layer
-                            rhs(_DARCY_LAYERS + 1, :) = rhs(_DARCY_LAYERS + 1, :) + weights
-
-                            !set a free flow permeability in the well
-                            base_permeability(:, 2) = 1.0e6 * 9.869233e-16_SR / (cfg%scaling ** 2)
-#                       elif defined(_DARCY_INJ_ALL_INFLOW)
+#                       define _DARCY_INJ_INFLOW
+#                       if defined(_DARCY_INJ_INFLOW)
                             !Using Peaceman's well model we consider the well as an internal boundary and assume that
                             !near the well the following conditions hold:
                             !2) p is radially symmetric.
@@ -519,25 +508,7 @@
                             end do
 
                             call gv_inflow%add_to_element(element, inflow)
-#                       elif defined(_DARCY_INJ_TOP_PRESSURE)
-                            weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
-
-                            is_dirichlet(_DARCY_LAYERS + 1, 1) = weights(1) > epsilon(1.0_SR)
-                            is_dirichlet(_DARCY_LAYERS + 1, 2) = weights(2) > epsilon(1.0_SR)
-                            is_dirichlet(_DARCY_LAYERS + 1, 3) = weights(3) > epsilon(1.0_SR)
-
-                            do i = 1, 3
-                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
-                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_in
-                                end if
-                            end do
-
-                            !set a free flow permeability in the well
-                            base_permeability(:, 2) = 1.0e6 * 9.869233e-16_SR / (cfg%scaling ** 2)
-
-                            call gv_p%write_to_element(element, p)
-                            call gv_is_dirichlet%add_to_element(element, is_dirichlet)
-#                       elif defined(_DARCY_INJ_ALL_PRESSURE)
+#                       elif defined(_DARCY_INJ_PRESSURE)
                             weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
 
                             is_dirichlet(:, 1) = weights(1) > epsilon(1.0_SR)
@@ -558,6 +529,31 @@
 
                             call gv_p%write_to_element(element, p)
                             call gv_is_dirichlet%add_to_element(element, is_dirichlet)
+#                       elif defined(_DARCY_INJ_INFLOW_PRESSURE)
+                            weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
+
+                            do i = 1, 3
+                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
+                                    do layer = _DARCY_LAYERS, 1, -1
+                                        p(layer, i) = p(layer + 1, i) - &
+                                            (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
+                                            / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
+                                    end do
+                                end if
+                            end do
+
+                            call gv_p%write_to_element(element, p)
+
+                            inflow = 0.0_SR
+
+                            !split local inflows in primary layer and assign half contributions to dual layers
+
+                            do i = 1, 3
+                                inflow(1:_DARCY_LAYERS, i) = inflow(1:_DARCY_LAYERS, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
+                                inflow(2:_DARCY_LAYERS + 1, i) = inflow(2:_DARCY_LAYERS + 1, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
+                            end do
+
+                            call gv_inflow%add_to_element(element, inflow)
 #                       else
 #                           error Injection condition must be defined!
 #                       endif
@@ -574,22 +570,8 @@
 
                         weights = [pos_prod(1), 1.0_SR - (pos_prod(1) + pos_prod(2)), pos_prod(2)]
 
-!#                       define _DARCY_PROD_TOP_PRESSURE
 #                       define _DARCY_PROD_ALL_PRESSURE
-#                       if defined(_DARCY_PROD_TOP_PRESSURE)
-                            is_dirichlet(_DARCY_LAYERS + 1, 1) = weights(1) > epsilon(1.0_SR)
-                            is_dirichlet(_DARCY_LAYERS + 1, 2) = weights(2) > epsilon(1.0_SR)
-                            is_dirichlet(_DARCY_LAYERS + 1, 3) = weights(3) > epsilon(1.0_SR)
-
-                            do i = 1, 3
-                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
-                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
-                                end if
-                            end do
-
-                            !set a free flow permeability in the well
-                            base_permeability(:, 2) = 1.0e6 * 9.869233e-16_SR / (cfg%scaling ** 2)
-#                       elif defined(_DARCY_PROD_ALL_PRESSURE)
+#                       if defined(_DARCY_PROD_ALL_PRESSURE)
                             is_dirichlet(:, 1) = weights(1) > epsilon(1.0_SR)
                             is_dirichlet(:, 2) = weights(2) > epsilon(1.0_SR)
                             is_dirichlet(:, 3) = weights(3) > epsilon(1.0_SR)
@@ -665,8 +647,8 @@
 
                 pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
 
-                if (norm2(pos_in) < 1.0_SR + radius) then
-                    if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + radius) then
+                if (norm2(pos_in) < 1.0_SR + epsilon(1.0_SR)) then
+                    if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + epsilon(1.0_SR)) then
                         !injection well:
                         !set an inflow pressure condition and a constant saturation condition
 

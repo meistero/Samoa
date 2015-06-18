@@ -110,6 +110,13 @@
                 call reduce(traversal%prod_n(i), traversal%children%prod_n(i), MPI_SUM, .false.)
             end do
 
+            !In the 2D case we always assumed that the height of the domain is 1, when in fact it should be delta_z.
+            !so multiply the rates by delta_z
+#           if (_DARCY_LAYERS == 0)
+                traversal%prod_w = traversal%prod_w * cfg%dz
+                traversal%prod_n = traversal%prod_n * cfg%dz
+#           endif
+
             !accumulated production in bbl += dt in s * um^3/s * (6.28981077 bbl/m^3) * (cfg%scaling m/um)^3
             grid%prod_w_acc = grid%prod_w_acc + traversal%prod_w * grid%r_dt * (6.28981077_SR) * (cfg%scaling ** 3)
             grid%prod_n_acc = grid%prod_n_acc + traversal%prod_n * grid%r_dt * (6.28981077_SR) * (cfg%scaling ** 3)

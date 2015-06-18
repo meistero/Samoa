@@ -145,7 +145,7 @@
 !               real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
                 real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
 #           else
-                real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e1_SR
+                real (kind = GRID_SR), parameter            :: refinement_threshold = 3.0e1_SR
 #           endif
 
             real (kind = GRID_SR)						    :: r_sat_norm, r_p_norm
