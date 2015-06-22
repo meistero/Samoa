@@ -364,7 +364,11 @@
             real (kind = GRID_SR), intent(inout)			        :: p(:, :)
             real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
 
-            real (kind = GRID_SR), parameter                        :: refinement_threshold = 3.0e1_SR
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
+#           else
+                real (kind = GRID_SR), parameter            :: refinement_threshold = 3.0e1_SR
+#           endif
 
 			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2), radius
 			integer (kind = GRID_SI)	                            :: i_depth

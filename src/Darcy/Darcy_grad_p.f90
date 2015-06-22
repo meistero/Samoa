@@ -238,13 +238,13 @@
             real (kind = GRID_SR), intent(in)       :: S_l, S_r, u_w, u_n, permeability, g_local
             real (kind = GRID_SR)                   :: max_wave_speed
 
-            real (kind = GRID_SR)                   :: S_m
-
-            !Upwind and F-Wave solver approximate the Riemann solution by a single shock wave with velocity
-            !xi = (f_w(S_r) - f_w(S_l)) / (S_r - S_l) = (S_r^2 / nu_w K (-grad p + rho_w g) - S_l^2 / nu_w K (-grad p + rho_w g)) / (S_r - S_l)
+            !Upwind and F-Wave solver approximate the Riemann solution by two shock waves with velocities xi_w and xi_n:
+            !xi_w = (f_w(S_r) - f_w(S_l)) / (S_r - S_l) = (S_r^2 / nu_w K (-grad p + rho_w g) - S_l^2 / nu_w K (-grad p + rho_w g)) / (S_r - S_l)
             !   = (S_r^2 - S_l^2) / (nu_w (S_r - S_l)) K (-grad p + rho_w g)
             !   = (S_l + S_r) / cfg%r_nu_w * K (-grad p + rho_w g)
             !   = (S_l + S_r) / cfg%r_nu_w * u_w
+            !xi_n = (2 - S_l - S_r) / cfg%r_nu_n * u_n
+            !max_wave_speed = max((S_l + S_r) / cfg%r_nu_w * abs(u_w), (2.0_SR - S_l - S_r) / cfg%r_nu_n * abs(u_n))
             max_wave_speed = (S_l + S_r) / cfg%r_nu_w * abs(u_w)
         end function
 

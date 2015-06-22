@@ -142,8 +142,8 @@
 			integer (kind = BYTE), intent(out)			:: i_refinement
 
 #           if (_DARCY_LAYERS > 0)
-!               real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
-                real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
+                real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
+!               real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
 #           else
                 real (kind = GRID_SR), parameter            :: refinement_threshold = 3.0e1_SR
 #           endif
