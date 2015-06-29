@@ -113,19 +113,19 @@ MODULE _CG_(1)
 
     !element
 
-    pure subroutine element_op(traversal, section, element)
-        type(_T_CG_(1_traversal)), intent(inout)							:: traversal
-        type(t_grid_section), intent(inout)					:: section
-        type(t_element_base), intent(inout), target			:: element
+    subroutine element_op(traversal, section, element)
+        type(_T_CG_(1_traversal)), intent(inout)	:: traversal
+        type(t_grid_section), intent(inout)			:: section
+        type(t_element_base), intent(inout)			:: element
 
         real(kind = GRID_SR)		:: d(_gv_size)
         real(kind = GRID_SR)		:: u(_gv_size)
-        real(kind = GRID_SR)		:: A(_gv_size, _gv_size)
+        real(kind = GRID_SR)		:: r(_gv_size)
 
         call gv_d%read(element, d)
-        call gm_A%read(element, A)
+        call gv_r%read(element, r)
 
-        u = matmul(A, d)
+        call gm_A%apply(element, d, u)
 
         call gv_u%add(element, u)
     end subroutine
@@ -137,13 +137,20 @@ MODULE _CG_(1)
         type(t_grid_section), intent(in)							:: section
         type(t_node_data), intent(in)			:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
+        integer                 :: i
+        real(kind = GRID_SR)    :: d(_gv_node_size)
+        real(kind = GRID_SR)    :: u(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_d%read(node, d)
+        call gv_u%read(node, u)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_reduce_op(traversal, section, node)
-        end if
+        do i = 1, _gv_node_size
+            if (.not. is_dirichlet(i)) then
+                call reduce_dof_op(traversal%d_u, d(i), u(i))
+            end if
+        end do
     end subroutine
 
     elemental subroutine inner_node_reduce_op(traversal, section, node)
@@ -151,9 +158,9 @@ MODULE _CG_(1)
         type(t_grid_section), intent(in)		        :: section
         type(t_node_data), intent(in)				    :: node
 
-        integer (kind = BYTE)					            :: i
-        real(kind = GRID_SR)                            :: d(_gv_node_size)
-        real(kind = GRID_SR)                            :: u(_gv_node_size)
+        integer				        :: i
+        real(kind = GRID_SR)        :: d(_gv_node_size)
+        real(kind = GRID_SR)        :: u(_gv_node_size)
 
         call gv_d%read(node, d)
         call gv_u%read(node, u)
@@ -185,15 +192,6 @@ MODULE _CG_(1)
 
         d = r + beta * d
         u = 0.0_GRID_SR
-    end subroutine
-
-    pure subroutine alpha_volume_op(A, d, u, permeability)
-        real (kind = GRID_SR), intent(in) 	:: A(_gv_size, _gv_size)
-        real (kind = GRID_SR), intent(in)	:: d(_gv_size)
-        real (kind = GRID_SR), intent(out)	:: u(_gv_size)
-        real (kind = GRID_SR), intent(in)	:: permeability
-
-        u = matmul(A, d)
     end subroutine
 
     elemental subroutine reduce_dof_op(d_u, d, u)
@@ -310,24 +308,16 @@ MODULE _CG_(2)
         call gv_trace_A%write(node, trace_A)
     end subroutine
 
-    pure subroutine element_op(traversal, section, element)
-        type(_T_CG_(2_traversal)), intent(in)							:: traversal
-        type(t_grid_section), intent(in)							:: section
-        type(t_element_base), intent(inout), target		:: element
+    elemental subroutine element_op(traversal, section, element)
+        type(_T_CG_(2_traversal)), intent(in)	:: traversal
+        type(t_grid_section), intent(in)		:: section
+        type(t_element_base), intent(inout)		:: element
 
         !local variables
 
-        integer :: i
-        real(kind = GRID_SR)	:: trace_A(_gv_size)
-        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
+        real(kind = GRID_SR) :: trace_A(_gv_size)
 
-        !call element operator
-        call gm_A%read(element, A)
-
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
+        call gm_A%get_trace(element, trace_A)
 
         call gv_trace_A%add(element, trace_A)
     end subroutine
@@ -337,13 +327,23 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)					:: section
         type(t_node_data), intent(inout)			:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
+        real(kind = GRID_SR)    :: dx(_gv_node_size), r(_gv_node_size), d(_gv_node_size), u(_gv_node_size), trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_d%read(node, d)
+        call gv_u%read(node, u)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_last_touch_op(traversal, section, node)
-        end if
+        call post_dof_op(traversal%alpha, dx, r, d, u, trace_A)
+
+        where(is_dirichlet)
+            dx = 0.0_GRID_SR
+            r = 0.0_GRID_SR
+        end where
+
+        call gv_x%add(node, dx)
+        call gv_r%add(node, r)
     end subroutine
 
     elemental subroutine inner_node_last_touch_op(traversal, section, node)
@@ -351,15 +351,15 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)							:: section
         type(t_node_data), intent(inout)			                :: node
 
-        real(kind = GRID_SR)    :: x(_gv_node_size), r(_gv_node_size), d(_gv_node_size), u(_gv_node_size), trace_A(_gv_node_size)
+        real(kind = GRID_SR)    :: dx(_gv_node_size), r(_gv_node_size), d(_gv_node_size), u(_gv_node_size), trace_A(_gv_node_size)
 
         call gv_d%read(node, d)
         call gv_u%read(node, u)
         call gv_trace_A%read(node, trace_A)
 
-        call post_dof_op(traversal%alpha, x, r, d, u, trace_A)
+        call post_dof_op(traversal%alpha, dx, r, d, u, trace_A)
 
-        call gv_x%add(node, x)
+        call gv_x%add(node, dx)
         call gv_r%add(node, r)
     end subroutine
 
@@ -368,13 +368,19 @@ MODULE _CG_(2)
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
+        integer                 :: i
+        real(kind = GRID_SR)    :: r(_gv_node_size), trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_reduce_op(traversal, section, node)
-        end if
+        do i = 1, _gv_node_size
+            if (.not. is_dirichlet(i)) then
+                call reduce_dof_op(traversal%r_C_r, traversal%r_sq, r(i), trace_A(i))
+            end if
+        end do
     end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
@@ -413,15 +419,15 @@ MODULE _CG_(2)
         trace_A = tiny(1.0_GRID_SR)
     end subroutine
 
-    elemental subroutine post_dof_op(alpha, x, r, d, u, trace_A)
+    elemental subroutine post_dof_op(alpha, dx, r, d, u, trace_A)
         real (kind = GRID_SR), intent(in)			:: alpha
-        real (kind = GRID_SR), intent(out)		    :: x
+        real (kind = GRID_SR), intent(out)		    :: dx
         real (kind = GRID_SR), intent(out)		    :: r
         real (kind = GRID_SR), intent(in)			:: d
         real (kind = GRID_SR), intent(in)			:: u
         real (kind = GRID_SR), intent(in)			:: trace_A
 
-        x = alpha * d
+        dx = alpha * d
         r = -alpha * u / trace_A
 
         assert_pure(trace_A > 0)
@@ -538,40 +544,27 @@ MODULE _CG_(exact)
         type(t_node_data), intent(inout)		    :: node
 
         real(kind = GRID_SR)                        :: r(_gv_node_size)
-        real(kind = GRID_SR)                        :: rhs(_gv_node_size)
         real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
 
-#       if defined(_gv_rhs)
-            call gv_rhs%read(node, rhs)
-#       else
-            rhs = 0.0_GRID_SR
-#       endif
-
-        call pre_dof_op(r, rhs, trace_A)
+        call pre_dof_op(r, trace_A)
 
         call gv_r%write(node, r)
         call gv_trace_A%write(node, trace_A)
     end subroutine
 
     subroutine element_op(traversal, section, element)
-        type(_T_CG_(exact_traversal)), intent(inout)		:: traversal
+        type(_T_CG_(exact_traversal)), intent(inout)	:: traversal
         type(t_grid_section), intent(inout)				:: section
-        type(t_element_base), intent(inout), target		:: element
+        type(t_element_base), intent(inout)		        :: element
 
         !local variables
         integer :: i
         real(kind = GRID_SR)	:: x(_gv_size), r(_gv_size), trace_A(_gv_size)
-        real(kind = GRID_SR)	:: A(_gv_size, _gv_size)
 
         call gv_x%read(element, x)
-        call gm_A%read(element, A)
 
-        !add up matrix diagonal
-        forall (i = 1 : _gv_size)
-            trace_A(i) = A(i, i)
-        end forall
-
-        r = -matmul(A, x)
+        call gm_A%apply(element, x, r)
+        call gm_A%get_trace(element, trace_A)
 
         call gv_r%add(element, r)
         call gv_trace_A%add(element, trace_A)
@@ -582,15 +575,28 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
+        real(kind = GRID_SR)    :: r(_gv_node_size)
+        real(kind = GRID_SR)    :: rhs(_gv_node_size)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_last_touch_op(traversal, section, node)
-        else
-            call gv_r%write(node, spread(0.0_GRID_SR, 1, _gv_node_size))
-        end if
+#       if defined(_gv_rhs)
+            call gv_rhs%read(node, rhs)
+#       else
+            rhs = 0.0_GRID_SR
+#       endif
+
+        call post_dof_op(r, rhs, trace_A)
+
+        where(is_dirichlet)
+            r = 0.0_GRID_SR
+        end where
+
+        call gv_r%write(node, r)
     end subroutine
 
     elemental subroutine inner_node_last_touch_op(traversal, section, node)
@@ -598,13 +604,20 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        real(kind = GRID_SR)                        :: r(_gv_node_size)
-        real(kind = GRID_SR)                        :: trace_A(_gv_node_size)
+        real(kind = GRID_SR)    :: r(_gv_node_size)
+        real(kind = GRID_SR)    :: rhs(_gv_node_size)
+        real(kind = GRID_SR)    :: trace_A(_gv_node_size)
 
         call gv_r%read(node, r)
         call gv_trace_A%read(node, trace_A)
 
-        call post_dof_op(r, trace_A)
+#       if defined(_gv_rhs)
+            call gv_rhs%read(node, rhs)
+#       else
+            rhs = 0.0_GRID_SR
+#       endif
+
+        call post_dof_op(r, rhs, trace_A)
 
         call gv_r%write(node, r)
     end subroutine
@@ -614,13 +627,20 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical :: is_dirichlet(1)
+        logical                 :: is_dirichlet(_gv_node_size)
+        integer			        :: i
+        real (kind = GRID_SR)   :: r(_gv_node_size)
+        real (kind = GRID_SR)   :: trace_A(_gv_node_size)
 
         call gv_dirichlet%read(node, is_dirichlet)
+        call gv_r%read(node, r)
+        call gv_trace_A%read(node, trace_A)
 
-        if (.not. any(is_dirichlet)) then
-            call inner_node_reduce_op(traversal, section, node)
-        end if
+        do i = 1, _gv_node_size
+            if (.not. is_dirichlet(i)) then
+                call reduce_dof_op(traversal%r_C_r, traversal%r_sq, r(i), trace_A(i))
+            end if
+        end do
     end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
@@ -659,20 +679,21 @@ MODULE _CG_(exact)
     !Volume and DoF operators
     !*******************************
 
-    elemental subroutine pre_dof_op(r, rhs, trace_A)
+    elemental subroutine pre_dof_op(r, trace_A)
         real (kind = GRID_SR), intent(out)			:: r
-        real (kind = GRID_SR), intent(in)			:: rhs
         real (kind = GRID_SR), intent(out)			:: trace_A
 
-        r = rhs
+        r = 0.0_GRID_SR
         trace_A = tiny(1.0_GRID_SR)
     end subroutine
 
-    elemental subroutine post_dof_op(r, trace_A)
+    elemental subroutine post_dof_op(r, rhs, trace_A)
         real (kind = GRID_SR), intent(inout)		:: r
+        real (kind = GRID_SR), intent(in)			:: rhs
         real (kind = GRID_SR), intent(in)			:: trace_A
 
-        r = r / trace_A
+        !so far, r assembled Ax, so now we set it to r <- D^(-1)(b - Ax)
+        r = (rhs - r) / trace_A
     end subroutine
 
     elemental subroutine reduce_dof_op(r_C_r, r_sq, r, trace_A)
@@ -760,14 +781,15 @@ MODULE _CG
         call solver%cg_exact%traverse(grid)
         r_sq = solver%cg_exact%r_sq
         r_C_r = solver%cg_exact%r_C_r
+        i_iteration = 0
         _log_write(2, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
-        do i_iteration = 0, huge(1_GRID_SI)
+        do
             !$omp master
             _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res: ", sqrt(r_sq)
             !$omp end master
 
-            if (r_sq < solver%max_error * solver%max_error) then
+            if ((cfg%i_max_iterations .ge. 0 .and. i_iteration .ge. cfg%i_max_iterations) .or. r_sq < solver%max_error * solver%max_error) then
                 exit
             end if
 
@@ -789,6 +811,11 @@ MODULE _CG
                 !$omp end master
             end if
 
+            !this is also a sufficient exit condition
+            if (r_C_r <= tiny(1.0_GRID_SR)) then
+                exit
+            end if
+
             !compute step size alpha = r^T C r / d^T A d
             alpha = r_C_r / d_u
             r_C_r_old = r_C_r
@@ -803,6 +830,7 @@ MODULE _CG
 
             !compute beta = r^T C r (new) / r^T C r (old)
             beta = r_C_r / r_C_r_old
+            i_iteration = i_iteration + 1
         end do
 
         !$omp master

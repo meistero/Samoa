@@ -73,6 +73,8 @@
 		type num_node_data_pers
 			real(kind=GRID_SR), dimension(1)                       ::qp
             real(kind=GRID_SR), dimension(1)                       ::r
+            real(kind=GRID_SR), dimension(1)                       ::d
+            real(kind=GRID_SR), dimension(1)                       ::A_d
             real(kind=GRID_SR), dimension(1)                       ::div_old
             real(kind=GRID_SR), dimension(1)                       ::div
 

@@ -260,9 +260,14 @@ subroutine node_merge_op(local_node, neighbor_node)
 
     real (kind = GRID_SR) :: rhs(1)
 
+    assert_eq(local_node%data_pers%qp(1),local_node%data_pers%qp(1))
+    assert_eq(local_node%data_pers%w(1),local_node%data_pers%w(1))
+
     assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
-    assert_eq(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
-    assert_eq(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
+    !write(*,*) "qp: ", local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1), local_node%position(1), local_node%position(2)
+    assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
+    !write(*,*) "w: ", local_node%data_pers%w(1), neighbor_node%data_pers%w(1)
+    assert_eqf(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
 
     call gv_rhs%read(neighbor_node, rhs)
     call gv_rhs%add(local_node, rhs)

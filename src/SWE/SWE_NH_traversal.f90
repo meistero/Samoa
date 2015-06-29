@@ -153,11 +153,15 @@ subroutine node_merge_op(local_node, neighbor_node)
     type(t_node_data), intent(inout)			    :: local_node
     type(t_node_data), intent(in)				    :: neighbor_node
 
+    !write(*,*) "qp: ", local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1), local_node%position(1), local_node%position(2)
+
+    !write(*,*) "w: ", local_node%data_pers%w(1), neighbor_node%data_pers%w(1)
+
     assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
-    assert_eq(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
-    assert_eq(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
-    assert_eq(local_node%data_pers%rhs(1), neighbor_node%data_pers%rhs(1))
-    assert_eq(local_node%data_pers%r(1), neighbor_node%data_pers%r(1))
+    assert_eqf(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
+    assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
+    assert_eqf(local_node%data_pers%rhs(1), neighbor_node%data_pers%rhs(1))
+    assert_eqf(local_node%data_pers%r(1), neighbor_node%data_pers%r(1))
 
 !    if( local_node%position(1) == 0.5_GRID_SR .and. local_node%position(2) == 0.5_GRID_SR .and. neighbor_node%position(1) == 0.5_GRID_SR .and. neighbor_node%position(2) == 0.5_GRID_SR ) then
 !        write(*,*) 'rhs: ', local_node%data_pers%rhs

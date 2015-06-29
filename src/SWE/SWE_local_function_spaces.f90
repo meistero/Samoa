@@ -69,7 +69,7 @@ contains
 
         end subroutine
 
-        subroutine apply(gm_A, element, x, r)
+        pure subroutine apply(gm_A, element, x, r)
             class(swe_gm_A), intent(in)         :: gm_A
             type(t_element_base), intent(in)    :: element
             real(kind = GRID_SR), intent(in)    :: x(3)
@@ -80,7 +80,7 @@ contains
             r = matmul(element%cell%data_pers%A, x)
         end subroutine
 
-        subroutine get_trace(gm_A, element, d)
+        pure subroutine get_trace(gm_A, element, d)
             class(swe_gm_A), intent(in)         :: gm_A
             type(t_element_base), intent(in)    :: element
             real(kind = GRID_SR), intent(inout) :: d(3)
@@ -174,6 +174,28 @@ MODULE SWE_gv_w_mod
 #		define _GV_TYPE_NAME		swe_gv_r
 #		define _GV_TYPE				real (kind = GRID_SR)
 #		define _GV_NAME				r
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
+
+    MODULE SWE_gv_d_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		swe_gv_d
+#		define _GV_TYPE				real (kind = GRID_SR)
+#		define _GV_NAME				d
+#		define _GV_PERSISTENT		1
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
+
+    MODULE SWE_gv_A_d_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		swe_gv_A_d
+#		define _GV_TYPE				real (kind = GRID_SR)
+#		define _GV_NAME				A_d
 #		define _GV_PERSISTENT		1
 
 #		include "Tools_grid_variable.f90"

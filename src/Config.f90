@@ -77,6 +77,7 @@ module config
             logical					                :: l_pointoutput_time                           !< test points output on/off
             logical                             ::l_gv_output                                  !gv_output
             integer			        	        :: i_max_iterations
+            integer			        	        :: i_CG_restart			                            !< CG restart interval
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -119,7 +120,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -max_iter -1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -cg_restart 256 -max_iter -1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false."
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -189,6 +190,7 @@ module config
             config%r_epsilon= rget('samoa_epsilon')
             config%l_pointoutput_time= lget('samoa_pointoutputtime')
             config%i_max_iterations = iget('samoa_max_iter')
+            config%i_CG_restart = iget('samoa_cg_restart')
 #       endif
 
         if (rank_MPI == 0) then
@@ -239,9 +241,10 @@ module config
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
                     PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
                     PRINT '(A, L, A)',     "	-lseoutput             enable LSE output (value: ", config%l_lse_output, ")"
-                    PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
+                    PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG + Jacobi, 2: Pipelined CG + Jacobi) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A,A,A)',    "   -test_case <value>      experiment to use (value: ", trim(config%s_test_case_name), ")"
+                    PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
@@ -367,6 +370,7 @@ module config
 #		elif defined(_SWE)
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
             _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
+            _log_write(0, '(" SWE: CG restart interval: ", I0)') config%i_CG_restart
 
             if (config%l_ascii_output) then
                 _log_write(0, '(" SWE: Ascii Output: Yes, width: ", I0)') config%i_ascii_width

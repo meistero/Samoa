@@ -256,7 +256,9 @@
 			type(t_node_data), intent(inout)					:: node
 
 
-                    node%data_pers%is_dirichlet_boundary = .false.
+            node%data_pers%is_dirichlet_boundary = .false.
+            node%data_pers%d = 0.0_GRID_SR
+            node%data_pers%A_d = 0.0_GRID_SR
 
 		end subroutine
 

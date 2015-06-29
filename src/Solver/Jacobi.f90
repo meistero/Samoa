@@ -349,11 +349,13 @@ MODULE _JACOBI
             end if
 
             !adjust step size
+            !$omp single
             if (r_sq > r_sq_old) then
                 solver%jacobi%alpha = 0.95_GRID_SR * solver%jacobi%alpha
             else
                 solver%jacobi%alpha = solver%jacobi%alpha + 0.0001_GRID_SR
             end if
+            !$omp end single
 
             r_sq_old = r_sq
             i_iteration = i_iteration + 1

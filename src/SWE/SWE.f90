@@ -21,6 +21,8 @@
 		use SWE_euler_timestep
 
         use Swe_pressure_solver_jacobi
+        use Swe_pressure_solver_cg
+        use Swe_pressure_solver_pipecg
         use Linear_solver
         use SWE_lse_output
         use SWE_lse_traversal
@@ -53,7 +55,8 @@
             type(t_swe_adaption_traversal)          :: adaption
             type(t_swe_point_output_time_traversal)	    :: point_output_time
 
-            class(t_linear_solver), pointer                 :: pressure_solver
+            class(t_linear_solver), pointer                 :: pressure_solver_jacobi
+            class(t_linear_solver), pointer                 :: pressure_solver_cg
             contains
 
             procedure, pass :: create => swe_create
@@ -72,7 +75,9 @@
             integer                                                     :: i_error
 			!local variables
 			character(64)												:: s_log_name, s_date, s_time
-            type(t_swe_pressure_solver_jacobi)                        :: pressure_solver_jacobi
+            type(t_swe_pressure_solver_jacobi)                          :: pressure_solver_jacobi
+            type(t_swe_pressure_solver_cg)                              :: pressure_solver_cg
+            type(t_swe_pressure_solver_pipecg)                          :: pressure_solver_pipecg
 
 
 			!open log file
@@ -104,8 +109,17 @@
             call swe%nh_variable_output%create
 
             call pressure_solver_jacobi%create(real(cfg%r_epsilon, GRID_SR))
-            !call pressure_solver_jacobi%create(real(0.001, GRID_SR))
-            allocate(swe%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
+            allocate(swe%pressure_solver_jacobi, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
+
+            select case (cfg%i_lsolver)
+                case (1)
+                    call pressure_solver_cg%create(real(cfg%r_epsilon, GRID_SR), cfg%i_CG_restart)
+                    allocate(swe%pressure_solver_cg, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
+                case (2)
+                    call pressure_solver_pipecg%create(real(cfg%r_epsilon, GRID_SR), cfg%i_CG_restart)
+                    allocate(swe%pressure_solver_cg, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
+            end select
+
 		end subroutine
 
 		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
@@ -218,10 +232,16 @@
             call swe%nh_variable_output%destroy()
 
 
-            if (associated(swe%pressure_solver)) then
-                call swe%pressure_solver%destroy()
+            if (associated(swe%pressure_solver_jacobi)) then
+                call swe%pressure_solver_jacobi%destroy()
 
-                deallocate(swe%pressure_solver, stat = i_error); assert_eq(i_error, 0)
+                deallocate(swe%pressure_solver_jacobi, stat = i_error); assert_eq(i_error, 0)
+            end if
+
+            if (associated(swe%pressure_solver_cg)) then
+                call swe%pressure_solver_cg%destroy()
+
+                deallocate(swe%pressure_solver_cg, stat = i_error); assert_eq(i_error, 0)
             end if
 
 #			if defined(_ASAGI)
@@ -245,7 +265,7 @@
 
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_grid_info)           	                            :: grid_info, grid_info_max
-			integer (kind = GRID_SI)                                    :: i_initial_step, i_time_step, i_lse_iterations
+			integer (kind = GRID_SI)                                    :: i_initial_step, i_time_step, i_lse_iterations_jacobi, i_lse_iterations_cg
 			integer  (kind = GRID_SI)                                   :: i_stats_phase
 
 			!init parameters
@@ -430,10 +450,17 @@
                     call swe%lse_traversal%traverse(grid)
 
 
-
-
-                    i_lse_iterations = swe%pressure_solver%solve(grid)
-                    write(*,*) 'iterations needed:' , i_lse_iterations
+                    select case(cfg%i_lsolver)
+                        case (0)
+                            i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
+                            write(*,*) 'iterations needed: ', i_lse_iterations_jacobi
+                        case (1,2)
+                            i_lse_iterations_cg = swe%pressure_solver_cg%solve(grid)
+                            i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
+                            write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi
+                        case default
+                            try(.false., "Invalid linear solver, must be in range 0 to 2")
+                    end select
 
 
                     call swe%nh_traversal%traverse(grid)

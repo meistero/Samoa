@@ -25,7 +25,7 @@
 		use SFC_data_types
 
 #		define _BF_TYPE_NAME		t_basis_lin_node
-#		define _BF_ORDER			0
+#		define _BF_ORDER			1
 
 #		include "Tools_lagrange_basis.f90"
 	END MODULE
@@ -56,6 +56,8 @@
         use SWE_gv_w_mod
         use SWE_gv_mat_diagonal_mod
         use SWE_gv_r_mod
+        use SWE_gv_A_d_mod
+        use SWE_gv_d_mod
         use SWE_gv_div_mod
         use SWE_gv_div_old_mod
         use SWE_gv_is_dirichlet_boundary_mod
