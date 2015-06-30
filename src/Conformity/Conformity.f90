@@ -434,33 +434,36 @@ module Conformity
 
 		i_dest_stack = section%start_dest_stack
 
-        if (section%cells%get_size() > 0) then
-            assert_ge(section%cells%get_size(), 2)
-
-            !process first element
-            p_cell_data => section%cells%next()
-            call initial_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-
-            do
+        select case (section%cells%get_size())
+            case (1)
+                !process the only element
                 p_cell_data => section%cells%next()
+                call initial_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+            case (2:)
+                !process first element
+                p_cell_data => section%cells%next()
+                call initial_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
 
-                select case (p_cell_data%fine_triangle%i_entity_types)
-                    case (INNER_OLD)
-                        call initial_conformity_traversal_old_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case (INNER_NEW)
-                        call initial_conformity_traversal_new_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case (INNER_OLD_BND)
-                        call initial_conformity_traversal_old_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case (INNER_NEW_BND)
-                        call initial_conformity_traversal_new_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case default
-                        exit
-                end select
-            end do
+                do
+                    p_cell_data => section%cells%next()
 
-            !process last element
-            call initial_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-		end if
+                    select case (p_cell_data%fine_triangle%i_entity_types)
+                        case (INNER_OLD)
+                            call initial_conformity_traversal_old_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case (INNER_NEW)
+                            call initial_conformity_traversal_new_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case (INNER_OLD_BND)
+                            call initial_conformity_traversal_old_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case (INNER_NEW_BND)
+                            call initial_conformity_traversal_new_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case default
+                            exit
+                    end select
+                end do
+
+                !process last element
+                call initial_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+        end select
 
 		!add +1 to the maximum for any crossed edges that might have been refined
 		!we did not take account of those, since they produce at most one more element on the stack
@@ -775,33 +778,36 @@ module Conformity
 
 		i_dest_stack = section%start_dest_stack
 
-        if (section%cells%get_size() > 0) then
-            assert_ge(section%cells%get_size(), 2)
-
-            !process first element
-            p_cell_data => section%cells%next()
-            call update_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-
-            do
+        select case (section%cells%get_size())
+            case (1)
+                !process the only element
                 p_cell_data => section%cells%next()
+                call update_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+            case (2:)
+                !process first element
+                p_cell_data => section%cells%next()
+                call update_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
 
-                select case (p_cell_data%fine_triangle%i_entity_types)
-                    case (INNER_OLD)
-                        call update_conformity_traversal_old_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case (INNER_NEW)
-                        call update_conformity_traversal_new_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case (INNER_OLD_BND)
-                        call update_conformity_traversal_old_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case (INNER_NEW_BND)
-                        call update_conformity_traversal_new_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-                    case default
-                        exit
-                end select
-            end do
+                do
+                    p_cell_data => section%cells%next()
 
-            !process last element
-            call update_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
-		end if
+                    select case (p_cell_data%fine_triangle%i_entity_types)
+                        case (INNER_OLD)
+                            call update_conformity_traversal_old_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case (INNER_NEW)
+                            call update_conformity_traversal_new_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case (INNER_OLD_BND)
+                            call update_conformity_traversal_old_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case (INNER_NEW_BND)
+                            call update_conformity_traversal_new_bnd_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+                        case default
+                            exit
+                    end select
+                end do
+
+                !process last element
+                call update_conformity_traversal_leaf(thread, section, p_cell_data%fine_triangle, i_dest_stack)
+        end select
 
 		!add +1 to the maximum for any crossed edges that might have been refined
 		!we did not take account of those, since they produce at most one more element on the stack
@@ -1075,33 +1081,36 @@ module Conformity
 		! local variables
 		type(t_cell_stream_data), pointer			:: p_cell_data
 
-        if (section%cells%get_size() > 0) then
-            assert_ge(section%cells%get_size(), 2)
-
-            !process first element
-            p_cell_data => section%cells%next()
-            call empty_traversal_leaf(thread, section, p_cell_data%fine_triangle)
-
-            do
+        select case (section%cells%get_size())
+            case (1)
+                !process the only element
                 p_cell_data => section%cells%next()
+                call empty_traversal_leaf(thread, section, p_cell_data%fine_triangle)
+            case (2:)
+                !process first element
+                p_cell_data => section%cells%next()
+                call empty_traversal_leaf(thread, section, p_cell_data%fine_triangle)
 
-                select case (p_cell_data%fine_triangle%i_entity_types)
-                    case (INNER_OLD)
-                        call empty_traversal_old_leaf(thread, section, p_cell_data%fine_triangle)
-                    case (INNER_NEW)
-                        call empty_traversal_new_leaf(thread, section, p_cell_data%fine_triangle)
-                    case (INNER_OLD_BND)
-                        call empty_traversal_old_bnd_leaf(thread, section, p_cell_data%fine_triangle)
-                    case (INNER_NEW_BND)
-                        call empty_traversal_new_bnd_leaf(thread, section, p_cell_data%fine_triangle)
-                    case default
-                        exit
-                end select
-            end do
+                do
+                    p_cell_data => section%cells%next()
 
-            !process last element
-            call empty_traversal_leaf(thread, section, p_cell_data%fine_triangle)
-		end if
+                    select case (p_cell_data%fine_triangle%i_entity_types)
+                        case (INNER_OLD)
+                            call empty_traversal_old_leaf(thread, section, p_cell_data%fine_triangle)
+                        case (INNER_NEW)
+                            call empty_traversal_new_leaf(thread, section, p_cell_data%fine_triangle)
+                        case (INNER_OLD_BND)
+                            call empty_traversal_old_bnd_leaf(thread, section, p_cell_data%fine_triangle)
+                        case (INNER_NEW_BND)
+                            call empty_traversal_new_bnd_leaf(thread, section, p_cell_data%fine_triangle)
+                        case default
+                            exit
+                    end select
+                end do
+
+                !process last element
+                call empty_traversal_leaf(thread, section, p_cell_data%fine_triangle)
+        end select
 
 		!swap start and end dest stack
 		i_dest_stack = section%end_dest_stack
