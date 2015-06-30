@@ -286,11 +286,11 @@
 			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
 			!refine also on the coasts
-			if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
-				cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
-			else if (b_norm < 300.0_GRID_SR) then
-				cell%geometry%refinement = max(cell%geometry%refinement, 0)
+			if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 20.0_GRID_SR) then
+				!cell%geometry%refinement = 1
+				!traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+			else if (b_norm < 100.0_GRID_SR) then
+				!cell%geometry%refinement = max(cell%geometry%refinement, 0)
 			endif
 		end subroutine
 
