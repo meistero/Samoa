@@ -69,7 +69,7 @@ module SFC_edge_traversal
         call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)
         call prefix_sum(src_grid%sections%elements_alloc%last_dest_cell, src_grid%sections%elements_alloc%dest_cells)
 
-        i_grid_load = max(1_GRID_DI, src_grid%load)
+        i_grid_load = src_grid%load
 
         if (cfg%l_split_sections) then
             i_grid_partial_load = i_grid_load
@@ -77,14 +77,16 @@ module SFC_edge_traversal
             i_total_load = i_grid_load
             call reduce(i_total_load, MPI_SUM)
 
-            i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_max_threads(), GRID_DI) * int(size_MPI, GRID_DI)
+            i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI) * int(size_MPI, GRID_DI)
 
             i_dest_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1) / i_total_load &
                 - (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
+        else
+            i_dest_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI)
         end if
 
         if (.not. cfg%l_split_sections .or. src_grid%dest_cells < i_dest_sections * min_section_size) then
-            i_dest_sections = min(src_grid%dest_cells / min_section_size, int(cfg%i_sections_per_thread, GRID_DI) * int(omp_get_max_threads(), GRID_DI))
+            i_dest_sections = min(src_grid%dest_cells / min_section_size, i_dest_sections)
 
             if (src_grid%dest_cells > 0) then
                 i_dest_sections = max(i_dest_sections, 1)
@@ -1558,15 +1560,13 @@ module SFC_edge_traversal
 
             !$omp single
 			!switch to integer arithmetics from now on, we need exact arithmetics
-			!also we do not allow empty loads (thus l <- max(1, l)), because the mapping from process to load must be invertible
 
-			load = max(1_GRID_DI, grid%load)
+			load = grid%load
             partial_load = load
 			call prefix_sum(partial_load, MPI_SUM)
 			total_load = load
 			call reduce(total_load, MPI_SUM)
 
-			assert_gt(load, 0)
 			assert_gt(total_load, 0)
 			i_sections = grid%sections%get_size()
 
@@ -1613,6 +1613,11 @@ module SFC_edge_traversal
 			!$omp single
             i_first_rank_out = ((partial_load - load) * size_MPI) / total_load	!round down
             i_last_rank_out = (partial_load * size_MPI - 1) / total_load		!round up and subtract 1
+
+            !special case: integers are rounded up below 0, so if partial_load = 0, the result is 0, but should be -1
+            if (partial_load == 0) then
+                i_last_rank_out = -1
+            end if
 
 			!allocate space for variables that are stored per output section
 			if (size(i_rank_out) .ne. i_sections) then
@@ -1675,19 +1680,19 @@ module SFC_edge_traversal
                 call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank, 1, MPI_COMM_WORLD, requests_out(i_rank, 1), i_error); assert_eq(i_error, 0)
                 call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_rank - 1, 2, MPI_COMM_WORLD, requests_out(i_rank - 1, 2), i_error); assert_eq(i_error, 0)
 
-                _log_write(3, '("send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_rank, 1
-                _log_write(3, '("send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_rank - 1, 2
+                _log_write(3, '("send: from: ", I0, " to: ", I0, " I am your first input rank")') rank_MPI, i_rank
+                _log_write(3, '("send: from: ", I0, " to: ", I0, " I am your last input rank")') rank_MPI, i_rank - 1
             end do
 
 			!check if i am first or last input rank for first and last output rank (meaning an exact match)
-			if ((partial_load - load) * size_MPI == total_load * i_first_rank_out) then
+			if (load > 0 .and. (partial_load - load) * size_MPI == total_load * i_first_rank_out) then
                 call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_first_rank_out, 1, MPI_COMM_WORLD, requests_out(i_first_rank_out, 1), i_error); assert_eq(i_error, 0)
-               _log_write(3, '("first send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_first_rank_out, 1
+               _log_write(3, '("send: from: ", I0, " to: ", I0, " I am your first input rank")') rank_MPI, i_first_rank_out
 			end if
 
-			if (partial_load * size_MPI == total_load * (i_last_rank_out + 1)) then
+			if (load > 0 .and. partial_load * size_MPI == total_load * (i_last_rank_out + 1)) then
                 call mpi_isend(rank_MPI, 1, MPI_INTEGER, i_last_rank_out, 2, MPI_COMM_WORLD, requests_out(i_last_rank_out, 2), i_error); assert_eq(i_error, 0)
-                _log_write(3, '("last send: from: ", I0, " to: ", I0, " tag: ", I0 )') rank_MPI, i_last_rank_out, 2
+                _log_write(3, '("send: from: ", I0, " to: ", I0, " I am your last input rank")') rank_MPI, i_last_rank_out
 			end if
 
 			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
@@ -2256,7 +2261,7 @@ module SFC_edge_traversal
                         src_grid%max_dest_stack(GREEN) = src_grid%max_dest_stack(GREEN) + section%max_dest_stack(GREEN) - section%min_dest_stack(GREEN) + 1
 
                         if (section%cells%elements(1)%get_previous_edge_type() .ne. OLD_BND) then
-                            _log_write(4, '(A, I0)') "Reversing section ", i_section
+                            _log_write(4, '("Reversing section ", I0)') i_section
                             call section%reverse()
 
                             !do not swap distances
