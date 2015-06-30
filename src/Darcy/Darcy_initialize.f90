@@ -125,7 +125,6 @@
 #           endif
 
             real (kind = GRID_SR)                               :: xs(3)
-            real (kind = GRID_SR)						        :: buffer(3)
 
             xs(1:2) = cfg%scaling * x(1:2) + cfg%offset
             xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3)
@@ -142,21 +141,16 @@
                         .and. xs(1) <= asagi_grid_max(cfg%afh_permeability_X, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_permeability_X, 1)) then
 
 #                   if (_DARCY_LAYERS > 0)
-                        buffer(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        r_base_permeability(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
                         !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
-                        buffer(3) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
+                        r_base_permeability(2) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
 
                         !assume horizontally isotropic permeability
                         !assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
-
-                        r_base_permeability(1) = buffer(1)
-                        r_base_permeability(2) = buffer(3)
 #                   else
-                        buffer(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        r_base_permeability = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
                         !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
                         !buffer(3) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
-
-                        r_base_permeability = buffer(1)
 #                   endif
 
                     !convert from mD to m^2 to um^2
@@ -364,12 +358,6 @@
             real (kind = GRID_SR), intent(inout)			        :: p(:, :)
             real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
 
-#           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
-#           else
-                real (kind = GRID_SR), parameter            :: refinement_threshold = 3.0e1_SR
-#           endif
-
 			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2), radius
 			integer (kind = GRID_SI)	                            :: i_depth
 			logical 								                :: l_refine_initial, l_refine_solution, l_relevant
@@ -430,8 +418,8 @@
 
 			!check refinement condition
 
-			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > refinement_threshold * get_edge_size(cfg%i_max_depth)
-			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > refinement_threshold * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod / 4.0_SR
+			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)
+			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod
 
 			!refine the cell if necessary (no coarsening in the initialization!)
 

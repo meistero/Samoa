@@ -125,8 +125,27 @@
                 real (kind = GRID_SR)   :: p(3)
 #           endif
 
+            real (kind = GRID_SR)   :: pos_in(2)
+
 			call gv_saturation%read_from_element(element, saturation)
 			call gv_p%read_from_element(element, p)
+
+            pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
+
+            if (norm2(pos_in) < 1.0_SR + epsilon(1.0_SR)) then
+                if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + epsilon(1.0_SR)) then
+                    !injection well:
+                    !set a constant saturation condition
+
+#                   if (_DARCY_LAYERS > 0)
+                        saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + pos_in(1)))
+                        saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + 1.0_SR - (pos_in(1) + pos_in(2))))
+                        saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + pos_in(2)))
+#                   else
+                        saturation = max(0.0_SR, min(1.0_SR, saturation + [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]))
+#                   endif
+                end if
+            end if
 
 			!call element operator
 			call alpha_volume_op(traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
@@ -140,13 +159,6 @@
 			integer (kind = GRID_DI), intent(inout)		:: i_refinements_issued
 			integer (kind = BYTE), intent(in)			:: i_depth
 			integer (kind = BYTE), intent(out)			:: i_refinement
-
-#           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e2_SR
-!               real (kind = GRID_SR), parameter            :: refinement_threshold = 1.0e8_SR
-#           else
-                real (kind = GRID_SR), parameter            :: refinement_threshold = 3.0e1_SR
-#           endif
 
             real (kind = GRID_SR)						    :: r_sat_norm, r_p_norm
             logical 									    :: l_coarsen_p, l_coarsen_sat, l_refine_sat, l_relevant
@@ -173,9 +185,9 @@
             !refine a variable q if Delta q > threshold * Delta x / (x_max - x_min) * (q_max - q_min)
             !coarsen a variable q if Delta q < threshold / 2 * Delta x / (x_max - x_min) * (q_max - q_min)
 
-			l_refine_sat = r_sat_norm > refinement_threshold * get_edge_size(cfg%i_max_depth)
-			l_coarsen_sat = r_sat_norm < refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth)
-			l_coarsen_p = r_p_norm < refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod / 4.0_SR
+			l_refine_sat = r_sat_norm > cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)
+			l_coarsen_sat = r_sat_norm < cfg%S_refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth)
+			l_coarsen_p = r_p_norm < cfg%p_refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod
 
 			!* refine the cell if the saturation becomes too steep
 			!* coarsen the cell if pressure and saturation are constant within a cell

@@ -25,6 +25,9 @@ module config
     public cfg
 
     type t_config
+        character(1024)                         :: arguments
+        character(2048)                         :: help
+
         integer			                        :: i_threads			                            !< number of OpenMP threads
         integer (kind = selected_int_kind(1))   :: i_sections_per_thread						    !< number of sections per thread
         integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
@@ -76,6 +79,9 @@ module config
 			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/s]
 			double precision			        :: r_pos_in(2)				                        !< injection well position
 			double precision			        :: r_pos_prod(2)				                    !< production well position
+
+			double precision			        :: p_refinement_threshold				            !< pressure refinement threshold
+			double precision			        :: S_refinement_threshold				            !< saturation refinement threshold
 #    	elif defined(_SWE)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -99,6 +105,16 @@ module config
 
     contains
 
+    subroutine add_real_parameter(config, name, default_value, help, address)
+        class(t_config), intent(inout)          :: config
+        character(*), intent(in)          		:: name, default_value, help
+        double precision, intent(in), pointer   :: address
+
+        write(config%arguments, '(A, A, " ", A, " ")') config%arguments, name, default_value
+
+        write(config%help, '(A, A, T15, A, "(default: ", A, ")", /)') config%help, name, help, default_value
+    end subroutine
+
     subroutine read_from_arguments(config)
         class(t_config), intent(inout)          :: config
 
@@ -117,7 +133,16 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 -tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc -p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 -max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 " // &
+            "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm.nc -fpor data/darcy_five_spot/spe_phi.nc "  // &
+            "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
+            "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false."
+
+#           if (_DARCY_LAYERS > 0)
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d1 -S_ref_th 1.0d2 "
+#           else
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75d1 -S_ref_th 3.0d1 "
+#           endif
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
@@ -186,6 +211,9 @@ module config
             config%l_lse_output = lget('samoa_lseoutput')
             config%r_well_radius = 5.0d0
             config%r_inflow = 5000.0d0
+
+            config%p_refinement_threshold = rget('samoa_p_ref_th')
+            config%S_refinement_threshold = rget('samoa_S_ref_th')
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
