@@ -93,57 +93,65 @@
 			integer                                 :: i_error
 
 #			if defined(_ASAGI)
+                cfg%afh_bathymetry = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_displacement = asagi_grid_create(ASAGI_FLOAT)
+
+#               if defined(_MPI)
+                    call asagi_grid_set_comm(cfg%afh_bathymetry, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_displacement, MPI_COMM_WORLD)
+#               endif
+
+                call asagi_grid_set_threads(cfg%afh_bathymetry, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_displacement, cfg%i_threads)
+
+                !convert ASAGI mode to ASAGI parameters
+
                 select case(cfg%i_asagi_mode)
                     case (0)
-                        i_asagi_hints = GRID_NO_HINT
+                        !i_asagi_hints = GRID_NO_HINT
                     case (1)
-                        i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        !i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        call asagi_grid_set_param(cfg%afh_bathymetry, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_displacement, "grid", "pass_through")
                     case (2)
-                        i_asagi_hints = GRID_NOMPI
+                        !i_asagi_hints = GRID_NOMPI
                     case (3)
-                        i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
+                        !i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
                     case (4)
-                        i_asagi_hints = GRID_LARGE_GRID
+                        !i_asagi_hints = GRID_LARGE_GRID
+                        call asagi_grid_set_param(cfg%afh_bathymetry, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_displacement, "grid", "cache")
                     case default
                         try(.false., "Invalid asagi mode, must be in range 0 to 4")
                 end select
 
-#               if defined(_ASAGI_NUMA)
-                    cfg%afh_bathymetry = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_displacement = grid_create_for_numa(grid_type = GRID_FLOAT, hint = ior(i_asagi_hints, GRID_HAS_TIME), levels = 1, tcount=omp_get_max_threads())
-#               else
-                    cfg%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_hints, GRID_HAS_TIME), levels = 1)
-#               endif
-
-#               if defined(_ASAGI_NUMA)
-                    !$omp parallel private(i_error)
-						i_error = grid_register_thread(cfg%afh_bathymetry); assert_eq(i_error, GRID_SUCCESS)
-						i_error = grid_register_thread(cfg%afh_displacement); assert_eq(i_error, GRID_SUCCESS)
-                    !$omp end parallel
-#               endif
-
-                i_error = asagi_open(cfg%afh_bathymetry, trim(ncd_bath), 0); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, GRID_SUCCESS)
+                !$omp parallel private(i_error), copyin(cfg)
+                    i_error = asagi_grid_open(cfg%afh_bathymetry,  trim(ncd_bath), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                !$omp end parallel
 
                 associate(afh_d => cfg%afh_displacement, afh_b => cfg%afh_bathymetry)
                     if (present(scaling)) then
                     else
-                        cfg%scaling = max(grid_max_x(afh_b) - grid_min_x(afh_b), grid_max_y(afh_b) - grid_min_y(afh_b))
+                        cfg%scaling = max(asagi_grid_max(afh_b, 0) - asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 1) - asagi_grid_min(afh_b, 1))
                     end if
 
                     if (present(offset)) then
                     else
-                        cfg%offset = [0.5_GRID_SR * (grid_min_x(afh_d) + grid_max_x(afh_d)), 0.5_GRID_SR * (grid_min_y(afh_d) + grid_max_y(afh_d))] - 0.5_GRID_SR * cfg%scaling
-                        cfg%offset = min(max(cfg%offset, [grid_min_x(afh_b), grid_min_y(afh_b)]), [grid_max_x(afh_b), grid_max_y(afh_b)] - cfg%scaling)
+                        cfg%offset = [0.5_GRID_SR * (asagi_grid_min(afh_d, 0) + asagi_grid_max(afh_d, 0)), 0.5_GRID_SR * (asagi_grid_min(afh_d, 1) + asagi_grid_max(afh_d, 1))] - 0.5_GRID_SR * cfg%scaling
+                        cfg%offset = min(max(cfg%offset, [asagi_grid_min(afh_b, 0), asagi_grid_min(afh_b, 1)]), [asagi_grid_max(afh_b, 0), asagi_grid_max(afh_b, 1)] - cfg%scaling)
                     end if
 
                     if (rank_MPI == 0) then
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_bath), grid_min_x(afh_b), grid_max_x(afh_b),  grid_min_y(afh_b), grid_max_y(afh_b),  grid_min_z(afh_b), grid_max_z(afh_b)
+                            trim(ncd_bath), asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 0),  asagi_grid_min(afh_b, 1), asagi_grid_max(afh_b, 1),  asagi_grid_min(afh_b, 2), asagi_grid_max(afh_b, 2)
+                        !_log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_b, 0), asagi_grid_delta(afh_b, 1), asagi_grid_delta(afh_b, 2)
+                        _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2)') asagi_grid_delta(afh_b, 0), asagi_grid_delta(afh_b, 1)
 
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_displ), grid_min_x(afh_d), grid_max_x(afh_d),  grid_min_y(afh_d), grid_max_y(afh_d),  grid_min_z(afh_d), grid_max_z(afh_d)
+                            trim(ncd_displ), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1),  asagi_grid_min(afh_d, 2), asagi_grid_max(afh_d, 2)
+                        !_log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_d, 0), asagi_grid_delta(afh_d, 1), asagi_grid_delta(afh_d, 2)
+                        _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2)') asagi_grid_delta(afh_d, 0), asagi_grid_delta(afh_d, 1)
 
                         _log_write(1, '(" SWE: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
                     end if
@@ -170,8 +178,8 @@
             call swe%adaption%destroy()
 
 #			if defined(_ASAGI)
-				call asagi_close(cfg%afh_displacement)
-				call asagi_close(cfg%afh_bathymetry)
+				call asagi_grid_close(cfg%afh_displacement)
+				call asagi_grid_close(cfg%afh_bathymetry)
 #			endif
 
 			if (l_log) then
@@ -286,7 +294,7 @@
                         exit
                     end if
 
-                    if (grid%r_time > grid_max_z(cfg%afh_displacement)) then
+                    if (grid%r_time > asagi_grid_max(cfg%afh_displacement, 2)) then
                         exit
                     end if
 
