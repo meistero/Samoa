@@ -370,6 +370,7 @@ module config
 #		elif defined(_SWE)
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
             _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
+            _log_write(0, '(" SWE: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
             _log_write(0, '(" SWE: CG restart interval: ", I0)') config%i_CG_restart
 
             if (config%l_ascii_output) then
