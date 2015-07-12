@@ -473,6 +473,13 @@
                      if(xs(1)>=5) then
                       Q%h=(xs(1)-5)* (1/19.85)
                      endif
+                else if (cfg%s_test_case_name .eq. 'cross') then
+                    if ((abs(xs(1) - dam_center(1)) < dam_radius) .or. (abs(xs(2) - dam_center(2)) < dam_radius)) then
+                        Q%h = inner_height
+                    else
+                        Q%h = outer_height
+                    end if
+                    Q%p = 0.0_GRID_SR
                 else if (cfg%s_test_case_name .eq. 'square') then
                     if ((abs(xs(1) - dam_center(1)) < dam_radius) .and. (abs(xs(2) - dam_center(2)) < dam_radius)) then
                         Q%h = inner_height

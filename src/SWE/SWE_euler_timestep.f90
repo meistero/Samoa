@@ -661,15 +661,19 @@
             type(t_node_data), intent(inout)			    :: local_node
             type(t_node_data), intent(in)				    :: neighbor_node
 
-            if (neighbor_node%data_pers%is_dirichlet_boundary(1)) then
-                local_node%data_pers%is_dirichlet_boundary(1) = .true.
-                local_node%data_pers%w(1) = neighbor_node%data_pers%w(1)
-                local_node%data_pers%qp(1) = neighbor_node%data_pers%qp(1)
+            if(cfg%s_test_case_name .eq. 'bar') then
+                if (neighbor_node%data_pers%is_dirichlet_boundary(1)) then
+                    local_node%data_pers%is_dirichlet_boundary(1) = .true.
+                    local_node%data_pers%w(1) = neighbor_node%data_pers%w(1)
+                    local_node%data_pers%qp(1) = neighbor_node%data_pers%qp(1)
+                end if
             end if
 
-            if (neighbor_node%data_pers%w(1) .eq. 0.0_GRID_SR) then
-                local_node%data_pers%w(1) = 0.0_GRID_SR
-                local_node%data_pers%qp(1) = 0.0_GRID_SR
+            if(cfg%s_test_case_name .eq. 'beach') then
+                if (neighbor_node%data_pers%w(1) .eq. 0.0_GRID_SR) then
+                    local_node%data_pers%w(1) = 0.0_GRID_SR
+                    local_node%data_pers%qp(1) = 0.0_GRID_SR
+                end if
             end if
         end subroutine
 
