@@ -336,7 +336,14 @@
                                 element%cell%geometry%refinement =1
                                 traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                         endif
-                    endif
+                    else
+                        if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0 .or. any(Q_test%h .ne. 0.0)) then
+                            !refine coast lines and initial displacement
+
+                            element%cell%geometry%refinement = 1
+                            traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                        end if
+                    end if
 #               endif
 			end if
 
@@ -466,8 +473,16 @@
                      if(xs(1)>=5) then
                       Q%h=(xs(1)-5)* (1/19.85)
                      endif
+                else if (cfg%s_test_case_name .eq. 'square') then
+                    if ((abs(xs(1) - dam_center(1)) < dam_radius) .and. (abs(xs(2) - dam_center(2)) < dam_radius)) then
+                        Q%h = inner_height
+                    else
+                        Q%h = outer_height
+                    end if
+                    Q%p = 0.0_GRID_SR
                 else
-				Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+                    Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+                    Q%p = 0.0_GRID_SR
                 endif
 #			endif
 

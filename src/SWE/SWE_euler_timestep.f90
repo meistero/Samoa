@@ -49,6 +49,8 @@
 #		define _GT_CELL_UPDATE_OP				cell_update_op
 #		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
 
+#       define _GT_NODE_MERGE_OP                node_merge_op
+
 #		define _GT_NODE_MPI_TYPE
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
@@ -318,15 +320,15 @@
 
                 if(cfg%s_test_case_name .eq. 'beach') then
 
-                        element%nodes(1)%ptr%data_pers%w=0
+                        element%nodes(1)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.false.
 
-                        element%nodes(2)%ptr%data_pers%w=0
+                        element%nodes(2)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.false.
 
-                        element%nodes(3)%ptr%data_pers%w=0
+                        element%nodes(3)%ptr%data_pers%w=0.0_GRID_SR
                         element%nodes(3)%ptr%data_pers%qp=0.0_GRID_SR
                         element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.false.
 
@@ -654,5 +656,22 @@
 			fluxR%p = matmul(net_updatesR(2:3), transform_matrix)
 			fluxR%max_wave_speed = max_wave_speed
 		end subroutine
+
+		subroutine node_merge_op(local_node, neighbor_node)
+            type(t_node_data), intent(inout)			    :: local_node
+            type(t_node_data), intent(in)				    :: neighbor_node
+
+            if (neighbor_node%data_pers%is_dirichlet_boundary(1)) then
+                local_node%data_pers%is_dirichlet_boundary(1) = .true.
+                local_node%data_pers%w(1) = neighbor_node%data_pers%w(1)
+                local_node%data_pers%qp(1) = neighbor_node%data_pers%qp(1)
+            end if
+
+            if (neighbor_node%data_pers%w(1) .eq. 0.0_GRID_SR) then
+                local_node%data_pers%w(1) = 0.0_GRID_SR
+                local_node%data_pers%qp(1) = 0.0_GRID_SR
+            end if
+        end subroutine
+
 	END MODULE
 #endif

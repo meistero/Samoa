@@ -74,6 +74,8 @@ subroutine element_op(traversal, section, element)
     real (kind=GRID_SR),dimension(2):: p, p_local, normal_x, normal_y, midpoint12, midpoint13, midpoint23
     real (kind = GRID_SR):: nxvn, nxvp, nxhn, nxhp,nyvp,nyvn, nyhn, nyhp,s, m11,m12, m21,m22
 
+    real (kind = GRID_SR) :: norm
+
     h= element%cell%data_pers%Q(1)%h -  element%cell%data_pers%Q(1)%b
     h_old= element%cell%data_pers%h_old(1) -  element%cell%data_pers%Q(1)%b
 
@@ -193,6 +195,18 @@ subroutine element_op(traversal, section, element)
     mat(3,2)= 0.25_GRID_SR*h_old*s*(nxhn*(m11+m12)+nyhn*(m21+m22))
     mat(3,3)=  - 0.25_GRID_SR*h_old*s*(nxhn*m12+nyhn*m22)+2.0_GRID_SR*c*c* (1.0_GRID_SR/2.0_GRID_SR)/h
 
+    !write(*,*) 'Mat: ', mat
+    norm = norm2(mat)
+    !write(*,*) 'Norm: ', norm
+    if (norm .ne. 0.0_GRID_SR) then
+        norm = norm2(mat - transpose(mat)) / norm
+        if (norm .ge. 0.000001_GRID_SR) then
+            write(*,*) 'Sym: ', norm
+            write(*,*) 'Mat: ', mat(1,1), ' ', mat(1,2), ' ', mat(1,3)
+            write(*,*) 'Mat: ', mat(2,1), ' ', mat(2,2), ' ', mat(2,3)
+            write(*,*) 'Mat: ', mat(3,1), ' ', mat(3,2), ' ', mat(3,3)
+        end if
+    end if
 
    ! c=0.5_GRID_SR * element%cell%geometry%get_leg_size() *cfg%scaling
    ! mat=transpose(mat)
@@ -236,10 +250,12 @@ subroutine element_op(traversal, section, element)
     else
         mat=0.0_GRID_SR
         rhs=0.0_GRID_SR
-                  if(cfg%s_test_case_name .eq. 'beach' .and. (element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
+                  if(cfg%s_test_case_name .eq. 'beach' &
+                    .and. (element%nodes(1)%ptr%position(1) *cfg%scaling <=80 .and.  element%nodes(1)%ptr%position(2)*cfg%scaling <=1) &
+                    .and. (element%nodes(2)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(2)%ptr%position(2)*cfg%scaling <=1) &
+                    .and. (element%nodes(3)%ptr%position(1)*cfg%scaling <=80 .and. element%nodes(3)%ptr%position(2)*cfg%scaling <=1 )) then
 
-
-                           element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
+                            element%nodes(1)%ptr%data_pers%is_dirichlet_boundary=.true.
                             element%nodes(2)%ptr%data_pers%is_dirichlet_boundary=.true.
                             element%nodes(3)%ptr%data_pers%is_dirichlet_boundary=.true.
                             element%nodes(1)%ptr%data_pers%qp=0.0_GRID_SR
@@ -260,17 +276,26 @@ subroutine node_merge_op(local_node, neighbor_node)
 
     real (kind = GRID_SR) :: rhs(1)
 
+    call gv_rhs%read(neighbor_node, rhs)
+    call gv_rhs%add(local_node, rhs)
+
+    if (cfg%s_test_case_name .eq. 'beach') then
+        if (neighbor_node%data_pers%is_dirichlet_boundary(1)) then
+            local_node%data_pers%is_dirichlet_boundary(1) = .true.
+            local_node%data_pers%qp(1) = neighbor_node%data_pers%qp(1)
+        end if
+    else
+        assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
+        assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
+    end if
+
     assert_eq(local_node%data_pers%qp(1),local_node%data_pers%qp(1))
     assert_eq(local_node%data_pers%w(1),local_node%data_pers%w(1))
 
-    assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
+    !assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
     !write(*,*) "qp: ", local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1), local_node%position(1), local_node%position(2)
-    assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
     !write(*,*) "w: ", local_node%data_pers%w(1), neighbor_node%data_pers%w(1)
     assert_eqf(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
-
-    call gv_rhs%read(neighbor_node, rhs)
-    call gv_rhs%add(local_node, rhs)
 end subroutine
 
 !subroutine element_op(traversal, section, element)
