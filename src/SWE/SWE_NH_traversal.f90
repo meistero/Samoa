@@ -159,8 +159,8 @@ subroutine node_merge_op(local_node, neighbor_node)
 
     assert_eqv(local_node%data_pers%is_dirichlet_boundary(1),neighbor_node%data_pers%is_dirichlet_boundary(1))
     assert_eqf(local_node%data_pers%w(1), neighbor_node%data_pers%w(1))
-    assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
     assert_eqf(local_node%data_pers%rhs(1), neighbor_node%data_pers%rhs(1))
+    assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
     assert_eqf(local_node%data_pers%r(1), neighbor_node%data_pers%r(1))
 
 !    if( local_node%position(1) == 0.5_GRID_SR .and. local_node%position(2) == 0.5_GRID_SR .and. neighbor_node%position(1) == 0.5_GRID_SR .and. neighbor_node%position(2) == 0.5_GRID_SR ) then
