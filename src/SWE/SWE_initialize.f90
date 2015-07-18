@@ -489,7 +489,8 @@
                     Q%p = 0.0_GRID_SR
                 else
                     Q%h = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
-                    Q%p = 0.0_GRID_SR
+                    Q%p(1) = Q%h * 10
+                    Q%p(2) = Q%h * 1
                 endif
 #			endif
 

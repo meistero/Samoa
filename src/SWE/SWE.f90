@@ -453,13 +453,19 @@
                     select case(cfg%i_lsolver)
                         case (0)
                             i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
-                            write(*,*) 'iterations needed: ', i_lse_iterations_jacobi
+                            if (rank_MPI == 0) then
+                                write(*,*) 'iterations needed: ', i_lse_iterations_jacobi
+                            end if
                         case (1,2)
                             i_lse_iterations_cg = swe%pressure_solver_cg%solve(grid)
                             i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
-                            write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi
+                            if (rank_MPI == 0) then
+                                write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi
+                            end if
                         case default
-                            try(.false., "Invalid linear solver, must be in range 0 to 2")
+                            if (rank_MPI == 0) then
+                                try(.false., "Invalid linear solver, must be in range 0 to 2")
+                            end if
                     end select
 
 

@@ -289,6 +289,8 @@ subroutine node_merge_op(local_node, neighbor_node)
         assert_eqf(local_node%data_pers%qp(1), neighbor_node%data_pers%qp(1))
     end if
 
+    assert_eqf(local_node%data_pers%r(1), neighbor_node%data_pers%r(1))
+
     assert_eq(local_node%data_pers%qp(1),local_node%data_pers%qp(1))
     assert_eq(local_node%data_pers%w(1),local_node%data_pers%w(1))
 
