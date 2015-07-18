@@ -454,17 +454,23 @@
                         case (0)
                             i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
                             if (rank_MPI == 0) then
+                                !$omp master
                                 write(*,*) 'iterations needed: ', i_lse_iterations_jacobi
+                                !$omp end master
                             end if
                         case (1,2)
                             i_lse_iterations_cg = swe%pressure_solver_cg%solve(grid)
                             i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
                             if (rank_MPI == 0) then
+                                !$omp master
                                 write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi
+                                !$omp end master
                             end if
                         case default
                             if (rank_MPI == 0) then
+                                !$omp master
                                 try(.false., "Invalid linear solver, must be in range 0 to 2")
+                                !$omp end master
                             end if
                     end select
 

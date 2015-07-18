@@ -247,6 +247,7 @@
 !                end if
 !            end if
             node%data_pers%rhs=0.0
+            node%data_pers%r=0.0
 		end subroutine
 
 
