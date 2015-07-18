@@ -168,8 +168,8 @@
 
 			!permeability & porosity
 
-!#define     _ADAPT_INTEGRATE
-#define     _ADAPT_SAMPLE
+#define     _ADAPT_INTEGRATE
+!#define     _ADAPT_SAMPLE
 #           if defined(_ADAPT_INTEGRATE)
 #               if (_DARCY_LAYERS > 0)
                     n = max(1, int(1024.0_SR * dest_element%transform_data%custom_data%scaling))
@@ -193,6 +193,7 @@
                                 x(1:2) = p + alpha * v1 + beta * v2
 
                                 buffer = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+
                                 dest_element%cell%data_pers%base_permeability(level, 1) = dest_element%cell%data_pers%base_permeability(level, 1) + transform_perm(buffer(1))
                                 dest_element%cell%data_pers%base_permeability(level, 2) = dest_element%cell%data_pers%base_permeability(level, 2) + buffer(2)
                                 dest_element%cell%data_pers%porosity(level) = dest_element%cell%data_pers%porosity(level) + get_porosity(grid, x)
@@ -253,7 +254,7 @@
             real (kind = SR)                :: trans_permeability
 
             trans_permeability = 1.0 / (tiny(1.0_SR) + permeability)
-            !trans_permeability = log(permeability)
+            !trans_permeability = log(tiny(1.0_SR) + permeability)
             !trans_permeability = permeability
 		end function
 
@@ -266,7 +267,7 @@
             !permeability = trans_permeability
 
             !make sure we don't accidentally create unphysical numbers
-            if (permeability < epsilon(1.0_SR)) then
+            if (permeability < 6.0e-4_SR * 9.869233e-16_SR / (cfg%scaling ** 2)) then
                 permeability = 0.0_SR
             endif
 		end function
@@ -326,7 +327,13 @@
 
             !permeability and porosity: compute the average
 
-            dest_element%cell%data_pers%base_permeability = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability))
+#           if (_DARCY_LAYERS > 0)
+                dest_element%cell%data_pers%base_permeability(:, 1) = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability(:, 1)) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability(:, 1)))
+                dest_element%cell%data_pers%base_permeability(:, 2) = dest_element%cell%data_pers%base_permeability(:, 2) + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%base_permeability(:, 2)
+#           else
+                dest_element%cell%data_pers%base_permeability = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability))
+#           endif
+
             dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%porosity
 		end subroutine
 
@@ -336,7 +343,13 @@
  			type(t_grid_section), intent(in)							:: grid
 			type(t_cell_data_ptr), intent(inout)				:: cell
 
-			cell%data_pers%base_permeability = transform_perm_inv(0.0_SR)
+#           if (_DARCY_LAYERS > 0)
+                cell%data_pers%base_permeability(:, 1) = transform_perm_inv(0.0_SR)
+                cell%data_pers%base_permeability(:, 2) = 0.0
+#           else
+                cell%data_pers%base_permeability = transform_perm_inv(0.0_SR)
+#           endif
+
 			cell%data_pers%porosity = 0.0_SR
 		end subroutine
 

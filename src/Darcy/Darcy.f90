@@ -165,9 +165,10 @@
                         try(.false., "Invalid asagi mode, must be in range 0 to 4")
                 end select
 
-                call asagi_grid_set_param(cfg%afh_permeability_X, "variable-name", "z")
-                call asagi_grid_set_param(cfg%afh_permeability_Y, "variable-name", "Ky")
-                call asagi_grid_set_param(cfg%afh_permeability_Z, "variable-name", "Kz")
+                call asagi_grid_set_param(cfg%afh_permeability_X, "variable", "Kx")
+                call asagi_grid_set_param(cfg%afh_permeability_Y, "variable", "Ky")
+                call asagi_grid_set_param(cfg%afh_permeability_Z, "variable", "Kz")
+                call asagi_grid_set_param(cfg%afh_porosity, "variable", "Phi")
 
                 !$omp parallel private(i_error), copyin(cfg)
                     i_error = asagi_grid_open(cfg%afh_permeability_X, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)

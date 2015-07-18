@@ -188,9 +188,10 @@
                 if (asagi_grid_min(cfg%afh_porosity, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_porosity, 1) <= xs(2) &
                         .and. xs(1) <= asagi_grid_max(cfg%afh_porosity, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_porosity, 1)) then
 
-                    porosity = asagi_grid_get_float(cfg%afh_porosity, real(xs, c_double), 0)
+                    !HACK: the factor 0.6 accounts for residual oil and residual water in the material
+                    porosity = 0.6_SR * asagi_grid_get_float(cfg%afh_porosity, real(xs, c_double), 0)
                 else
-                    porosity = 1.0e-8_SR
+                    porosity = 0.0_SR
                 end if
 #           else
                 porosity = 0.2_SR
@@ -385,7 +386,7 @@
             pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
             if (norm2(pos_in) < 1.0_SR + radius) then
                 if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + radius) then
-                    l_refine_initial = .true.
+                    !l_refine_initial = .true.
                 end if
             end if
 
@@ -393,7 +394,7 @@
             pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
             if (norm2(pos_prod) < 1.0_SR + radius) then
                 if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
-                    l_refine_initial = .true.
+                    !l_refine_initial = .true.
                 end if
             end if
 
@@ -406,7 +407,7 @@
                 end if
 
                 if (pos_in(1) < 0.5_SR + 1.5_SR * element%transform_data%custom_data%scaling .and. pos_in(1) > 0.5_SR - 1.5_SR * element%transform_data%custom_data%scaling) then
-                    l_refine_initial = .true.
+                    !l_refine_initial = .true.
                 end if
 #           endif
 
@@ -478,9 +479,8 @@
 #                       define _DARCY_INJ_INFLOW
 #                       if defined(_DARCY_INJ_INFLOW)
                             !Using Peaceman's well model we consider the well as an internal boundary and assume that
-                            !near the well the following conditions hold:
-                            !2) p is radially symmetric.
-                            !2) The radial derivative p_r is constant over r and z.
+                            !near the well the following condition holds:
+                            !The radial derivative p_r is constant over r and z.
                             !
                             !Thus the inflow q is q(r,phi,z) = lambda_w(S) K_r(r,phi,z) (-p_r)
                             !With \integral_{well boundary} q(r,phi,z) * dS = Q we obtain
@@ -500,6 +500,19 @@
                             end do
 
                             call gv_inflow%add_to_element(element, inflow)
+#                       elif defined(_DARCY_INJ_TOP_INFLOW)
+                            weights = [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
+
+                            inflow = cfg%r_inflow / cfg%dz
+
+                            !For this inflow condition, we need an asymmetric element matrix where contributions from neighbor dual cells to the well cells are 0,
+                            !but contributions from the well cells to neighbor dual cells are nonzero.
+
+                            !base_permeability(:, 1) = 0.0_SR
+                            !base_permeability(:, 2) = 1.0_SR
+
+                            !split local inflows and assign contributions to top layer
+                            rhs(_DARCY_LAYERS + 1, :) = rhs(_DARCY_LAYERS + 1, :) + inflow / 8.0_SR * weights
 #                       elif defined(_DARCY_INJ_PRESSURE)
                             weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
 
@@ -521,31 +534,6 @@
 
                             call gv_p%write_to_element(element, p)
                             call gv_is_dirichlet%add_to_element(element, is_dirichlet)
-#                       elif defined(_DARCY_INJ_INFLOW_PRESSURE)
-                            weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
-
-                            do i = 1, 3
-                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
-                                    do layer = _DARCY_LAYERS, 1, -1
-                                        p(layer, i) = p(layer + 1, i) - &
-                                            (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
-                                            / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
-                                    end do
-                                end if
-                            end do
-
-                            call gv_p%write_to_element(element, p)
-
-                            inflow = 0.0_SR
-
-                            !split local inflows in primary layer and assign half contributions to dual layers
-
-                            do i = 1, 3
-                                inflow(1:_DARCY_LAYERS, i) = inflow(1:_DARCY_LAYERS, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
-                                inflow(2:_DARCY_LAYERS + 1, i) = inflow(2:_DARCY_LAYERS + 1, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
-                            end do
-
-                            call gv_inflow%add_to_element(element, inflow)
 #                       else
 #                           error Injection condition must be defined!
 #                       endif
