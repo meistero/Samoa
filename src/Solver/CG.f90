@@ -667,12 +667,18 @@ MODULE _CG_(exact)
 
         real (kind = GRID_SR) :: r(_gv_node_size)
         real (kind = GRID_SR) :: trace_A(_gv_node_size)
+        real (kind = GRID_SR) :: x(_gv_node_size)
 
         call gv_r%read(neighbor_node, r)
         call gv_trace_A%read(neighbor_node, trace_A)
 
         call gv_r%add(local_node, r)
         call gv_trace_A%add(local_node, trace_A)
+
+        if(neighbor_node%owned_globally) then
+            call gv_x%read(neighbor_node, x)
+            call gv_x%write(local_node, x)
+    end if
     end subroutine
 
     !*******************************

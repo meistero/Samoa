@@ -79,6 +79,7 @@ f90_sources = [
 "SWE/SWE_NH_test_traversal.f90",
 "SWE/SWE_NH_variable_output_traversal.f90",
 "SWE/SWE_symmetry_tester.f90",
+"SWE/SWE_adjustment_traversal.f90",
 "geoclaw/c_bind_riemannsolvers.f90",
 "Samoa/Samoa.f90",
 "Samoa/Tools_quadrature_rule_base.f90",
