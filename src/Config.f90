@@ -78,6 +78,8 @@ module config
             logical                             ::l_gv_output                                  !gv_output
             integer			        	        :: i_max_iterations
             integer			        	        :: i_CG_restart			                            !< CG restart interval
+            logical                             :: l_test_symmetry                                   !< test A for symmetry
+
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -120,7 +122,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -cg_restart 256 -max_iter -1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false."
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc -lsolver 1 -cg_restart 256 -max_iter -1 -lseoutput -test_case standing_wave -epsilon 1.0d-5 -swe_nh -divergence_test .false. -pointoutputtime .false. -gv_output .false. -pointoutput .false. -test_symmetry .false."
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -191,6 +193,7 @@ module config
             config%l_pointoutput_time= lget('samoa_pointoutputtime')
             config%i_max_iterations = iget('samoa_max_iter')
             config%i_CG_restart = iget('samoa_cg_restart')
+            config%l_test_symmetry = lget('samoa_test_symmetry')
 #       endif
 
         if (rank_MPI == 0) then

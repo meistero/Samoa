@@ -30,6 +30,7 @@
         use SWE_NH_test_traversal
         use SWE_NH_residual_output_traversal
         use SWE_nh_variable_output_traversal
+        use SWE_symmetry_tester
 
 		use Samoa_swe
 
@@ -54,6 +55,8 @@
             type(t_swe_euler_timestep_traversal)    :: euler
             type(t_swe_adaption_traversal)          :: adaption
             type(t_swe_point_output_time_traversal)	    :: point_output_time
+	        type(t_swe_symmetry_tester_traversal)     :: symmetry_tester
+
 
             class(t_linear_solver), pointer                 :: pressure_solver_jacobi
             class(t_linear_solver), pointer                 :: pressure_solver_cg
@@ -107,6 +110,7 @@
             call swe%nh_residual_output_traversal%create()
             call swe%lse_output%create()
             call swe%nh_variable_output%create
+            call swe%symmetry_tester%create()
 
             call pressure_solver_jacobi%create(real(cfg%r_epsilon, GRID_SR))
             allocate(swe%pressure_solver_jacobi, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
@@ -230,6 +234,7 @@
             call swe%nh_test_traversal%destroy()
             call swe%nh_residual_output_traversal%destroy()
             call swe%nh_variable_output%destroy()
+            call swe%symmetry_tester%destroy()
 
 
             if (associated(swe%pressure_solver_jacobi)) then
@@ -374,12 +379,54 @@
 
                     call swe%euler%traverse(grid)
 
-                    !call pressure solver
-                    !call swe%lse_traversal%traverse(grid)
-                    !i_lse_iterations = swe%pressure_solver%solve(grid)
+                    if (cfg%l_swe_nh) then
+                        if(cfg%divergence_test) then
+                            call swe%nh_test_traversal%traverse(grid)
+                        end if
 
-                    if (cfg%l_lse_output) then
-                       ! call swe%lse_output%traverse(grid)
+                        call swe%lse_traversal%traverse(grid)
+
+                        if(cfg%l_test_symmetry) then
+                            call swe%symmetry_tester%traverse(grid)
+                        end if
+
+                        select case(cfg%i_lsolver)
+                            case (0)
+                                i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
+                                if (rank_MPI == 0) then
+                                    !$omp master
+                                    write(*,*) 'iterations needed: ', i_lse_iterations_jacobi
+                                    !$omp end master
+                                end if
+                            case (1,2)
+                                i_lse_iterations_cg = swe%pressure_solver_cg%solve(grid)
+                                i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
+                                if (rank_MPI == 0) then
+                                    !$omp master
+                                    write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi
+                                    !$omp end master
+                                end if
+                            case default
+                                if (rank_MPI == 0) then
+                                    !$omp master
+                                    try(.false., "Invalid linear solver, must be in range 0 to 2")
+                                    !$omp end master
+                                end if
+                        end select
+
+
+                        call swe%nh_traversal%traverse(grid)
+
+
+
+                        if(cfg%divergence_test) then
+                        call swe%nh_test_traversal%traverse(grid)
+                        call swe%nh_residual_output_traversal%traverse(grid)
+                        end if
+
+                        if (cfg%l_lse_output) then
+                            call swe%lse_output%traverse(grid)
+                        end if
                     end if
 
 
@@ -449,6 +496,9 @@
                     end if
                     call swe%lse_traversal%traverse(grid)
 
+                    if(cfg%l_test_symmetry) then
+                        call swe%symmetry_tester%traverse(grid)
+                    end if
 
                     select case(cfg%i_lsolver)
                         case (0)
