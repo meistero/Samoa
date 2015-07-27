@@ -678,7 +678,7 @@ MODULE _CG_(exact)
         if(neighbor_node%owned_globally) then
             call gv_x%read(neighbor_node, x)
             call gv_x%write(local_node, x)
-    end if
+        end if
     end subroutine
 
     !*******************************
