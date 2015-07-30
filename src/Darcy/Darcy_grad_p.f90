@@ -8,6 +8,7 @@
 #if defined(_DARCY)
 	MODULE Darcy_grad_p
 		use SFC_edge_traversal
+		use Darcy_initialize_saturation
 
 		use Samoa_darcy
 
@@ -101,6 +102,14 @@
 
 			call reduce(traversal%r_dt, traversal%children%r_dt, MPI_MIN, .true.)
 			grid%r_dt = cfg%courant_number * traversal%r_dt
+
+			if (cfg%r_max_time > 0.0_SR) then
+                grid%r_dt = min(cfg%r_max_time, grid%r_dt)
+            end if
+
+			if (cfg%r_output_time_step > 0.0_SR) then
+                grid%r_dt = min(cfg%r_output_time_step, grid%r_dt)
+            end if
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -220,32 +229,65 @@
             end subroutine
 #       endif
 
-        function l_w(S)
-            real (kind = GRID_SR), intent(in)   :: S
-            real (kind = GRID_SR)               :: l_w
-
-            l_w = S * S / cfg%r_nu_w
-        end function
-
-        function l_n(S)
-            real (kind = GRID_SR), intent(in)   :: S
-            real (kind = GRID_SR)               :: l_n
-
-            l_n = (1.0_SR - S) * (1.0_SR - S) / cfg%r_nu_n
-        end function
-
         function compute_max_wave_speed_1D(S_l, S_r, u_w, u_n, permeability, g_local) result(max_wave_speed)
             real (kind = GRID_SR), intent(in)       :: S_l, S_r, u_w, u_n, permeability, g_local
             real (kind = GRID_SR)                   :: max_wave_speed
 
+            real (kind = GRID_SR)                   :: lambda_wl, lambda_wr, lambda_nl, lambda_nr, u_T, xi_w, xi_n
+
             !Upwind and F-Wave solver approximate the Riemann solution by two shock waves with velocities xi_w and xi_n:
-            !xi_w = (f_w(S_r) - f_w(S_l)) / (S_r - S_l) = (S_r^2 / nu_w K (-grad p + rho_w g) - S_l^2 / nu_w K (-grad p + rho_w g)) / (S_r - S_l)
-            !   = (S_r^2 - S_l^2) / (nu_w (S_r - S_l)) K (-grad p + rho_w g)
-            !   = (S_l + S_r) / cfg%r_nu_w * K (-grad p + rho_w g)
-            !   = (S_l + S_r) / cfg%r_nu_w * u_w
-            !xi_n = (2 - S_l - S_r) / cfg%r_nu_n * u_n
-            !max_wave_speed = max((S_l + S_r) / cfg%r_nu_w * abs(u_w), (2.0_SR - S_l - S_r) / cfg%r_nu_n * abs(u_n))
-            max_wave_speed = (S_l + S_r) / cfg%r_nu_w * abs(u_w)
+            !xi_w = (f_w(S_r) - f_w(S_l)) / (S_r - S_l) = u_w(S_r, u_T) - u_w(S_l, u_T) / (S_r - S_l)
+            !xi_n = (f_n(S_r) - f_n(S_l)) / ((1 - S_r) - (1 - S_l)) = u_n(S_r, u_T) - u_n(S_l, u_T) / (S_l - S_r)
+            !where u_T is the total flux determined by the upwind solver
+
+            lambda_wl = l_w(S_l)
+            lambda_wr = l_w(S_r)
+            lambda_nl = l_n(S_l)
+            lambda_nr = l_n(S_r)
+
+            u_T = 0.0_SR
+
+            if (u_w > 0.0) then
+                u_T = u_T + lambda_wl * u_w
+            else
+                u_T = u_T + lambda_wr * u_w
+            endif
+
+            if (u_n > 0.0) then
+                u_T = u_T + lambda_nl * u_n
+            else
+                u_T = u_T + lambda_nr * u_n
+            endif
+
+            if (u_w > 0.0) then
+                xi_w = lambda_wr / (lambda_wr + lambda_nr) * (u_T + lambda_nr * (cfg%r_rho_w - cfg%r_rho_n) * permeability * g_local) - lambda_wl * u_w
+            else
+                xi_w = lambda_wr * u_w - lambda_wl / (lambda_wl + lambda_nl) * (u_T + lambda_nl * (cfg%r_rho_w - cfg%r_rho_n) * permeability * g_local)
+            endif
+
+            if (u_n > 0.0) then
+                xi_n = lambda_nr / (lambda_wr + lambda_nr) * (u_T + lambda_wr * (cfg%r_rho_n - cfg%r_rho_w) * permeability * g_local) - lambda_nl * u_n
+            else
+                xi_n = lambda_nr * u_n - lambda_nl / (lambda_wl + lambda_nl) * (u_T + lambda_wl * (cfg%r_rho_n - cfg%r_rho_w) * permeability * g_local)
+            endif
+
+            if (S_r .ne. S_l) then
+                !_log_write(1, "('Wave speeds:')")
+
+                !max_wave_speed = (S_l + S_r) / cfg%r_nu_w * u_w
+                !_log_write(1, *) max_wave_speed
+
+                !max_wave_speed = xi_w / (S_r - S_l)
+                !_log_write(1, *) max_wave_speed
+
+                !max_wave_speed = xi_n / (S_l - S_r)
+                !_log_write(1, *) max_wave_speed
+
+                max_wave_speed = max(abs(xi_w / (S_r - S_l)), abs(xi_n / (S_l - S_r)))
+            else
+                max_wave_speed = 0.0_SR
+            end if
+
         end function
 
         elemental subroutine compute_velocity_1D(dx, area, base_permeability, pL, pR, u_w, u_n, g_local)

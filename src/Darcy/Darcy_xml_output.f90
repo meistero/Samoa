@@ -12,6 +12,7 @@
 		use SFC_edge_traversal
 		use Darcy_grad_p
 		use Darcy_transport_eq
+		use Darcy_initialize_saturation
 
 		use Samoa_darcy
 
@@ -379,8 +380,8 @@
             integer                         :: i, layer
             real (kind = GRID_SR)			:: edge_length, dz, flux_w(3), dummy
 
-            lambda_w = (saturation * saturation) / cfg%r_nu_w
-            lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+            lambda_w = l_w(saturation)
+            lambda_n = l_n(saturation)
 
             !rotate g so it points in the right direction (no scaling!)
             g_local = g

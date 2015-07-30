@@ -90,6 +90,14 @@
 
             grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
 
+			if (cfg%r_max_time > 0.0_SR) then
+                grid%r_dt = min(cfg%r_max_time, grid%r_dt)
+            end if
+
+			if (cfg%r_output_time_step > 0.0_SR) then
+                grid%r_dt = min(cfg%r_output_time_step, grid%r_dt)
+            end if
+
 #           if defined(_ASAGI)
                 if (grid%r_time < asagi_grid_max(cfg%afh_displacement, 2)) then
                     grid%r_dt = min(grid%r_dt, asagi_grid_delta(cfg%afh_displacement, 2))

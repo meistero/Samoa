@@ -121,7 +121,7 @@
 
 			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
             real (kind = GRID_SR)   :: x(3), p(2), v1(2), v2(2), buffer(2), alpha, beta
-			integer					:: i, j, level, n
+			integer					:: i, j, k, level, n
 
             !make sure, the effective volume never turns out to be 0
             porosity = epsilon(1.0_SR)

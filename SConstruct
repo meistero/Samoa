@@ -46,6 +46,10 @@ vars.AddVariables(
                 allowed_values=('upwind', 'lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
               ),
 
+  EnumVariable( 'mobility', 'mobility term for porous media flow', 'quadratic',
+                allowed_values=('linear', 'quadratic', 'brooks-corey')
+              ),
+
   EnumVariable( 'compiler', 'choice of compiler', 'intel',
                 allowed_values=('intel', 'gnu')
               ),
@@ -230,6 +234,14 @@ elif env['flux_solver'] == 'fwave':
 elif env['flux_solver'] == 'aug_riemann':
   env['F90FLAGS'] += ' -D_AUG_RIEMANN_FLUX'
 
+#Choose a mobility term
+if env['mobility'] == 'linear':
+  env['F90FLAGS'] += ' -D_DARCY_MOB_LINEAR'
+if env['mobility'] == 'quadratic':
+  env['F90FLAGS'] += ' -D_DARCY_MOB_QUADRATIC'
+elif env['mobility'] == 'brooks-corey':
+  env['F90FLAGS'] += ' -D_DARCY_MOB_BROOKS_COREY'
+
 if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind', 'fwave']:
   print "Error: flux solver must be one of ", ['upwind', 'fwave']
   Exit(-1)
@@ -341,6 +353,9 @@ if env['precision'] != 'double':
 
 if env['compiler'] != 'intel':
   program_name += '_' + env['compiler']
+
+if env['layers'] > 0:
+  program_name += '_l' + str(env['layers'])
 
 if env['target'] != 'release':
   program_name += '_' + env['target']

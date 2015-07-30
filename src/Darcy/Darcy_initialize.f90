@@ -232,7 +232,7 @@
 		type(darcy_gv_is_dirichlet_boundary)    :: gv_is_dirichlet
 		type(darcy_gv_volume)					:: gv_inflow
 
-		public initialize_rhs
+		public initialize_rhs, l_w, l_n
 
 #		define	_GT_NAME						t_darcy_init_saturation_traversal
 
@@ -386,7 +386,7 @@
             pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
             if (norm2(pos_in) < 1.0_SR + radius) then
                 if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + radius) then
-                    !l_refine_initial = .true.
+                    l_refine_initial = .true.
                 end if
             end if
 
@@ -394,7 +394,7 @@
             pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
             if (norm2(pos_prod) < 1.0_SR + radius) then
                 if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
-                    !l_refine_initial = .true.
+                    l_refine_initial = .true.
                 end if
             end if
 
@@ -407,7 +407,7 @@
                 end if
 
                 if (pos_in(1) < 0.5_SR + 1.5_SR * element%transform_data%custom_data%scaling .and. pos_in(1) > 0.5_SR - 1.5_SR * element%transform_data%custom_data%scaling) then
-                    !l_refine_initial = .true.
+                    l_refine_initial = .true.
                 end if
 #           endif
 
@@ -454,8 +454,8 @@
 
                 pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
 
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
 
                 if (norm2(pos_in) < 1.0_SR + epsilon(1.0_SR)) then
                     if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + epsilon(1.0_SR)) then
@@ -469,8 +469,8 @@
                         saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + weights(3)))
                         call gv_saturation%add_to_element(element, spread(weights, 1, _DARCY_LAYERS + 1))
 
-                        lambda_w = (saturation * saturation) / cfg%r_nu_w
-                        lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                        lambda_w = l_w(saturation)
+                        lambda_n = l_n(saturation)
 
                         !The inflow condition is given in um^3 / s
                         !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
@@ -668,8 +668,8 @@
                     end if
                 end if
 
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = g
@@ -717,5 +717,33 @@
             rhsR = rhsR + rhs_local
             lambda_t = area / dx * base_permeability * (lambda_w_local + lambda_n_local)
         end subroutine
+
+        elemental function l_w(S)
+            real (kind = GRID_SR), intent(in)   :: S
+            real (kind = GRID_SR)               :: l_w
+            real, parameter                     :: lambda = 2.0_SR
+
+#           if defined (_DARCY_MOB_LINEAR)
+                l_w = S / cfg%r_nu_w
+#           elif defined (_DARCY_MOB_QUADRATIC)
+                l_w = S * S / cfg%r_nu_w
+#           elif defined (_DARCY_MOB_BROOKS_COREY)
+                l_w = S * S * (S ** (2.0_SR / lambda + 1.0_SR)) / cfg%r_nu_w
+#           endif
+        end function
+
+        elemental function l_n(S)
+            real (kind = GRID_SR), intent(in)   :: S
+            real (kind = GRID_SR)               :: l_n
+            real, parameter                     :: lambda = 2.0_SR
+
+#           if defined (_DARCY_MOB_LINEAR)
+                l_n = (1.0_SR - S) / cfg%r_nu_n
+#           elif defined (_DARCY_MOB_QUADRATIC)
+                l_n = (1.0_SR - S) * (1.0_SR - S) / cfg%r_nu_n
+#           elif defined (_DARCY_MOB_BROOKS_COREY)
+                l_n = (1.0_SR - S) * (1.0_SR - S) * (1.0_SR - S ** (2.0_SR / lambda + 1.0_SR)) / cfg%r_nu_n
+#           endif
+        end function
 	END MODULE
 #endif

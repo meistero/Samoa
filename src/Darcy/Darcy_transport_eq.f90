@@ -9,6 +9,7 @@
 	MODULE Darcy_transport_eq
 		use SFC_edge_traversal
 		use Darcy_grad_p
+		use Darcy_initialize_saturation
 
 		use Samoa_darcy
 
@@ -284,8 +285,8 @@
                 volume(:, 2) = cfg%dz * 0.50_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 3) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
 
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
 
                 flux_w = 0.0_SR
                 flux_n = 0.0_SR
@@ -328,8 +329,8 @@
 
                 volume = [0.25_SR, 0.50_SR, 0.25_SR] * porosity * element%cell%geometry%get_volume()
 
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
 
                 flux_w = 0.0_SR
                 flux_n = 0.0_SR
@@ -446,6 +447,8 @@
 
             if (volume > 0.0_SR) then
                 saturation = saturation - dt / volume * flux_w
+            else
+                saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
             !assert_pure(flux_w + flux_n == 0.0_SR)
@@ -466,8 +469,8 @@
             real (kind = GRID_SR)                   :: lambda_w, lambda_n
 
             if (volume > 0.0_SR) then
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
 
                 saturation = saturation - dt / volume * (flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
             end if
@@ -483,8 +486,8 @@
 
             real (kind = GRID_SR)                   :: lambda_w, lambda_n
 
-            lambda_w = (saturation * saturation) / cfg%r_nu_w
-            lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+            lambda_w = l_w(saturation)
+            lambda_n = l_n(saturation)
 
             !Water and oil production rate:
             prod_w = prod_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n)
