@@ -384,7 +384,7 @@
             lambda_n = l_n(saturation)
 
             !rotate g so it points in the right direction (no scaling!)
-            g_local = g
+            g_local = cfg%g(1:2)
             g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
             g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
@@ -422,8 +422,8 @@
                     call compute_upwind_flux(u_w(6), lambda_w(layer + 1, 2), lambda_w(layer + 1, 1), flux_w(1), dummy)
                     call compute_upwind_flux(u_w(7), lambda_w(layer + 1, 2), lambda_w(layer + 1, 3), flux_w(2), dummy)
 
-                    flux_w(1:2) = samoa_world_to_barycentric_normal(element%transform_data, flux_w(1:2))
-                    flux_w(1:2) = flux_w(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+                    flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
+                    flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                     cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
 
@@ -463,8 +463,8 @@
                 call compute_upwind_flux(u_w(1), lambda_w(2), lambda_w(1), flux_w(1), dummy)
                 call compute_upwind_flux(u_w(2), lambda_w(2), lambda_w(3), flux_w(2), dummy)
 
-                flux_w(1:2) = samoa_world_to_barycentric_normal(element%transform_data, flux_w(1:2))
-                flux_w(1:2) = flux_w(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+                flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
+                flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
 
