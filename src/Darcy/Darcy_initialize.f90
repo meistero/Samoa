@@ -442,7 +442,7 @@
                 real (kind = GRID_SR), intent(inout)		                        :: saturation(:, :)
                 real (kind = GRID_SR), intent(inout)			                    :: p(:, :)
                 real (kind = GRID_SR), intent(out)									:: rhs(:, :)
-                real ((kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
+                real (kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
 
                 real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, weights(3), edge_length, surface, dz, permeability_sum
@@ -566,7 +566,7 @@
                                     do layer = _DARCY_LAYERS, 1, -1
                                         p(layer, i) = p(layer + 1, i) - &
                                             (lambda_w(layer, i) * cfg%r_rho_w + lambda_n(layer, i) * cfg%r_rho_n) &
-                                            / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * g(3)
+                                            / (lambda_w(layer, i) + lambda_n(layer, i)) * cfg%dz * cfg%g(3)
                                     end do
                                 end if
                             end do

@@ -384,7 +384,13 @@
             lambda_n = l_n(saturation)
 
             !rotate g so it points in the right direction (no scaling!)
-            g_local = cfg%g(1:2)
+
+#           if (_DARCY_LAYERS > 0)
+                g_local = cfg%g
+#           else
+                g_local = cfg%g(1:2)
+#           endif
+
             g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
             g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
