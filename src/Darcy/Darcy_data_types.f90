@@ -31,21 +31,6 @@
         integer, PARAMETER :: SI = GRID_SI
         integer, PARAMETER :: DI = GRID_DI
 
-#       if defined(_ASAGI)
-#           if (_DARCY_LAYERS > 0)
-                real (kind = SR)        :: g(3) = [0.0_SR, 0.0_SR, -9.81_SR]
-#           else
-                real (kind = SR)        :: g(2) = [0.0_SR, 0.0_SR]
-#           endif
-#       else
-#           if (_DARCY_LAYERS > 0)
-                real (kind = SR)        :: g(3) = [9.81_SR, 0.0_SR, 0.0_SR]
-#           else
-                real (kind = SR)        :: g(2) = [9.81_SR, 0.0_SR]
-#           endif
-#       endif
-
-
 		!*********************************************
 		!Persistent Entity data (geometric association)
 		!**********************************************

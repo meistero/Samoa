@@ -79,6 +79,7 @@ module config
 			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/s]
 			double precision			        :: r_pos_in(2)				                        !< injection well position
 			double precision			        :: r_pos_prod(2)				                    !< production well position
+			double precision			        :: g(3)				                                !< gravity vector
 
 			double precision			        :: p_refinement_threshold				            !< pressure refinement threshold
 			double precision			        :: S_refinement_threshold				            !< saturation refinement threshold
@@ -136,12 +137,20 @@ module config
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 " // &
             "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
             "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
-            "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false."
+            "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
 
 #           if (_DARCY_LAYERS > 0)
                 write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d1 -S_ref_th 1.0d2 "
 #           else
                 write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75d1 -S_ref_th 3.0d1 "
+#           endif
+
+#           if defined(_ASAGI)
+                write(arguments, '(A, A)') trim(arguments), " -g_x 0.0d0 -g_y 0.0d0 -g_z -9.81d0 " // &
+                "-inflow 5000.0d0 -well_radius 5.0d0 "
+#           else
+                write(arguments, '(A, A)') trim(arguments), " -g_x 9.81d0 -g_y 0.0d0 -g_z 0.0d0 " // &
+                "-inflow 0.5434396505 -well_radius 5.0d0 "
 #           endif
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
@@ -187,12 +196,12 @@ module config
         config%l_gridoutput = lget('samoa_xmloutput')
         config%s_testpoints = sget('samoa_stestpoints', 512)
 
-	if (len(trim(config%s_testpoints)) .ne. 2) then
-		config%l_pointoutput = .true.
-		call parse_testpoints(config)
-	else
-		config%l_pointoutput = .false.
-	end if
+        if (len(trim(config%s_testpoints)) .ne. 2) then
+            config%l_pointoutput = .true.
+            call parse_testpoints(config)
+        else
+            config%l_pointoutput = .false.
+        end if
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
@@ -209,11 +218,13 @@ module config
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
             config%l_lse_output = lget('samoa_lseoutput')
-            config%r_well_radius = 5.0d0
-            config%r_inflow = 5000.0d0
+            config%r_well_radius = rget('samoa_well_radius')
+            config%r_inflow = rget('samoa_inflow')
 
             config%p_refinement_threshold = rget('samoa_p_ref_th')
             config%S_refinement_threshold = rget('samoa_S_ref_th')
+
+            config%g = [rget('samoa_g_x'), rget('samoa_g_y'), rget('samoa_g_z')]
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
@@ -249,25 +260,28 @@ module config
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
 
-        		PRINT '(A, L, A)',     "	-xmloutput              [usage of -tout required] turns on grid output (value: ", config%l_gridoutput, ")"
-        		PRINT '(A, A, A)',     "	-stestpoints            test specific points (separate x and y coordinates with space, separate coordinate pairs using comma, use fixed point notation with leading zeros), usage example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
+        		PRINT '(A, L, A)',     "	-xmloutput              [-tout required] turns on grid output (value: ", config%l_gridoutput, ")"
 
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
                     PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
-                    PRINT '(A, ES8.1, A)',  "	-epsilon			    linear solver error bound (value: ", config%r_epsilon, ")"
+                    PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
                     PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, " 1 / (Pa s))"
                     PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " 1 / (Pa s))"
                     PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, " kg / m^3)"
-                    PRINT '(A, ES8.1, A)',  "	-p_in			        injection well pressure (value: ", config%r_p_in, " psi)"
-                    PRINT '(A, ES8.1, A)',  "	-p_prod			        production well pressure (value: ", config%r_p_prod, " psi)"
-                    PRINT '(A, I0, ": ", A, A)',  "	-lsolver			    linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
-                    PRINT '(A, I0)',        "	-max_iter			    maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
-                    PRINT '(A, I0)',        "	-lse_skip			    number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
-                    PRINT '(A, I0, A)',     "	-cg_restart			    CG restart interval (value: ", config%i_CG_restart, ")"
-                    PRINT '(A, L, A)',     "	-lseoutput             enable LSE output (value: ", config%l_lse_output, ")"
+                    PRINT '(A, ES8.1, A)',  "	-p_in                   injection well pressure (value: ", config%r_p_in, " psi)"
+                    PRINT '(A, ES8.1, A)',  "	-p_prod                 production well pressure (value: ", config%r_p_prod, " psi)"
+                    PRINT '(A, ES8.1, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow, " BBL/d)"
+                    PRINT '(A, 3(ES9.2, X), A)',  "	-g_x -g_y -g_z          gravity vector (value: (", config%g, ") m/s^2)"
+                    PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius, " inch)"
+                    PRINT '(A, I0, ": ", A, A)',  "	-lsolver                linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
+                    PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
+                    PRINT '(A, I0, A)',        "	-lse_skip               number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
+                    PRINT '(A, I0, A)',     "	-cg_restart             CG restart interval (value: ", config%i_CG_restart, ")"
+                    PRINT '(A, L, A)',     "	-lseoutput              enable LSE output (value: ", config%l_lse_output, ")"
 #         	    elif defined(_SWE)
+                    PRINT '(A, A, A)',  "	-stestpoints            probe positions (example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
                     PRINT '(A, L, A)',  "	-asciioutput               [usage of -tout required] turns on ascii output (value: ", config%l_ascii_output, ")"
                     PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"

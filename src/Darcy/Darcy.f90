@@ -188,11 +188,11 @@
                     if (rank_MPI == 0) then
                         _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
                             trim(cfg%s_permeability_file), asagi_grid_min(afh_perm, 0), asagi_grid_max(afh_perm, 0), asagi_grid_min(afh_perm, 1), asagi_grid_max(afh_perm, 1),  asagi_grid_min(afh_perm, 2), asagi_grid_max(afh_perm, 2)
-                        !_log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)
+                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)
 
                         _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
                             trim(cfg%s_porosity_file), asagi_grid_min(afh_phi, 0), asagi_grid_max(afh_phi, 0), asagi_grid_min(afh_phi, 1), asagi_grid_max(afh_phi, 1),  asagi_grid_min(afh_phi, 2), asagi_grid_max(afh_phi, 2)
-                        !_log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_phi, 0), asagi_grid_delta(afh_phi, 1), asagi_grid_delta(afh_phi, 2)
+                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_phi, 0), asagi_grid_delta(afh_phi, 1), asagi_grid_delta(afh_phi, 2)
 
                         _log_write(1, '(" Darcy: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
                         _log_write(1, '(" Darcy: injection position: [", F0.2, ", ", F0.2, "], production position [", F0.2, ", ", F0.2, "]")'), cfg%r_pos_in, cfg%r_pos_prod
@@ -203,10 +203,8 @@
                 cfg%offset = [0.0_SR, 0.0_SR]
                 cfg%dz = 1.0_SR / real(max(1, _DARCY_LAYERS), SR)
 
-                cfg%r_pos_in = [0.5_SR, -0.5_SR]
-                cfg%r_pos_prod = [0.5_SR, -1.0_SR]
-                cfg%r_well_radius = 0.1_SR
-                cfg%r_inflow = 0.0_SR
+                cfg%r_pos_in = [1.5_SR, 1.5_SR]
+                cfg%r_pos_prod = [1.5_SR, 1.5_SR]
 #			endif
 
             !Conversion rules:
@@ -240,7 +238,7 @@
             cfg%r_well_radius = cfg%r_well_radius / (40.0_SR * cfg%scaling)
 
             !convert g: (um / s^2) = (m / s^2) / (cfg%scaling m / um)
-            g = g / cfg%scaling
+            cfg%g = cfg%g / cfg%scaling
 
             !In  total [u] = [K / nu * (-grad p + rho * g)] = 1 (m^2 / (cfg%scaling m/um)^2) / (Pa*(cfg%scaling m/um) * s) * (Pa*(cfg%scaling m/um)/um + (kg / m^3 * (cfg%scaling m/um)^3) * (m / s^2 / (cfg%scaling m / um))) =
             != 1 m^2 / (Pa * s) / (cfg%scaling m/um)^3 * ((Pa / um)*(cfg%scaling m/um) + (Pa/m)*(cfg%scaling m/um)^2)
@@ -356,8 +354,8 @@
 
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
-				!call darcy%xml_output%traverse(grid)
-				!r_time_next_output = r_time_next_output + cfg%r_output_time_step
+				call darcy%xml_output%traverse(grid)
+				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
 			!print initial stats

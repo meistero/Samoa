@@ -79,7 +79,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_pre_dof_op(node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -127,10 +127,13 @@
 
             total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
 
-			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%volume, total_inflow)
+			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume, total_inflow)
 		end subroutine
 
-		elemental subroutine flow_pre_dof_op(rhs, is_dirichlet, inflow)
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, is_dirichlet, inflow)
+			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
+			real (kind = GRID_SR), intent(inout)				:: p
+			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(out)					:: rhs
 			logical, intent(out)			                    :: is_dirichlet
 			real (kind = GRID_SR), intent(out)					:: inflow
@@ -138,17 +141,31 @@
 			rhs = 0.0_SR
 			is_dirichlet = .false.
 			inflow = 0.0_SR
+
+#           if !defined(_ASAGI)
+                if (pos_x == 0.0_SR) then
+                    saturation = 1.0_SR
+                end if
+
+                if (pos_x == 1.0_SR) then
+                    is_dirichlet = .true.
+                    p = cfg%r_p_prod
+                end if
+#           endif
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(saturation, rhs, inflow, total_inflow)
+		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet, inflow, total_inflow)
 			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(inout)				:: rhs
 			real (kind = GRID_SR), intent(in)				    :: inflow
 			real (kind = GRID_SR), intent(in)				    :: total_inflow
-
-            saturation = min(1.0_SR, saturation)
+			logical, intent(in)			                        :: is_dirichlet
 
             rhs = rhs + cfg%r_inflow * inflow / total_inflow
+
+            if (is_dirichlet) then
+                rhs = 0.0_SR
+            end if
 		end subroutine
 	END MODULE
 #endif

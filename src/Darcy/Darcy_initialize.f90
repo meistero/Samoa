@@ -159,7 +159,7 @@
                     r_base_permeability = 0.0_SR
                 end if
 #           else
-                r_base_permeability = 5000.0_SR * 9.869233e-16_SR / (cfg%scaling ** 2)
+                r_base_permeability = 5.0e-12_SR / (cfg%scaling ** 2)
 #           endif
 
 #           if defined(_ASAGI_TIMING)
@@ -273,7 +273,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_pre_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -302,7 +302,7 @@
                 local_node%data_pers%p = neighbor_node%data_pers%p
             end where
 
-			local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
+			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
 			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
@@ -324,16 +324,33 @@
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine flow_pre_dof_op(saturation, rhs, is_dirichlet, inflow)
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, is_dirichlet, inflow)
+			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
+			real (kind = GRID_SR), intent(inout)				:: p
 			real (kind = GRID_SR), intent(out)					:: saturation
 			real (kind = GRID_SR), intent(out)					:: rhs
 			logical, intent(out)			                    :: is_dirichlet
 			real (kind = GRID_SR), intent(out)					:: inflow
 
-			saturation = 0.0_SR
+            saturation = 0.0_SR
 			rhs = 0.0_SR
 			is_dirichlet = .false.
 			inflow = 0.0_SR
+
+#           if !defined(_ASAGI)
+                if (pos_x < 0.5_SR) then
+                    saturation = 1.0_SR
+                else if (pos_x > 0.5_SR) then
+                    saturation = 0.0_SR
+                else
+                    saturation = 0.5_SR
+                end if
+
+                if (pos_x == 1.0_SR) then
+                    is_dirichlet = .true.
+                    p = cfg%r_p_prod
+                end if
+#           endif
 		end subroutine
 
 		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet, inflow, total_inflow)
@@ -342,8 +359,6 @@
 			real (kind = GRID_SR), intent(in)				    :: inflow
 			real (kind = GRID_SR), intent(in)				    :: total_inflow
 			logical, intent(in)			                        :: is_dirichlet
-
-            saturation = min(1.0_SR, saturation)
 
             rhs = rhs + cfg%r_inflow * inflow / total_inflow
 
@@ -398,19 +413,6 @@
                 end if
             end if
 
-#           if !defined(_ASAGI)
-                pos_in = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
-
-                if (pos_in(1) < 0.5_SR) then
-                    saturation = 1.0_SR
-                    call gv_saturation%add_to_element(element, saturation)
-                end if
-
-                if (pos_in(1) < 0.5_SR + 1.5_SR * element%transform_data%custom_data%scaling .and. pos_in(1) > 0.5_SR - 1.5_SR * element%transform_data%custom_data%scaling) then
-                    l_refine_initial = .true.
-                end if
-#           endif
-
 #           if (_DARCY_LAYERS > 0)
                 call initialize_rhs(element, saturation, p, rhs, base_permeability)
 #           else
@@ -440,8 +442,9 @@
                 real (kind = GRID_SR), intent(inout)		                        :: saturation(:, :)
                 real (kind = GRID_SR), intent(inout)			                    :: p(:, :)
                 real (kind = GRID_SR), intent(out)									:: rhs(:, :)
-                real (kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
+                real ((kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
 
+                real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), radius, weights(3), edge_length, surface, dz, permeability_sum
                 real (kind = GRID_SR)                               :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3), lambda_t(_DARCY_LAYERS, 7)
                 real (kind = GRID_SR)                               :: inflow(_DARCY_LAYERS + 1, 3)
@@ -577,7 +580,7 @@
                 end if
 
                 !rotate g so it points in the right direction (no scaling!)
-                g_local = g
+                g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
                 g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
@@ -596,6 +599,23 @@
                     call compute_rhs_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), lambda_w(i + 1, 2), lambda_w(i + 1, 1), lambda_n(i + 1, 2), lambda_n(i + 1, 1), g_local(1), rhs(i + 1, 2), rhs(i + 1, 1), lambda_t(i, 6))
                     call compute_rhs_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), lambda_w(i + 1, 2), lambda_w(i + 1, 3), lambda_n(i + 1, 2), lambda_n(i + 1, 3), g_local(2), rhs(i + 1, 2), rhs(i + 1, 3), lambda_t(i, 7))
                 end do
+
+#               if !defined(_ASAGI)
+                    coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
+                    coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
+                    coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+
+                    if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
+                        rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                        rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                    else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
+                        rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
+                        rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
+                    else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
+                        rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                        rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                    end if
+#               endif
 
                 if (element%transform_data%plotter_data%orientation > 0) then
                     element%cell%data_pers%lambda_t = lambda_t
@@ -617,6 +637,7 @@
                 real (kind = GRID_SR), intent(out)									:: rhs(:)
                 real (kind = GRID_SR), intent(in)                                   :: base_permeability
 
+                real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: pos_prod(2), pos_in(2), radius, inflow, edge_length
                 real (kind = GRID_SR)                               :: g_local(2), lambda_w(3), lambda_n(3), lambda_t(2)
                 logical		                                        :: is_dirichlet(3)
@@ -672,7 +693,7 @@
                 lambda_n = l_n(saturation)
 
                 !rotate g so it points in the right direction (no scaling!)
-                g_local = g
+                g_local = cfg%g(1:2)
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
                 g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
@@ -680,6 +701,23 @@
 
                 call compute_rhs_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(1), lambda_w(2), lambda_w(1), lambda_n(2), lambda_n(1), g_local(1), rhs(2), rhs(1), lambda_t(1))
                 call compute_rhs_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(3), lambda_w(2), lambda_w(3), lambda_n(2), lambda_n(3), g_local(2), rhs(2), rhs(3), lambda_t(2))
+
+#               if !defined(_ASAGI)
+                    coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
+                    coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
+                    coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+
+                    if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
+                        rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                        rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                    else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
+                        rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
+                        rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
+                    else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
+                        rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                        rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                    end if
+#               endif
 
                 if (element%transform_data%plotter_data%orientation > 0) then
                     element%cell%data_pers%lambda_t = lambda_t

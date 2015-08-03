@@ -167,7 +167,7 @@
                 integer                                   :: i
 
                 !rotate g so it points in the right direction (no scaling!)
-                g_local = g
+                g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
                 g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
@@ -211,7 +211,7 @@
                 real (kind = SR)                          :: u_w(2), u_n(2), dt_inv_max
 
                 !rotate g so it points in the right direction (no scaling!)
-                g_local = g
+                g_local = cfg%g(1:2)
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
                 g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
