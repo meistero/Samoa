@@ -73,6 +73,8 @@ module config
 			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase
 			double precision				    :: r_rho_w		                                    !< density of the wetting phase
 			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase
+			double precision			        :: S_wr		                                        !< residual saturation of the wetting phase
+			double precision			        :: S_nr		                                        !< residual saturation of the non-wetting phase
 			double precision				    :: r_p_in			                                !< injection well pressure [psi]
 			double precision				    :: r_p_prod			                                !< production well pressure [psi]
 			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [psi]
@@ -147,10 +149,10 @@ module config
 
 #           if defined(_ASAGI)
                 write(arguments, '(A, A)') trim(arguments), " -g_x 0.0d0 -g_y 0.0d0 -g_z -9.81d0 " // &
-                "-inflow 5000.0d0 -well_radius 5.0d0 "
+                "-inflow 5000.0d0 -well_radius 5.0d0 -S_wr 0.2 -S_nr 0.2"
 #           else
                 write(arguments, '(A, A)') trim(arguments), " -g_x 9.81d0 -g_y 0.0d0 -g_z 0.0d0 " // &
-                "-inflow 0.5434396505 -well_radius 5.0d0 "
+                "-inflow 0.5434396505 -well_radius 5.0d0  -S_wr 0.0 -S_nr 0.0"
 #           endif
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
@@ -211,6 +213,8 @@ module config
 			config%r_nu_n = rget('samoa_nu_n')
 			config%r_rho_w = rget('samoa_rho_w')
 			config%r_rho_n = rget('samoa_rho_n')
+			config%S_wr = rget('samoa_S_wr')
+			config%S_nr = rget('samoa_S_nr')
 			config%r_p_in = rget('samoa_p_in')
 			config%r_p_prod = rget('samoa_p_prod')
             config%i_max_iterations = iget('samoa_max_iter')
@@ -243,7 +247,7 @@ module config
                 PRINT '()'
                 PRINT '(A)',            " Usage: samoa [--help | -h] | [--version | -v] | [OPTION...]"
                 PRINT '(A)',            ""
-                PRINT '(A)',            " Arguments:"
+                PRINT '(A)',            " General arguments:"
                 PRINT '(A, I0, ": ", A, A)',  " 	-asagihints <value>     ASAGI mode (0: default, 1: pass through, 2: no mpi, 3: no mpi + small cache, 4: large grid) (value: ", config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode)), ")"
                 PRINT '(A, I0, A)',     " 	-dmin <value>           minimum grid depth (value: ", config%i_min_depth, ")"
                 PRINT '(A, I0, A)',     "	-dmax <value>           maximum grid depth (value: ", config%i_max_depth, ")"
@@ -259,23 +263,29 @@ module config
                 PRINT '(A, F0.3, A)',  "	-lbcellweight           cell weight for the count-based load estimate (value: ", config%r_cell_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
-
         		PRINT '(A, L, A)',     "	-xmloutput              [-tout required] turns on grid output (value: ", config%l_gridoutput, ")"
+                PRINT '(A, L, A)',      "	-noprint                print log to file instead of console (value: ", config%l_log, ")"
+                PRINT '(A)',            "	--help, -h              display this help and exit"
+                PRINT '(A)',            "	--version, -v           output version information and exit"
 
+                PRINT '(A)',            ""
+                PRINT '(A)',            " Scenario specific arguments:"
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
                     PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
-                    PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
                     PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, " 1 / (Pa s))"
                     PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " 1 / (Pa s))"
                     PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, " kg / m^3)"
+                    PRINT '(A, ES8.1, A)',  "	-S_wr	                residual saturation of the wetting phase (value: ", config%S_wr, ")"
+                    PRINT '(A, ES8.1, A)',  "	-S_nr	                residual saturation of the non-wetting phase (value: ", config%S_nr, ")"
                     PRINT '(A, ES8.1, A)',  "	-p_in                   injection well pressure (value: ", config%r_p_in, " psi)"
                     PRINT '(A, ES8.1, A)',  "	-p_prod                 production well pressure (value: ", config%r_p_prod, " psi)"
-                    PRINT '(A, ES8.1, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow, " BBL/d)"
+                    PRINT '(A, ES9.2, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow, " BBL/d)"
                     PRINT '(A, 3(ES9.2, X), A)',  "	-g_x -g_y -g_z          gravity vector (value: (", config%g, ") m/s^2)"
                     PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius, " inch)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver                linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
+                    PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
                     PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A, I0, A)',        "	-lse_skip               number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart             CG restart interval (value: ", config%i_CG_restart, ")"
@@ -291,10 +301,6 @@ module config
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
 #               endif
-
-                PRINT '(A, L, A)',      "	-noprint                print log to file instead of console (value: ", config%l_log, ")"
-                PRINT '(A)',            "	--help, -h              display this help and exit"
-                PRINT '(A)',            "	--version, -v           output version information and exit"
             end if
         end if
 
@@ -434,12 +440,6 @@ module config
 #		elif defined(_SWE)
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
             _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
-
-            if (config%l_ascii_output) then
-                _log_write(0, '(" SWE: Ascii Output: Yes, width: ", I0)') config%i_ascii_width
-            else
-                _log_write(0, '(" SWE: Ascii Output: No")')
-            end if
 #		endif
 
         _log_write(0, '("")')

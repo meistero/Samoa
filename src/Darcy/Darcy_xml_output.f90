@@ -403,8 +403,8 @@
                     cell_data%section_index(i_cell_data_index) = section_index
                     cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
                     cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    !HACK: the factor 0.6 accounts for residual oil and residual water in the material
-                    cell_data%porosity(i_cell_data_index) = porosity(layer) / 0.6_SR
+                    !the grid porosity also contains residual saturation which has to be removed for output
+                    cell_data%porosity(i_cell_data_index) = porosity(layer) / (1.0_SR - cfg%S_wr - cfg%S_nr)
 
                     !compute fluxes
 

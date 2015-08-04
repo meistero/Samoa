@@ -188,14 +188,16 @@
                 if (asagi_grid_min(cfg%afh_porosity, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_porosity, 1) <= xs(2) &
                         .and. xs(1) <= asagi_grid_max(cfg%afh_porosity, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_porosity, 1)) then
 
-                    !HACK: the factor 0.6 accounts for residual oil and residual water in the material
-                    porosity = 0.6_SR * asagi_grid_get_float(cfg%afh_porosity, real(xs, c_double), 0)
+                    porosity = asagi_grid_get_float(cfg%afh_porosity, real(xs, c_double), 0)
                 else
                     porosity = 0.0_SR
                 end if
 #           else
                 porosity = 0.2_SR
 #           endif
+
+            !reduce porosity to account for esidual saturations of wetting and non-wetting phase
+            porosity = porosity * (1.0_SR - cfg%S_wr - cfg%S_nr)
 
 #           if defined(_ASAGI_TIMING)
                 section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
