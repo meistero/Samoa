@@ -87,7 +87,7 @@
 			type(t_swe_displace_traversal), intent(inout)				:: traversal
 			type(t_grid_section), intent(inout)							:: section
 			type(t_element_base), intent(inout)						    :: element
-			type(t_state), dimension(_SWE_CELL_SIZE), intent(out)	    :: Q
+			type(t_state), dimension(_SWE_CELL_SIZE), intent(inout)	    :: Q
 
 			integer (kind = GRID_SI)								    :: i
 			real (kind = GRID_SR)		                                :: db

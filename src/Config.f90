@@ -336,8 +336,8 @@ module config
         _log_write(0, '(" Load balancing: timed load estimate: ", A, ", split sections: ", A, ", serial: ", A)') logical_to_char(config%l_timed_load), logical_to_char(config%l_split_sections), logical_to_char(config%l_serial_lb)
         _log_write(0, '(" Load balancing: cell weight: ", F0.2, ", boundary weight: ", F0.2)') config%r_cell_weight, config%r_boundary_weight
 
-        _log_write(0, '(" Scenario: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)'), config%i_max_time_steps, config%r_max_time, config%r_output_time_step
-        _log_write(0, '(" Scenario: courant number: ", F0.3)'), config%courant_number
+        _log_write(0, '(" Scenario: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)') config%i_max_time_steps, config%r_max_time, config%r_output_time_step
+        _log_write(0, '(" Scenario: courant number: ", F0.3)') config%courant_number
 
 #		if defined(_DARCY)
             _log_write(0, '(" Darcy: permeability template: ", A)') trim(config%s_permeability_file)
@@ -389,7 +389,7 @@ module config
 #           endif
 #		endif
 
-        _log_write(0, "()")
+        _log_write(0, '("")')
     end subroutine
 
     subroutine parse_testpoints(config)
