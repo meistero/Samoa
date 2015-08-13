@@ -148,10 +148,10 @@ module config
 #           endif
 
 #           if defined(_ASAGI)
-                write(arguments, '(A, A)') trim(arguments), " -g_x 0.0d0 -g_y 0.0d0 -g_z -9.81d0 " // &
+                write(arguments, '(A, A)') trim(arguments), " -g_x 0.0d0 -g_y 0.0d0 -g_z -9.80665d0 " // &
                 "-inflow 5000.0d0 -well_radius 5.0d0 -S_wr 0.2 -S_nr 0.2"
 #           else
-                write(arguments, '(A, A)') trim(arguments), " -g_x 9.81d0 -g_y 0.0d0 -g_z 0.0d0 " // &
+                write(arguments, '(A, A)') trim(arguments), " -g_x 9.80665d0 -g_y 0.0d0 -g_z 0.0d0 " // &
                 "-inflow 0.5434396505 -well_radius 5.0d0  -S_wr 0.0 -S_nr 0.0"
 #           endif
 #    	elif defined(_HEAT_EQ)
@@ -283,7 +283,7 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p_prod                 production well pressure (value: ", config%r_p_prod, " psi)"
                     PRINT '(A, ES9.2, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow, " BBL/d)"
                     PRINT '(A, 3(ES9.2, X), A)',  "	-g_x -g_y -g_z          gravity vector (value: (", config%g, ") m/s^2)"
-                    PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius, " inch)"
+                    PRINT '(A, ES8.1, A)',  "	-well_radius            [has no effect currently] injection and production well radius (value: ", config%r_well_radius, " inch)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver                linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
                     PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"

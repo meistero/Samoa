@@ -423,8 +423,8 @@
 
 			!check refinement condition
 
-			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) > cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)
-			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) > cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod
+			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) >= min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
+			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) >= min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod / 2.0_SR
 
 			!refine the cell if necessary (no coarsening in the initialization!)
 

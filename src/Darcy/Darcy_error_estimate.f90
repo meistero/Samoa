@@ -185,9 +185,9 @@
             !refine a variable q if Delta q > threshold * Delta x / (x_max - x_min) * (q_max - q_min)
             !coarsen a variable q if Delta q < threshold / 2 * Delta x / (x_max - x_min) * (q_max - q_min)
 
-			l_refine_sat = r_sat_norm > cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)
-			l_coarsen_sat = r_sat_norm < cfg%S_refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth)
-			l_coarsen_p = r_p_norm < cfg%p_refinement_threshold / 2.0_SR * get_edge_size(cfg%i_max_depth) * cfg%r_p_prod
+			l_refine_sat = r_sat_norm > min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
+			l_coarsen_sat = r_sat_norm < min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)) / 2.0_SR
+			l_coarsen_p = r_p_norm < min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod / 2.0_SR
 
 			!* refine the cell if the saturation becomes too steep
 			!* coarsen the cell if pressure and saturation are constant within a cell
