@@ -68,6 +68,7 @@ module config
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
 !            integer                             :: i_benchmark                                      !< benchmark choice
+            double precision                        :: r_refine                                     !< refinement parameter
 #         if defined(_SWE_DAMBREAK_CLASSIC)
             double precision                    :: t_phase                                          ! required to make t_phase available globally
             integer                             :: i_phase_nr                                       ! required to make phase number available globally
@@ -112,7 +113,7 @@ module config
 #    	elif defined(_HEAT_EQ)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -refine 0.002d.0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
             write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
@@ -174,6 +175,7 @@ module config
             config%s_displacement_file = sget('samoa_fdispl', 256)
             config%dry_tolerance = rget('samoa_drytolerance')
 !            config%i_benchmark = iget('samoa_benchmark')
+            config%r_refine = rget('samoa_refine')
             config%t_phase = 0
 #       endif
 
@@ -350,6 +352,7 @@ module config
 #		elif defined(_SWE)
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
             _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
+            _log_write(0, '(" SWE: refinement parameter: ", ES8.1)') config%r_refine
 
             if (config%l_ascii_output) then
                 _log_write(0, '(" SWE: Ascii Output: Yes, width: ", I0)') config%i_ascii_width
