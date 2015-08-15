@@ -540,8 +540,10 @@
 #			else
                 real (kind = GRID_SR), dimension(2), parameter		:: dam_center = [0.5, 0.5]
                 real (kind = GRID_SR), parameter					:: dam_radius = 0.1
+                real (kind = GRID_SR), parameter					:: dam_gradient_width = 0.01
                 real (kind = GRID_SR), parameter					:: outer_height = -100.0
                 real (kind = GRID_SR), parameter					:: inner_height = -5.0
+                real (kind = GRID_SR)					            :: dist
 
 
                 !standing wave parameters
@@ -599,7 +601,18 @@
                     bathymetry=(xs(1)-5)* (1/19.85)
                 else
                     xs = cfg%scaling * x + cfg%offset
-                    bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * sign(0.5_GRID_SR, (dam_radius ** 2) - dot_product(xs - dam_center, xs - dam_center))
+                    dist = dam_radius - sqrt(dot_product(xs - dam_center, xs - dam_center))
+                    if(dist > 0.5_GRID_SR * dam_gradient_width) then
+                        bathymetry = inner_height
+                    else if(dist < -0.5_GRID_SR * dam_gradient_width) then
+                        bathymetry = outer_height
+                    else
+                        !bathymetry = 0.0
+                        dist = dist * (1/dam_gradient_width) + 0.5_GRID_SR
+                        bathymetry = dist * inner_height + (1-dist) * outer_height
+                        !write(*,*) 'bath: ', bathymetry
+                        !bathymetry = 0.5_GRID_SR * (inner_height + outer_height) + (inner_height - outer_height) * dist * (1/dam_gradient_width)
+                    endif
                 endif
 #			endif
 		end function
