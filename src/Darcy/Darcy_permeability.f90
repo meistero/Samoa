@@ -163,6 +163,9 @@
 
             rhs = rhs + cfg%r_inflow * inflow / total_inflow
 
+            !limit the accumulated saturation at the injection well
+            saturation = min(saturation, 1.0_SR)
+
             if (is_dirichlet) then
                 rhs = 0.0_SR
             end if

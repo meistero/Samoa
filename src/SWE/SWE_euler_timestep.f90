@@ -88,7 +88,9 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+            if (grid%r_dt == 0.0_SR) then
+                grid%r_dt = cfg%courant_number * cfg%scaling * get_cell_volume(cfg%i_max_depth) / ((get_edge_size(int(cfg%i_max_depth, BYTE) - 1_BYTE) + 2.0_SR * get_edge_size(cfg%i_max_depth)) * sqrt(g))
+            end if
 
 			if (cfg%r_max_time > 0.0_SR) then
                 grid%r_dt = min(cfg%r_max_time, grid%r_dt)
@@ -105,29 +107,25 @@
 #           endif
 
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
-
-			grid%u_max = 0.0_GRID_SR
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			real (kind = GRID_SR)       :: r_dt_cfl, r_courant_cfl
-
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
-            call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
+            call reduce(grid%r_dt_new, grid%sections%elements_alloc%r_dt_new, MPI_MIN, .true.)
+
+            grid%r_dt_new = cfg%courant_number * grid%r_dt_new
 			grid%r_time = grid%r_time + grid%r_dt
 
-            r_dt_cfl = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
-
-            if (grid%r_dt > r_dt_cfl) then
-                r_courant_cfl = r_dt_cfl * cfg%courant_number / grid%r_dt
-
-                if (rank_MPI == 0) then
-                    _log_write(1, '("WARNING! Time step size was too big. dt (used): ", ES10.3, ", dt (CFL): ", ES10.3, ", correct courant number: ", F0.3)') grid%r_dt, r_dt_cfl, r_courant_cfl
+            if (rank_MPI == 0) then
+                if (cfg%courant_number > grid%r_dt_new / grid%r_dt) then
+                    _log_write(1, '("WARNING! Time step size was too big. dt (old): ", ES10.3, ", dt (CFL): ", ES10.3, ", maximum courant number: ", F0.3)') grid%r_dt, grid%r_dt_new / cfg%courant_number, grid%r_dt_new / grid%r_dt
                 end if
             end if
+
+            grid%r_dt = grid%r_dt_new
 
 			call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
 		end subroutine
@@ -138,7 +136,7 @@
 
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0_GRID_DI
-			section%u_max = 0.0_GRID_SR
+			section%r_dt_new = huge(1.0_SR)
 		end subroutine
 
 		function cell_to_edge_op(element, edge) result(rep)
@@ -267,7 +265,7 @@
 			type(t_state)   :: dQ(_SWE_CELL_SIZE)
 
 			call volume_op(element%cell%geometry, traversal%i_refinements_issued, element%cell%geometry%i_depth, &
-                element%cell%geometry%refinement, section%u_max, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
+                element%cell%geometry%refinement, section%r_dt_new, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
 
 			!if land is flooded, init water height to dry tolerance and velocity to 0
 			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > 0.0_GRID_SR) then
@@ -306,12 +304,12 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine volume_op(cell, i_refinements_issued, i_depth, i_refinement, u_max, dQ, fluxes, r_dt)
+		subroutine volume_op(cell, i_refinements_issued, i_depth, i_refinement, r_dt_new, dQ, fluxes, r_dt)
 			type(fine_triangle), intent(in)				                        :: cell
 			integer (kind = GRID_DI), intent(inout)							    :: i_refinements_issued
 			integer (kind = BYTE), intent(in)							        :: i_depth
 			integer (kind = BYTE), intent(out)							        :: i_refinement
-			real(kind = GRID_SR), intent(inout)								    :: u_max
+			real(kind = GRID_SR), intent(inout)								    :: r_dt_new
 			type(t_state), dimension(:), intent(out)						    :: dQ
 			type(t_update), dimension(:), intent(in)						    :: fluxes
 			real(kind = GRID_SR), intent(in)								    :: r_dt
@@ -344,7 +342,7 @@
 				i_refinement = -1
 			endif
 
-			u_max = max(u_max, maxval(fluxes%max_wave_speed))
+			r_dt_new = min(r_dt_new, volume / sum(edge_lengths * fluxes%max_wave_speed))
 
             do i = 1, _SWE_CELL_SIZE
                 dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-r_dt / volume)

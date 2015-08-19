@@ -75,15 +75,11 @@
 		subroutine post_traversal_grid_op(traversal, grid)
 			type(t_swe_adaption_traversal), intent(inout)				:: traversal
 			type(t_grid), intent(inout)							        :: grid
-
-			call reduce(grid%d_max, grid%sections%elements_alloc%d_max, MPI_MAX, .true.)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
 			type(t_swe_adaption_traversal), intent(inout)				:: traversal
 			type(t_grid_section), intent(inout)							:: section
-
-			section%d_max = 0
 		end subroutine
 
 		subroutine post_traversal_op(traversal, section)
@@ -175,9 +171,6 @@
  			type(t_swe_adaption_traversal), intent(inout)	                :: traversal
 			type(t_grid_section), intent(inout)							:: section
 			type(t_cell_data_ptr), intent(inout)				:: cell
-
-			!set maximum depth
-			section%d_max = max(section%d_max, cell%geometry%i_depth)
 		end subroutine
 	END MODULE
 #endif

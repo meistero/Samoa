@@ -162,7 +162,7 @@
                 real (kind = GRID_SR), intent(in)									:: base_permeability(:,:)
                 real (kind = GRID_SR), intent(in)									:: porosity(:)
 
-                real (kind = GRID_SR)					  :: g_local(3), edge_length, dz
+                real (kind = GRID_SR)					  :: g_local(3), edge_length, surface, dz
                 real (kind = SR)                          :: u_w(7), u_n(7), dt_inv_max
                 integer                                   :: i
 
@@ -172,6 +172,7 @@
                 g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 edge_length = element%cell%geometry%get_leg_size()
+                surface = element%cell%geometry%get_volume()
                 dz = cfg%dz
 
                 do i = 1, _DARCY_LAYERS
@@ -185,16 +186,16 @@
                     call compute_velocity_1D(edge_length, 1.0_SR, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
                     call compute_velocity_1D(edge_length, 1.0_SR, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
 
-                    dt_inv_max = maxval([compute_max_wave_speed_1D(S(i, 2), S(i, 1), u_w(1), u_n(1), base_permeability(i, 1), g_local(1))/edge_length, &
-                                    compute_max_wave_speed_1D(S(i, 2), S(i, 3), u_w(2), u_n(2), base_permeability(i, 1), g_local(2))/edge_length, &
-                                    compute_max_wave_speed_1D(S(i, 1), S(i + 1, 1), u_w(3), u_n(3), base_permeability(i, 2), g_local(3))/dz, &
-                                    compute_max_wave_speed_1D(S(i, 2), S(i + 1, 2), u_w(4), u_n(4), base_permeability(i, 2), g_local(3))/dz, &
-                                    compute_max_wave_speed_1D(S(i, 3), S(i + 1, 3), u_w(5), u_n(5), base_permeability(i, 2), g_local(3))/dz, &
-                                    compute_max_wave_speed_1D(S(i + 1, 2), S(i + 1, 1), u_w(6), u_n(6), base_permeability(i, 1), g_local(1))/edge_length, &
-                                    compute_max_wave_speed_1D(S(i + 1, 2), S(i + 1, 3), u_w(7), u_n(7), base_permeability(i, 1), g_local(2))/edge_length])
+                    dt_inv_max = sum([  0.25_SR * edge_length * dz * compute_max_wave_speed_1D(S(i, 2), S(i, 1), u_w(1), u_n(1), base_permeability(i, 1), g_local(1)), &
+                                        0.25_SR * edge_length * dz * compute_max_wave_speed_1D(S(i, 2), S(i, 3), u_w(2), u_n(2), base_permeability(i, 1), g_local(2)), &
+                                        0.25_SR * surface * compute_max_wave_speed_1D(S(i, 1), S(i + 1, 1), u_w(3), u_n(3), base_permeability(i, 2), g_local(3)), &
+                                        0.50_SR * surface * compute_max_wave_speed_1D(S(i, 2), S(i + 1, 2), u_w(4), u_n(4), base_permeability(i, 2), g_local(3)), &
+                                        0.25_SR * surface * compute_max_wave_speed_1D(S(i, 3), S(i + 1, 3), u_w(5), u_n(5), base_permeability(i, 2), g_local(3)), &
+                                        0.25_SR * edge_length * dz * compute_max_wave_speed_1D(S(i + 1, 2), S(i + 1, 1), u_w(6), u_n(6), base_permeability(i, 1), g_local(1)), &
+                                        0.25_SR * edge_length * dz * compute_max_wave_speed_1D(S(i + 1, 2), S(i + 1, 3), u_w(7), u_n(7), base_permeability(i, 1), g_local(2))])
 
                     if (dt_inv_max * porosity(i) > 1.0e5_SR * tiny(1.0_SR)) then
-                        traversal%r_dt = min(traversal%r_dt, porosity(i) / dt_inv_max)
+                        traversal%r_dt = min(traversal%r_dt, porosity(i) * surface * dz / dt_inv_max)
                     end if
                 end do
             end subroutine
@@ -207,7 +208,7 @@
                 real (kind = GRID_SR), intent(in)									:: base_permeability
                 real (kind = GRID_SR), intent(in)									:: porosity
 
-                real (kind = GRID_SR)					  :: g_local(2), edge_length
+                real (kind = GRID_SR)					  :: g_local(2), edge_length, surface
                 real (kind = SR)                          :: u_w(2), u_n(2), dt_inv_max
 
                 !rotate g so it points in the right direction (no scaling!)
@@ -216,15 +217,16 @@
                 g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 edge_length = element%cell%geometry%get_leg_size()
+                surface = element%cell%geometry%get_volume()
 
                 call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
                 call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
 
-                dt_inv_max = max(compute_max_wave_speed_1D(S(2), S(1), u_w(1), u_n(1), base_permeability, g_local(1)) / edge_length, &
-                                compute_max_wave_speed_1D(S(2), S(3), u_w(2), u_n(2), base_permeability, g_local(2)) / edge_length)
+                dt_inv_max =    0.5_SR * edge_length * compute_max_wave_speed_1D(S(2), S(1), u_w(1), u_n(1), base_permeability, g_local(1)) + &
+                                0.5_SR * edge_length * compute_max_wave_speed_1D(S(2), S(3), u_w(2), u_n(2), base_permeability, g_local(2))
 
                 if (dt_inv_max * porosity > 1.0e5_SR * tiny(1.0_SR)) then
-                    traversal%r_dt = min(traversal%r_dt, porosity / dt_inv_max)
+                    traversal%r_dt = min(traversal%r_dt, porosity * surface / dt_inv_max)
                 end if
             end subroutine
 #       endif
@@ -287,7 +289,6 @@
             else
                 max_wave_speed = 0.0_SR
             end if
-
         end function
 
         elemental subroutine compute_velocity_1D(dx, area, base_permeability, pL, pR, u_w, u_n, g_local)

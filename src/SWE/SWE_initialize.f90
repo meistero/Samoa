@@ -46,8 +46,7 @@
 
 			grid%r_time = 0.0_GRID_SR
 			grid%r_dt = 0.0_GRID_SR
-			grid%d_max = cfg%i_max_depth
-			grid%u_max = sqrt(g)
+			grid%r_dt_new = 0.0_GRID_SR
 
             call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
 		end subroutine
@@ -57,9 +56,9 @@
 			type(t_grid), intent(inout)							    :: grid
 
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
-            call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
+            call reduce(grid%r_dt_new, grid%sections%elements_alloc%r_dt_new, MPI_MIN, .true.)
 
-            grid%r_time = grid%r_time + grid%r_dt
+            grid%r_dt = grid%r_dt_new
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -68,7 +67,7 @@
 
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0
-			section%u_max = 0.0_GRID_SR
+			section%r_dt_new = huge(1.0_GRID_SR)
 		end subroutine
 
 		!******************
@@ -160,7 +159,7 @@
 #               endif
 			end if
 
-			!estimate initial u_max
+			!estimate initial time step
 
 			where (Q%h - Q%b > 0.0_GRID_SR)
 				lambda = sqrt(g * (Q%h - Q%b)) + sqrt((Q%p(1) * Q%p(1) + Q%p(2) * Q%p(2)) / ((Q%h - Q%b) * (Q%h - Q%b)))
@@ -168,7 +167,7 @@
 				lambda = 0.0_GRID_SR
 			end where
 
-			section%u_max = max(section%u_max, maxval(lambda))
+			section%r_dt_new = min(section%r_dt_new, cfg%scaling * element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(lambda)))
 		end subroutine
 
 		function get_initial_state(section, x, lod) result(Q)

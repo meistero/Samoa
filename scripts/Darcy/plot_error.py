@@ -7,6 +7,7 @@ import os
 import glob
 import inspect
 import re
+from math import log 
 
 def natural_sorted(l): 
     convert = lambda text: int(text) if text.isdigit() else text.lower() 
@@ -42,7 +43,7 @@ def create_plane_from_csv():
     for i in xrange(numPoints - 1):
         pdo.InsertNextCell(9, 4, [2*i, 2*(i+1), 2*(i+1)+1, 2*i+1])
 
-root_dir = '/home/meistero/Desktop/Samoa/output/'
+root_dir = '/home/meistero/Documents/Thesis/numerical_analysis/Darcy_Riemann'
 
 early_exit = False
 
@@ -147,7 +148,7 @@ for scenario_dir in natural_sorted(os.listdir(root_dir)):
                         else:
                             coarse_result = sim_results[0]
                             sim_results.append(sim_result)
-                            print "%s,%s,%i,%.4g,%i,%i,%.4g,%.4g,%.4g" % (scenario_dir, model_dir, sim_result[0], sim_result[1], sim_result[2], sim_result[3], sim_result[4], (log(sim_result[1]) - log(coarse_result[1])) / ((sim_result[0] - coarse_result[0])*log(2.0)/2.0), (log(sim_result[1]) - log(coarse_result[1])) / (log(sim_result[3]) - log(coarse_result[3])))
+                            print "%s,%s,%i,%.4g,%i,%i,%.4g,%.4g,%.4g" % (scenario_dir, model_dir, sim_result[0], sim_result[1], sim_result[2], sim_result[3], sim_result[4], (log(coarse_result[1]) - log(sim_result[1])) / ((sim_result[0] - coarse_result[0])*log(2.0)/2.0), (log(coarse_result[1]) - log(sim_result[1])) / (log(sim_result[3]) - log(coarse_result[3])))
                 if (early_exit):
                     break
 
