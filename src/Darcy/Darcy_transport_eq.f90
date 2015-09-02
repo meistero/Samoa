@@ -198,9 +198,13 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
-            if (any(node%data_temp%is_dirichlet_boundary)) then
+            if (any(node%data_temp%is_pressure_dirichlet_boundary)) then
                 call post_dof_op_correction(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             else
+                where(node%data_temp%is_saturation_dirichlet_boundary)
+                    node%data_temp%flux = 0.0_SR
+                end where
+
                 call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             end if
 		end subroutine
@@ -223,7 +227,7 @@
 			real (kind = GRID_SR)  :: prod_w, prod_n
 			integer :: i
 
-            if (any(node%data_temp%is_dirichlet_boundary)) then
+            if (any(node%data_temp%is_pressure_dirichlet_boundary)) then
                 prod_w = 0.0_SR
                 prod_n = 0.0_SR
 
@@ -473,6 +477,8 @@
                 lambda_n = l_n(saturation)
 
                 saturation = saturation - dt / volume * (flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
+            else
+                saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
             !assert_pure(saturation .le. 1.0_SR)

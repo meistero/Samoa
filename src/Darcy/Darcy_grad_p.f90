@@ -231,62 +231,40 @@
             end subroutine
 #       endif
 
-        function compute_max_wave_speed_1D(S_l, S_r, u_w, u_n, permeability, g_local) result(max_wave_speed)
-            real (kind = GRID_SR), intent(in)       :: S_l, S_r, u_w, u_n, permeability, g_local
+        function compute_max_wave_speed_1D(S_l, S_r, u_w_in, u_n_in, permeability, g_local) result(max_wave_speed)
+            real (kind = GRID_SR), intent(in)       :: S_l, S_r, u_w_in, u_n_in, permeability, g_local
             real (kind = GRID_SR)                   :: max_wave_speed
 
-            real (kind = GRID_SR)                   :: lambda_wl, lambda_wr, lambda_nl, lambda_nr, u_T, xi_w, xi_n
+            real (kind = GRID_SR)                   :: lambda_wl, lambda_wr, lambda_nl, lambda_nr, u_w, u_n, du_1, du_2
 
-            !Upwind and F-Wave solver approximate the Riemann solution by two shock waves with velocities xi_w and xi_n:
-            !xi_w = (f_w(S_r) - f_w(S_l)) / (S_r - S_l) = u_w(S_r, u_T) - u_w(S_l, u_T) / (S_r - S_l)
-            !xi_n = (f_n(S_r) - f_n(S_l)) / ((1 - S_r) - (1 - S_l)) = u_n(S_r, u_T) - u_n(S_l, u_T) / (S_l - S_r)
-            !where u_T is the total flux determined by the upwind solver
+            !Upwind and F-Wave solver approximate the Riemann solution by two shock waves with velocities xi_1 and xi_2:
+            !xi_1 = (u_w(S_r) - F_w) / (S_r - S_l) = (u_n(S_r) - F_n) / ((1 - S_r) - (1 - S_l))
+            !xi_2 = (F_w - u_w(S_l)) / (S_r - S_l) = (F_n - u_n(S_l)) / ((1 - S_r) - (1 - S_l))
 
             lambda_wl = l_w(S_l)
             lambda_wr = l_w(S_r)
             lambda_nl = l_n(S_l)
             lambda_nr = l_n(S_r)
 
-            u_T = 0.0_SR
-
-            if (u_w > 0.0) then
-                u_T = u_T + lambda_wl * u_w
+            if (u_w_in > 0.0) then
+                u_w = lambda_wl * u_w_in
             else
-                u_T = u_T + lambda_wr * u_w
+                u_w = lambda_wr * u_w_in
             endif
 
-            if (u_n > 0.0) then
-                u_T = u_T + lambda_nl * u_n
+            if (u_n_in > 0.0) then
+                u_n = lambda_nl * u_n_in
             else
-                u_T = u_T + lambda_nr * u_n
+                u_n = lambda_nr * u_n_in
             endif
 
-            if (u_w > 0.0) then
-                xi_w = lambda_wr / (lambda_wr + lambda_nr) * (u_T + lambda_nr * (cfg%r_rho_w - cfg%r_rho_n) * permeability * g_local) - lambda_wl * u_w
-            else
-                xi_w = lambda_wr * u_w - lambda_wl / (lambda_wl + lambda_nl) * (u_T + lambda_nl * (cfg%r_rho_w - cfg%r_rho_n) * permeability * g_local)
-            endif
-
-            if (u_n > 0.0) then
-                xi_n = lambda_nr / (lambda_wr + lambda_nr) * (u_T + lambda_wr * (cfg%r_rho_n - cfg%r_rho_w) * permeability * g_local) - lambda_nl * u_n
-            else
-                xi_n = lambda_nr * u_n - lambda_nl / (lambda_wl + lambda_nl) * (u_T + lambda_wl * (cfg%r_rho_n - cfg%r_rho_w) * permeability * g_local)
-            endif
+            du_1 = u_w - lambda_wl / (lambda_wl + lambda_nl) * ((u_w + u_n) + lambda_nl * (cfg%r_rho_w - cfg%r_rho_n) * permeability * g_local)
+            du_2 = lambda_wr / (lambda_wr + lambda_nr) * ((u_w + u_n) + lambda_nr * (cfg%r_rho_w - cfg%r_rho_n) * permeability * g_local) - u_w
 
             if (S_r .ne. S_l) then
-                !_log_write(1, "('Wave speeds:')")
-
-                !max_wave_speed = (S_l + S_r) / cfg%r_nu_w * u_w
-                !_log_write(1, *) max_wave_speed
-
-                !max_wave_speed = xi_w / (S_r - S_l)
-                !_log_write(1, *) max_wave_speed
-
-                !max_wave_speed = xi_n / (S_l - S_r)
-                !_log_write(1, *) max_wave_speed
-
-                max_wave_speed = max(abs(xi_w / (S_r - S_l)), abs(xi_n / (S_l - S_r)))
+                max_wave_speed = max(abs(du_1 / (S_r - S_l)), abs(du_2 / (S_r - S_l)))
             else
+                !when the saturations are equal, all signals have amplitude 0
                 max_wave_speed = 0.0_SR
             end if
         end function

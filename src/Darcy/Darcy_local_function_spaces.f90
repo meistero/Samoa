@@ -80,21 +80,29 @@
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
-	MODULE Darcy_gv_is_dirichlet_boundary_mod
+	MODULE Darcy_gv_is_pressure_dirichlet_boundary_mod
 		use SFC_data_types
 
-#		define _GV_TYPE_NAME		darcy_gv_is_dirichlet_boundary
+#		define _GV_TYPE_NAME		darcy_gv_is_pressure_dirichlet_boundary
 #		define _GV_TYPE				logical
-#		define _GV_NAME				is_dirichlet_boundary
+#		define _GV_NAME				is_pressure_dirichlet_boundary
 #		define _GV_PERSISTENT		0
 #		define _GV_ADD_OP			.or.
 
 #		include "Tools_grid_variable.f90"
 	END MODULE
-	!undefine macros to avoid compiler warnings
-#	undef _GV_CELL_SIZE
-#	undef _GV_EDGE_SIZE
-#	undef _GV_NODE_SIZE
+
+	MODULE Darcy_gv_is_saturation_dirichlet_boundary_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		darcy_gv_is_saturation_dirichlet_boundary
+#		define _GV_TYPE				logical
+#		define _GV_NAME				is_saturation_dirichlet_boundary
+#		define _GV_PERSISTENT		0
+#		define _GV_ADD_OP			.or.
+
+#		include "Tools_grid_variable.f90"
+	END MODULE
 
 	!undefine macros to avoid compiler warnings
 #	undef _GV_CELL_SIZE

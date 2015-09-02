@@ -70,7 +70,8 @@
 
 			real (kind = GRID_SR)       :: flux(_DARCY_LAYERS + 1)
 			real (kind = GRID_SR)		:: volume(_DARCY_LAYERS + 1)
-			logical                     :: is_dirichlet_boundary(_DARCY_LAYERS + 1)
+			logical                     :: is_pressure_dirichlet_boundary(_DARCY_LAYERS + 1)
+			logical                     :: is_saturation_dirichlet_boundary(_DARCY_LAYERS + 1)
 		END type num_node_data_temp
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)

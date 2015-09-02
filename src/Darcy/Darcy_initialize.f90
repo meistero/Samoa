@@ -231,7 +231,8 @@
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_p)						:: gv_p
 		type(darcy_gv_rhs)						:: gv_rhs
-		type(darcy_gv_is_dirichlet_boundary)    :: gv_is_dirichlet
+		type(darcy_gv_is_pressure_dirichlet_boundary)    :: gv_is_pressure_dirichlet
+		type(darcy_gv_is_saturation_dirichlet_boundary)    :: gv_is_saturation_dirichlet
 		type(darcy_gv_volume)					:: gv_inflow
 
 		public initialize_rhs, l_w, l_n
@@ -275,7 +276,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -300,12 +301,13 @@
 			type(t_node_data), intent(inout)		:: local_node
  			type(t_node_data), intent(in)		    :: neighbor_node
 
-            where (neighbor_node%data_temp%is_dirichlet_boundary)
+            where (neighbor_node%data_temp%is_pressure_dirichlet_boundary)
                 local_node%data_pers%p = neighbor_node%data_pers%p
             end where
 
 			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
-			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
+			local_node%data_temp%is_pressure_dirichlet_boundary = local_node%data_temp%is_pressure_dirichlet_boundary .or. neighbor_node%data_temp%is_pressure_dirichlet_boundary
+			local_node%data_temp%is_saturation_dirichlet_boundary = local_node%data_temp%is_saturation_dirichlet_boundary .or. neighbor_node%data_temp%is_saturation_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
@@ -319,24 +321,25 @@
 
             total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
 
-			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume, total_inflow)
+			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%volume, total_inflow)
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, is_dirichlet, inflow)
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, is_pressure_dirichlet, is_saturation_dirichlet, inflow)
 			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
 			real (kind = GRID_SR), intent(inout)				:: p
-			real (kind = GRID_SR), intent(out)					:: saturation
+			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(out)					:: rhs
-			logical, intent(out)			                    :: is_dirichlet
+			logical, intent(out)			                    :: is_pressure_dirichlet, is_saturation_dirichlet
 			real (kind = GRID_SR), intent(out)					:: inflow
 
             saturation = 0.0_SR
 			rhs = 0.0_SR
-			is_dirichlet = .false.
+			is_pressure_dirichlet = .false.
+			is_saturation_dirichlet = .false.
 			inflow = 0.0_SR
 
 #           if !defined(_ASAGI)
@@ -348,26 +351,29 @@
                     saturation = 0.5_SR
                 end if
 
-                if (pos_x == 1.0_SR) then
-                    is_dirichlet = .true.
+                if (pos_x == 0.0_SR) then
+                    is_saturation_dirichlet = .true.
+                    saturation = 1.0_SR
+                else if (pos_x == 1.0_SR) then
+                    is_pressure_dirichlet = .true.
                     p = cfg%r_p_prod
                 end if
 #           endif
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet, inflow, total_inflow)
+		elemental subroutine flow_post_dof_op(saturation, rhs, is_pressure_dirichlet, inflow, total_inflow)
 			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(inout)				:: rhs
 			real (kind = GRID_SR), intent(in)				    :: inflow
 			real (kind = GRID_SR), intent(in)				    :: total_inflow
-			logical, intent(in)			                        :: is_dirichlet
+			logical, intent(in)			                        :: is_pressure_dirichlet
 
             rhs = rhs + cfg%r_inflow * inflow / total_inflow
 
             !limit the accumulated saturation at the injection well
             saturation = min(saturation, 1.0_SR)
 
-            if (is_dirichlet) then
+            if (is_pressure_dirichlet) then
                 rhs = 0.0_SR
             end if
 		end subroutine
@@ -380,7 +386,7 @@
             real (kind = GRID_SR), intent(out)				        :: rhs(:, :)
 
 			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2), radius
-			integer (kind = GRID_SI)	                            :: i_depth
+			integer (kind = BYTE)	                                :: i_depth
 			logical 								                :: l_refine_initial, l_refine_solution, l_relevant
 
 #           if (_DARCY_LAYERS > 0)
@@ -424,14 +430,14 @@
                 call initialize_rhs(element, saturation(1, :), p(1, :), rhs(1, :), base_permeability)
 #           endif
 
-			!check refinement condition
-
-			l_refine_solution = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2)))) >= min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
-			l_refine_solution = l_refine_solution .or. max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2)))) >= min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod / 2.0_SR
-
 			!refine the cell if necessary (no coarsening in the initialization!)
 
 			i_depth = element%cell%geometry%i_depth
+
+			!check refinement condition
+
+			l_refine_solution = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_edge_size(i_depth) >= min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
+			l_refine_solution = l_refine_solution .or. maxval(max(p(:, 1), p(:, 2), p(:, 3)) - min(p(:, 1), p(:, 2), p(:, 3))) >= min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod
 
 			if (i_depth < cfg%i_max_depth .and. ((l_relevant .and. (i_depth < cfg%i_min_depth .or. l_refine_solution)) .or. l_refine_initial)) then
 				element%cell%geometry%refinement = 1
@@ -498,6 +504,10 @@
 
                             weights = 0.25_SR * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
 
+                            is_dirichlet(:, 1) = weights(1) > epsilon(1.0_SR)
+                            is_dirichlet(:, 2) = weights(2) > epsilon(1.0_SR)
+                            is_dirichlet(:, 3) = weights(3) > epsilon(1.0_SR)
+
                             inflow = 0.0_SR
 
                             !split local inflows in primary layer and assign half contributions to dual layers
@@ -508,6 +518,7 @@
                             end do
 
                             call gv_inflow%add_to_element(element, inflow)
+                            call gv_is_saturation_dirichlet%add_to_element(element, is_dirichlet)
 #                       elif defined(_DARCY_INJ_TOP_INFLOW)
                             weights = [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
 
@@ -541,7 +552,7 @@
                             end do
 
                             call gv_p%write_to_element(element, p)
-                            call gv_is_dirichlet%add_to_element(element, is_dirichlet)
+                            call gv_is_pressure_dirichlet%add_to_element(element, is_dirichlet)
 #                       else
 #                           error Injection condition must be defined!
 #                       endif
@@ -580,7 +591,7 @@
 #                       endif
 
                         call gv_p%write_to_element(element, p)
-                        call gv_is_dirichlet%add_to_element(element, is_dirichlet)
+                        call gv_is_pressure_dirichlet%add_to_element(element, is_dirichlet)
                     end if
                 end if
 
@@ -688,7 +699,7 @@
                         end where
 
                         call gv_p%write_to_element(element, p)
-                        call gv_is_dirichlet%add_to_element(element, is_dirichlet)
+                        call gv_is_pressure_dirichlet%add_to_element(element, is_dirichlet)
 
                         rhs = 0.0_SR
                     end if

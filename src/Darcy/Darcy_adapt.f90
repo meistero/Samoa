@@ -172,7 +172,7 @@
 !#define     _ADAPT_SAMPLE
 #           if defined(_ADAPT_INTEGRATE)
 #               if (_DARCY_LAYERS > 0)
-                    n = max(1, int(1024.0_SR * dest_element%transform_data%custom_data%scaling))
+                    n = max(1, int(dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))
 
                     p = samoa_barycentric_to_world_point(dest_element%transform_data, [0.0_SR, 0.0_SR])
                     v1 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, 0.5_SR])

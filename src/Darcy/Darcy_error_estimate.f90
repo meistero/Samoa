@@ -168,25 +168,27 @@
                 real (kind = GRID_SR), intent(in)			:: p(:,:)
                 real (kind = GRID_SR), intent(in)			:: base_permeability(:,:)
 
-                r_sat_norm = max(maxval(abs(saturation(:, 3) - saturation(:, 2))), maxval(abs(saturation(:, 1) - saturation(:, 2))))
-                r_p_norm = max(maxval(abs(p(:, 3) - p(:, 2))), maxval(abs(p(:, 1) - p(:, 2))))
+                r_sat_norm = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_edge_size(i_depth)
+                r_p_norm = maxval(max(p(:, 1), p(:, 2), p(:, 3)) - min(p(:, 1), p(:, 2), p(:, 3)))
                 l_relevant = any(base_permeability > 0.0_GRID_SR)
 #           else
                 real (kind = GRID_SR), intent(in)		    :: saturation(:)
                 real (kind = GRID_SR), intent(in)			:: p(:)
                 real (kind = GRID_SR), intent(in)			:: base_permeability
 
-                r_sat_norm = max(abs(saturation(3) - saturation(2)), abs(saturation(1) - saturation(2)))
-                r_p_norm = max(abs(p(3) - p(2)), abs(p(1) - p(2)))
+                r_sat_norm = (maxval(saturation) - minval(saturation)) * get_edge_size(i_depth)
+                r_p_norm = (maxval(p) - minval(p))
                 l_relevant = (base_permeability > 0.0_GRID_SR)
 #           endif
 
-            !Criteria:
-            !refine a variable q if Delta q > threshold * Delta x / (x_max - x_min) * (q_max - q_min)
-            !coarsen a variable q if Delta q < threshold / 2 * Delta x / (x_max - x_min) * (q_max - q_min)
+            !Criteria for a piece-wise constant function q:
+            !refine if    Delta q V > threshold * (q_max - q_min) * V_min
+            !coarsen if    Delta q  V < threshold / 8 * (q_max - q_min) * V_min
+            !In the best case, refinement halves volume and halves the quantity difference,
+            !hence we have to expect that refinement divides the L1 error of this cell by a factor 4.
 
 			l_refine_sat = r_sat_norm > min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
-			l_coarsen_sat = r_sat_norm < min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)) / 2.0_SR
+			l_coarsen_sat = r_sat_norm < min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)) / 8.0_SR
 			l_coarsen_p = r_p_norm < min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod / 2.0_SR
 
 			!* refine the cell if the saturation becomes too steep

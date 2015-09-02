@@ -28,7 +28,7 @@
 
 #   define _gv_r                darcy_gv_r
 #   define _gv_trace_A          darcy_gv_mat_diagonal
-#   define _gv_dirichlet        darcy_gv_is_dirichlet_boundary
+#   define _gv_dirichlet        darcy_gv_is_pressure_dirichlet_boundary
 
 #   include "../Solver/Jacobi.f90"
 #endif

@@ -18,7 +18,7 @@
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_p)						:: gv_p
 		type(darcy_gv_rhs)						:: gv_rhs
-		type(darcy_gv_is_dirichlet_boundary)    :: gv_is_dirichlet
+		type(darcy_gv_is_pressure_dirichlet_boundary)    :: gv_is_dirichlet
 		type(darcy_gv_volume)                   :: gv_inflow
 
 #		define _GT_NAME							t_darcy_permeability_traversal
@@ -79,7 +79,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			:: node
 
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -108,12 +108,13 @@
 			type(t_node_data), intent(inout)		:: local_node
  			type(t_node_data), intent(in)		    :: neighbor_node
 
-            if (any(neighbor_node%data_temp%is_dirichlet_boundary)) then
+            if (any(neighbor_node%data_temp%is_pressure_dirichlet_boundary)) then
                 local_node%data_pers%p = neighbor_node%data_pers%p
             end if
 
 			local_node%data_pers%saturation = max(local_node%data_pers%saturation, neighbor_node%data_pers%saturation)
-			local_node%data_temp%is_dirichlet_boundary = local_node%data_temp%is_dirichlet_boundary .or. neighbor_node%data_temp%is_dirichlet_boundary
+			local_node%data_temp%is_pressure_dirichlet_boundary = local_node%data_temp%is_pressure_dirichlet_boundary .or. neighbor_node%data_temp%is_pressure_dirichlet_boundary
+			local_node%data_temp%is_saturation_dirichlet_boundary = local_node%data_temp%is_saturation_dirichlet_boundary .or. neighbor_node%data_temp%is_saturation_dirichlet_boundary
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
@@ -127,46 +128,46 @@
 
             total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
 
-			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_dirichlet_boundary, node%data_temp%volume, total_inflow)
+			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%volume, total_inflow)
 		end subroutine
 
-		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, is_dirichlet, inflow)
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, is_pressure_dirichlet, is_saturation_dirichlet, inflow)
 			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
 			real (kind = GRID_SR), intent(inout)				:: p
 			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(out)					:: rhs
-			logical, intent(out)			                    :: is_dirichlet
+			logical, intent(out)			                    :: is_pressure_dirichlet, is_saturation_dirichlet
 			real (kind = GRID_SR), intent(out)					:: inflow
 
 			rhs = 0.0_SR
-			is_dirichlet = .false.
+			is_saturation_dirichlet = .false.
+			is_pressure_dirichlet = .false.
 			inflow = 0.0_SR
 
 #           if !defined(_ASAGI)
                 if (pos_x == 0.0_SR) then
+                    is_saturation_dirichlet = .true.
                     saturation = 1.0_SR
-                end if
-
-                if (pos_x == 1.0_SR) then
-                    is_dirichlet = .true.
+                else if (pos_x == 1.0_SR) then
+                    is_pressure_dirichlet = .true.
                     p = cfg%r_p_prod
                 end if
 #           endif
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(saturation, rhs, is_dirichlet, inflow, total_inflow)
+		elemental subroutine flow_post_dof_op(saturation, rhs, is_pressure_dirichlet, inflow, total_inflow)
 			real (kind = GRID_SR), intent(inout)				:: saturation
 			real (kind = GRID_SR), intent(inout)				:: rhs
 			real (kind = GRID_SR), intent(in)				    :: inflow
 			real (kind = GRID_SR), intent(in)				    :: total_inflow
-			logical, intent(in)			                        :: is_dirichlet
+			logical, intent(in)			                        :: is_pressure_dirichlet
 
             rhs = rhs + cfg%r_inflow * inflow / total_inflow
 
             !limit the accumulated saturation at the injection well
             saturation = min(saturation, 1.0_SR)
 
-            if (is_dirichlet) then
+            if (is_pressure_dirichlet) then
                 rhs = 0.0_SR
             end if
 		end subroutine

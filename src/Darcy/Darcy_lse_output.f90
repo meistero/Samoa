@@ -195,7 +195,7 @@
 
             do j = 1, size(nodes)
                 do i = 1, _DARCY_LAYERS + 1
-                    call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, nodes(j)%data_pers%p(i), nodes(j)%data_pers%rhs(i), nodes(j)%data_pers%r(i), nodes(j)%data_temp%is_dirichlet_boundary(i))
+                    call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, nodes(j)%data_pers%p(i), nodes(j)%data_pers%rhs(i), nodes(j)%data_pers%r(i), nodes(j)%data_temp%is_pressure_dirichlet_boundary(i))
                 end do
             end do
 		end subroutine
