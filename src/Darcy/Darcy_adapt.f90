@@ -172,7 +172,11 @@
 !#define     _ADAPT_SAMPLE
 #           if defined(_ADAPT_INTEGRATE)
 #               if (_DARCY_LAYERS > 0)
-                    n = max(1, int(dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))
+#                   if defined(_ASAGI)
+                        n = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))
+#                   else
+                        n = max(1, 512 * int(dest_element%transform_data%custom_data%scaling))
+#                   endif
 
                     p = samoa_barycentric_to_world_point(dest_element%transform_data, [0.0_SR, 0.0_SR])
                     v1 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, 0.5_SR])
@@ -205,7 +209,11 @@
                         dest_element%cell%data_pers%porosity(level) = dest_element%cell%data_pers%porosity(level) / (n * n)
                     end do
 #               else
-                    n = max(1, int(4096.0_SR * dest_element%transform_data%custom_data%scaling))
+#                   if defined(_ASAGI)
+                        n = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))
+#                   else
+                        n = max(1, 512 * int(dest_element%transform_data%custom_data%scaling))
+#                   endif
 
                     p = samoa_barycentric_to_world_point(dest_element%transform_data, [0.0_SR, 0.0_SR])
                     v1 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, 0.5_SR])
@@ -253,18 +261,18 @@
             real (kind = SR), intent(in)    :: permeability
             real (kind = SR)                :: trans_permeability
 
-            trans_permeability = 1.0 / (tiny(1.0_SR) + permeability)
+            !trans_permeability = 1.0 / (tiny(1.0_SR) + permeability)
             !trans_permeability = log(tiny(1.0_SR) + permeability)
-            !trans_permeability = permeability
+            trans_permeability = permeability
 		end function
 
 		elemental function transform_perm_inv(trans_permeability) result(permeability)
             real (kind = SR), intent(in)    :: trans_permeability
             real (kind = SR)                :: permeability
 
-            permeability = 1.0 / trans_permeability
+            !permeability = 1.0 / trans_permeability
             !permeability = exp(trans_permeability)
-            !permeability = trans_permeability
+            permeability = trans_permeability
 
             !make sure we don't accidentally create unphysical numbers
             if (permeability < 6.0e-4_SR * 9.869233e-16_SR / (cfg%scaling ** 2)) then
