@@ -500,7 +500,7 @@
 				call swe%euler%traverse(grid)
 				if (cfg%l_swe_nh) then
                     if(cfg%divergence_test) then
-                    call swe%nh_test_traversal%traverse(grid)
+                        call swe%nh_test_traversal%traverse(grid)
                     end if
                     call swe%lse_traversal%traverse(grid)
 
@@ -521,7 +521,7 @@
                             end if
                         case (1,2)
                             i_lse_iterations_cg = swe%pressure_solver_cg%solve(grid)
-                            i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
+                            !i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
                             if (rank_MPI == 0) then
                                 !$omp master
                                 write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi
@@ -626,6 +626,15 @@
                     call swe%displace%reduce_stats(MPI_SUM, .true.)
                     call swe%euler%reduce_stats(MPI_SUM, .true.)
                     call swe%adaption%reduce_stats(MPI_SUM, .true.)
+                    call swe%lse_traversal%reduce_stats(MPI_SUM, .true.)
+                    call swe%adjustment_traversal%reduce_stats(MPI_SUM, .true.)
+                    call swe%nh_traversal%reduce_stats(MPI_SUM, .true.)
+                    select case(cfg%i_lsolver)
+                        case (0)
+                            call swe%pressure_solver_jacobi%reduce_stats(MPI_SUM, .true.)
+                        case (1,2)
+                            call swe%pressure_solver_cg%reduce_stats(MPI_SUM, .true.)
+                    end select
                     call grid%reduce_stats(MPI_SUM, .true.)
 
                     if (rank_MPI == 0) then
@@ -636,6 +645,15 @@
                         _log_write(0, '(A, T34, A)') " Displace: ", trim(swe%displace%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Time steps: ", trim(swe%euler%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Adaptions: ", trim(swe%adaption%stats%to_string())
+                        _log_write(0, '(A, T34, A)') " LSE traversals: ", trim(swe%lse_traversal%stats%to_string())
+                        _log_write(0, '(A, T34, A)') " Adjustments: ", trim(swe%adjustment_traversal%stats%to_string())
+                        select case(cfg%i_lsolver)
+                            case (0)
+                                _log_write(0, '(A, T34, A)') " Solver: ", trim(swe%pressure_solver_jacobi%stats%to_string())
+                            case (1,2)
+                                _log_write(0, '(A, T34, A)') " Solver: ", trim(swe%pressure_solver_cg%stats%to_string())
+                        end select
+                        _log_write(0, '(A, T34, A)') " Correction: ", trim(swe%nh_traversal%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Grid: ", trim(grid%stats%to_string())
                         _log_write(0, '(A, T34, F12.4, A)') " Element throughput: ", 1.0d-6 * dble(grid%stats%i_traversed_cells) / t_phase, " M/s"
                         _log_write(0, '(A, T34, F12.4, A)') " Memory throughput: ", dble(grid%stats%i_traversed_memory) / ((1024 * 1024 * 1024) * t_phase), " GB/s"
@@ -651,6 +669,16 @@
                 call swe%displace%clear_stats()
                 call swe%euler%clear_stats()
                 call swe%adaption%clear_stats()
+                call swe%lse_traversal%clear_stats()
+                call swe%adjustment_traversal%clear_stats()
+                call swe%nh_traversal%clear_stats()
+                select case(cfg%i_lsolver)
+                    case (0)
+                        call swe%pressure_solver_jacobi%clear_stats()
+
+                    case (1,2)
+                        call swe%pressure_solver_cg%clear_stats()
+                end select
                 call grid%clear_stats()
 
                 t_phase = -get_wtime()
