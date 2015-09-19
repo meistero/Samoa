@@ -406,7 +406,7 @@
                                 end if
                             case (1,2)
                                 i_lse_iterations_cg = swe%pressure_solver_cg%solve(grid)
-                                i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
+                                !i_lse_iterations_jacobi = swe%pressure_solver_jacobi%solve(grid)
                                 if (rank_MPI == 0) then
                                     !$omp master
                                     write(*,*) 'iterations needed: cg: ' , i_lse_iterations_cg, '; jacobi: ', i_lse_iterations_jacobi

@@ -92,23 +92,42 @@
 
 			integer (kind = GRID_SI)    :: i_points
             integer                     :: i_error, i, j, fileunit
-            real (kind = GRID_SR)       :: nrm
+            real (kind = GRID_SR)       :: nrm, row_sum
             character(256)              :: filename
             logical                     :: symmetric
+            logical                     :: positive_definite
 
             symmetric = .true.
+            positive_definite = .true.
 
 			i_points = traversal%i_point_data_index - 1
 
             do i = 1, i_points
+                row_sum = 0.0_GRID_SR
+
                 do j = 1, i
+                    if(.not.(i .eq. j)) then
+                        row_sum = row_sum + abs(traversal%A(i,j))
+                    end if
+
                     if (abs(traversal%A(j,i)) > 0.0000001 .and. abs(traversal%A(i,j)) > 0.0000001) then
                         if (abs(traversal%A(j,i) - traversal%A(i,j)) > 0.0000001 * (abs(traversal%A(j,i)) + abs(traversal%A(i,j)))) then
                             _log_write(0, '(A, I0, A, I0, A, ES14.7, A, ES14.7)') " SWE: Not symmetric: i: ", i, "; j: ", j, "; A(j,i): ", traversal%A(j,i), "; A(i,j): ", traversal%A(i,j)
                             symmetric = .false.
                         end if
                     end if
+                    if (i .eq. j) then
+                        if(traversal%A(i,i) < 0) then
+                            _log_write(0, '(A, I0, A, I0, A, ES14.7, A, ES14.7)') " SWE: Not positive definite: i = j: ", i, "; A(i,i): ", traversal%A(i,i)
+                            positive_definite = .false.
+                        end if
+                    end if
                 end do
+
+                if (abs(traversal%A(i,i)) <= row_sum) then
+                    _log_write(0, '(A, I0, A, I0, A, ES14.7, A, ES14.7)') " SWE: Not positive definite: i: ", i, "; row_sum: ", row_sum, "; A(i,i): ", traversal%A(i,i)
+                    positive_definite = .false.
+                end if
             end do
 
             if (symmetric) then
