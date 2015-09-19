@@ -117,7 +117,7 @@
                         end if
                     end if
                     if (i .eq. j) then
-                        if(traversal%A(i,i) < 0) then
+                        if(traversal%A(i,i) <= 0) then
                             _log_write(0, '(A, I0, A, I0, A, ES14.7, A, ES14.7)') " SWE: Not positive definite: i = j: ", i, "; A(i,i): ", traversal%A(i,i)
                             positive_definite = .false.
                         end if
