@@ -101,8 +101,9 @@
             end if
 
 #           if defined(_ASAGI)
-                if (grid%r_time < asagi_grid_max(cfg%afh_displacement, 2)) then
-                    grid%r_dt = min(grid%r_dt, asagi_grid_delta(cfg%afh_displacement, 2))
+                !if we are in the earthquake phase, limit the simulation time step by the earthquake time step
+                if (grid%r_time < cfg%t_max_eq) then
+                    grid%r_dt = min(grid%r_dt, cfg%dt_eq)
                 end if
 #           endif
 
@@ -316,6 +317,7 @@
 
 			real(kind = GRID_SR)											    :: volume, dQ_norm, edge_lengths(3)
 			integer (kind = BYTE)												:: i
+			real (kind = GRID_SR), parameter                                    :: refinement_threshold = 1.0e11_SR
 
 			_log_write(6, '(3X, A)') "swe cell update op:"
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
@@ -325,24 +327,24 @@
 			volume = cfg%scaling * cfg%scaling * cell%get_volume()
 			edge_lengths = cfg%scaling * cell%get_edge_sizes()
 
-			dQ%h = sum(edge_lengths * fluxes%h)
-			dQ%p(1) = sum(edge_lengths * fluxes%p(1))
-			dQ%p(2) = sum(edge_lengths * fluxes%p(2))
+			dQ%h = dot_product(edge_lengths, fluxes%h)
+			dQ%p(1) = dot_product(edge_lengths, fluxes%p(1))
+			dQ%p(2) = dot_product(edge_lengths, fluxes%p(2))
 			dQ%b = 0.0_GRID_SR
 
 			!set refinement condition
 
 			i_refinement = 0
-			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
+			dQ_norm = abs(r_dt * dQ(1)%h)
 
-			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
+			if (i_depth < cfg%i_max_depth .and. dQ_norm > refinement_threshold * get_cell_volume(cfg%i_max_depth)) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < refinement_threshold * get_cell_volume(cfg%i_max_depth) / 8.0_SR) then
 				i_refinement = -1
 			endif
 
-			r_dt_new = min(r_dt_new, volume / sum(edge_lengths * fluxes%max_wave_speed))
+			r_dt_new = min(r_dt_new, volume / dot_product(edge_lengths, fluxes%max_wave_speed))
 
             do i = 1, _SWE_CELL_SIZE
                 dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-r_dt / volume)
@@ -358,22 +360,26 @@
 			type(t_update), intent(out) 						:: fluxL, fluxR
 			real(kind = GRID_SR), intent(in)		            :: normal(2)
 
-			real(kind = GRID_SR)								:: vL, vR, alpha
+			real(kind = GRID_SR)								:: etaL, etaR, vL, vR, alpha
 
 #           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
                 if (QL%h - QL%b < cfg%dry_tolerance) then
+                    etaL = min(QL%b, QR%h)
                     vL = 0.0_GRID_SR
                     fluxL%max_wave_speed = 0.0_GRID_SR
                 else
-                    vL = DOT_PRODUCT(normal, QL%p / (QL%h - QL%b))
+                    etaL = QL%h
+                    vL = dot_product(normal, QL%p / (QL%h - QL%b))
                     fluxL%max_wave_speed = sqrt(g * (QL%h - QL%b)) + abs(vL)
                 end if
 
                 if (QR%h - QR%b < cfg%dry_tolerance) then
+                    etaR = min(QR%b, QL%h)
                     vR = 0.0_GRID_SR
                     fluxR%max_wave_speed = 0.0_GRID_SR
                 else
-                    vR = DOT_PRODUCT(normal, QR%p / (QR%h - QR%b))
+                    etaR = QR%h
+                    vR = dot_product(normal, QR%p / (QR%h - QR%b))
                     fluxR%max_wave_speed = sqrt(g * (QR%h - QR%b)) + abs(vR)
                 end if
 
@@ -383,17 +389,23 @@
                     alpha = 100.0_GRID_SR
 #               endif
 
-                fluxL%h = 0.5_GRID_SR * (vL * (QL%h - QL%b) + vR * (QR%h - QR%b) + alpha * (QL%h - QR%h))
+                !As mass flux the average of left and right steady state fluxes is chosen.
+                !The term $\max(b_l, b_r)$ ensures that the flux will be nonzero
+                !only if the water height exceeds the bathymetry in both cells
+                fluxL%h = 0.5_GRID_SR * (vL * max(etaL - max(QL%b, QR%b), 0.0_GRID_SR) + vR * max(etaR - max(QL%b, QR%b), 0.0_GRID_SR)) + alpha * (etaL - etaR)
                 fluxR%h = -fluxL%h
 
-                fluxL%p = 0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) + 0.5_GRID_SR * g * (max(QR%h - QL%b, 0.0_GRID_SR) ** 2) * normal
-                fluxR%p = -0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) - 0.5_GRID_SR * g * (max(QL%h - QR%b, 0.0_GRID_SR) ** 2) * normal
+                !Similarly, the momentum flux is the average of left and right steady state fluxes.
+                !The resulting flux difference on the interface is
+                ! $g \ (b_r - b_l) \ \frac{1}{2} \ (h_l + h_r)$
+                ! which is the source term $\Delta x \ \Psi(x)$ for a quasi-steady state solution [LeVeque]
+                fluxL%p = 0.5_GRID_SR * (vL * QL%p + vR * QR%p + 0.5_GRID_SR * g * (max(etaL - QL%b, 0.0_GRID_SR) ** 2 + max(etaR - QL%b, 0.0_GRID_SR) ** 2) * normal) + alpha * (QL%p - QR%p)
+                fluxR%p = -0.5_GRID_SR * (vL * QL%p + vR * QR%p + 0.5_GRID_SR * g * (max(etaL - QR%b, 0.0_GRID_SR) ** 2 + max(etaR - QR%b, 0.0_GRID_SR) ** 2) * normal) - alpha * (QL%p - QR%p)
 #           elif defined(_LF_FLUX) || defined(_LLF_FLUX)
                 real(kind = GRID_SR), parameter					:: b = 0.0_GRID_SR     !default constant bathymetry
 
-                !use the height of the water pillars for computation
-                vL = DOT_PRODUCT(normal, QL%p / (QL%h - b))
-                vR = DOT_PRODUCT(normal, QR%p / (QR%h - b))
+                vL = dot_product(normal, QL%p / (QL%h - b))
+                vR = dot_product(normal, QR%p / (QR%h - b))
 
                 fluxL%max_wave_speed = sqrt(g * (QL%h - b)) + abs(vL)
                 fluxR%max_wave_speed = sqrt(g * (QR%h - b)) + abs(vR)
@@ -407,8 +419,8 @@
                 fluxL%h = 0.5_GRID_SR * (vL * (QL%h - b) + vR * (QR%h - b) + alpha * (QL%h - QR%h))
                 fluxR%h = -fluxL%h
 
-                fluxL%p = 0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) + 0.5_GRID_SR * g * (QR%h - b) * (QR%h - b) * normal
-                fluxR%p = -0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) - 0.5_GRID_SR * g * (QL%h - b) * (QL%h - b) * normal
+                fluxL%p = 0.5_GRID_SR * (vL * QL%p + vR * QR%p + 0.5_GRID_SR * g * ((QL%h - b) * (QL%h - b) + (QR%h - b) * (QR%h - b)) * normal + alpha * (QL%p - QR%p))
+                fluxR%p = -fluxL%p
 #           endif
 		end subroutine
 

@@ -12,7 +12,7 @@
 
 		use Samoa_swe
 		use Tools_noise
-		use SWE_initialize
+		use SWE_initialize_bathymetry
 		use SWE_euler_timestep
 
 		implicit none
@@ -112,8 +112,7 @@
 			type(t_state), dimension(_SWE_CELL_SIZE)									:: Q_in
 			type(t_state), dimension(_SWE_CELL_SIZE, 2)									:: Q_out
 
-			integer																		:: i
-			!state vector
+			integer					:: i
 
 			call gv_Q%read( src_element%t_element_base, Q_in)
 
@@ -128,10 +127,10 @@
 				Q_in = Q_out(:, refinement_path(i))
 			end do
 
-			Q_in%b = get_bathymetry(section, samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_GRID_SR / 3.0_GRID_SR, 1.0_GRID_SR / 3.0_GRID_SR]), section%r_time, dest_element%cell%geometry%i_depth / 2_GRID_SI)
-
             !convert velocity back to momentum
 			!Q_in(1)%p = (Q_in(1)%h - Q_in(1)%b) * Q_in(1)%p
+
+            Q_in%b = get_bathymetry_at_element(section, dest_element%t_element_base)
 
 			call gv_Q%write( dest_element%t_element_base, Q_in)
 		end subroutine

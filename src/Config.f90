@@ -51,11 +51,10 @@ module config
 	    double precision, pointer		        :: r_testpoints(:,:)		                        !< test points array
 
         double precision                        :: scaling, offset(2)                               !< grid scaling and offset
-        double precision                        :: dz                                               !< layer height for 3D scenarios
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
-        double precision                        :: dry_tolerance                                    !< dry tolerance
 
 #    	if defined(_DARCY)
+            double precision                    :: dz                                               !< layer height for 3D scenarios
             character(256)                      :: s_permeability_file                              !< permeability file
             character(256)                      :: s_porosity_file                                  !< porosity file
  			integer					 		    :: afh_permeability_X			                    !< asagi file handle to X-axis permeability data
@@ -90,11 +89,17 @@ module config
             character(256)                      :: s_displacement_file                              !< displacement file
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
+
+            double precision                    :: t_min_eq, t_max_eq						        !< earthquake start and end time
+            double precision                    :: dt_eq                                            !< earthquake time step
+            double precision                    :: dry_tolerance                                    !< dry tolerance
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry data
+
+            double precision                    :: dry_tolerance                                    !< dry tolerance
 #       endif
 
         contains
