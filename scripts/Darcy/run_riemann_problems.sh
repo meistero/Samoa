@@ -16,7 +16,7 @@ do
 
         cp "scripts/python/"$scenario"_"$mobility""* "output/"$scenario"/"$mobility"/ref"
 
-        for dmax in {2..20..2}
+        for dmax in {2..20..1}
         do
             mkdir -p "output/"$scenario"/"$mobility"/d"$dmax
         done
@@ -24,7 +24,7 @@ do
 done
 
 #run the scenarios for the given parameter space
-for dmax in {2..20..2}
+for dmax in {2..20..1}
 do
     for mobility in brooks-corey linear quadratic
     do
