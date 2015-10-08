@@ -95,7 +95,7 @@
 
 			!evaluate initial function values at dof positions and compute DoFs
 #           if defined(_ASAGI)
-                db = -Q%b + get_bathymetry_at_element(section, element)
+                db = -Q%b + get_bathymetry_at_element(section, element, section%r_time)
                 Q%h = Q%h + db
                 Q%b = Q%b + db
 #           endif

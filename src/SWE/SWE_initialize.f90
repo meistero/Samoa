@@ -100,12 +100,13 @@
 
 			!evaluate initial function values at dof positions and compute DoFs
 
-			Q%b = get_bathymetry_at_element(section, element)
+			Q%b = get_bathymetry_at_element(section, element, section%r_time)
 		end subroutine
 
-        function get_bathymetry_at_element(section, element) result(bathymetry)
+        function get_bathymetry_at_element(section, element, t) result(bathymetry)
 			type(t_grid_section), intent(inout)     :: section
 			type(t_element_base), intent(inout)     :: element
+            real (kind = GRID_SR), intent(in)		:: t
             real (kind = GRID_SR)					:: bathymetry
 
             real (kind = GRID_SR)   :: x(2), p(2), v1(2), v2(2), alpha, beta
@@ -115,9 +116,9 @@
 !#define     _ADAPT_SAMPLE
 #           if defined(_ADAPT_INTEGRATE)
 #               if defined(_ASAGI)
-                    n = max(1, int(cfg%scaling * element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_bathymetry, 0)))
+                    n = min(128, max(1, int(cfg%scaling * get_edge_size(element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_bathymetry, 0))))
 #               else
-                    n = max(1, 512 * int(element%transform_data%custom_data%scaling))
+                    n = min(128, max(1, int(512.0_SR * get_edge_size(element%cell%geometry%i_depth))))
 #               endif
 
                 p = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
@@ -133,14 +134,14 @@
                         beta = real(j, SR) / real(n, SR)
                         x = p + alpha * v1 + beta * v2
 
-                        bathymetry = bathymetry + get_bathymetry_at_position(section, x, section%r_time)
+                        bathymetry = bathymetry + get_bathymetry_at_position(section, x, t)
                     end do
                 end do
 
                 bathymetry = bathymetry / (n * n)
 #           elif defined(_ADAPT_SAMPLE)
                 x = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
-                bathymetry = get_bathymetry_at_position(section, x, section%r_time)
+                bathymetry = get_bathymetry_at_position(section, x, t)
 #           endif
         end function
 
@@ -275,12 +276,13 @@
 			type(t_element_base), intent(inout)						    :: element
 			type(t_state), dimension(_SWE_CELL_SIZE), intent(inout)	    :: Q
 
-			real (kind = GRID_SR), dimension(2)						:: pos
-			integer (kind = GRID_SI)								:: i
-			real (kind = GRID_SR), parameter		                :: r_test_points(2, 3) = reshape([1.0, 0.0, 0.0, 0.0, 0.0, 1.0], [2, 3])
-			real (kind = GRID_SR)                                   :: centroid_square(2), centroid_triangle(2)
-			type(t_state), dimension(3)								:: Q_test
-			real (kind = GRID_SR), dimension(_SWE_CELL_SIZE)		:: lambda
+			real (kind = GRID_SR)               :: x(2)
+			real (kind = GRID_SR)               :: dQ_norm
+			real (kind = GRID_SR), parameter    :: probes(2, 3) = reshape([1.0, 0.0, 0.0, 0.0, 0.0, 1.0], [2, 3])
+			type(t_dof_state)	                :: Q_test(3)
+			integer                             :: i
+
+			real (kind = GRID_SR)               :: max_wave_speed(_SWE_CELL_SIZE)
 
 			!evaluate initial DoFs (not the bathymetry!)
 
@@ -294,43 +296,25 @@
  				element%cell%geometry%refinement = 1
 				traversal%i_refinements_issued = traversal%i_refinements_issued + 1
             else if (element%cell%geometry%i_depth < cfg%i_max_depth) then
-                do i = 1, 3
-                    Q_test(i)%t_dof_state = get_initial_dof_state_at_position(section, samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)))
-                    Q_test(i)%b = get_bathymetry_at_position(section, samoa_barycentric_to_world_point(element%transform_data, r_test_points(:, i)), 0.0_SR)
-                end do
-
 #               if defined (_ASAGI)
-                    centroid_square = 0.5_GRID_SR * [asagi_grid_min(cfg%afh_displacement, 0) + asagi_grid_max(cfg%afh_displacement, 0), asagi_grid_min(cfg%afh_displacement, 1) + asagi_grid_max(cfg%afh_displacement, 1)]
-                    centroid_square = 1.0_GRID_SR / cfg%scaling * (centroid_square - cfg%offset)
-                    centroid_square = samoa_world_to_barycentric_point(element%transform_data, centroid_square)
+                    !refine the displacements
 
-                    centroid_triangle = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
-                    centroid_triangle = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, centroid_triangle) + cfg%offset
-                    centroid_triangle = [ &
-                        (centroid_triangle(1) - asagi_grid_min(cfg%afh_displacement, 0)) / (asagi_grid_max(cfg%afh_displacement, 0) - asagi_grid_min(cfg%afh_displacement, 0)), &
-                        (centroid_triangle(2) - asagi_grid_min(cfg%afh_displacement, 1)) / (asagi_grid_max(cfg%afh_displacement, 1) - asagi_grid_min(cfg%afh_displacement, 1)) &
-                    ]
+                    x = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR/3.0_SR, 1.0_SR/3.0_SR])
+                    dQ_norm = abs(get_bathymetry_at_element(section, element, cfg%t_max_eq + 1.0_SR) - Q(1)%b)
 
-                    if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0) then
-                        !refine coast lines
-
-                        element%cell%geometry%refinement = 1
-                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                    elseif (centroid_square(1) >= 0.0 .and. centroid_square(2) >= 0.0 .and. centroid_square(1) + centroid_square(2) <= 1.0) then
-                        !refine the triangle if it contains the centroid of the initial condition
-
-                        element%cell%geometry%refinement = 1
-                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                    elseif (centroid_triangle(1) >= 0.0 .and. centroid_triangle(2) >= 0.0 .and. centroid_triangle(1) <= 1.0 .and. centroid_triangle(2) <= 1.0) then
-                        !refine the triangle if its centroid is contained in the initial condition
-
+                    if (dQ_norm > 0.0_GRID_SR) then
                         element%cell%geometry%refinement = 1
                         traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                     end if
 #               else
-                    if (maxval(Q_test%h - Q_test%b) > 0.0 .and. minval(Q_test%h - Q_test%b) <= 0.0 .or. any(Q_test%h .ne. 0.0)) then
-                        !refine coast lines and initial displacement
+                    !refine any slopes in the initial state
 
+                    do i = 1, 3
+                        x = samoa_barycentric_to_world_point(element%transform_data, probes(:, i))
+                        Q_test(i) = get_initial_dof_state_at_position(section, x)
+                    end do
+
+                    if (maxval(Q_test%h) > minval(Q_test%h)) then
                         element%cell%geometry%refinement = 1
                         traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                     end if
@@ -340,12 +324,12 @@
 			!estimate initial time step
 
 			where (Q%h - Q%b > 0.0_GRID_SR)
-				lambda = sqrt(g * (Q%h - Q%b)) + sqrt((Q%p(1) * Q%p(1) + Q%p(2) * Q%p(2)) / ((Q%h - Q%b) * (Q%h - Q%b)))
+				max_wave_speed = sqrt(g * (Q%h - Q%b)) + sqrt((Q%p(1) * Q%p(1) + Q%p(2) * Q%p(2)) / ((Q%h - Q%b) * (Q%h - Q%b)))
 			elsewhere
-				lambda = 0.0_GRID_SR
+				max_wave_speed = 0.0_GRID_SR
 			end where
 
-			section%r_dt_new = min(section%r_dt_new, cfg%scaling * element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(lambda)))
+			section%r_dt_new = min(section%r_dt_new, cfg%scaling * element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(max_wave_speed)))
 		end subroutine
 
 		function get_initial_dof_state_at_element(section, element) result(Q)

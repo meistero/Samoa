@@ -317,7 +317,7 @@
 
 			real(kind = GRID_SR)											    :: volume, dQ_norm, edge_lengths(3)
 			integer (kind = BYTE)												:: i
-			real (kind = GRID_SR), parameter                                    :: refinement_threshold = 1.0e11_SR
+			real (kind = GRID_SR), parameter                                    :: refinement_threshold = 2.0e11_SR
 
 			_log_write(6, '(3X, A)') "swe cell update op:"
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)

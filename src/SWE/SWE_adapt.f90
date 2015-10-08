@@ -130,7 +130,7 @@
             !convert velocity back to momentum
 			!Q_in(1)%p = (Q_in(1)%h - Q_in(1)%b) * Q_in(1)%p
 
-            Q_in%b = get_bathymetry_at_element(section, dest_element%t_element_base)
+            Q_in%b = get_bathymetry_at_element(section, dest_element%t_element_base, section%r_time)
 
 			call gv_Q%write( dest_element%t_element_base, Q_in)
 		end subroutine
