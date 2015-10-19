@@ -360,28 +360,51 @@
 			type(t_update), intent(out) 						:: fluxL, fluxR
 			real(kind = GRID_SR), intent(in)		            :: normal(2)
 
-			real(kind = GRID_SR)								:: etaL, etaR, vL, vR, alpha
+			real(kind = GRID_SR)								:: vL, vR, hL, hR, alpha
 
 #           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
-                if (QL%h - QL%b < cfg%dry_tolerance) then
-                    etaL = min(QL%b, QR%h)
-                    vL = 0.0_GRID_SR
-                    fluxL%max_wave_speed = 0.0_GRID_SR
-                else
-                    etaL = QL%h
-                    vL = dot_product(normal, QL%p / (QL%h - QL%b))
-                    fluxL%max_wave_speed = sqrt(g * (QL%h - QL%b)) + abs(vL)
+                if (QL%h - QL%b < cfg%dry_tolerance .or. QR%h - QR%b < cfg%dry_tolerance) then
+                    if (QL%h - QL%b < cfg%dry_tolerance .and. QR%h - QR%b < cfg%dry_tolerance) then
+                        fluxL%max_wave_speed = 0.0_SR
+                        fluxR%max_wave_speed = 0.0_SR
+
+                        fluxL%h = 0.0_SR
+                        fluxR%h = 0.0_SR
+                        fluxL%p = 0.0_SR
+                        fluxR%p = 0.0_SR
+                    else if (QL%h - QL%b < cfg%dry_tolerance) then
+                        vR = dot_product(normal, QR%p / (QR%h - QR%b))
+                        hR = max(QR%h - QR%b, 0.0_SR)
+                        fluxL%max_wave_speed = 0.0_SR
+                        fluxR%max_wave_speed = sqrt(g * hR) + abs(vR)
+
+                        fluxL%h = 0.0_SR
+                        fluxR%h = 0.0_SR
+                        fluxL%p = 0.0_SR
+                        fluxR%p = -(vR * vR * hR + 0.5_GRID_SR * g * hR * hR) * normal - fluxR%max_wave_speed * (QL%p - QR%p)
+                    else if (QR%h - QR%b < cfg%dry_tolerance) then
+                        vL = dot_product(normal, QL%p / (QL%h - QL%b))
+                        hL = max(QL%h - QL%b, 0.0_SR)
+                        fluxL%max_wave_speed = sqrt(g * hL) + abs(vL)
+                        fluxR%max_wave_speed = 0.0_SR
+
+                        fluxL%h = 0.0_SR
+                        fluxR%h = 0.0_SR
+                        fluxL%p = (vL * vL * hL + 0.5_GRID_SR * g * hL * hL) * normal + fluxL%max_wave_speed * (QL%p - QR%p)
+                        fluxR%p = 0.0_SR
+                    end if
+
+                    return
                 end if
 
-                if (QR%h - QR%b < cfg%dry_tolerance) then
-                    etaR = min(QR%b, QL%h)
-                    vR = 0.0_GRID_SR
-                    fluxR%max_wave_speed = 0.0_GRID_SR
-                else
-                    etaR = QR%h
-                    vR = dot_product(normal, QR%p / (QR%h - QR%b))
-                    fluxR%max_wave_speed = sqrt(g * (QR%h - QR%b)) + abs(vR)
-                end if
+                hL = max(QL%h - QL%b, 0.0_SR)
+                hR = max(QR%h - QR%b, 0.0_SR)
+
+                vL = dot_product(normal, QL%p / (QL%h - QL%b))
+                vR = dot_product(normal, QR%p / (QR%h - QR%b))
+
+                fluxL%max_wave_speed = sqrt(g * hL) + abs(vL)
+                fluxR%max_wave_speed = sqrt(g * hR) + abs(vR)
 
 #               if defined(_LLF_BATH_FLUX)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
@@ -389,20 +412,23 @@
                     alpha = 100.0_GRID_SR
 #               endif
 
-                !As mass flux the average of left and right steady state fluxes is chosen.
-                !The term $\max(b_l, b_r)$ ensures that the flux will be nonzero
-                !only if the water height exceeds the bathymetry in both cells
-                fluxL%h = 0.5_GRID_SR * (vL * max(etaL - max(QL%b, QR%b), 0.0_GRID_SR) + vR * max(etaR - max(QL%b, QR%b), 0.0_GRID_SR)) + alpha * (etaL - etaR)
+                !Except for the diffusion term, the mass flux is the standard LF flux
+                fluxL%h = 0.5_GRID_SR * (vL * hL + vR * hR + alpha * (QL%h - QR%h))
                 fluxR%h = -fluxL%h
 
-                !Similarly, the momentum flux is the average of left and right steady state fluxes.
-                !The resulting flux difference on the interface is
-                ! $g \ (b_r - b_l) \ \frac{1}{2} \ (h_l + h_r)$
-                ! which is the source term $\Delta x \ \Psi(x)$ for a quasi-steady state solution [LeVeque]
-                fluxL%p = 0.5_GRID_SR * (vL * QL%p + vR * QR%p + 0.5_GRID_SR * g * (max(etaL - QL%b, 0.0_GRID_SR) ** 2 + max(etaR - QL%b, 0.0_GRID_SR) ** 2) * normal) + alpha * (QL%p - QR%p)
-                fluxR%p = -0.5_GRID_SR * (vL * QL%p + vR * QR%p + 0.5_GRID_SR * g * (max(etaL - QR%b, 0.0_GRID_SR) ** 2 + max(etaR - QR%b, 0.0_GRID_SR) ** 2) * normal) - alpha * (QL%p - QR%p)
+                !The base momentum flux is similar, but an additional term is required.
+                fluxL%p = 0.5_GRID_SR * (vL * vL * hL + vR * vR * hR + 0.5_GRID_SR * g * (hL * hL + hR * hR) * normal + alpha * (QL%p - QR%p))
+                fluxR%p = -fluxL%p
+
+                !The source term $\Delta x \ \Psi = $-1/2 g \ \frac{1}{2} \ (h_l + h_r) \ (b_r - b_l)$ [LeVeque] is added on both sides with a weight of 1/2.
+                !This factor ensures that the method is well-balanced.
+                fluxL%p = fluxL%p + 0.25_SR * g * (hL + hR) * (QR%b - QL%b) * normal
+                fluxR%p = fluxR%p + 0.25_SR * g * (hL + hR) * (QR%b - QL%b) * normal
 #           elif defined(_LF_FLUX) || defined(_LLF_FLUX)
                 real(kind = GRID_SR), parameter					:: b = 0.0_GRID_SR     !default constant bathymetry
+
+                hL = max(QL%h - b, 0.0_SR)
+                hR = max(QR%h - b, 0.0_SR)
 
                 vL = dot_product(normal, QL%p / (QL%h - b))
                 vR = dot_product(normal, QR%p / (QR%h - b))
@@ -416,10 +442,10 @@
                     alpha = 100.0_GRID_SR
 #               endif
 
-                fluxL%h = 0.5_GRID_SR * (vL * (QL%h - b) + vR * (QR%h - b) + alpha * (QL%h - QR%h))
+                fluxL%h = 0.5_GRID_SR * (vL * hL + vR * hR + alpha * (QL%h - QR%h))
                 fluxR%h = -fluxL%h
 
-                fluxL%p = 0.5_GRID_SR * (vL * QL%p + vR * QR%p + 0.5_GRID_SR * g * ((QL%h - b) * (QL%h - b) + (QR%h - b) * (QR%h - b)) * normal + alpha * (QL%p - QR%p))
+                fluxL%p = 0.5_GRID_SR * (vL * vL * hL + vR * vR * hR + 0.5_GRID_SR * g * (hL * hL + hR * hR) * normal + alpha * (QL%p - QR%p))
                 fluxR%p = -fluxL%p
 #           endif
 		end subroutine

@@ -1,10 +1,12 @@
-max_depths='24 26'
-flux_solvers='llfbath aug_riemann'
+compiler='gnu'
 fdispl="data/tohoku_static/displ.nc"
 fbath="data/tohoku_static/bath_2014.nc"
+max_depths='18 20 22 24 26'
+flux_solvers='llfbath aug_riemann'
 
 echo "SWE scenario exeuction script."
 echo ""
+echo "compiler          : "$compiler
 echo "bathymetry file   : "$fdispl
 echo "displacement file : "$fbath
 echo "max depths        : "$max_depths
@@ -15,10 +17,25 @@ echo ""
 echo "Compiling (skip with Ctrl-C)..."
 echo ""
 
-for flux_solver in $flux_solvers
-do
-    scons config=gnu_release.py scenario=swe flux_solver=$flux_solver -j4
-done
+exe_base='bin/samoa_swe'
+
+if [ $compiler = "intel" ] ; then
+    for flux_solver in $flux_solvers
+    do
+        scons config=intel_release.py scenario=swe flux_solver=$flux_solver -j4
+    done
+
+    comp_suffix=''
+else
+    for flux_solver in $flux_solvers
+    do
+        scons config=gnu_release.py scenario=swe flux_solver=$flux_solver -j4
+    done
+
+    exe_base=$exe_base'_notasks'
+    comp_suffix='_gnu'
+fi
+
 
 echo ""
 echo "Running..."
@@ -30,9 +47,9 @@ do
     do
 
         if [ $flux_solver = "aug_riemann" ] ; then
-            exe='bin/samoa_swe_notasks_gnu'
+            exe=$exe_base
         else
-            exe='bin/samoa_swe_notasks_'$flux_solver'_gnu'
+            exe=$exe_base'_'$flux_solver''$comp_suffix
         fi
 
         command=$exe' -sections 1 -threads 4 -tout 20.0 -dmin 0 -dmax '$max_depth' -tmax 10.8e3 -fdispl '$fdispl' -fbath '$fbath' -stestpoints "545735.266126 62716.4740303,935356.566012 -817289.628677,1058466.21575 765077.767857"'
