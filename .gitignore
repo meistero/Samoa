@@ -2,7 +2,7 @@ ASAGI
 bin
 data
 scripts/cache
-output
+output/*
 doxygen
 Samoa.layout
 Samoa.cbp
