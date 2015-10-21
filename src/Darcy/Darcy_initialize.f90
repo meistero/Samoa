@@ -436,7 +436,7 @@
 
 			!check refinement condition
 
-			l_refine_solution = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_edge_size(i_depth) >= min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
+			l_refine_solution = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_cell_volume(i_depth) >= cfg%S_refinement_threshold * get_cell_volume(cfg%i_max_depth)
 			l_refine_solution = l_refine_solution .or. maxval(max(p(:, 1), p(:, 2), p(:, 3)) - min(p(:, 1), p(:, 2), p(:, 3))) >= min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod
 
 			if (i_depth < cfg%i_max_depth .and. ((l_relevant .and. (i_depth < cfg%i_min_depth .or. l_refine_solution)) .or. l_refine_initial)) then

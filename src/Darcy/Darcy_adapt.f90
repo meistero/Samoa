@@ -173,9 +173,9 @@
 #           if defined(_ADAPT_INTEGRATE)
 #               if (_DARCY_LAYERS > 0)
 #                   if defined(_ASAGI)
-                        n = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))
+                        n = max(1, int(cfg%scaling * get_edge_size(dest_element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_permeability_X, 0)))
 #                   else
-                        n = max(1, 512 * int(dest_element%transform_data%custom_data%scaling))
+                        n = max(1, int(512.0_SR * get_edge_size(dest_element%cell%geometry%i_depth)))
 #                   endif
 
                     p = samoa_barycentric_to_world_point(dest_element%transform_data, [0.0_SR, 0.0_SR])

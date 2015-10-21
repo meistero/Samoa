@@ -168,7 +168,7 @@
                 real (kind = GRID_SR), intent(in)			:: p(:,:)
                 real (kind = GRID_SR), intent(in)			:: base_permeability(:,:)
 
-                r_sat_norm = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_edge_size(i_depth)
+                r_sat_norm = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_cell_volume(i_depth)
                 r_p_norm = maxval(max(p(:, 1), p(:, 2), p(:, 3)) - min(p(:, 1), p(:, 2), p(:, 3)))
                 l_relevant = any(base_permeability > 0.0_GRID_SR)
 #           else
@@ -176,7 +176,7 @@
                 real (kind = GRID_SR), intent(in)			:: p(:)
                 real (kind = GRID_SR), intent(in)			:: base_permeability
 
-                r_sat_norm = (maxval(saturation) - minval(saturation)) * get_edge_size(i_depth)
+                r_sat_norm = (maxval(saturation) - minval(saturation)) * get_cell_volume(i_depth)
                 r_p_norm = (maxval(p) - minval(p))
                 l_relevant = (base_permeability > 0.0_GRID_SR)
 #           endif
@@ -187,8 +187,8 @@
             !In the best case, refinement halves volume and halves the quantity difference,
             !hence we have to expect that refinement divides the L1 error of this cell by a factor 4.
 
-			l_refine_sat = r_sat_norm > min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth))
-			l_coarsen_sat = r_sat_norm < min(0.5_SR, cfg%S_refinement_threshold * get_edge_size(cfg%i_max_depth)) / 8.0_SR
+			l_refine_sat = r_sat_norm > cfg%S_refinement_threshold * get_cell_volume(cfg%i_max_depth)
+			l_coarsen_sat = r_sat_norm < cfg%S_refinement_threshold * get_cell_volume(cfg%i_max_depth) / 8.0_SR
 			l_coarsen_p = r_p_norm < min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod / 2.0_SR
 
 			!* refine the cell if the saturation becomes too steep

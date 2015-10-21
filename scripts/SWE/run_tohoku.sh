@@ -2,7 +2,7 @@ compiler='gnu'
 fdispl="data/tohoku_static/displ.nc"
 fbath="data/tohoku_static/bath_2014.nc"
 max_depths='18 20 22 24 26'
-flux_solvers='llfbath aug_riemann'
+flux_solvers='llfbath fwave aug_riemann'
 
 echo "SWE scenario exeuction script."
 echo ""
