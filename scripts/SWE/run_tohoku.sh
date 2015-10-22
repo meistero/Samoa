@@ -3,6 +3,7 @@ fdispl="data/tohoku_static/displ.nc"
 fbath="data/tohoku_static/bath_2014.nc"
 max_depths='18 20 22 24 26'
 flux_solvers='llfbath fwave aug_riemann'
+vtk='.true.'
 
 echo "SWE scenario exeuction script."
 echo ""
@@ -52,7 +53,11 @@ do
             exe=$exe_base'_'$flux_solver''$comp_suffix
         fi
 
-        command=$exe' -sections 1 -threads 4 -tout 20.0 -dmin 0 -dmax '$max_depth' -tmax 10.8e3 -fdispl '$fdispl' -fbath '$fbath' -stestpoints "545735.266126 62716.4740303,935356.566012 -817289.628677,1058466.21575 765077.767857"'
+        if  [ $max_depth -gt '24' ] ; then
+            vtk='.false.'
+        fi
+
+        command=$exe' -sections 1 -threads 4 -tout 20.0 -dmin 0 -dmax '$max_depth' -tmax 10.8e3 -fdispl '$fdispl' -fbath '$fbath' -xmloutput '$vtk' -stestpoints "545735.266126 62716.4740303,935356.566012 -817289.628677,1058466.21575 765077.767857"'
 
         echo $command > "output/tohoku_"$flux_solver"_d"$max_depth".log"
         $command | tee -a "output/tohoku_"$flux_solver"_d"$max_depth".log"
