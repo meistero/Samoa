@@ -116,17 +116,17 @@
                             symmetric = .false.
                         end if
                     end if
-                    if (i .eq. j) then
-                        if(traversal%A(i,i) <= 0) then
-                            _log_write(0, '(A, I0, A, ES14.7)') " SWE: Not positive definite: i = j: ", i, "; A(i,i): ", traversal%A(i,i)
-                            positive_definite = .false.
-                        end if
-                    end if
                 end do
 
-                if (abs(traversal%A(i,i)) <= row_sum) then
-                    _log_write(0, '(A, I0, A, ES14.7, A, ES14.7)') " SWE: Not positive definite: i: ", i, "; row_sum: ", row_sum, "; A(i,i): ", traversal%A(i,i)
-                    positive_definite = .false.
+                if((.not.(row_sum .eq. 0.0_GRID_SR)) .and. (.not.(traversal%A(i,i) .eq. 0.0_GRID_SR))) then
+                    if(traversal%A(i,i) <= 0) then
+                        _log_write(0, '(A, I0, A, ES14.7)') " SWE: Not positive definite: i = j: ", i, "; A(i,i): ", traversal%A(i,i)
+                        positive_definite = .false.
+                    end if
+                    if (abs(traversal%A(i,i)) <= row_sum) then
+                        _log_write(0, '(A, I0, A, ES14.7, A, ES14.7)') " SWE: Not positive definite: i: ", i, "; row_sum: ", row_sum, "; A(i,i): ", traversal%A(i,i)
+                        positive_definite = .false.
+                    end if
                 end if
             end do
 
