@@ -182,19 +182,19 @@
                     v1 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, 0.5_SR])
                     v2 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, -0.5_SR])
 
-                    do level = 1, _DARCY_LAYERS
-                        x(3) = (level - 0.5_SR) / real(_DARCY_LAYERS, SR)
+                    dest_element%cell%data_pers%base_permeability(:, 1) = 0.0_SR
+                    dest_element%cell%data_pers%base_permeability(:, 2) = 0.0_SR
+                    dest_element%cell%data_pers%porosity(:) = 0.0_SR
 
-                        dest_element%cell%data_pers%base_permeability(level, 1) = 0.0_SR
-                        dest_element%cell%data_pers%base_permeability(level, 2) = 0.0_SR
-                        dest_element%cell%data_pers%porosity(level) = 0.0_SR
+                    do i = 0, n - 1
+                        alpha = (i + 0.5_SR) / real(n, SR)
 
-                        do i = 0, n - 1
-                            alpha = (i + 0.5_SR) / real(n, SR)
+                        do j = -i, i
+                            beta = real(j, SR) / real(n, SR)
+                            x(1:2) = p + alpha * v1 + beta * v2
 
-                            do j = -i, i
-                                beta = real(j, SR) / real(n, SR)
-                                x(1:2) = p + alpha * v1 + beta * v2
+                            do level = 1, _DARCY_LAYERS
+                                x(3) = (level - 0.5_SR) / real(_DARCY_LAYERS, SR)
 
                                 buffer = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
 
@@ -203,11 +203,11 @@
                                 dest_element%cell%data_pers%porosity(level) = dest_element%cell%data_pers%porosity(level) + get_porosity(grid, x)
                             end do
                         end do
-
-                        dest_element%cell%data_pers%base_permeability(level, 1) = transform_perm_inv(dest_element%cell%data_pers%base_permeability(level, 1) / (n * n))
-                        dest_element%cell%data_pers%base_permeability(level, 2) = dest_element%cell%data_pers%base_permeability(level, 2) / (n * n)
-                        dest_element%cell%data_pers%porosity(level) = dest_element%cell%data_pers%porosity(level) / (n * n)
                     end do
+
+                    dest_element%cell%data_pers%base_permeability(:, 1) = transform_perm_inv(dest_element%cell%data_pers%base_permeability(:, 1) / (n * n))
+                    dest_element%cell%data_pers%base_permeability(:, 2) = dest_element%cell%data_pers%base_permeability(:, 2) / (n * n)
+                    dest_element%cell%data_pers%porosity(:) = dest_element%cell%data_pers%porosity(:) / (n * n)
 #               else
 #                   if defined(_ASAGI)
                         n = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))

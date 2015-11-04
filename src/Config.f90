@@ -143,13 +143,13 @@ module config
 #    	if defined(_DARCY)
             write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 " // &
             "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
-            "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-8 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
+            "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
             "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
 
 #           if (_DARCY_LAYERS > 0)
-                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d1 -S_ref_th 1.0d2 "
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0 -S_ref_th 1.0d1 "
 #           else
-                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75d1 -S_ref_th 3.0d1 "
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75 -S_ref_th 3.0 "
 #           endif
 
 #           if defined(_ASAGI)
