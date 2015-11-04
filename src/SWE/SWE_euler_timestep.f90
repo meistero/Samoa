@@ -240,13 +240,13 @@
 			type(t_update)													:: bnd_flux
 
             !SLIP: reflect momentum at normal
-			bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
+			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
 			!bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
 
 			!OUTFLOW: copy values
-			!bnd_rep = rep%Q(1)
+			bnd_rep = rep%Q(1)
 
 #			if defined (_LF_FLUX) || defined (_LF_BATH_FLUX) || defined (_LLF_FLUX) || defined (_LLF_BATH_FLUX)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
@@ -317,7 +317,7 @@
 
 			real(kind = GRID_SR)											    :: volume, dQ_norm, edge_lengths(3)
 			integer (kind = BYTE)												:: i
-			real (kind = GRID_SR), parameter                                    :: refinement_threshold = 2.0e11_SR
+			real (kind = GRID_SR), parameter                                    :: refinement_threshold = 5.0_SR
 
 			_log_write(6, '(3X, A)') "swe cell update op:"
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
@@ -335,12 +335,12 @@
 			!set refinement condition
 
 			i_refinement = 0
-			dQ_norm = abs(r_dt * dQ(1)%h)
+			dQ_norm = abs(dQ(1)%h)
 
-			if (i_depth < cfg%i_max_depth .and. dQ_norm > refinement_threshold * get_cell_volume(cfg%i_max_depth)) then
+			if (i_depth < cfg%i_max_depth .and. dQ_norm > refinement_threshold * cfg%scaling * get_edge_size(cfg%i_max_depth)) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < refinement_threshold * get_cell_volume(cfg%i_max_depth) / 8.0_SR) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < refinement_threshold * cfg%scaling * get_edge_size(cfg%i_max_depth) / 8.0_SR) then
 				i_refinement = -1
 			endif
 
@@ -364,34 +364,28 @@
 
 #           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
                 if (QL%h - QL%b < cfg%dry_tolerance .or. QR%h - QR%b < cfg%dry_tolerance) then
+                    hL = 0.0_SR; hR = 0.0_SR
+                    vL = 0.0_SR; vR = 0.0_SR
+
+                    fluxL%max_wave_speed = 0.0_SR; fluxR%max_wave_speed = 0.0_SR
+                    fluxL%h = 0.0_SR; fluxR%h = 0.0_SR
+                    fluxL%p = 0.0_SR; fluxR%p = 0.0_SR
+
+                    !This boundary treatment assumes a wall condition.
+                    !For the mass flux, we choose pR := -hL * vL, vR = 0 (walls are immovable), hence hR must be infinite.
+                    !For the momentum flux we choose hR := 0, vR := 0 (implying there is no hydrostatic pressure), bR := bL + hL (there is a wall to the right)
+
                     if (QL%h - QL%b < cfg%dry_tolerance .and. QR%h - QR%b < cfg%dry_tolerance) then
-                        fluxL%max_wave_speed = 0.0_SR
-                        fluxR%max_wave_speed = 0.0_SR
-
-                        fluxL%h = 0.0_SR
-                        fluxR%h = 0.0_SR
-                        fluxL%p = 0.0_SR
-                        fluxR%p = 0.0_SR
                     else if (QL%h - QL%b < cfg%dry_tolerance) then
-                        vR = dot_product(normal, QR%p / (QR%h - QR%b))
                         hR = max(QR%h - QR%b, 0.0_SR)
-                        fluxL%max_wave_speed = 0.0_SR
+                        vR = dot_product(normal, QR%p / (QR%h - QR%b))
                         fluxR%max_wave_speed = sqrt(g * hR) + abs(vR)
-
-                        fluxL%h = 0.0_SR
-                        fluxR%h = 0.0_SR
-                        fluxL%p = 0.0_SR
-                        fluxR%p = -(vR * vR * hR + 0.5_GRID_SR * g * hR * hR) * normal - fluxR%max_wave_speed * (QL%p - QR%p)
+                        fluxR%p = -0.5_SR * vR * QR%p - 0.5_GRID_SR * g * hR * hR * normal + 0.5_SR * fluxR%max_wave_speed * QR%p
                     else if (QR%h - QR%b < cfg%dry_tolerance) then
-                        vL = dot_product(normal, QL%p / (QL%h - QL%b))
                         hL = max(QL%h - QL%b, 0.0_SR)
+                        vL = dot_product(normal, QL%p / (QL%h - QL%b))
                         fluxL%max_wave_speed = sqrt(g * hL) + abs(vL)
-                        fluxR%max_wave_speed = 0.0_SR
-
-                        fluxL%h = 0.0_SR
-                        fluxR%h = 0.0_SR
-                        fluxL%p = (vL * vL * hL + 0.5_GRID_SR * g * hL * hL) * normal + fluxL%max_wave_speed * (QL%p - QR%p)
-                        fluxR%p = 0.0_SR
+                        fluxL%p = 0.5_SR * vL * QL%p + 0.5_GRID_SR * g * hL * hL * normal + 0.5_SR * fluxL%max_wave_speed * QL%p
                     end if
 
                     return
@@ -413,11 +407,11 @@
 #               endif
 
                 !Except for the diffusion term, the mass flux is the standard LF flux
-                fluxL%h = 0.5_GRID_SR * (vL * hL + vR * hR + alpha * (QL%h - QR%h))
+                fluxL%h = 0.5_GRID_SR * (hL * vL + hR * vR + alpha * (QL%h - QR%h))
                 fluxR%h = -fluxL%h
 
-                !The base momentum flux is similar, but an additional term is required.
-                fluxL%p = 0.5_GRID_SR * (vL * vL * hL + vR * vR * hR + 0.5_GRID_SR * g * (hL * hL + hR * hR) * normal + alpha * (QL%p - QR%p))
+                !The base momentum flux is similar to the standard LF flux.
+                fluxL%p = 0.5_GRID_SR * (QL%p * vL + QR%p * vR + 0.5_GRID_SR * g * (hL * hL + hR * hR) * normal + alpha * (QL%p - QR%p))
                 fluxR%p = -fluxL%p
 
                 !The source term $\Delta x \ \Psi = $-1/2 g \ \frac{1}{2} \ (h_l + h_r) \ (b_r - b_l)$ [LeVeque] is added on both sides with a weight of 1/2.
