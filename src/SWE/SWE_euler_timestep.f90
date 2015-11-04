@@ -364,36 +364,28 @@
 
 #           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
                 if (QL%h - QL%b < cfg%dry_tolerance .or. QR%h - QR%b < cfg%dry_tolerance) then
-                    if (QL%h - QL%b < cfg%dry_tolerance .and. QR%h - QR%b < cfg%dry_tolerance) then
-                        fluxL%max_wave_speed = 0.0_SR
-                        fluxR%max_wave_speed = 0.0_SR
+                    hL = 0.0_SR; hR = 0.0_SR
+                    vL = 0.0_SR; vR = 0.0_SR
 
-                        fluxL%h = 0.0_SR
-                        fluxR%h = 0.0_SR
-                        fluxL%p = 0.0_SR
-                        fluxR%p = 0.0_SR
+                    fluxL%max_wave_speed = 0.0_SR; fluxR%max_wave_speed = 0.0_SR
+                    fluxL%h = 0.0_SR; fluxR%h = 0.0_SR
+                    fluxL%p = 0.0_SR; fluxR%p = 0.0_SR
+
+                    !This boundary treatment assumes a wall condition.
+                    !For the mass flux, we choose pR := -hL * vL, vR = 0 (walls are immovable), hence hR must be infinite.
+                    !For the momentum flux we choose hR := 0, vR := 0 (implying there is no hydrostatic pressure), bR := bL + hL (there is a wall to the right)
+
+                    if (QL%h - QL%b < cfg%dry_tolerance .and. QR%h - QR%b < cfg%dry_tolerance) then
                     else if (QL%h - QL%b < cfg%dry_tolerance) then
                         hR = max(QR%h - QR%b, 0.0_SR)
                         vR = dot_product(normal, QR%p / (QR%h - QR%b))
-                        fluxL%max_wave_speed = 0.0_SR
                         fluxR%max_wave_speed = sqrt(g * hR) + abs(vR)
-
-                        !this corresponds to an inelastic collision with a wall
-                        fluxL%h = 0.0_SR
-                        fluxR%h = 0.0_SR
-                        fluxL%p = 0.0_SR
                         fluxR%p = -0.5_SR * vR * QR%p - 0.5_GRID_SR * g * hR * hR * normal + 0.5_SR * fluxR%max_wave_speed * QR%p
                     else if (QR%h - QR%b < cfg%dry_tolerance) then
                         hL = max(QL%h - QL%b, 0.0_SR)
                         vL = dot_product(normal, QL%p / (QL%h - QL%b))
                         fluxL%max_wave_speed = sqrt(g * hL) + abs(vL)
-                        fluxR%max_wave_speed = 0.0_SR
-
-                        !this corresponds to an inelastic collision with a wall
-                        fluxL%h = 0.0_SR
-                        fluxR%h = 0.0_SR
                         fluxL%p = 0.5_SR * vL * QL%p + 0.5_GRID_SR * g * hL * hL * normal + 0.5_SR * fluxL%max_wave_speed * QL%p
-                        fluxR%p = 0.0_SR
                     end if
 
                     return
