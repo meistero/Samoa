@@ -35,7 +35,7 @@ module config
         double precision                        :: r_output_time_step					            !< grid output time step
         integer                                 :: i_stats_phases					                !< number of times intermediate stats should be printed during time steps
         logical			                        :: l_log                                            !< if true, a log file is used
-        integer (kind = selected_int_kind(1))   :: i_min_depth, i_max_depth			                !< minimum and maximum scenario depth
+        integer (kind = selected_int_kind(1))   :: i_min_depth, i_max_depth, i_start_depth			!< minimum, maximum and start scenario depth
         integer			        	            :: i_asagi_mode			                		    !< ASAGI mode
         logical                                 :: l_timed_load                                     !< if true, load is estimated by timing, if false load is estimated by counting entities
         double precision                        :: r_cell_weight                                    !< cell weight for the count-based load estimate
@@ -141,7 +141,7 @@ module config
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 14 -tsteps -1 -courant 0.5d0 " // &
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.5d0 " // &
             "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
             "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
             "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
@@ -160,17 +160,17 @@ module config
                 "-inflow 0.5434396505 -well_radius 5.0d0  -S_wr 0.0 -S_nr 0.0"
 #           endif
 #    	elif defined(_HEAT_EQ)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 1 -dmax 16 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 16 -dstart 0 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -courant 0.45d0 -tmax 5 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.45d0 -tmax 5 -tout -1.0d0"
 #    	elif defined(_TESTS)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -tmax 5 -tout -1.0d0"
 #    	elif defined(_GENERIC)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 2 -dmax 14 -tsteps -1 -tmax 5 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -tmax 5 -tout -1.0d0"
 
 #    	else
 #           error No scenario selected!
@@ -184,6 +184,7 @@ module config
 
         config%i_min_depth = iget('samoa_dmin')
         config%i_max_depth = iget('samoa_dmax')
+        config%i_start_depth = iget('samoa_dstart')
         config%i_max_time_steps = iget('samoa_tsteps')
         config%r_max_time = rget('samoa_tmax')
         config%r_output_time_step = rget('samoa_tout')
@@ -256,6 +257,7 @@ module config
                 PRINT '(A, I0, ": ", A, A)',  " 	-asagihints <value>     ASAGI mode (0: default, 1: pass through, 2: no mpi, 3: no mpi + small cache, 4: large grid) (value: ", config%i_asagi_mode, trim(asagi_mode_to_char(config%i_asagi_mode)), ")"
                 PRINT '(A, I0, A)',     " 	-dmin <value>           minimum grid depth (value: ", config%i_min_depth, ")"
                 PRINT '(A, I0, A)',     "	-dmax <value>           maximum grid depth (value: ", config%i_max_depth, ")"
+                PRINT '(A, I0, A)',     "	-dstart <value>         start grid depth (value: ", config%i_start_depth, ")"
                 PRINT '(A, I0, A)',     "	-tsteps <value>         maximum number of time steps, less than 0: disabled (value: ", config%i_max_time_steps, ")"
                 PRINT '(A, ES8.1, A)',  "	-tmax <value>           maximum simulation time in seconds, less than 0: disabled (value: ", config%r_max_time, ")"
                 PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: disabled (value: ", config%r_output_time_step, ")"
@@ -402,7 +404,7 @@ module config
 #       endif
 
         _log_write(0, '(" Sections per thread: ", I0)') config%i_sections_per_thread
-        _log_write(0, '(" Adaptivity: min depth: ", I0, ", max depth: ", I0)') config%i_min_depth, config%i_max_depth
+        _log_write(0, '(" Adaptivity: min depth: ", I0, ", max depth: ", I0, ", start depth: ", I0)') config%i_min_depth, config%i_max_depth, config%i_start_depth
 
         _log_write(0, '(" Load balancing: timed load estimate: ", A, ", split sections: ", A, ", serial: ", A)') logical_to_char(config%l_timed_load), logical_to_char(config%l_split_sections), logical_to_char(config%l_serial_lb)
         _log_write(0, '(" Load balancing: cell weight: ", F0.2, ", boundary weight: ", F0.2)') config%r_cell_weight, config%r_boundary_weight

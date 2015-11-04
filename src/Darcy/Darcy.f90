@@ -309,6 +309,9 @@
 			!set pressure initial condition
 			call darcy%init_pressure%traverse(grid)
 
+            !do some initial load balancing
+			call darcy%adaption%traverse(grid)
+
 			do
 				!reset saturation to initial condition, compute permeability and set refinement flag
 				call darcy%init_saturation%traverse(grid)

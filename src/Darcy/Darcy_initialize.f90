@@ -111,6 +111,9 @@
                 base_permeability = get_base_permeability(section, x, element%cell%geometry%i_depth / 2_GRID_SI)
                 porosity = get_porosity(section, x)
 #           endif
+
+            !set initial refinement to 0
+            element%cell%geometry%refinement = 0
  		end subroutine
 
 		function get_base_permeability(section, x, lod) result(r_base_permeability)
