@@ -286,7 +286,7 @@
             class(t_darcy), intent(inout)	                            :: darcy
  			type(t_grid), intent(inout)									:: grid
 
-            integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_lse_iterations
+            integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_nle_iterations, i_lse_iterations, i_lse_iterations_time_step
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_grid_info)           	                            :: grid_info, grid_info_max
             integer  (kind = GRID_SI)                                   :: i_stats_phase
@@ -313,23 +313,36 @@
 			call darcy%adaption%traverse(grid)
 
 			do
-				!reset saturation to initial condition, compute permeability and set refinement flag
-				call darcy%init_saturation%traverse(grid)
+                i_nle_iterations = 1
+                i_lse_iterations_time_step = 0
 
-                !solve pressure equation
-                if (cfg%l_lse_output) then
-                    call darcy%lse_output%traverse(grid)
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                    call darcy%lse_output%traverse(grid)
-                else
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                end if
+				!reset saturation to initial condition, setup pressure equation and set refinement flags
+				do
+                    call darcy%init_saturation%traverse(grid)
+
+                    !solve pressure equation
+                    if (cfg%l_lse_output) then
+                        call darcy%lse_output%traverse(grid)
+                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                        call darcy%lse_output%traverse(grid)
+                    else
+                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                    end if
+
+                    i_lse_iterations_time_step = i_lse_iterations_time_step + i_lse_iterations
+
+                    if (i_lse_iterations == 0) then
+                        exit
+                    end if
+
+                    i_nle_iterations = i_nle_iterations + 1
+                end do
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, "(A, I0, A, I0, A, I0, A)") " Darcy: ", i_initial_step, " adaptions, ", i_lse_iterations, " iterations, ", grid_info%i_cells, " cells"
+                    _log_write(1, "(A, I0, A, I0, A, I0, A, I0)") " Darcy: adaptions: ", i_initial_step, ", NLE iterations: ", i_nle_iterations, ", LSE iterations: ", i_lse_iterations_time_step, ", cells: ", grid_info%i_cells
                     !$omp end master
                 end if
 
@@ -375,25 +388,35 @@
 					exit
 				end if
 
-				!refine grid if necessary
-				!if (darcy%permeability%i_refinements_issued > 0) then
-					!refine grid
-					call darcy%adaption%traverse(grid)
+                !refine grid
+                call darcy%adaption%traverse(grid)
 
-					!compute permeability
-					call darcy%permeability%traverse(grid)
-				!end if
+                i_nle_iterations = 1
+                i_lse_iterations_time_step = 0
 
-                !solve pressure equation
-                if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
-                    call darcy%lse_output%traverse(grid)
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                    call darcy%lse_output%traverse(grid)
-                else if (mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                else
-                    i_lse_iterations = 0
-                end if
+                do
+                    !setup pressure equation
+                    call darcy%permeability%traverse(grid)
+
+                    !solve pressure equation
+                    if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
+                        call darcy%lse_output%traverse(grid)
+                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                        call darcy%lse_output%traverse(grid)
+                    else if (mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
+                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                    else
+                        i_lse_iterations = 0
+                    end if
+
+                    i_lse_iterations_time_step = i_lse_iterations_time_step + i_lse_iterations
+
+                    if (i_lse_iterations == 0) then
+                        exit
+                    end if
+
+                    i_nle_iterations = i_nle_iterations + 1
+                end do
 
 				!compute velocity field (to determine the time step size)
 				call darcy%grad_p%traverse(grid)
@@ -402,14 +425,14 @@
 				call darcy%transport_eq%traverse(grid)
 				i_time_step = i_time_step + 1
 
-				!compute refinement flag
+				!set refinement flags
 				call darcy%error_estimate%traverse(grid)
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0, A, I0)') " Darcy: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), ", dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", LSE iterations: ", i_lse_iterations
+                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0, A, I0, A, I0)') " Darcy: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), ", dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", NLE iterations: ", i_nle_iterations, ", LSE iterations: ", i_lse_iterations_time_step
                     !$omp end master
                 end if
 
