@@ -566,7 +566,7 @@
                 pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
 
                 if (norm2(pos_prod) < 1.0_SR + radius) then
-                    if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
+                    if (pos_prod(1) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_prod(1) + pos_prod(2)) > -epsilon(1.0_SR) .and. pos_prod(2) > -epsilon(1.0_SR)) then
                         !production well:
                         !set a constant pressure condition and an outflow saturation condition
 
@@ -691,7 +691,7 @@
                 pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
 
                 if (norm2(pos_prod) < 1.0_SR + radius) then
-                    if (norm2(pos_prod - 0.5_SR) < sqrt(0.5_SR) + radius) then
+                    if (pos_prod(1) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_prod(1) + pos_prod(2)) > -epsilon(1.0_SR) .and. pos_prod(2) > -epsilon(1.0_SR)) then
                         !production well:
                         !set a constant pressure condition and an outflow saturation condition
 
