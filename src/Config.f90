@@ -147,9 +147,9 @@ module config
             "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
 
 #           if (_DARCY_LAYERS > 0)
-                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0 -S_ref_th 1.0d1 "
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0 -S_ref_th 1.0d0 "
 #           else
-                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75 -S_ref_th 3.0 "
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75 -S_ref_th 3.0d-1"
 #           endif
 
 #           if defined(_ASAGI)

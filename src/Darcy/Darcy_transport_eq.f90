@@ -305,15 +305,17 @@
                 dz = cfg%dz
 
                 do i = 1, _DARCY_LAYERS
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), u_w(2), u_n(2), g_local(2))
+                    !compute base fluxes
 
-                    call compute_velocity_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 1), p(i + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_velocity_1D(dz, 0.50_SR * surface, base_permeability(i, 2), p(i, 2), p(i + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_velocity_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 3), p(i + 1, 3), u_w(5), u_n(5), g_local(3))
+                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), u_w(1), u_n(1), g_local(1))
+                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), u_w(2), u_n(2), g_local(2))
 
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
+                    call compute_base_flux_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 1), p(i + 1, 1), u_w(3), u_n(3), g_local(3))
+                    call compute_base_flux_1D(dz, 0.50_SR * surface, base_permeability(i, 2), p(i, 2), p(i + 1, 2), u_w(4), u_n(4), g_local(3))
+                    call compute_base_flux_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 3), p(i + 1, 3), u_w(5), u_n(5), g_local(3))
+
+                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
+                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
 
                     !compute fluxes
 
@@ -346,10 +348,10 @@
 
                 edge_length = element%cell%geometry%get_leg_size()
 
-                !compute velocities
+                !compute base fluxes
 
-                call compute_velocity_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_velocity_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
+                call compute_base_flux_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
+                call compute_base_flux_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
 
                 !compute fluxes
 
@@ -370,70 +372,22 @@
                 real (kind = GRID_SR), intent(in)       :: lambda(:, :)
                 real (kind = GRID_SR), intent(out)	    :: flux(:, :)
 
-#               if defined(_UPWIND_FLUX)
-                    call compute_upwind_flux(u(1), lambda(1, 2), lambda(1, 1), flux(1, 2), flux(1, 1))
-                    call compute_upwind_flux(u(2), lambda(1, 2), lambda(1, 3), flux(1, 2), flux(1, 3))
+                call compute_upwind_flux(u(1), lambda(1, 2), lambda(1, 1), flux(1, 2), flux(1, 1))
+                call compute_upwind_flux(u(2), lambda(1, 2), lambda(1, 3), flux(1, 2), flux(1, 3))
 
-                    call compute_upwind_flux(u(3), lambda(1, 1), lambda(2, 1), flux(1, 1), flux(2, 1))
-                    call compute_upwind_flux(u(4), lambda(1, 2), lambda(2, 2), flux(1, 2), flux(2, 2))
-                    call compute_upwind_flux(u(5), lambda(1, 3), lambda(2, 3), flux(1, 3), flux(2, 3))
+                call compute_upwind_flux(u(3), lambda(1, 1), lambda(2, 1), flux(1, 1), flux(2, 1))
+                call compute_upwind_flux(u(4), lambda(1, 2), lambda(2, 2), flux(1, 2), flux(2, 2))
+                call compute_upwind_flux(u(5), lambda(1, 3), lambda(2, 3), flux(1, 3), flux(2, 3))
 
-                    call compute_upwind_flux(u(6), lambda(2, 2), lambda(2, 1), flux(2, 2), flux(2, 1))
-                    call compute_upwind_flux(u(7), lambda(2, 2), lambda(2, 3), flux(2, 2), flux(2, 3))
-#               elif defined(_FWAVE_FLUX)
-                    !Yeah, no..
-#                   error Not yet implemented!
-#               endif
+                call compute_upwind_flux(u(6), lambda(2, 2), lambda(2, 1), flux(2, 2), flux(2, 1))
+                call compute_upwind_flux(u(7), lambda(2, 2), lambda(2, 3), flux(2, 2), flux(2, 3))
 #           else
                 real (kind = GRID_SR), intent(in)       :: lambda(:)
                 real (kind = GRID_SR), intent(out)	    :: flux(:)
 
-#               if defined(_UPWIND_FLUX)
-                    call compute_upwind_flux(u(1), lambda(2), lambda(1), flux(2), flux(1))
-                    call compute_upwind_flux(u(2), lambda(2), lambda(3), flux(2), flux(3))
-#               elif defined(_FWAVE_FLUX)
-                    call compute_fwave_flux_dlambda(u(1), lambda(2), lambda(1), flux(2), flux(1))
-                    call compute_fwave_flux_dlambda(u(2), lambda(2), lambda(3), flux(2), flux(3))
-
-                    call compute_fwave_flux_du(-u(2), 0.0_SR, lambda(1), flux(1))
-                    call compute_fwave_flux_du(u(1) + u(2), 0.0_SR, lambda(1), flux(1))
-
-                    call compute_fwave_flux_du(-u(1), 0.0_SR, lambda(3), flux(3))
-                    call compute_fwave_flux_du(u(1) + u(2), 0.0_SR, lambda(3), flux(3))
-
-                    call compute_fwave_flux_du(-u(1), 0.0_SR, lambda(2), flux(2))
-                    call compute_fwave_flux_du(-u(2), 0.0_SR, lambda(2), flux(2))
-#               endif
+                call compute_upwind_flux(u(1), lambda(2), lambda(1), flux(2), flux(1))
+                call compute_upwind_flux(u(2), lambda(2), lambda(3), flux(2), flux(3))
 #           endif
-        end subroutine
-
-        subroutine compute_upwind_flux(u, lambdaL, lambdaR, fluxL, fluxR)
-            real (kind = GRID_SR), intent(in)       :: u, lambdaL, lambdaR
-            real (kind = GRID_SR), intent(out)	    :: fluxL, fluxR
-
-            fluxL = fluxL + (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
-            fluxR = fluxR - (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
-        end subroutine
-
-        subroutine compute_fwave_flux_dlambda(u, lambdaL, lambdaR, fluxL, fluxR)
-            real (kind = GRID_SR), intent(in)       :: u, lambdaL, lambdaR
-            real (kind = GRID_SR), intent(out)	    :: fluxL, fluxR
-
-            fluxL = fluxL + (lambdaR - lambdaL) * min(u, 0.0_SR)
-            fluxR = fluxR + (lambdaR - lambdaL) * max(u, 0.0_SR)
-        end subroutine
-
-        subroutine compute_fwave_flux_du(uL, uR, lambda, fluxR)
-            real (kind = GRID_SR), intent(in)       :: uL, uR, lambda
-            real (kind = GRID_SR), intent(out)	    :: fluxR
-
-            !if the intermediate state velocity is > 0 then add the flux difference to the left cell
-            !otherwise add it to the right cell
-
-            !But: since left and right cell are actually identical, we don't need the branch and the intermediate state.
-            !Exception: boundary cells.
-
-            fluxR = fluxR + lambda * (uR - uL)
         end subroutine
 
         !> Update saturation
@@ -508,5 +462,13 @@
 			local_node%data_pers%d = local_node%data_pers%d + neighbor_node%data_pers%d
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
+
+        subroutine compute_upwind_flux(u, lambdaL, lambdaR, fluxL, fluxR)
+            real (kind = GRID_SR), intent(in)       :: u, lambdaL, lambdaR
+            real (kind = GRID_SR), intent(out)	    :: fluxL, fluxR
+
+            fluxL = fluxL + (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
+            fluxR = fluxR - (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
+        end subroutine
 	END MODULE
 #endif

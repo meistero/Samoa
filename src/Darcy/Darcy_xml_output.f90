@@ -408,15 +408,15 @@
 
                     !compute fluxes
 
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
+                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
+                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
 
-                    call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 1), p(layer + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_velocity_1D(dz, 0.50_SR, base_permeability(layer, 2), p(layer, 2), p(layer + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 3), p(layer + 1, 3), u_w(5), u_n(5), g_local(3))
+                    call compute_base_flux_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 1), p(layer + 1, 1), u_w(3), u_n(3), g_local(3))
+                    call compute_base_flux_1D(dz, 0.50_SR, base_permeability(layer, 2), p(layer, 2), p(layer + 1, 2), u_w(4), u_n(4), g_local(3))
+                    call compute_base_flux_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 3), p(layer + 1, 3), u_w(5), u_n(5), g_local(3))
 
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
+                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
+                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
 
                     flux_w = 0.0_SR
                     dummy = 0.0_SR
@@ -461,8 +461,8 @@
 
                 !compute fluxes
 
-                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
+                call compute_base_flux_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
+                call compute_base_flux_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
 
                 flux_w = 0.0_SR
                 dummy = 0.0_SR
