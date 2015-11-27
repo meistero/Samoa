@@ -177,10 +177,10 @@
 #           if defined(_ADAPT_INTEGRATE)
 #               if (_DARCY_LAYERS > 0)
 #                   if defined(_ASAGI)
-                        nx = max(1, int(cfg%scaling * get_edge_size(dest_element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_permeability_X, 1)))
-                        nz = max(1, int(cfg%scaling * cfg%dz * real(_DARCY_LAYERS, SR) / asagi_grid_delta(cfg%afh_permeability_X, 2)))
+                        nx = max(1, nint(cfg%scaling * get_edge_size(dest_element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_permeability_X, 1)))
+                        nz = max(1, nint(cfg%scaling * cfg%dz * real(_DARCY_LAYERS, SR) / asagi_grid_delta(cfg%afh_permeability_X, 2)))
 #                   else
-                        nx = max(1, int(512.0_SR * get_edge_size(dest_element%cell%geometry%i_depth)))
+                        nx = max(1, nint(512.0_SR * get_edge_size(dest_element%cell%geometry%i_depth)))
                         nz = 1
 #                   endif
 
@@ -226,10 +226,10 @@
                     dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity / no_samples
 #               else
 #                   if defined(_ASAGI)
-                        nx = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 1)))
-                        nz = max(1, int(cfg%scaling * cfg%dz / asagi_grid_delta(cfg%afh_permeability_X, 2)))
+                        nx = max(1, nint(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 1)))
+                        nz = max(1, nint(cfg%scaling * cfg%dz / asagi_grid_delta(cfg%afh_permeability_X, 2)))
 #                   else
-                        nx = max(1, 512 * int(dest_element%transform_data%custom_data%scaling))
+                        nx = max(1, 512 * nint(dest_element%transform_data%custom_data%scaling))
                         nz = 1
 #                   endif
 
@@ -239,6 +239,8 @@
 
                     dest_element%cell%data_pers%base_permeability = 0.0_SR
                     dest_element%cell%data_pers%porosity = 0.0_SR
+
+                    no_samples = 0
 
                     do i = 0, nx - 1
                         alpha = (i + 0.5_SR) / real(nx, SR)
