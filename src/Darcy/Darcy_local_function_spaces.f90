@@ -183,8 +183,8 @@
             type(t_element_base), intent(in)        :: element
 
 #           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), intent(in)       :: x(:)
-                real (kind = GRID_SR), intent(inout)    :: r(:)
+                real (kind = GRID_SR), contiguous, intent(in)       :: x(:)
+                real (kind = GRID_SR), contiguous, intent(inout)    :: r(:)
 
                 if (element%transform_data%plotter_data%orientation > 0) then
                     call apply3D( &
@@ -198,8 +198,8 @@
                         element%cell%data_pers%lambda_t)
                 end if
 #           else
-                real (kind = GRID_SR), intent(in)       :: x(:)
-                real (kind = GRID_SR), intent(inout)    :: r(:)
+                real (kind = GRID_SR), contiguous, intent(in)       :: x(:)
+                real (kind = GRID_SR), contiguous, intent(inout)    :: r(:)
 
                 if (element%transform_data%plotter_data%orientation > 0) then
                     call apply2D(x(1), x(2), x(3), r(1), r(2), r(3), element%cell%data_pers%lambda_t)
@@ -212,9 +212,9 @@
         !> 14 * 3 * #layers DOPS
         !> 7 * #layers DRWS
         subroutine apply3D(x1, x2, x3, r1, r2, r3, lambda_t)
-            real (kind = GRID_SR), intent(in)       :: x1(:), x2(:), x3(:)
-            real (kind = GRID_SR), intent(inout)    :: r1(:), r2(:), r3(:)
-            real (kind = GRID_SR), intent(in)       :: lambda_t(:, :)
+            real (kind = GRID_SR), contiguous, intent(in)       :: x1(:), x2(:), x3(:)
+            real (kind = GRID_SR), contiguous, intent(inout)    :: r1(:), r2(:), r3(:)
+            real (kind = GRID_SR), contiguous, intent(in)       :: lambda_t(:, :)
 
             r1 = 0.0_SR
             r2 = 0.0_SR
@@ -245,9 +245,9 @@
 
         !> 4 * 3 = 12 DOPS
         subroutine apply2D(x1, x2, x3, r1, r2, r3, lambda_t)
-            real (kind = GRID_SR), intent(in)       :: x1, x2, x3
-            real (kind = GRID_SR), intent(inout)    :: r1, r2, r3
-            real (kind = GRID_SR), intent(in)       :: lambda_t(:)
+            real (kind = GRID_SR), intent(in)                   :: x1, x2, x3
+            real (kind = GRID_SR), intent(inout)                :: r1, r2, r3
+            real (kind = GRID_SR), contiguous, intent(in)       :: lambda_t(:)
 
             r1 = 0.0_SR
             r2 = 0.0_SR
@@ -264,7 +264,8 @@
             type(t_element_base), intent(in)    :: element
 
 #           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), intent(inout)       :: d(:)
+                real (kind = GRID_SR), contiguous, intent(inout)       :: d(:)
+
                 if (element%transform_data%plotter_data%orientation > 0) then
                     call get_trace3D( &
                         d(1 : _DARCY_LAYERS + 1), d(_DARCY_LAYERS + 1 + 1 : 2 * (_DARCY_LAYERS + 1)), d(2 * (_DARCY_LAYERS + 1) + 1 : 3 * (_DARCY_LAYERS + 1)), &
@@ -275,7 +276,7 @@
                         element%cell%data_pers%lambda_t)
                 end if
 #           else
-                real (kind = GRID_SR), intent(inout)       :: d(:)
+                real (kind = GRID_SR), contiguous, intent(inout)       :: d(:)
 
                 if (element%transform_data%plotter_data%orientation > 0) then
                     call get_trace2D(d(1), d(2), d(3), element%cell%data_pers%lambda_t)
@@ -287,8 +288,8 @@
 
         !> 14 * #layers FLOPS
         subroutine get_trace3D(d1, d2, d3, lambda_t)
-            real (kind = GRID_SR), intent(inout)    :: d1(:), d2(:), d3(:)
-            real (kind = GRID_SR), intent(in)       :: lambda_t(:, :)
+            real (kind = GRID_SR), contiguous, intent(inout)    :: d1(:), d2(:), d3(:)
+            real (kind = GRID_SR), contiguous, intent(in)       :: lambda_t(:, :)
 
             d1 = 0.0_SR
             d2 = 0.0_SR
@@ -320,7 +321,7 @@
         !> 4 FLOPS
         subroutine get_trace2D(d1, d2, d3, lambda_t)
             real (kind = GRID_SR), intent(inout)    :: d1, d2, d3
-            real (kind = GRID_SR), intent(in)       :: lambda_t(:)
+            real (kind = GRID_SR), contiguous, intent(in)       :: lambda_t(:)
 
             d1 = 0.0_SR
             d2 = 0.0_SR

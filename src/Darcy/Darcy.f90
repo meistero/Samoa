@@ -370,6 +370,11 @@
 
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
+                !do a dummy transport step first to determine the initial production rates
+                grid%r_dt = 0.0_SR
+				call darcy%transport_eq%traverse(grid)
+
+                !output grid
 				call darcy%xml_output%traverse(grid)
 				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
