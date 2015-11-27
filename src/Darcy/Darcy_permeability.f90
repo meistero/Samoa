@@ -390,8 +390,8 @@
 
                 real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: pos_prod(2), pos_in(2), radius, inflow, edge_length
-                real (kind = GRID_SR)                               :: g_local(2), lambda_w(3), lambda_n(3), lambda_t(2)
-                logical		                                        :: weights(3), is_dirichlet(3)
+                real (kind = GRID_SR)                               :: g_local(2), lambda_w(3), lambda_n(3), lambda_t(2), weights(3)
+                logical		                                        :: is_dirichlet(3)
 
                 rhs = 0.0_SR
 

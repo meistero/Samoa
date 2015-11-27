@@ -121,7 +121,13 @@
 
 			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
             real (kind = GRID_SR)   :: x(3), p(2), v1(2), v2(2), buffer(2), alpha, beta
-            integer					:: i, j, k, level, nx, nz, k_start, k_end, no_samples(_DARCY_LAYERS)
+            integer					:: i, j, k, level, nx, nz, k_start, k_end
+
+#           if (_DARCY_LAYERS > 0)
+                integer :: no_samples(_DARCY_LAYERS)
+#           else
+                integer :: no_samples
+#           endif
 
             !make sure, the effective volume never turns out to be 0
             porosity = epsilon(1.0_SR)
@@ -255,12 +261,12 @@
                                 dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + get_porosity(grid, x)
                             end do
 
-                            no_samples(1) = no_samples(1) + k_end - k_start + 1
+                            no_samples = no_samples + k_end - k_start + 1
                         end do
                     end do
 
-                    dest_element%cell%data_pers%base_permeability = mean_invert(dest_element%cell%data_pers%base_permeability / no_samples(1))
-                    dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity / no_samples(1)
+                    dest_element%cell%data_pers%base_permeability = mean_invert(dest_element%cell%data_pers%base_permeability / no_samples)
+                    dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity / no_samples
 #               endif
 #           elif defined(_ADAPT_SAMPLE)
                 x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
