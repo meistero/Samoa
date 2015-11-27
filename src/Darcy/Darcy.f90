@@ -105,10 +105,10 @@
                 call mpi_bcast(s_time, len(s_time), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-			write (darcy%vtk_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
-			write (darcy%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
+			darcy%vtk_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
+			darcy%xml_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
 
-			write (s_log_name, '(A, A)') TRIM(darcy%vtk_output%s_file_stamp), ".log"
+			s_log_name = trim(darcy%vtk_output%s_file_stamp) // ".log"
 
 			if (l_log) then
 				_log_open_file(s_log_name)

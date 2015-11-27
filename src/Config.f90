@@ -44,6 +44,7 @@ module config
         logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
 
 	    logical 				                :: l_gridoutput			                            !< grid output on/off
+	    character(256)				            :: output_dir			                            !< output directory
         logical                                 :: l_ascii_output                                   !< ascii output on/off
         integer                                 :: i_ascii_width                                    !< width of the ascii output
 	    logical					                :: l_pointoutput                                    !< test points output on/off
@@ -136,7 +137,7 @@ module config
 
         write(arguments, '(A)') "-v .false. --version .false. -h .false. --help .false."
         write(arguments, '(A, A)') trim(arguments),   " -lbtime .false. -lbsplit .false. -lbserial .false. -lbcellweight 1.0d0 -lbbndweight 0.0d0"
-        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -asciioutput_width 60 -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
+        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -asciioutput_width 60 -output_dir output -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
         write(arguments, '(A, A, I0)') trim(arguments), " -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
@@ -202,6 +203,7 @@ module config
         config%i_ascii_width = iget('samoa_asciioutput_width')
         config%courant_number = rget('samoa_courant')
         config%l_gridoutput = lget('samoa_xmloutput')
+        config%output_dir = sget('samoa_output_dir', 256)
         config%s_testpoints = sget('samoa_stestpoints', 512)
 
         if (len(trim(config%s_testpoints)) .ne. 2) then
@@ -271,6 +273,7 @@ module config
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
         		PRINT '(A, L, A)',     "	-xmloutput              [-tout required] turns on grid output (value: ", config%l_gridoutput, ")"
+        		PRINT '(A, L, A)',     "	-output_dir             output directory (value: ", trim(config%output_dir), ")"
                 PRINT '(A, L, A)',      "	-noprint                print log to file instead of console (value: ", config%l_log, ")"
                 PRINT '(A)',            "	--help, -h              display this help and exit"
                 PRINT '(A)',            "	--version, -v           output version information and exit"
@@ -338,6 +341,7 @@ module config
         class(t_config)                         :: config
         character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
+        logical                                 :: b_valid
 
 #	    if defined(_TESTS)
             _log_write(0, '(" Scenario: Tests")')
@@ -401,8 +405,10 @@ module config
 
 #       if defined(__GFORTRAN__)
             _log_write(0, '(" Compiler: GNU")')
-#       else
+#       elif defined(__INTEL_COMPILER)
             _log_write(0, '(" Compiler: Intel")')
+#       else
+            _log_write(0, '(" Compiler: Not detected")')
 #       endif
 
         _log_write(0, '(" Sections per thread: ", I0)') config%i_sections_per_thread
@@ -412,6 +418,20 @@ module config
         _log_write(0, '(" Load balancing: cell weight: ", F0.2, ", boundary weight: ", F0.2)') config%r_cell_weight, config%r_boundary_weight
 
         _log_write(0, '(" Scenario: max time steps: ", I0, ", max time: ", ES9.2, ", output step: ", ES9.2)') config%i_max_time_steps, config%r_max_time, config%r_output_time_step
+
+        !check if the output directory exists
+
+#       if defined(__INTEL_COMPILER)
+            !This solution is not standard but works for the Intel compiler.
+            inquire(directory=trim(config%output_dir), exist=b_valid)
+#       else
+            !This solution works for the GNU compiler and hopefully for others, too.
+            inquire(file=trim(config%output_dir) // '/.', exist=b_valid)
+#       endif
+
+        try(b_valid, "output directory " // trim(config%output_dir) // " could not be found")
+
+        _log_write(0, '(" Scenario: output directory: ", A)') trim(config%output_dir)
         _log_write(0, '(" Scenario: courant number: ", F0.3)') config%courant_number
 
 #       if defined (_UPWIND_FLUX)
@@ -475,6 +495,14 @@ module config
 #               error Invalid mobility term!
 #           endif
 
+            !check if the data files exixst
+
+            inquire(file=trim(config%s_permeability_file), exist=b_valid)
+            try(b_valid, "permeability data file " // trim(config%s_permeability_file) // " could not be found")
+
+            inquire(file=trim(config%s_porosity_file), exist=b_valid)
+            try(b_valid, "porosity data file " // trim(config%s_porosity_file) // " could not be found")
+
             _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
             _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
@@ -486,6 +514,15 @@ module config
 #		elif defined(_FLASH)
             _log_write(0, '(" Flash: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)
+
+            !check if the data files exixst
+
+            inquire(file=trim(config%s_bathymetry_file), exist=b_valid)
+            try(b_valid, "bathymetry data file " // trim(config%s_bathymetry_file) // " could not be found")
+
+            inquire(file=trim(config%s_displacement_file), exist=b_valid)
+            try(b_valid, "displacement data file " // trim(config%s_displacement_file) // " could not be found")
+
             _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
             _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
 #		endif
