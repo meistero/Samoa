@@ -10,10 +10,6 @@
 		use LIB_VTK_IO
 
 		use SFC_edge_traversal
-		use Darcy_grad_p
-		use Darcy_transport_eq
-		use Darcy_initialize_saturation
-
 		use Samoa_darcy
 
 		!> Output point data
@@ -139,7 +135,7 @@
                         e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
                             e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 3)
                             e_io = vtk%VTK_VAR_XML('porosity', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+                            e_io = vtk%VTK_VAR_XML('flux', 1.0_GRID_SR, 3)
                             e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
                             e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
                             e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
@@ -286,7 +282,7 @@
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability(:, 1), traversal%cell_data%permeability(:, 2), traversal%cell_data%permeability(:, 3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'porosity', traversal%cell_data%porosity)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(:, 1), traversal%cell_data%u(:, 2), traversal%cell_data%u(:, 3))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'flux', traversal%cell_data%u(:, 1), traversal%cell_data%u(:, 2), traversal%cell_data%u(:, 3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
@@ -358,27 +354,27 @@
                 real (kind = GRID_SR), intent(in)	    :: rhs(:, :)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability(:,:)
                 real (kind = GRID_SR), intent(in)	    :: porosity(:)
-                real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
+                real (kind = GRID_SR), intent(inout)	    :: saturation(:, :)
                 integer (kind = GRID_SI), intent(in)    :: point_data_indices(:, :)
 
                 real (kind = SR)                :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3)
-                real (kind = SR)                :: u_w(7), u_n(7)
-                real (kind = GRID_SR)			:: g_local(3)
+                real (kind = SR)                :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
+                real (kind = GRID_SR)			:: g_local(3), flux_w(_DARCY_LAYERS, 3), flux_n(_DARCY_LAYERS, 3), flux_t(3)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
                 real (kind = GRID_SR), intent(in)	    :: rhs(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
                 real (kind = GRID_SR), intent(in)	    :: porosity
-                real (kind = GRID_SR), intent(in)	    :: saturation(:)
+                real (kind = GRID_SR), intent(inout)	    :: saturation(:)
                 integer (kind = GRID_SI), intent(in)    :: point_data_indices(:)
 
                 real (kind = SR)                :: lambda_w(3), lambda_n(3)
                 real (kind = SR)                :: u_w(2), u_n(2)
-                real (kind = GRID_SR)			:: g_local(2)
+                real (kind = GRID_SR)			:: g_local(2), flux_w(2), flux_n(2), flux_t(2)
 #           endif
 
             integer                         :: i, layer
-            real (kind = GRID_SR)			:: edge_length, dz, flux_w(3), dummy
+            real (kind = GRID_SR)			:: edge_length, dz
 
             lambda_w = l_w(saturation)
             lambda_n = l_n(saturation)
@@ -394,9 +390,17 @@
             g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
             g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
+            flux_w = 0.0_SR
+            flux_n = 0.0_SR
+
 #           if (_DARCY_LAYERS > 0)
                 edge_length = element%cell%geometry%get_leg_size()
                 dz = cfg%dz
+
+                !compute fluxes
+
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
+                call compute_flux_vector_3D(saturation, u_w, u_n, flux_w, flux_n)
 
                 do layer = 1, _DARCY_LAYERS
                     cell_data%rank(i_cell_data_index) = rank_MPI
@@ -406,32 +410,11 @@
                     !the grid porosity also contains residual saturation which has to be removed for output
                     cell_data%porosity(i_cell_data_index) = porosity(layer) / (1.0_SR - cfg%S_wr - cfg%S_nr)
 
-                    !compute fluxes
+                    flux_t = flux_w(layer, :) + flux_n(layer, :)
+                    flux_t(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_t(1:2))
+                    flux_t(1:2) = flux_t(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
-
-                    call compute_base_flux_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 1), p(layer + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_base_flux_1D(dz, 0.50_SR, base_permeability(layer, 2), p(layer, 2), p(layer + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_base_flux_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 3), p(layer + 1, 3), u_w(5), u_n(5), g_local(3))
-
-                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_base_flux_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
-
-                    flux_w = 0.0_SR
-                    dummy = 0.0_SR
-                    call compute_upwind_flux(u_w(1), lambda_w(layer, 2), lambda_w(layer, 1), flux_w(1), dummy)
-                    call compute_upwind_flux(u_w(2), lambda_w(layer, 2), lambda_w(layer, 3), flux_w(2), dummy)
-                    call compute_upwind_flux(u_w(3), lambda_w(layer, 1), lambda_w(layer + 1, 1), flux_w(3), dummy)
-                    call compute_upwind_flux(u_w(4), lambda_w(layer, 2), lambda_w(layer + 1, 2), flux_w(3), dummy)
-                    call compute_upwind_flux(u_w(5), lambda_w(layer, 3), lambda_w(layer + 1, 3), flux_w(3), dummy)
-                    call compute_upwind_flux(u_w(6), lambda_w(layer + 1, 2), lambda_w(layer + 1, 1), flux_w(1), dummy)
-                    call compute_upwind_flux(u_w(7), lambda_w(layer + 1, 2), lambda_w(layer + 1, 3), flux_w(2), dummy)
-
-                    flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
-                    flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                    cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
+                    cell_data%u(i_cell_data_index, :) = cfg%scaling * 2.0_SR * flux_t
 
                     cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                     cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
@@ -461,18 +444,15 @@
 
                 !compute fluxes
 
-                call compute_base_flux_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_base_flux_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, 1.0_SR, g_local(1:2), u_w, u_n)
+                call compute_flux_vector_2D(saturation, u_w, u_n, flux_w, flux_n)
 
-                flux_w = 0.0_SR
-                dummy = 0.0_SR
-                call compute_upwind_flux(u_w(1), lambda_w(2), lambda_w(1), flux_w(1), dummy)
-                call compute_upwind_flux(u_w(2), lambda_w(2), lambda_w(3), flux_w(2), dummy)
+                flux_t = flux_w + flux_n
+                flux_t = samoa_barycentric_to_world_normal(element%transform_data, flux_t)
+                flux_t = flux_t * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                flux_w(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_w(1:2))
-                flux_w(1:2) = flux_w(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
+                cell_data%u(i_cell_data_index, 1:2) = cfg%scaling * 2.0_SR * flux_t
+                cell_data%u(i_cell_data_index, 3) = 0.0_SR
 
                 cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                 cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement

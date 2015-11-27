@@ -13,7 +13,7 @@
 
 		use Samoa_darcy
 
-		public compute_upwind_flux
+		public compute_upwind_flux_1D, compute_fluxes_2D, compute_fluxes_3D, compute_flux_vector_2D, compute_flux_vector_3D
 
         type num_traversal_data
             real (kind = GRID_SR)               :: prod_w(4), prod_n(4)
@@ -279,8 +279,7 @@
                 real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
                 real (kind = GRID_SR), intent(out)	    :: volume(:, :), flux_w(:, :), flux_n(:, :)
 
-                real (kind = GRID_SR)                   :: u_w(7), u_n(7)
-                real (kind = GRID_SR)                   :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3)
+                real (kind = GRID_SR)                   :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
 
                 real (kind = GRID_SR)				    :: g_local(3), edge_length, surface, dz
                 integer                                 :: i
@@ -288,9 +287,6 @@
                 volume(:, 1) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 2) = cfg%dz * 0.50_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 3) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
-
-                lambda_w = l_w(saturation)
-                lambda_n = l_n(saturation)
 
                 flux_w = 0.0_SR
                 flux_n = 0.0_SR
@@ -304,24 +300,8 @@
                 surface = element%cell%geometry%get_volume()
                 dz = cfg%dz
 
-                do i = 1, _DARCY_LAYERS
-                    !compute base fluxes
-
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), u_w(2), u_n(2), g_local(2))
-
-                    call compute_base_flux_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 1), p(i + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_base_flux_1D(dz, 0.50_SR * surface, base_permeability(i, 2), p(i, 2), p(i + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_base_flux_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 3), p(i + 1, 3), u_w(5), u_n(5), g_local(3))
-
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
-
-                    !compute fluxes
-
-                    call compute_flux(u_w, lambda_w(i:i+1, :), flux_w(i:i+1, :))
-                    call compute_flux(u_n, lambda_n(i:i+1, :), flux_n(i:i+1, :))
-                end do
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 0.5_SR * edge_length * dz, surface, g_local, u_w, u_n)
+                call compute_fluxes_3D(saturation, u_w, u_n, flux_w, flux_n)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
@@ -329,14 +309,10 @@
                 real (kind = GRID_SR), intent(in)	    :: saturation(:)
                 real (kind = GRID_SR), intent(out)	    :: volume(:), flux_w(:), flux_n(:)
 
-                real (kind = GRID_SR)                   :: lambda_w(3), lambda_n(3)
                 real (kind = GRID_SR)					:: g_local(2), edge_length
                 real (kind = SR)                        :: u_w(2), u_n(2), u_norm
 
                 volume = [0.25_SR, 0.50_SR, 0.25_SR] * porosity * element%cell%geometry%get_volume()
-
-                lambda_w = l_w(saturation)
-                lambda_n = l_n(saturation)
 
                 flux_w = 0.0_SR
                 flux_n = 0.0_SR
@@ -348,47 +324,15 @@
 
                 edge_length = element%cell%geometry%get_leg_size()
 
-                !compute base fluxes
-
-                call compute_base_flux_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_base_flux_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
-
                 !compute fluxes
 
-                call compute_flux(u_w, lambda_w, flux_w)
-                call compute_flux(u_n, lambda_n, flux_n)
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, 0.5_SR * edge_length, g_local(1:2), u_w, u_n)
+                call compute_fluxes_2D(saturation, u_w, u_n, flux_w, flux_n)
 #           endif
 
             !Careful: the FEM pressure solution implies that u = 0 on the boundary.
             !If we define an outflow condition in the FV step, we will get a non-zero divergence.
 		end subroutine
-
-		subroutine compute_flux(u, lambda, flux)
-            real (kind = GRID_SR), intent(inout)       :: u(:)
-
-            !Upwind and F-Wave solver are identical except for the treatment of boundaries.
-
-#           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), intent(in)       :: lambda(:, :)
-                real (kind = GRID_SR), intent(out)	    :: flux(:, :)
-
-                call compute_upwind_flux(u(1), lambda(1, 2), lambda(1, 1), flux(1, 2), flux(1, 1))
-                call compute_upwind_flux(u(2), lambda(1, 2), lambda(1, 3), flux(1, 2), flux(1, 3))
-
-                call compute_upwind_flux(u(3), lambda(1, 1), lambda(2, 1), flux(1, 1), flux(2, 1))
-                call compute_upwind_flux(u(4), lambda(1, 2), lambda(2, 2), flux(1, 2), flux(2, 2))
-                call compute_upwind_flux(u(5), lambda(1, 3), lambda(2, 3), flux(1, 3), flux(2, 3))
-
-                call compute_upwind_flux(u(6), lambda(2, 2), lambda(2, 1), flux(2, 2), flux(2, 1))
-                call compute_upwind_flux(u(7), lambda(2, 2), lambda(2, 3), flux(2, 2), flux(2, 3))
-#           else
-                real (kind = GRID_SR), intent(in)       :: lambda(:)
-                real (kind = GRID_SR), intent(out)	    :: flux(:)
-
-                call compute_upwind_flux(u(1), lambda(2), lambda(1), flux(2), flux(1))
-                call compute_upwind_flux(u(2), lambda(2), lambda(3), flux(2), flux(3))
-#           endif
-        end subroutine
 
         !> Update saturation
         !>
@@ -409,7 +353,8 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
-            !assert_pure(flux_w + flux_n == 0.0_SR)
+            assert_pure(saturation .ge. 0.0_SR)
+            assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 
         !> Update saturation and apply a divergence correction
@@ -435,7 +380,8 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
-            !assert_pure(saturation .le. 1.0_SR)
+            assert_pure(saturation .ge. 0.0_SR)
+            assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 
 		!> Compute production rates at the wells
@@ -462,13 +408,5 @@
 			local_node%data_pers%d = local_node%data_pers%d + neighbor_node%data_pers%d
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
-
-        subroutine compute_upwind_flux(u, lambdaL, lambdaR, fluxL, fluxR)
-            real (kind = GRID_SR), intent(in)       :: u, lambdaL, lambdaR
-            real (kind = GRID_SR), intent(out)	    :: fluxL, fluxR
-
-            fluxL = fluxL + (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
-            fluxR = fluxR - (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
-        end subroutine
 	END MODULE
 #endif

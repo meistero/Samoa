@@ -8,11 +8,10 @@
 #if defined(_DARCY)
 	MODULE Darcy_grad_p
 		use SFC_edge_traversal
-		use Darcy_initialize_saturation
 
 		use Samoa_darcy
 
-		public compute_base_flux_1D
+		public compute_base_flux_1D, compute_base_fluxes_2D, compute_base_fluxes_3D
 
         type num_traversal_data
 			real (kind = GRID_SR)				:: r_dt					!< global minimum time step
@@ -22,6 +21,7 @@
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_volume)					:: gv_volume
 		type(darcy_gv_flux)						:: gv_xi_w
+		type(darcy_gv_d)						:: gv_flux_t
 
 #		define _GT_NAME							t_darcy_grad_p_traversal
 
@@ -107,6 +107,7 @@
                 real(kind = GRID_SR)    :: p(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: saturation(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: xi_w(_DARCY_LAYERS + 1, 3)
+                real(kind = GRID_SR)    :: flux_t(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: volume(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: porosity(_DARCY_LAYERS + 1)
 
@@ -121,6 +122,7 @@
                 real(kind = GRID_SR)    :: p(3)
                 real(kind = GRID_SR)    :: saturation(3)
                 real(kind = GRID_SR)    :: xi_w(3)
+                real(kind = GRID_SR)    :: flux_t(3)
                 real(kind = GRID_SR)    :: volume(3)
                 real(kind = GRID_SR)    :: porosity
 
@@ -131,10 +133,11 @@
 			call gv_saturation%read_from_element(element, saturation)
 
 			!call volume operator
-			call compute_wavespeeds(element, p, saturation, volume, element%cell%data_pers%base_permeability, porosity, xi_w)
+			call compute_wavespeeds(element, p, saturation, volume, element%cell%data_pers%base_permeability, porosity, xi_w, flux_t)
 
 			call gv_volume%add_to_element(element, volume)
 			call gv_xi_w%add_to_element(element, xi_w)
+			call gv_flux_t%add_to_element(element, flux_t)
 		end subroutine
 
 
@@ -145,7 +148,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_temp%flux, node%data_temp%volume)
+			call pre_dof_op(node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
 		end subroutine
 
 		!last touches
@@ -158,7 +161,7 @@
             integer :: i
 
             do i = 1, _DARCY_LAYERS + 1
-                call post_dof_op(node%data_temp%flux(i), node%data_temp%volume(i), traversal%r_dt)
+                call post_dof_op(node%data_temp%flux(i), node%data_pers%d(i), node%data_temp%volume(i), traversal%r_dt)
             end do
 		end subroutine
 
@@ -167,10 +170,18 @@
  			type(t_grid_section), intent(inout)				    :: section
 			type(t_node_data), intent(inout)			        :: nodes(:)
 
-            integer :: i
+            integer :: j, i
 
-            do i = 1, size(nodes)
-                call inner_node_last_touch_op(traversal, section, nodes(i))
+            do j = 1, size(nodes)
+                if (any(nodes(j)%data_temp%is_pressure_dirichlet_boundary)) then
+                    do i = 1, _DARCY_LAYERS + 1
+                        call post_dof_op_correction(nodes(j)%data_temp%flux(i), nodes(j)%data_pers%d(i), nodes(j)%data_pers%saturation(i), nodes(j)%data_temp%volume(i), traversal%r_dt)
+                    end do
+                else
+                    do i = 1, _DARCY_LAYERS + 1
+                        call post_dof_op(nodes(j)%data_temp%flux(i), nodes(j)%data_pers%d(i), nodes(j)%data_temp%volume(i), traversal%r_dt)
+                    end do
+                end if
             end do
 		end subroutine
 
@@ -179,6 +190,7 @@
  			type(t_node_data), intent(in)		    :: neighbor_node
 
 			local_node%data_temp%flux = local_node%data_temp%flux + neighbor_node%data_temp%flux
+			local_node%data_pers%d = local_node%data_pers%d + neighbor_node%data_pers%d
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
 
@@ -186,16 +198,17 @@
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(xi_w, volume)
- 			real (kind = GRID_SR), intent(out)		:: xi_w
+		elemental subroutine pre_dof_op(xi_w, flux_t, volume)
+ 			real (kind = GRID_SR), intent(out)		:: xi_w, flux_t
 			real (kind = GRID_SR), intent(out)		:: volume
 
 			xi_w = 0.0_SR
+			flux_t = 0.0_SR
 			volume = 0.0_SR
 		end subroutine
 
-		pure subroutine post_dof_op(xi_w, volume, dt)
-			real (kind = GRID_SR), intent(in)		:: xi_w
+		pure subroutine post_dof_op(xi_w, flux_t, volume, dt)
+			real (kind = GRID_SR), intent(in)		:: xi_w, flux_t
 			real (kind = GRID_SR), intent(in)		:: volume
 			real (kind = GRID_SR), intent(inout)	:: dt
 
@@ -204,11 +217,26 @@
             end if
 		end subroutine
 
+		subroutine post_dof_op_correction(xi_w, flux_t, saturation, volume, dt)
+			real (kind = GRID_SR), intent(in)		:: xi_w, flux_t
+			real (kind = GRID_SR), intent(in)		:: saturation, volume
+			real (kind = GRID_SR), intent(inout)	:: dt
+
+            real (kind = GRID_SR)                   :: lambda_w, lambda_n
+
+            if (xi_w * volume > 1.0e5_SR * tiny(1.0_SR)) then
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
+
+                dt = min(dt, volume / (xi_w + lambda_w / (lambda_w + lambda_n) * abs(flux_t)))
+            end if
+		end subroutine
+
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-        subroutine compute_wavespeeds(element, p, saturation, volume, base_permeability, porosity, xi_w)
+        subroutine compute_wavespeeds(element, p, saturation, volume, base_permeability, porosity, xi_w, flux_t)
 			type(t_element_base), intent(inout)	    :: element
 
 #           if (_DARCY_LAYERS > 0)
@@ -216,18 +244,18 @@
                 real (kind = GRID_SR), intent(in)	    :: base_permeability(:,:)
                 real (kind = GRID_SR), intent(in)	    :: porosity(:)
                 real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
-                real (kind = GRID_SR), intent(out)	    :: volume(:, :), xi_w(:, :)
+                real (kind = GRID_SR), intent(out)	    :: volume(:, :), xi_w(:, :), flux_t(:, :)
 
-                real (kind = GRID_SR)                   :: u_w(7), u_n(7)
+                real (kind = GRID_SR)                   :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
 
                 real (kind = GRID_SR)				    :: g_local(3), edge_length, surface, dz
-                integer                                 :: i
 
                 volume(:, 1) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 2) = cfg%dz * 0.50_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 3) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
 
                 xi_w = 0.0_SR
+                flux_t = 0.0_SR
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g
@@ -238,37 +266,14 @@
                 surface = element%cell%geometry%get_volume()
                 dz = cfg%dz
 
-                do i = 1, _DARCY_LAYERS
-                    !compute base fluxes
-
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), u_w(2), u_n(2), g_local(2))
-
-                    call compute_base_flux_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 1), p(i + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_base_flux_1D(dz, 0.50_SR * surface, base_permeability(i, 2), p(i, 2), p(i + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_base_flux_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 3), p(i + 1, 3), u_w(5), u_n(5), g_local(3))
-
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_base_flux_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
-
-                    !compute wavespeeds
-
-                    call compute_wave_speed_1D(saturation(i, 2), saturation(i, 1), u_w(1), u_n(1), xi_w(i, 2), xi_w(i, 1))
-                    call compute_wave_speed_1D(saturation(i, 2), saturation(i, 3), u_w(2), u_n(2), xi_w(i, 2), xi_w(i, 3))
-
-                    call compute_wave_speed_1D(saturation(i, 1), saturation(i + 1, 1), u_w(3), u_n(3), xi_w(i, 1), xi_w(i + 1, 1))
-                    call compute_wave_speed_1D(saturation(i, 2), saturation(i + 1, 2), u_w(4), u_n(4), xi_w(i, 2), xi_w(i + 1, 2))
-                    call compute_wave_speed_1D(saturation(i, 3), saturation(i + 1, 3), u_w(5), u_n(5), xi_w(i, 3), xi_w(i + 1, 3))
-
-                    call compute_wave_speed_1D(saturation(i + 1, 2), saturation(i + 1, 1), u_w(6), u_n(6), xi_w(i + 1, 2), xi_w(i + 1, 1))
-                    call compute_wave_speed_1D(saturation(i + 1, 2), saturation(i + 1, 3), u_w(7), u_n(7), xi_w(i + 1, 2), xi_w(i + 1, 3))
-                end do
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 0.5_SR * edge_length * dz, surface, g_local, u_w, u_n)
+                call compute_wave_speeds_3D(saturation, u_w, u_n, xi_w, flux_t)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
                 real (kind = GRID_SR), intent(in)	    :: porosity
                 real (kind = GRID_SR), intent(in)	    :: saturation(:)
-                real (kind = GRID_SR), intent(out)	    :: volume(:), xi_w(:)
+                real (kind = GRID_SR), intent(out)	    :: volume(:), xi_w(:), flux_t(:)
 
                 real (kind = GRID_SR)					:: g_local(2), edge_length
                 real (kind = SR)                        :: u_w(2), u_n(2), u_norm
@@ -286,67 +291,12 @@
 
                 !compute base fluxes
 
-                call compute_base_flux_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_base_flux_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
-
-                !compute wavespeeds
-
-                call compute_wave_speed_1D(saturation(2), saturation(1), u_w(1), u_n(1), xi_w(2), xi_w(1))
-                call compute_wave_speed_1D(saturation(2), saturation(3), u_w(2), u_n(2), xi_w(2), xi_w(3))
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, 0.5_SR * edge_length, g_local(1:2), u_w, u_n)
+                call compute_wave_speeds_2D(saturation, u_w, u_n, xi_w, flux_t)
 #           endif
 
             !Careful: the FEM pressure solution implies that u = 0 on the boundary.
             !If we define an outflow condition in the FV step, we will get a non-zero divergence.
 		end subroutine
-
-        elemental subroutine compute_base_flux_1D(dx, area, base_permeability, pL, pR, u_w, u_n, g_local)
-            real (kind = GRID_SR), intent(in)       :: dx, area, base_permeability, pL, pR, g_local
-            real (kind = GRID_SR), intent(inout)    :: u_w, u_n
-
-            u_w = area * base_permeability * (-(pR - pL) / dx + cfg%r_rho_w * g_local)
-            u_n = area * base_permeability * (-(pR - pL) / dx + cfg%r_rho_n * g_local)
-        end subroutine
-
-        subroutine compute_wave_speed_1D(S_l, S_r, u_w_in, u_n_in, xi_wl, xi_wr)
-            real (kind = GRID_SR), intent(in)       :: S_l, S_r, u_w_in, u_n_in
-            real (kind = GRID_SR), intent(inout)    :: xi_wl, xi_wr
-
-            real (kind = GRID_SR)                   :: lambda_wl, lambda_wr, lambda_nl, lambda_nr
-            real (kind = GRID_SR)                   :: F_w, F_n, F_w_dSl, F_w_dSr, xi_1, xi_2
-
-            real (kind = GRID_SR), parameter        :: dS = 1.0e-4_SR
-
-            !Find the wavespeeds by computing the derivatives d/dS_l F(s_l, S_r) and d/dS_r F(S_l, S_r)
-            !Instead of direct evaluation, we use Finite Differences to approximate the derivatives
-
-            lambda_wl = l_w(S_l)
-            lambda_wr = l_w(S_r)
-            lambda_nl = l_n(S_l)
-            lambda_nr = l_n(S_r)
-
-            if (u_w_in > 0.0) then
-                F_w = lambda_wl * u_w_in
-
-                F_w_dSl = l_w(S_l + dS) * u_w_in
-                F_w_dSr = lambda_wl * u_w_in
-            else
-                F_w = lambda_wr * u_w_in
-
-                F_w_dSl = lambda_wr * u_w_in
-                F_w_dSr = l_w(S_r + dS) * u_w_in
-            endif
-
-            if (u_n_in > 0.0) then
-                F_n = lambda_nl * u_n_in
-            else
-                F_n = lambda_nr * u_n_in
-            endif
-
-            xi_1 = (F_w_dSr - F_w) / dS
-            xi_2 = (F_w_dSl - F_w) / dS
-
-            xi_wl = xi_wl + max(abs(xi_1), abs(xi_2))
-            xi_wr = xi_wr + max(abs(xi_1), abs(xi_2))
-        end subroutine
 	END MODULE
 #endif

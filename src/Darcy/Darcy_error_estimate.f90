@@ -8,12 +8,13 @@
 #if defined(_DARCY)
 	MODULE Darcy_error_estimate
 		use SFC_edge_traversal
-
 		use Samoa_darcy
 
         type num_traversal_data
             integer (kind = GRID_DI)			:: i_refinements_issued
         end type
+
+        public compute_refinement_indicator
 
         type(darcy_gv_saturation)				:: gv_saturation
         type(darcy_gv_p)						:: gv_p
@@ -148,37 +149,76 @@
             end if
 
 			!call element operator
-			call alpha_volume_op(traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
+			call compute_refinement_indicator(element, traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine alpha_volume_op(i_refinements_issued, i_depth, i_refinement, saturation, p, base_permeability)
+		subroutine compute_refinement_indicator(element, i_refinements_issued, i_depth, i_refinement, saturation, p, base_permeability)
+			type(t_element_base), intent(inout)         :: element
 			integer (kind = GRID_DI), intent(inout)		:: i_refinements_issued
 			integer (kind = BYTE), intent(in)			:: i_depth
 			integer (kind = BYTE), intent(out)			:: i_refinement
 
             real (kind = GRID_SR)						    :: r_sat_norm, r_p_norm
-            logical 									    :: l_coarsen_p, l_coarsen_sat, l_refine_sat, l_relevant
+            logical 									    :: l_refine_p, l_coarsen_p, l_coarsen_sat, l_refine_sat
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(in)		    :: saturation(:,:)
                 real (kind = GRID_SR), intent(in)			:: p(:,:)
                 real (kind = GRID_SR), intent(in)			:: base_permeability(:,:)
 
-                r_sat_norm = maxval(max(saturation(:, 1), saturation(:, 2), saturation(:, 3)) - min(saturation(:, 1), saturation(:, 2), saturation(:, 3))) * get_cell_volume(i_depth)
-                r_p_norm = maxval(max(p(:, 1), p(:, 2), p(:, 3)) - min(p(:, 1), p(:, 2), p(:, 3)))
-                l_relevant = any(base_permeability > 0.0_GRID_SR)
+                real (kind = GRID_SR)                       :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
+                real (kind = GRID_SR)				        :: flux_w(_DARCY_LAYERS, 3), flux_n(_DARCY_LAYERS, 3)
+                real (kind = GRID_SR)				        :: g_local(3), edge_length, surface, dz
+
+                flux_w = 0.0_SR
+                flux_n = 0.0_SR
+
+                r_sat_norm = maxval(maxval(saturation, 2) - minval(saturation, 2)) * get_cell_volume(i_depth)
+
+                !rotate g from world to local space (no scaling!)
+                g_local = cfg%g
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
+                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+                edge_length = element%cell%geometry%get_leg_size()
+                surface = element%cell%geometry%get_volume()
+                dz = cfg%dz
+
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
+                call compute_flux_vector_3D(saturation, u_w, u_n, flux_w, flux_n)
+
+                !we should use a rotation-invariant norm such as the 2-norm as this is a vector in local space
+                r_p_norm = maxval(norm2(flux_w + flux_n, 2)) * element%cell%geometry%get_leg_size()
 #           else
                 real (kind = GRID_SR), intent(in)		    :: saturation(:)
                 real (kind = GRID_SR), intent(in)			:: p(:)
                 real (kind = GRID_SR), intent(in)			:: base_permeability
 
+                real (kind = GRID_SR)                       :: u_w(2), u_n(2)
+                real (kind = GRID_SR)				        :: flux_w(2), flux_n(2)
+                real (kind = GRID_SR)				        :: g_local(3), edge_length
+
+                flux_w = 0.0_SR
+                flux_n = 0.0_SR
+
                 r_sat_norm = (maxval(saturation) - minval(saturation)) * get_cell_volume(i_depth)
-                r_p_norm = (maxval(p) - minval(p))
-                l_relevant = (base_permeability > 0.0_GRID_SR)
+
+                !rotate g from world to local space (no scaling!)
+                g_local = cfg%g
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
+                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+                edge_length = element%cell%geometry%get_leg_size()
+
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, 1.0_SR, g_local(1:2), u_w, u_n)
+                call compute_flux_vector_2D(saturation, u_w, u_n, flux_w, flux_n)
+
+                !we should use a rotation-invariant norm such as the 2-norm as this is a vector in local space
+                r_p_norm = norm2(flux_w + flux_n) * element%cell%geometry%get_leg_size()
 #           endif
 
             !Criteria for a piece-wise constant function q:
@@ -189,18 +229,19 @@
 
 			l_refine_sat = r_sat_norm > cfg%S_refinement_threshold * get_cell_volume(cfg%i_max_depth)
 			l_coarsen_sat = r_sat_norm < cfg%S_refinement_threshold * get_cell_volume(cfg%i_max_depth) / 8.0_SR
-			l_coarsen_p = r_p_norm < min(0.5_SR, cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)) * cfg%r_p_prod / 2.0_SR
+			l_refine_p = r_p_norm > cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth)
+			l_coarsen_p = r_p_norm < cfg%p_refinement_threshold * get_edge_size(cfg%i_max_depth) / 4.0_SR
 
 			!* refine the cell if the saturation becomes too steep
 			!* coarsen the cell if pressure and saturation are constant within a cell
 			!* leave it as is otherwise
 
-			if (i_depth < cfg%i_max_depth .and. l_relevant .and. (l_refine_sat .or. i_depth < cfg%i_min_depth)) then
+			if (i_depth < cfg%i_max_depth .and. (l_refine_p .or. l_refine_sat .or. i_depth < cfg%i_min_depth)) then
 				_log_write(5, "(A, T30, A, I0, A, L, A, ES9.2)") "  refinement issued:", "depth ", i_depth, ", sat ", l_refine_sat, ", perm ", base_permeability
 
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if ((i_depth > cfg%i_min_depth .and. l_coarsen_p .and. l_coarsen_sat) .or. .not. l_relevant) then
+			else if (i_depth > cfg%i_min_depth .and. l_coarsen_p .and. l_coarsen_sat) then
 				_log_write(5, "(A, T30, A, I0, A, L, A, L, A, ES9.2)") "  coarsening issued:", "depth ", i_depth, ", p ", l_coarsen_p, ", sat ", l_coarsen_sat, ", perm ", base_permeability
 
 				i_refinement = -1
