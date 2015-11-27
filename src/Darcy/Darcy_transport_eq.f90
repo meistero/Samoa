@@ -13,8 +13,6 @@
 
 		use Samoa_darcy
 
-		public compute_upwind_flux_1D, compute_fluxes_2D, compute_fluxes_3D, compute_flux_vector_2D, compute_flux_vector_3D
-
         type num_traversal_data
             real (kind = GRID_SR)               :: prod_w(4), prod_n(4)
         end type

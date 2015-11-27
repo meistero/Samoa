@@ -11,8 +11,6 @@
 
 		use Samoa_darcy
 
-		public compute_base_flux_1D, compute_base_fluxes_2D, compute_base_fluxes_3D
-
         type num_traversal_data
 			real (kind = GRID_SR)				:: r_dt					!< global minimum time step
         end type
