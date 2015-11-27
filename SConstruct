@@ -46,6 +46,14 @@ vars.AddVariables(
                 allowed_values=('upwind', 'lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
               ),
 
+  EnumVariable( 'data_refinement', 'input data refinement method', 'integrate',
+                allowed_values=('integrate', 'sample')
+              ),
+
+  EnumVariable( 'perm_averaging', 'permeability averaging', 'harmonic',
+                allowed_values=('arithmetic', 'geometric', 'harmonic')
+              ),
+
   EnumVariable( 'mobility', 'mobility term for porous media flow', 'quadratic',
                 allowed_values=('linear', 'quadratic', 'brooks-corey')
               ),
@@ -238,8 +246,22 @@ if env['mobility'] == 'quadratic':
 elif env['mobility'] == 'brooks-corey':
   env['F90FLAGS'] += ' -D_DARCY_MOB_BROOKS_COREY'
 
-if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind', 'fwave']:
-  print "Error: flux solver must be one of ", ['upwind', 'fwave']
+#Choose a data refinement method
+if env['data_refinement'] == 'integrate':
+  env['F90FLAGS'] += ' -D_ADAPT_INTEGRATE'
+if env['data_refinement'] == 'sample':
+  env['F90FLAGS'] += ' -D_ADAPT_SAMPLE'
+
+#Choose a permeability averaging
+if env['perm_averaging'] == 'arithmetic':
+  env['F90FLAGS'] += ' -D_PERM_MEAN_ARITHMETIC'
+if env['perm_averaging'] == 'geometric':
+  env['F90FLAGS'] += ' -D_PERM_MEAN_GEOMETRIC'
+elif env['perm_averaging'] == 'harmonic':
+  env['F90FLAGS'] += ' -D_PERM_MEAN_HARMONIC'
+
+if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind']:
+  print "Error: flux solver must be one of ", ['upwind']
   Exit(-1)
 
 if env['scenario'] == 'swe' and env['flux_solver'] in ['upwind']:
@@ -289,9 +311,12 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -Ofast -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
     env['LINKFLAGS'] += '  -Ofast -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
 
-#In case the Intel compiler is active, add a vectorization report (can gnu do this too?)
+#In case the Intel compiler is active, add a vectorization report
 if env['compiler'] == 'intel':
   env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
+else:
+  env['F90FLAGS'] += ' -ftree-vectorizer-verbose=' + env['vec_report']
+  env['LINKFLAGS'] += ' -ftree-vectorizer-verbose=' + env['vec_report']
 
 #Set target machine (currently Intel only. Feel free to add GNU options if needed)
 if env['compiler'] == 'intel':

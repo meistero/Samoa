@@ -121,7 +121,7 @@
 
 			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
             real (kind = GRID_SR)   :: x(3), p(2), v1(2), v2(2), buffer(2), alpha, beta
-			integer					:: i, j, k, level, n
+            integer					:: i, j, k, level, nx, nz, k_start, k_end, no_samples(_DARCY_LAYERS)
 
             !make sure, the effective volume never turns out to be 0
             porosity = epsilon(1.0_SR)
@@ -168,75 +168,99 @@
 
 			!permeability & porosity
 
-#define     _ADAPT_INTEGRATE
-!#define     _ADAPT_SAMPLE
 #           if defined(_ADAPT_INTEGRATE)
 #               if (_DARCY_LAYERS > 0)
 #                   if defined(_ASAGI)
-                        n = max(1, int(cfg%scaling * get_edge_size(dest_element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_permeability_X, 0)))
+                        nx = max(1, int(cfg%scaling * get_edge_size(dest_element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_permeability_X, 1)))
+                        nz = max(1, int(cfg%scaling * cfg%dz * real(_DARCY_LAYERS, SR) / asagi_grid_delta(cfg%afh_permeability_X, 2)))
 #                   else
-                        n = max(1, int(512.0_SR * get_edge_size(dest_element%cell%geometry%i_depth)))
+                        nx = max(1, int(512.0_SR * get_edge_size(dest_element%cell%geometry%i_depth)))
+                        nz = 1
 #                   endif
 
                     p = samoa_barycentric_to_world_point(dest_element%transform_data, [0.0_SR, 0.0_SR])
                     v1 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, 0.5_SR])
                     v2 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, -0.5_SR])
 
-                    dest_element%cell%data_pers%base_permeability(:, 1) = 0.0_SR
-                    dest_element%cell%data_pers%base_permeability(:, 2) = 0.0_SR
-                    dest_element%cell%data_pers%porosity(:) = 0.0_SR
+                    dest_element%cell%data_pers%base_permeability = 0.0_SR
+                    dest_element%cell%data_pers%porosity = 0.0_SR
 
-                    do i = 0, n - 1
-                        alpha = (i + 0.5_SR) / real(n, SR)
+                    no_samples = 0
+
+                    do i = 0, nx - 1
+                        alpha = (i + 0.5_SR) / real(nx, SR)
 
                         do j = -i, i
-                            beta = real(j, SR) / real(n, SR)
+                            beta = real(j, SR) / real(nx, SR)
                             x(1:2) = p + alpha * v1 + beta * v2
 
                             do level = 1, _DARCY_LAYERS
-                                x(3) = (level - 0.5_SR) / real(_DARCY_LAYERS, SR)
+                                !find the k-range in the source data that we have to read from
+                                !and ensure that we read at least one value from the source data
 
-                                buffer = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+                                k_start = ((level - 1) * nz) / _DARCY_LAYERS + 1
+                                k_end = max(k_start, (level * nz) / _DARCY_LAYERS)
 
-                                dest_element%cell%data_pers%base_permeability(level, 1) = dest_element%cell%data_pers%base_permeability(level, 1) + transform_perm(buffer(1))
-                                dest_element%cell%data_pers%base_permeability(level, 2) = dest_element%cell%data_pers%base_permeability(level, 2) + buffer(2)
-                                dest_element%cell%data_pers%porosity(level) = dest_element%cell%data_pers%porosity(level) + get_porosity(grid, x)
+                                do k = k_start, k_end
+                                    x(3) = (real(k, SR) - 0.5_SR) / real(nz, SR)
+                                    buffer = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+
+                                    dest_element%cell%data_pers%base_permeability(level, :) = dest_element%cell%data_pers%base_permeability(level, :) + mean_transform(buffer)
+                                    dest_element%cell%data_pers%porosity(level) = dest_element%cell%data_pers%porosity(level) + get_porosity(grid, x)
+                                end do
+
+                                no_samples(level) = no_samples(level) + k_end - k_start + 1
                             end do
                         end do
                     end do
 
-                    dest_element%cell%data_pers%base_permeability(:, 1) = transform_perm_inv(dest_element%cell%data_pers%base_permeability(:, 1) / (n * n))
-                    dest_element%cell%data_pers%base_permeability(:, 2) = dest_element%cell%data_pers%base_permeability(:, 2) / (n * n)
-                    dest_element%cell%data_pers%porosity(:) = dest_element%cell%data_pers%porosity(:) / (n * n)
+                    dest_element%cell%data_pers%base_permeability(:, 1) = mean_invert(dest_element%cell%data_pers%base_permeability(:, 1) / no_samples)
+                    dest_element%cell%data_pers%base_permeability(:, 2) = mean_invert(dest_element%cell%data_pers%base_permeability(:, 2) / no_samples)
+
+                    dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity / no_samples
 #               else
 #                   if defined(_ASAGI)
-                        n = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 0)))
+                        nx = max(1, int(cfg%scaling * dest_element%transform_data%custom_data%scaling / asagi_grid_delta(cfg%afh_permeability_X, 1)))
+                        nz = max(1, int(cfg%scaling * cfg%dz / asagi_grid_delta(cfg%afh_permeability_X, 2)))
 #                   else
-                        n = max(1, 512 * int(dest_element%transform_data%custom_data%scaling))
+                        nx = max(1, 512 * int(dest_element%transform_data%custom_data%scaling))
+                        nz = 1
 #                   endif
 
                     p = samoa_barycentric_to_world_point(dest_element%transform_data, [0.0_SR, 0.0_SR])
                     v1 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, 0.5_SR])
                     v2 = samoa_barycentric_to_world_vector(dest_element%transform_data, [0.5_SR, -0.5_SR])
 
-                    x(3) = 1.0e-5_SR
                     dest_element%cell%data_pers%base_permeability = 0.0_SR
                     dest_element%cell%data_pers%porosity = 0.0_SR
 
-                    do i = 0, n - 1
-                        alpha = (i + 0.5_SR) / real(n, SR)
+                    do i = 0, nx - 1
+                        alpha = (i + 0.5_SR) / real(nx, SR)
 
                         do j = -i, i
-                            beta = real(j, SR) / real(n, SR)
+                            beta = real(j, SR) / real(nx, SR)
                             x(1:2) = p + alpha * v1 + beta * v2
 
-                            dest_element%cell%data_pers%base_permeability = dest_element%cell%data_pers%base_permeability + transform_perm(get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI))
-                            dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + get_porosity(grid, x)
+                            !find the k-range in the source data that we have to read from
+                            !and ensure that we read at least one value from the source data
+
+                            k_start = 1
+                            k_end = 1
+
+                            do k = k_start, k_end
+                                x(3) = (real(k, SR) - 0.5_SR) / real(nz, SR)
+                                buffer = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
+
+                                dest_element%cell%data_pers%base_permeability = dest_element%cell%data_pers%base_permeability + mean_transform(buffer(1))
+                                dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + get_porosity(grid, x)
+                            end do
+
+                            no_samples(1) = no_samples(1) + k_end - k_start + 1
                         end do
                     end do
 
-                    dest_element%cell%data_pers%base_permeability = transform_perm_inv(dest_element%cell%data_pers%base_permeability / (n * n))
-                    dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity / (n * n)
+                    dest_element%cell%data_pers%base_permeability = mean_invert(dest_element%cell%data_pers%base_permeability / no_samples(1))
+                    dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity / no_samples(1)
 #               endif
 #           elif defined(_ADAPT_SAMPLE)
                 x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
@@ -257,27 +281,34 @@
 #           endif
 		end subroutine
 
-		elemental function transform_perm(permeability) result(trans_permeability)
-            real (kind = SR), intent(in)    :: permeability
-            real (kind = SR)                :: trans_permeability
+        !> converts the value p to a transformed space where the respective mean is additive
+		elemental function mean_transform(p) result(p_trans)
+            real (kind = SR), intent(in)    :: p
+            real (kind = SR)                :: p_trans
 
-            !trans_permeability = 1.0 / (tiny(1.0_SR) + permeability)
-            !trans_permeability = log(tiny(1.0_SR) + permeability)
-            trans_permeability = permeability
+#           if defined(_PERM_MEAN_ARITHMETIC)
+                p_trans = p
+#           elif defined(_PERM_MEAN_HARMONIC)
+                !this will cause an intended floating point overflow if p = 0. Backtranformation will return the value 0.
+                p_trans = 1.0_SR / p
+#           elif defined(_PERM_MEAN_GEOMETRIC)
+                !this will cause an intended floating point overflow if p = 0. Backtranformation will return the value 0.
+                p_trans = log(p)
+#           endif
 		end function
 
-		elemental function transform_perm_inv(trans_permeability) result(permeability)
-            real (kind = SR), intent(in)    :: trans_permeability
-            real (kind = SR)                :: permeability
+        !> converts the value p_trans back to normal space
+        elemental function mean_invert(p_trans) result(p)
+            real (kind = SR), intent(in)    :: p_trans
+            real (kind = SR)                :: p
 
-            !permeability = 1.0 / trans_permeability
-            !permeability = exp(trans_permeability)
-            permeability = trans_permeability
-
-            !make sure we don't accidentally create unphysical numbers
-            if (permeability < 6.0e-4_SR * 9.869233e-16_SR / (cfg%scaling ** 2)) then
-                permeability = 0.0_SR
-            endif
+#           if defined(_PERM_MEAN_ARITHMETIC)
+                p = p_trans
+#           elif defined(_PERM_MEAN_HARMONIC)
+                p = 1.0_SR / p_trans
+#           elif defined(_PERM_MEAN_GEOMETRIC)
+                p = exp(p_trans)
+#           endif
 		end function
 
 		subroutine coarsen_op(traversal, grid, src_element, dest_element, coarsening_path)
@@ -335,13 +366,7 @@
 
             !permeability and porosity: compute the average
 
-#           if (_DARCY_LAYERS > 0)
-                dest_element%cell%data_pers%base_permeability(:, 1) = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability(:, 1)) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability(:, 1)))
-                dest_element%cell%data_pers%base_permeability(:, 2) = dest_element%cell%data_pers%base_permeability(:, 2) + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%base_permeability(:, 2)
-#           else
-                dest_element%cell%data_pers%base_permeability = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability))
-#           endif
-
+            dest_element%cell%data_pers%base_permeability = mean_invert(mean_transform(dest_element%cell%data_pers%base_permeability) + (0.5_SR ** size(coarsening_path) * mean_transform(src_element%cell%data_pers%base_permeability)))
             dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%porosity
 		end subroutine
 
@@ -351,13 +376,7 @@
  			type(t_grid_section), intent(in)							:: grid
 			type(t_cell_data_ptr), intent(inout)				:: cell
 
-#           if (_DARCY_LAYERS > 0)
-                cell%data_pers%base_permeability(:, 1) = transform_perm_inv(0.0_SR)
-                cell%data_pers%base_permeability(:, 2) = 0.0
-#           else
-                cell%data_pers%base_permeability = transform_perm_inv(0.0_SR)
-#           endif
-
+            cell%data_pers%base_permeability = mean_invert(0.0_SR)
 			cell%data_pers%porosity = 0.0_SR
 		end subroutine
 

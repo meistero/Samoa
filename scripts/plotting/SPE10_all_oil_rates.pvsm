@@ -77,7 +77,7 @@
         <Element index="0" value="0"/>
       </Property>
       <Property name="AnimatedPropertyName" id="36473.AnimatedPropertyName" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
       </Property>
       <Property name="AnimatedProxy" id="36473.AnimatedProxy" number_of_elements="1">
         <Proxy value="36468"/>
@@ -11647,7 +11647,7 @@
         <Domain name="bool" id="40776.Visibility.bool"/>
       </Property>
       <Property name="XArrayName" id="40776.XArrayName" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
         <Domain name="array_list" id="40776.XArrayName.array_list">
           <String text="time"/>
           <String text=" water rate"/>
@@ -16570,7 +16570,7 @@
         <Domain name="range" id="36468.Time.range"/>
       </Property>
       <Property name="TimeLabel" id="36468.TimeLabel" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
       </Property>
       <Property name="TimeRange" id="36468.TimeRange" number_of_elements="2">
         <Element index="0" value="0"/>

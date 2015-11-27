@@ -147,9 +147,9 @@ module config
             "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
 
 #           if (_DARCY_LAYERS > 0)
-                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0 -S_ref_th 1.0d0 "
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d0 -S_ref_th 1.0d0 "
 #           else
-                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75 -S_ref_th 3.0d-1"
+                write(arguments, '(A, A)') trim(arguments), " -p_ref_th 0.75d0 -S_ref_th 0.3d0"
 #           endif
 
 #           if defined(_ASAGI)
@@ -297,7 +297,9 @@ module config
                     PRINT '(A, I0, A)',        "	-lse_skip               number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart             CG restart interval (value: ", config%i_CG_restart, ")"
                     PRINT '(A, L, A)',     "	-lseoutput              enable LSE output (value: ", config%l_lse_output, ")"
-#         	    elif defined(_SWE)
+                    PRINT '(A, ES9.2, A)',  "	-p_ref_th               pressure refinement threshold (value: ", config%p_refinement_threshold, ")"
+                    PRINT '(A, ES9.2, A)',  "	-S_ref_th               saturation refinement threshold (value: ", config%S_refinement_threshold, ")"
+#          	    elif defined(_SWE)
                     PRINT '(A, A, A)',  "	-stestpoints            probe positions (example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
                     PRINT '(A, L, A)',  "	-asciioutput               [usage of -tout required] turns on ascii output (value: ", config%l_ascii_output, ")"
                     PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
@@ -413,19 +415,29 @@ module config
         _log_write(0, '(" Scenario: courant number: ", F0.3)') config%courant_number
 
 #       if defined (_UPWIND_FLUX)
-               _log_write(0, '(" Scenario: Flux solver: ", A)') "Upwind"
+           _log_write(0, '(" Scenario: Flux solver: ", A)') "Upwind"
 #       elif defined (_LF_FLUX)
-               _log_write(0, '(" Scenario: Flux solver: ", A)') "Lax Friedrichs"
+           _log_write(0, '(" Scenario: Flux solver: ", A)') "Lax Friedrichs"
 #       elif defined (_LLF_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Local Lax Friedrichs"
+            _log_write(0, '(" Scenario: Flux solver: ", A)')  "Local Lax Friedrichs"
 #       elif defined(_LF_BATH_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Lax Friedrichs (Bathymetry)"
+            _log_write(0, '(" Scenario: Flux solver: ", A)')  "Lax Friedrichs (Bathymetry)"
 #       elif defined(_LLF_BATH_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)') "Local Lax Friedrichs (Bathymetry)"
+            _log_write(0, '(" Scenario: Flux solver: ", A)') "Local Lax Friedrichs (Bathymetry)"
 #       elif defined(_FWAVE_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)')  "F-Wave"
+            _log_write(0, '(" Scenario: Flux solver: ", A)')  "F-Wave"
 #       elif defined(_AUG_RIEMANN_FLUX)
-                _log_write(0, '(" Scenario: Flux solver: ", A)')  "Augmented Riemann"
+            _log_write(0, '(" Scenario: Flux solver: ", A)')  "Augmented Riemann"
+#       else
+#           error Invalid flux solver!
+#       endif
+
+#       if defined (_ADAPT_INTEGRATE)
+            _log_write(0, '(" Scenario: Input data refinement: ", A)') "Integrate"
+#       elif defined (_ADAPT_SAMPLE)
+            _log_write(0, '(" Scenario: Input data refinement: ", A)') "Sample"
+#       else
+#           error Invalid data refinement method!
 #       endif
 
 #		if defined(_DARCY)
@@ -435,6 +447,34 @@ module config
                 _log_write(0, '(" Darcy: 2D")')
 #           endif
 
+#           if defined (_PERM_MEAN_ARITHMETIC)
+               _log_write(0, '(" Darcy: Permeability averaging: ", A)') "Arithmetic"
+#           elif defined (_PERM_MEAN_GEOMETRIC)
+               _log_write(0, '(" Darcy: Permeability averaging: ", A)') "Geometric"
+
+#               if defined(_DEBUG)
+#                   warning Geometric averaging causes intended floating point overflows, use arithmetic averaging to catch floating point exceptions
+#               endif
+#           elif defined (_PERM_MEAN_HARMONIC)
+               _log_write(0, '(" Darcy: Permeability averaging: ", A)') "Harmonic"
+
+#               if defined(_DEBUG)
+#                   warning Harmonic averaging causes intended floating point overflows, use arithmetic averaging to catch floating point exceptions
+#               endif
+#           else
+#               error Invalid permeability averaging!
+#           endif
+
+#           if defined (_DARCY_MOB_LINEAR)
+               _log_write(0, '(" Darcy: Mobility term: ", A)') "Linear"
+#           elif defined (_DARCY_MOB_QUADRATIC)
+               _log_write(0, '(" Darcy: Mobility term: ", A)') "Quadratic"
+#           elif defined (D_DARCY_MOB_BROOKS_COREY)
+               _log_write(0, '(" Darcy: Mobility term: ", A)') "Brooks-Corey"
+#           else
+#               error Invalid mobility term!
+#           endif
+
             _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
             _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
@@ -442,6 +482,7 @@ module config
             _log_write(0, '(" Darcy: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
             _log_write(0, '(" Darcy: linear solver: error bound: ", ES8.1, ", max iterations: ", I0)') config%r_epsilon, config%i_max_iterations
             _log_write(0, '(" Darcy: CG restart interval: ", I0)') config%i_CG_restart
+            _log_write(0, '(" Darcy: pressure refinement threshold: ", ES9.2, ", saturation refinement threshold: ", ES9.2)') config%p_refinement_threshold, config%S_refinement_threshold
 #		elif defined(_FLASH)
             _log_write(0, '(" Flash: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
 #		elif defined(_SWE)

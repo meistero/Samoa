@@ -77,7 +77,7 @@
         <Element index="0" value="0"/>
       </Property>
       <Property name="AnimatedPropertyName" id="5278.AnimatedPropertyName" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
       </Property>
       <Property name="AnimatedProxy" id="5278.AnimatedProxy" number_of_elements="1">
         <Proxy value="5273"/>
@@ -11325,7 +11325,7 @@
         <Domain name="bool" id="9891.Visibility.bool"/>
       </Property>
       <Property name="XArrayName" id="9891.XArrayName" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
         <Domain name="array_list" id="9891.XArrayName.array_list">
           <String text="time"/>
           <String text=" water rate"/>
@@ -11748,7 +11748,7 @@
         <Domain name="bool" id="9913.Visibility.bool"/>
       </Property>
       <Property name="XArrayName" id="9913.XArrayName" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
         <Domain name="array_list" id="9913.XArrayName.array_list">
           <String text="time"/>
           <String text=" water rate"/>
@@ -12171,7 +12171,7 @@
         <Domain name="bool" id="9935.Visibility.bool"/>
       </Property>
       <Property name="XArrayName" id="9935.XArrayName" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
         <Domain name="array_list" id="9935.XArrayName.array_list">
           <String text="time"/>
           <String text=" water rate"/>
@@ -14104,11 +14104,11 @@
     </Proxy>
     <Proxy group="sources" type="CSVReader" id="9539" servers="1">
       <Property name="FileName" id="9539.FileName" number_of_elements="1">
-        <Element index="0" value="/home/meistero/Documents/Papers/JOCS May15/results/Production/Reference/P1WaterCut.csv"/>
+        <Element index="0" value="/home/meistero/repository/Thesis/porous_media_flow/Production/Reference/P1WaterCut.csv"/>
         <Domain name="files" id="9539.FileName.files"/>
       </Property>
       <Property name="FileNameInfo" id="9539.FileNameInfo" number_of_elements="1">
-        <Element index="0" value="/home/meistero/Documents/Papers/JOCS May15/results/Production/Reference/P1WaterCut.csv"/>
+        <Element index="0" value="/home/meistero/repository/Thesis/porous_media_flow/Production/Reference/P1WaterCut.csv"/>
       </Property>
       <Property name="TimestepValues" id="9539.TimestepValues"/>
       <Property name="DetectNumericColumns" id="9539.DetectNumericColumns" number_of_elements="1">
@@ -26307,7 +26307,7 @@
         <Domain name="range" id="5273.Time.range"/>
       </Property>
       <Property name="TimeLabel" id="5273.TimeLabel" number_of_elements="1">
-        <Element index="0" value="Time"/>
+        <Element index="0" value="time"/>
       </Property>
       <Property name="TimeRange" id="5273.TimeRange" number_of_elements="2">
         <Element index="0" value="0"/>

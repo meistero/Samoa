@@ -112,8 +112,6 @@
             real (kind = GRID_SR)   :: x(2), p(2), v1(2), v2(2), alpha, beta
 			integer					:: i, j, n
 
-#define     _ADAPT_INTEGRATE
-!#define     _ADAPT_SAMPLE
 #           if defined(_ADAPT_INTEGRATE)
 #               if defined(_ASAGI)
                     n = min(128, max(1, int(cfg%scaling * get_edge_size(element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_bathymetry, 0))))
