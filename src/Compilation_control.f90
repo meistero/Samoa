@@ -113,3 +113,51 @@
 #define _log_close_file				call log_close_file
 #define _log_write(dl, f)			if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit,'(A, A, I0, A, I0, A)',advance='no') term_color(omp_get_thread_num() * size_MPI + rank_MPI), "(r", rank_MPI, ",t", omp_get_thread_num(), ") "; if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit, f)
 
+!Standard units:
+
+!> one unit meter, defined as the width and height of the full grid
+#define _UM     1.0_GRID_SR
+
+!> one second
+#define _S      1.0_GRID_SR
+
+!> one kilogram
+#define _KG     1.0_GRID_SR
+
+!Derived units and their conversion rules:
+
+!> Meter
+#define _M      (_UM / cfg%scaling)
+!> Minutes
+#define _MIN    (_S * 60.0_GRID_SR)
+!> Hours
+#define _H      (_MIN * 60.0_GRID_SR)
+!> Days
+#define _D      (_H * 24.0_GRID_SR)
+!> Newton
+#define _N      (_KG * _M / (_S * _S))
+!> Pascal
+#define _PA     (_N / (_M * _M))
+!> Centipoise
+#define _CP     (_PA * 1.0e-3_SR)
+!> Barrel (Oil)
+#define _BBL    (((_M) ** 3) / 6.2898105697751_GRID_SR)
+!> Inch
+#define _INCH   (_M / 39.3701_GRID_SR)
+!> Feet
+#define _FT     (_INCH * 12.0_GRID_SR)
+!> Pound
+#define _LB     (_KG * 0.453592_SR)
+!> Pound Force
+#define _LBF    (_LB * _G)
+!> Pound Force Per Square Inch
+#define _PPSI   (_LBF / (_INCH ** 2))
+!Millidarcy
+#define _MDY    (_DY * 1.0e-3_SR)
+!Darcy
+#define _DY     ((_M ** 2) * 9.869233e-13_SR)
+
+!Physical constants:
+
+!> Earth acceleration
+#define _G      9.80665 * _M / (_S ** 2)

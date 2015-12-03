@@ -191,8 +191,8 @@
 
 #           if defined(_ADAPT_INTEGRATE)
 #               if defined(_ASAGI)
-                    ddepth = nint(log(cfg%scaling * cfg%scaling / (asagi_grid_delta(cfg%afh_permeability_X, 0) * asagi_grid_delta(cfg%afh_permeability_X, 1))) / log(2.0_SR)) - element%cell%geometry%i_depth
-                    nz = max(1, nint(cfg%scaling * cfg%dz * real(max(1, _DARCY_LAYERS, SR)) / asagi_grid_delta(cfg%afh_permeability_X, 2)))
+                    ddepth = nint(log(1.0_SR / (asagi_grid_delta(cfg%afh_permeability_X, 0) * asagi_grid_delta(cfg%afh_permeability_X, 1) * _M * _M)) / log(2.0_SR)) - element%cell%geometry%i_depth
+                    nz = max(1, nint(cfg%dz * real(max(1, _DARCY_LAYERS, SR)) / (asagi_grid_delta(cfg%afh_permeability_X, 2)  * _M)))
 #               else
                     ddepth = cfg%i_max_depth - element%cell%geometry%i_depth
                     nz = 1
@@ -274,7 +274,7 @@
 #                   endif
 
                     !permeability is given in millidarcy
-                    permeability = permeability * 9.869233e-16_SR / (cfg%scaling ** 2)
+                    permeability = permeability * _MDY
                 else
                     permeability = 0.0_SR
                 end if
@@ -287,7 +287,8 @@
                     porosity = 0.0_SR
                 end if
 #           else
-                permeability = 5.0e-12_SR / (cfg%scaling ** 2)
+                !set the permeability in m^2
+                permeability = 5.0e-12_SR * (_M * _M)
                 porosity = 0.2_SR
 #           endif
 

@@ -192,7 +192,7 @@
 
                 write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
                 do i = 0, 4
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
                 end do
 
                 close(f_out)
@@ -407,8 +407,8 @@
                     cell_data%rank(i_cell_data_index) = rank_MPI
                     cell_data%section_index(i_cell_data_index) = section_index
                     !convert the permeability back to millidarcy
-                    cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
+                    cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / _MDY
+                    cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / _MDY
 
                     !the grid porosity also contains residual saturation which has to be removed for output
                     cell_data%porosity(i_cell_data_index) = porosity(layer) / (1.0_SR - cfg%S_wr - cfg%S_nr)
@@ -417,7 +417,7 @@
                     flux_t(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_t(1:2))
                     flux_t(1:2) = flux_t(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                    cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_t  !return the flux in m/s
+                    cell_data%u(i_cell_data_index, :) = flux_t / (_M / _S)  !return the flux in m/s
 
                     cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                     cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
@@ -445,8 +445,8 @@
                     forall (i = 1 : 3)
                         point_data%coords(point_data_indices(layer, i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
                         point_data%coords(point_data_indices(layer, i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
-                        point_data%p(point_data_indices(layer, i)) = p(layer, i) / (cfg%scaling * 6894.75729_SR)
-                        point_data%rhs(point_data_indices(layer, i)) = rhs(layer, i) * (cfg%scaling ** 3)
+                        point_data%p(point_data_indices(layer, i)) = p(layer, i) / _PPSI                !return the pressure in ppsi
+                        point_data%rhs(point_data_indices(layer, i)) = rhs(layer, i) / ((_M ** 3) / _S) !return the rhs in m^3 / s
                         point_data%S(point_data_indices(layer, i)) = saturation(layer, i)
                     end forall
                 end do
@@ -457,7 +457,7 @@
                 cell_data%section_index(i_cell_data_index) = section_index
 
                 !convert the permeability back to millidarcy
-                cell_data%permeability(i_cell_data_index, :) = base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
+                cell_data%permeability(i_cell_data_index, :) = base_permeability / _MDY
 
                 !the grid porosity also contains residual saturation which has to be removed for output
                 cell_data%porosity(i_cell_data_index) = porosity / (1.0_SR - cfg%S_wr - cfg%S_nr)
@@ -471,7 +471,7 @@
                 flux_t = samoa_barycentric_to_world_normal(element%transform_data, flux_t)
                 flux_t = flux_t * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                cell_data%u(i_cell_data_index, 1:2) = cfg%scaling * flux_t
+                cell_data%u(i_cell_data_index, 1:2) = flux_t / (_M / _S)    !return the flux in m/s
                 cell_data%u(i_cell_data_index, 3) = 0.0_SR
 
                 cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
@@ -480,8 +480,8 @@
                 forall (i = 1 : 3)
                     point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
                     point_data%coords(point_data_indices(i), 3) = 0.0_SR
-                    point_data%p(point_data_indices(i)) = p(i) / (cfg%scaling * 6894.75729_SR)
-                    point_data%rhs(point_data_indices(i)) = rhs(i) * (cfg%scaling ** 2)
+                    point_data%p(point_data_indices(i)) = p(i) / _PPSI                  !return the pressure in ppsi
+                    point_data%rhs(point_data_indices(i)) = rhs(i) / ((_M ** 2) / _S)   !return the rhs in m^2 / s
                     point_data%S(point_data_indices(i)) = saturation(i)
                 end forall
 

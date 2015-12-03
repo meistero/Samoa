@@ -116,13 +116,13 @@
                 traversal%prod_n = traversal%prod_n * cfg%dz
 #           endif
 
-            !accumulated production in bbl += dt in s * um^3/s * (6.28981077 bbl/m^3) * (cfg%scaling m/um)^3
-            grid%prod_w_acc = grid%prod_w_acc + traversal%prod_w * grid%r_dt * (6.28981077_SR) * (cfg%scaling ** 3)
-            grid%prod_n_acc = grid%prod_n_acc + traversal%prod_n * grid%r_dt * (6.28981077_SR) * (cfg%scaling ** 3)
+            !accumulated production in bbl
+            grid%prod_w_acc = grid%prod_w_acc + (traversal%prod_w * grid%r_dt) / _BBL
+            grid%prod_n_acc = grid%prod_n_acc + (traversal%prod_n * grid%r_dt) / _BBL
 
-            !production rate in bbl/d = um^3/s * (6.28981077 bbl/m^3) * (cfg%scaling m/um)^3 * (86400 s/d)
-            grid%prod_w = traversal%prod_w * (6.28981077_SR * 86400.0_SR) * (cfg%scaling ** 3)
-            grid%prod_n = traversal%prod_n * (6.28981077_SR * 86400.0_SR) * (cfg%scaling ** 3)
+            !production rate in bbl/d
+            grid%prod_w = traversal%prod_w / (_BBL / _D)
+            grid%prod_n = traversal%prod_n / (_BBL / _D)
 
 			grid%r_time = grid%r_time + grid%r_dt
 		end subroutine
