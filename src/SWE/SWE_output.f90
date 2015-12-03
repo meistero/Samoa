@@ -99,7 +99,7 @@
 
 			type(t_section_info)                                           :: grid_info
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
-			character (len = 64)										:: s_file_name
+			character (len = 256)										:: s_file_name
 			integer(4)													:: e_io, i
 
             grid_info = grid%get_info()

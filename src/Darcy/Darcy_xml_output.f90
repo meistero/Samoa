@@ -45,7 +45,7 @@
             type(t_output_point_data)                               :: point_data
             type(t_output_cell_data)                                :: cell_data
             integer (kind = GRID_SI), allocatable			        :: i_connectivity(:)
-            character(len=64)							            :: s_file_stamp
+            character(len=256)							            :: s_file_stamp
 
             integer (kind = GRID_SI)								:: i_output_iteration = 0
             integer (kind = GRID_SI)								:: i_point_data_index
@@ -97,7 +97,7 @@
 			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			character (len = 64)							:: s_file_name
+			character (len = 256)							:: s_file_name
             integer                                         :: i_error
 			integer(4)										:: i_rank, i_section, e_io
 			logical                                         :: l_exists
@@ -119,7 +119,7 @@
                     ! write VTK data
                     !******************
 
-                    write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+                    write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
 
                     e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
                         e_io = vtk%VTK_DAT_XML('pfield', 'OPEN')
@@ -184,7 +184,7 @@
                 prod_w_acc(0)= sum(prod_w_acc(1:4))
                 prod_n_acc(0) = sum(prod_n_acc(1:4))
 
-                write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
+                write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
 
                 f_out = get_free_file_unit()
 
@@ -192,7 +192,7 @@
 
                 write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
                 do i = 0, 4
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (tiny(1.0_SR) + prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (tiny(1.0_SR) + sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
                 end do
 
                 close(f_out)
@@ -229,6 +229,7 @@
  			type(t_darcy_xml_output_traversal), intent(inout)			:: traversal
 			type(t_grid_section), intent(inout)							:: section
 
+			character (len = 256)							            :: s_file_name
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
 			integer (1), dimension(:), allocatable						:: i_types
             type(t_vtk_writer)                                          :: vtk
@@ -259,12 +260,12 @@
                 end forall
 #           endif
 
-			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
+			write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
 #           if defined(_QUAD_PRECISION)
 #               warning VTK output does not work for quad precision
 #           else
-                e_io = vtk%VTK_INI_XML('binary', traversal%s_file_stamp, 'UnstructuredGrid')
+                e_io = vtk%VTK_INI_XML('binary', s_file_name, 'UnstructuredGrid')
                     e_io = vtk%VTK_DAT_XML('field', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(1, 'time', [section%r_time])
                     e_io = vtk%VTK_DAT_XML('field', 'CLOSE')
@@ -405,22 +406,37 @@
                 do layer = 1, _DARCY_LAYERS
                     cell_data%rank(i_cell_data_index) = rank_MPI
                     cell_data%section_index(i_cell_data_index) = section_index
+                    !convert the permeability back to millidarcy
                     cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
                     cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
+
                     !the grid porosity also contains residual saturation which has to be removed for output
                     cell_data%porosity(i_cell_data_index) = porosity(layer) / (1.0_SR - cfg%S_wr - cfg%S_nr)
 
-                    flux_t = flux_w(layer, :) + flux_n(layer, :)
+                    flux_t = 2.0_SR * (flux_w(layer, :) + flux_n(layer, :))
                     flux_t(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_t(1:2))
                     flux_t(1:2) = flux_t(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                    cell_data%u(i_cell_data_index, :) = cfg%scaling * 2.0_SR * flux_t
+                    cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_t  !return the flux in m/s
 
                     cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                     cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
-                    i_connectivity(6 * i_cell_data_index - 5 : 6 * i_cell_data_index - 3) = point_data_indices(layer, :) - 1
-                    i_connectivity(6 * i_cell_data_index - 2 : 6 * i_cell_data_index) = point_data_indices(layer + 1, :) - 1
+                    if (element%transform_data%plotter_data%orientation > 0) then
+                        i_connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 1) - 1
+                        i_connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 3) - 1
+                        i_connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 1) - 1
+                        i_connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 3) - 1
+                    else
+                        i_connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 3) - 1
+                        i_connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 1) - 1
+                        i_connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 3) - 1
+                        i_connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 1) - 1
+                    end if
 
                     i_cell_data_index = i_cell_data_index + 1
                 end do
@@ -439,19 +455,23 @@
 
                 cell_data%rank(i_cell_data_index) = rank_MPI
                 cell_data%section_index(i_cell_data_index) = section_index
+
+                !convert the permeability back to millidarcy
                 cell_data%permeability(i_cell_data_index, :) = base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
-                cell_data%porosity(i_cell_data_index) = porosity
+
+                !the grid porosity also contains residual saturation which has to be removed for output
+                cell_data%porosity(i_cell_data_index) = porosity / (1.0_SR - cfg%S_wr - cfg%S_nr)
 
                 !compute fluxes
 
                 call compute_base_fluxes_2D(p, base_permeability, edge_length, 1.0_SR, g_local(1:2), u_w, u_n)
                 call compute_flux_vector_2D(saturation, u_w, u_n, flux_w, flux_n)
 
-                flux_t = flux_w + flux_n
+                flux_t = 2.0_SR * (flux_w + flux_n)
                 flux_t = samoa_barycentric_to_world_normal(element%transform_data, flux_t)
                 flux_t = flux_t * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                cell_data%u(i_cell_data_index, 1:2) = cfg%scaling * 2.0_SR * flux_t
+                cell_data%u(i_cell_data_index, 1:2) = cfg%scaling * flux_t
                 cell_data%u(i_cell_data_index, 3) = 0.0_SR
 
                 cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
@@ -465,7 +485,15 @@
                     point_data%S(point_data_indices(i)) = saturation(i)
                 end forall
 
-                i_connectivity(3 * i_cell_data_index - 2 : 3 * i_cell_data_index) = point_data_indices(1:3) - 1
+                if (element%transform_data%plotter_data%orientation > 0) then
+                    i_connectivity(3 * i_cell_data_index - 2) = point_data_indices(1) - 1
+                    i_connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
+                    i_connectivity(3 * i_cell_data_index - 0) = point_data_indices(3) - 1
+                else
+                    i_connectivity(3 * i_cell_data_index - 2) = point_data_indices(3) - 1
+                    i_connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
+                    i_connectivity(3 * i_cell_data_index - 0) = point_data_indices(1) - 1
+                end if
 
                 i_cell_data_index = i_cell_data_index + 1
 #           endif

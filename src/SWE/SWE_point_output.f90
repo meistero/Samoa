@@ -45,7 +45,7 @@
 		real (kind = GRID_SR), allocatable		:: r_testpoints(:,:)
 
         integer, parameter      :: out_unit = 20
-        character (len = 128)   :: pout_file_name
+        character (len = 256)   :: pout_file_name
 
 		type(t_gv_Q)			:: gv_Q
 

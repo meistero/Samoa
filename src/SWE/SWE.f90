@@ -310,7 +310,7 @@
                 ! during the earthquake, do small time steps that include a displacement
 
                 do
-                    if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
+                    if ((cfg%r_max_time >= 0.0 .and. grid%r_time >= cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
                         exit
                     end if
 
@@ -331,7 +331,7 @@
                         grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                         !$omp master
-                        _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                        _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0)') " SWE: EQ time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), " , dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
                         !$omp end master
                     end if
 
@@ -362,7 +362,7 @@
             !regular tsunami time steps begin after the earthquake is over
 
 			do
-				if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
+				if ((cfg%r_max_time >= 0.0 .and. grid%r_time >= cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
 					exit
 				end if
 
@@ -376,7 +376,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0)') " SWE: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), " , dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
                     !$omp end master
                 end if
 
