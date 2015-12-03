@@ -1,20 +1,51 @@
+compiler='gnu'
+max_depths='8 9 10 11 12 13 14'
+perm_averagings='arithmetic geometric harmonic'
+fperm="data/darcy_five_spot/spe_perm_renamed.nc"
+fpor="data/darcy_five_spot/spe_phi_renamed.nc"
 layers=32
-dmax=16
 epsilon=3.0e-5
-perm_averaging='harmonic'
-
-echo "Compiling (skip with Ctrl-C)..."
-
-scons config=gnu_release.py flux_solver='upwind' layers=$layers perm_averaging=$perm_averaging -j4
+p_ref_th=1.0e-8
+S_ref_th=1.0e2
 
 virtual_cores=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
 threads_per_core=$(lscpu | grep "^Thread(s) per core" | grep -oE "[0-9]+" | tr "\n" " ")
 cores=$(( $virtual_cores / $threads_per_core ))
 
-command="bin/samoa_darcy_notasks_upwind_gnu_l"$layers" -sections 1 -threads "$cores" -dmax "$dmax" -xmloutput -tout 86.4e4 -tmax 345.6e5 -epsilon $epsilon -S_ref_th 0.5 -p_ref_th 5.0e-9 -courant 0.5"
+echo "SPE10 scenario execution script."
+echo ""
+echo "compiler          : "$compiler
+echo "max depths        : "$max_depths
+echo "perm. averaging   : "$perm_averagings
+echo "perm. file        : "$fperm
+echo "porosity file     : "$fpor
+echo "layers            : "$layers
+echo ""
+
+echo ""
+echo "Compiling (skip with Ctrl-C)..."
+echo ""
+
+for perm_averaging in $perm_averagings
+do
+    exe="samoa_darcy_"$compiler"_l"$layers"_"$perm_averaging
+    scons config=$compiler"_release.py" flux_solver='upwind' layers=$layers perm_averaging=$perm_averaging exe=$exe -j4      
+done
 
 echo "Running..."
 
-echo $command > "output/SPE10_l"$layers"_d"$dmax"_"$perm_averaging".log"
-$command | tee -a "output/SPE10_l"$layers"_d"$dmax"_"$perm_averaging".log"
+for dmax in $max_depths
+do
+    for perm_averaging in $perm_averagings
+    do
+        exe="samoa_darcy_"$compiler"_l"$layers"_"$perm_averaging
 
+        output_dir="output/SPE10_"$compiler"_l"$layers"_"$perm_averaging"_d"$dmax
+        mkdir -p $output_dir
+
+        command="bin/$exe -fperm $fperm -fpor $fpor -sections 1 -threads $cores -dmax $dmax -xmloutput -tout 86.4e4 -tmax 172.8e6 -epsilon $epsilon -S_ref_th $S_ref_th -p_ref_th $p_ref_th -courant 1.0 -output_dir $output_dir"
+
+        echo $command > $output_dir"/SPE10_"$compiler"_l"$layers"_"$perm_averaging"_d"$dmax.log
+        $command | tee -a $output_dir"/SPE10_"$compiler"_l"$layers"_"$perm_averaging"_d"$dmax.log
+    done
+done

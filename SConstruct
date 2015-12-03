@@ -42,7 +42,7 @@ vars.AddVariables(
                 allowed_values=('darcy', 'swe', 'generic', 'flash') #, 'heat_eq', 'tests')
               ),
 
-  EnumVariable( 'flux_solver', 'flux solver for FV problems', 'aug_riemann',
+  EnumVariable( 'flux_solver', 'flux solver for FV problems', 'upwind',
                 allowed_values=('upwind', 'lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
               ),
 
@@ -106,6 +106,7 @@ vars.AddVariables(
 )
 
 vars.Add('layers', 'number of vertical layers (0: 2D, >0: 3D)', 0)
+vars.Add('exe', 'name of the executable. Per default, some compilation options will be added as suffixes.', 'samoa')
 
 # set environment
 if 'INTEL_LICENSE_FILE' in os.environ:
@@ -352,34 +353,38 @@ Help(vars.GenerateHelpText(env))
 #
 # setup the program name and the build directory
 #
-program_name = 'samoa'
 
-# add descriptors to the executable for any argument that is not default
-program_name += '_' + env['scenario']
+if env['exe'] == 'samoa':
+    program_name = 'samoa'
 
-if env['openmp'] != 'tasks':
-  program_name += '_' + env['openmp']
+    # add descriptors to the executable for any argument that is not default
+    program_name += '_' + env['scenario']
 
-if env['mpi'] != 'default':
-  program_name += '_' + env['mpi']
+    if env['openmp'] != 'tasks':
+      program_name += '_' + env['openmp']
 
-if not env['asagi']:
-  program_name += '_' + env['asagi']
+    if env['mpi'] != 'default':
+      program_name += '_' + env['mpi']
 
-if env['flux_solver'] != 'aug_riemann':
-  program_name += '_' + env['flux_solver']
+    if not env['asagi']:
+      program_name += '_' + env['asagi']
 
-if env['precision'] != 'double':
-  program_name += '_' + env['precision']
+    if env['flux_solver'] != 'aug_riemann':
+      program_name += '_' + env['flux_solver']
 
-if env['compiler'] != 'intel':
-  program_name += '_' + env['compiler']
+    if env['precision'] != 'double':
+      program_name += '_' + env['precision']
 
-if env['layers'] > 0:
-  program_name += '_l' + str(env['layers'])
+    if env['compiler'] != 'intel':
+      program_name += '_' + env['compiler']
 
-if env['target'] != 'release':
-  program_name += '_' + env['target']
+    if env['layers'] > 0:
+      program_name += '_l' + str(env['layers'])
+
+    if env['target'] != 'release':
+      program_name += '_' + env['target']
+else:
+    program_name = env['exe']
 
 if env['library']:
   program_name = 'lib' + program_name + '.so'
