@@ -21,7 +21,7 @@
 		type(darcy_gv_p)						:: gv_p
 		type(darcy_gv_saturation)				:: gv_saturation
 
-		public get_base_permeability, get_porosity
+		public get_permeability_and_porosity_at_element, get_permeability_and_porosity_at_position, mean_transform, mean_invert
 
 #		define	_GT_NAME						t_darcy_init_pressure_traversal
 
@@ -51,7 +51,10 @@
  			type(t_grid_section), intent(inout)							:: section
 			type(t_element_base), intent(inout)											:: element
 
-			call alpha_volume_op(section, element, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
+			call get_permeability_and_porosity_at_element(section, element, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
+
+            !set initial refinement to 0
+            element%cell%geometry%refinement = 0
 		end subroutine
 
 		subroutine node_first_touch_op(traversal, section, nodes)
@@ -79,52 +82,166 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine alpha_volume_op(section, element, base_permeability, porosity)
- 			type(t_grid_section), intent(inout)							:: section
-			type(t_element_base), intent(in)									:: element
+        !> converts the value p to a transformed space where the respective mean is additive
+		elemental function mean_transform(p) result(p_trans)
+            real (kind = SR), intent(in)    :: p
+            real (kind = SR)                :: p_trans
+
+#           if defined(_PERM_MEAN_ARITHMETIC)
+                p_trans = p
+#           elif defined(_PERM_MEAN_HARMONIC)
+                !this will cause an intended floating point overflow if p = 0. Backtranformation will return the value 0.
+                p_trans = 1.0_SR / p
+#           elif defined(_PERM_MEAN_GEOMETRIC)
+                !this will cause an intended floating point overflow if p = 0. Backtranformation will return the value 0.
+                p_trans = log(p)
+#           endif
+		end function
+
+        !> converts the value p_trans back to normal space
+        elemental function mean_invert(p_trans) result(p)
+            real (kind = SR), intent(in)    :: p_trans
+            real (kind = SR)                :: p
+
+#           if defined(_PERM_MEAN_ARITHMETIC)
+                p = p_trans
+#           elif defined(_PERM_MEAN_HARMONIC)
+                p = 1.0_SR / p_trans
+#           elif defined(_PERM_MEAN_GEOMETRIC)
+                p = exp(p_trans)
+#           endif
+		end function
+
+        recursive subroutine refine_2D_recursive(section, x1, x2, x3, perm, por, no_samples, depth, nz)
+ 			type(t_grid_section), intent(inout)     :: section
+            real (kind = GRID_SR), intent(in)       :: x1(:), x2(:), x3(:)
+            integer, intent(in)                     :: depth, nz
 
 #           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), intent(out)									:: base_permeability(:, :)
-                real (kind = GRID_SR), intent(out)									:: porosity(:)
-
-                real (kind = GRID_SR)       :: x(3)
-                integer (kind = GRID_SI)    :: i
-
-                x(1:2) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
-
-                do i = 1, _DARCY_LAYERS
-                    x(3) = (i - 0.5_SR) / real(_DARCY_LAYERS, SR)
-
-                    !horizontal permeability is assumed to be isotropic
-                    base_permeability(i, :) = get_base_permeability(section, x, element%cell%geometry%i_depth / 2_GRID_SI)
-                    porosity(i) = get_porosity(section, x)
-                end do
+                real (kind = GRID_SR), intent(inout)    :: perm(:, :), por(:)
+                integer, intent(inout)                  :: no_samples(:)
+                real (kind = GRID_SR)                   :: perm_buffer(2), por_buffer
 #           else
-                real (kind = GRID_SR), intent(out)									:: base_permeability
-                real (kind = GRID_SR), intent(out)									:: porosity
-
-                real (kind = GRID_SR)   :: x(3)
-
-                x(1:2) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
-                x(3) = 1.0e-5_SR
-
-                base_permeability = get_base_permeability(section, x, element%cell%geometry%i_depth / 2_GRID_SI)
-                porosity = get_porosity(section, x)
+                real (kind = GRID_SR), intent(inout)    :: perm, por
+                integer, intent(inout)                  :: no_samples
+                real (kind = GRID_SR)                   :: perm_buffer, por_buffer
 #           endif
 
-            !set initial refinement to 0
-            element%cell%geometry%refinement = 0
- 		end subroutine
+            real (kind = GRID_SR) :: x(3)
+            integer :: i, level, k, k_start, k_end
 
-		function get_base_permeability(section, x, lod) result(r_base_permeability)
- 			type(t_grid_section), intent(inout)					:: section
-			real (kind = GRID_SR), intent(in)		            :: x(:)						!< position in world coordinates
-			integer (kind = GRID_SI), intent(in)				:: lod						!< level of detail
+            if (depth > 0) then
+                call refine_2D_recursive(section, x1, 0.5_SR * (x1 + x3), x2, perm, por, no_samples, depth - 1, nz)
+                call refine_2D_recursive(section, x2, 0.5_SR * (x1 + x3), x3, perm, por, no_samples, depth - 1, nz)
+            else
+                x(1:2) = (x1 + x2 + x3) / 3.0_SR
+
+#               if (_DARCY_LAYERS > 0)
+                    do level = 1, _DARCY_LAYERS
+                        !find the k-range in the source data that we have to read from
+                        !and ensure that we read at least one value from the source data
+                        k_start = ((level - 1) * nz) / _DARCY_LAYERS + 1
+                        k_end = max(k_start, (level * nz) / _DARCY_LAYERS)
+
+                        do k = k_start, k_end
+                            x(3) = (real(k, SR) - 0.5_SR) / real(nz, SR)
+                            call get_permeability_and_porosity_at_position(section, x, perm_buffer, por_buffer)
+                            perm(level, :) = perm(level, :) + mean_transform(perm_buffer)
+                            por(level) = por(level) + por_buffer
+                        end do
+
+                        no_samples(level) = no_samples(level) + (k_end - k_start + 1)
+                    end do
+#               else
+                    k_start = 1
+                    k_end = 1
+
+                    do k = k_start, k_end
+                        x(3) = (real(k, SR) - 0.5_SR) / real(nz, SR)
+                        call get_permeability_and_porosity_at_position(section, x, perm_buffer, por_buffer)
+                        perm = perm + mean_transform(perm_buffer)
+                        por = por + por_buffer
+                    end do
+
+                    no_samples = no_samples + (k_end - k_start + 1)
+#               endif
+            end if
+        end subroutine
+
+        subroutine get_permeability_and_porosity_at_element(section, element, permeability, porosity)
+			type(t_grid_section), intent(inout)     :: section
+			type(t_element_base), intent(inout)     :: element
 
 #           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR)							:: r_base_permeability(2)	!< permeability tensor
+                real (kind = GRID_SR), intent(out)		:: permeability(:, :)	!< permeability tensor
+                real (kind = GRID_SR), intent(out)		:: porosity(:)          !< porosity
 #           else
-                real (kind = GRID_SR)							:: r_base_permeability		!< permeability tensor
+                real (kind = GRID_SR), intent(out)		:: permeability		    !< permeability tensor
+                real (kind = GRID_SR), intent(out)		:: porosity	            !< porosity
+#           endif
+
+            real (kind = GRID_SR)   :: x, x1(2), x2(2), x3(2)
+            integer					:: level, i, ddepth, nz
+
+#           if (_DARCY_LAYERS > 0)
+                integer :: no_samples(_DARCY_LAYERS)
+#           else
+                integer :: no_samples
+#           endif
+
+#           if defined(_ADAPT_INTEGRATE)
+#               if defined(_ASAGI)
+                    ddepth = nint(log(cfg%scaling * cfg%scaling / (asagi_grid_delta(cfg%afh_permeability_X, 0) * asagi_grid_delta(cfg%afh_permeability_X, 1))) / log(2.0_SR)) - element%cell%geometry%i_depth
+                    nz = max(1, nint(cfg%scaling * cfg%dz * real(max(1, _DARCY_LAYERS, SR)) / asagi_grid_delta(cfg%afh_permeability_X, 2)))
+#               else
+                    ddepth = cfg%i_max_depth - element%cell%geometry%i_depth
+                    nz = 1
+#               endif
+
+                x1 = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
+                x2 = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
+                x3 = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+
+                permeability = 0.0_SR
+                porosity = 0.0_SR
+                no_samples = 0
+
+                call refine_2D_recursive(section, x1, x2, x3, permeability, porosity, no_samples, ddepth, nz)
+
+#               if (_DARCY_LAYERS > 0)
+                    permeability(:, 1) = mean_invert(permeability(:, 1) / no_samples)
+                    permeability(:, 2) = mean_invert(permeability(:, 2) / no_samples)
+#               else
+                    permeability = mean_invert(permeability / no_samples)
+#               endif
+
+                porosity = porosity / no_samples
+#           elif defined(_ADAPT_SAMPLE)
+                x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
+
+#               if (_DARCY_LAYERS > 0)
+                    do level = 1, _DARCY_LAYERS
+                        x(3) = (level - 0.5_SR) / real(_DARCY_LAYERS, SR)
+
+                        call get_permeability_and_porosity_at_position(section, x, permeability(level, :), porosity(level))
+                    end do
+#               else
+                    x(3) = 1.0e-5_SR
+
+                    call get_permeability_and_porosity_at_position(section, x, permeability, porosity)
+#               endif
+#           endif
+        end subroutine
+
+		subroutine get_permeability_and_porosity_at_position(section, x, permeability, porosity)
+ 			type(t_grid_section), intent(inout)					:: section
+			real (kind = GRID_SR), intent(in)		            :: x(:)				!< position in world coordinates
+			real (kind = GRID_SR), intent(out)				    :: porosity	        !< porosity
+
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR)							:: permeability(2)	!< permeability tensor
+#           else
+                real (kind = GRID_SR)							:: permeability		!< permeability tensor
 #           endif
 
             real (kind = GRID_SR)                               :: xs(3)
@@ -144,50 +261,24 @@
                         .and. xs(1) <= asagi_grid_max(cfg%afh_permeability_X, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_permeability_X, 1)) then
 
 #                   if (_DARCY_LAYERS > 0)
-                        r_base_permeability(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        permeability(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
                         !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
-                        r_base_permeability(2) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
+                        permeability(2) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
 
                         !assume horizontally isotropic permeability
                         !assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
 #                   else
-                        r_base_permeability = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        permeability = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
                         !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
                         !buffer(3) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
 #                   endif
 
-                    !convert from mD to m^2 to um^2
-                    r_base_permeability = r_base_permeability * 9.869233e-16_SR / (cfg%scaling ** 2)
+                    !permeability is given in millidarcy
+                    permeability = permeability * 9.869233e-16_SR / (cfg%scaling ** 2)
                 else
-                    r_base_permeability = 0.0_SR
+                    permeability = 0.0_SR
                 end if
-#           else
-                r_base_permeability = 5.0e-12_SR / (cfg%scaling ** 2)
-#           endif
 
-#           if defined(_ASAGI_TIMING)
-                section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
-#           endif
-		end function
-
-		function get_porosity(section, x) result(porosity)
- 			type(t_grid_section), intent(inout)					:: section
-			real (kind = GRID_SR), dimension(:), intent(in)		:: x						!< position in world coordinates
-			real (kind = GRID_SR)								:: porosity		        !< porosity
-
-            real (kind = GRID_SR)                               :: xs(3)
-
-            xs(1:2) = cfg%scaling * x(1:2) + cfg%offset
-            xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3)
-
-            assert_ge(x(1), 0.0); assert_ge(x(2), 0.0)
-            assert_le(x(1), 1.0); assert_le(x(2), 1.0)
-
-#           if defined(_ASAGI_TIMING)
-                section%stats%r_asagi_time = section%stats%r_asagi_time - get_wtime()
-#           endif
-
-#           if defined(_ASAGI)
                 if (asagi_grid_min(cfg%afh_porosity, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_porosity, 1) <= xs(2) &
                         .and. xs(1) <= asagi_grid_max(cfg%afh_porosity, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_porosity, 1)) then
 
@@ -196,6 +287,7 @@
                     porosity = 0.0_SR
                 end if
 #           else
+                permeability = 5.0e-12_SR / (cfg%scaling ** 2)
                 porosity = 0.2_SR
 #           endif
 
@@ -205,7 +297,7 @@
 #           if defined(_ASAGI_TIMING)
                 section%stats%r_asagi_time = section%stats%r_asagi_time + get_wtime()
 #           endif
-		end function
+		end subroutine
 
 		elemental subroutine pressure_pre_dof_op(p_prod, p, r, d, A_d)
  			real (kind = GRID_SR), intent(in)					:: p_prod

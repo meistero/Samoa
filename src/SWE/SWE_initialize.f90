@@ -103,40 +103,43 @@
 			Q%b = get_bathymetry_at_element(section, element, section%r_time)
 		end subroutine
 
+        recursive function refine_2D_recursive(section, x1, x2, x3, t, depth) result(bath)
+ 			type(t_grid_section), intent(inout)     :: section
+            real (kind = GRID_SR), intent(in)       :: x1(:), x2(:), x3(:), t
+            real (kind = GRID_SR)                   :: bath
+            integer, intent(in)                     :: depth
+
+            if (depth > 0) then
+                bath = 0.5_SR * (  refine_2D_recursive(section, x1, 0.5_SR * (x1 + x3), x2, t, depth - 1) &
+                                 + refine_2D_recursive(section, x2, 0.5_SR * (x1 + x3), x3, t, depth - 1))
+            else
+                bath = get_bathymetry_at_position(section, (x1 + x2 + x3) / 3.0_SR, t)
+            end if
+        end function
+
         function get_bathymetry_at_element(section, element, t) result(bathymetry)
 			type(t_grid_section), intent(inout)     :: section
 			type(t_element_base), intent(inout)     :: element
             real (kind = GRID_SR), intent(in)		:: t
             real (kind = GRID_SR)					:: bathymetry
 
-            real (kind = GRID_SR)   :: x(2), p(2), v1(2), v2(2), alpha, beta
-			integer					:: i, j, n
+            real (kind = GRID_SR)   :: x, x1(2), x2(2), x3(2)
+            integer                 :: ddepth, data_depth
 
 #           if defined(_ADAPT_INTEGRATE)
+                !limit to 16 refinement levels and maximum depth + 3
 #               if defined(_ASAGI)
-                    n = min(128, max(1, int(cfg%scaling * get_edge_size(element%cell%geometry%i_depth) / asagi_grid_delta(cfg%afh_bathymetry, 0))))
+                    data_depth = nint(log(cfg%scaling ** 2 / (asagi_grid_delta(cfg%afh_bathymetry, 0) * asagi_grid_delta(cfg%afh_bathymetry, 1))) / log(2.0_SR))
+                    ddepth = min(16, min(cfg%i_max_depth + 3, data_depth + 3) - element%cell%geometry%i_depth)
 #               else
-                    n = min(128, max(1, int(512.0_SR * get_edge_size(element%cell%geometry%i_depth))))
+                    ddepth = min(16, cfg%i_max_depth - element%cell%geometry%i_depth)
 #               endif
 
-                p = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
-                v1 = samoa_barycentric_to_world_vector(element%transform_data, [0.5_SR, 0.5_SR])
-                v2 = samoa_barycentric_to_world_vector(element%transform_data, [0.5_SR, -0.5_SR])
+                x1 = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
+                x2 = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
+                x3 = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
 
-                bathymetry = 0.0_SR
-
-                do i = 0, n - 1
-                    alpha = (i + 0.5_SR) / real(n, SR)
-
-                    do j = -i, i
-                        beta = real(j, SR) / real(n, SR)
-                        x = p + alpha * v1 + beta * v2
-
-                        bathymetry = bathymetry + get_bathymetry_at_position(section, x, t)
-                    end do
-                end do
-
-                bathymetry = bathymetry / (n * n)
+                bathymetry = refine_2D_recursive(section, x1, x2, x3, t, ddepth)
 #           elif defined(_ADAPT_SAMPLE)
                 x = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
                 bathymetry = get_bathymetry_at_position(section, x, t)
