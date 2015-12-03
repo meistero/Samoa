@@ -144,7 +144,7 @@ module config
 #    	if defined(_DARCY)
             write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.5d0 " // &
             "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
-            "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 312.0d0 -rho_n 258.64d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
+            "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 1025.18d0 -rho_n 848.98d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
             "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
 
 #           if (_DARCY_LAYERS > 0)
@@ -283,8 +283,8 @@ module config
 #       	    if defined(_DARCY)
                     PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
                     PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
-                    PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, " 1 / (Pa s))"
-                    PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " 1 / (Pa s))"
+                    PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, " Pa s)"
+                    PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " Pa s)"
                     PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-S_wr	                residual saturation of the wetting phase (value: ", config%S_wr, ")"
@@ -489,7 +489,7 @@ module config
                _log_write(0, '(" Darcy: Mobility term: ", A)') "Linear"
 #           elif defined (_DARCY_MOB_QUADRATIC)
                _log_write(0, '(" Darcy: Mobility term: ", A)') "Quadratic"
-#           elif defined (D_DARCY_MOB_BROOKS_COREY)
+#           elif defined (_DARCY_MOB_BROOKS_COREY)
                _log_write(0, '(" Darcy: Mobility term: ", A)') "Brooks-Corey"
 #           else
 #               error Invalid mobility term!
