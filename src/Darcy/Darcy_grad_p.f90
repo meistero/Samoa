@@ -8,6 +8,7 @@
 #if defined(_DARCY)
 	MODULE Darcy_grad_p
 		use SFC_edge_traversal
+		use Darcy_permeability
 
 		use Samoa_darcy
 
@@ -19,7 +20,7 @@
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_volume)					:: gv_volume
 		type(darcy_gv_flux)						:: gv_xi_w
-		type(darcy_gv_d)						:: gv_flux_t
+		type(darcy_gv_d)						:: gv_xi_n
 
 #		define _GT_NAME							t_darcy_grad_p_traversal
 
@@ -105,7 +106,7 @@
                 real(kind = GRID_SR)    :: p(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: saturation(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: xi_w(_DARCY_LAYERS + 1, 3)
-                real(kind = GRID_SR)    :: flux_t(_DARCY_LAYERS + 1, 3)
+                real(kind = GRID_SR)    :: xi_n(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: volume(_DARCY_LAYERS + 1, 3)
                 real(kind = GRID_SR)    :: porosity(_DARCY_LAYERS + 1)
 
@@ -120,7 +121,7 @@
                 real(kind = GRID_SR)    :: p(3)
                 real(kind = GRID_SR)    :: saturation(3)
                 real(kind = GRID_SR)    :: xi_w(3)
-                real(kind = GRID_SR)    :: flux_t(3)
+                real(kind = GRID_SR)    :: xi_n(3)
                 real(kind = GRID_SR)    :: volume(3)
                 real(kind = GRID_SR)    :: porosity
 
@@ -131,11 +132,11 @@
 			call gv_saturation%read_from_element(element, saturation)
 
 			!call volume operator
-			call compute_wavespeeds(element, p, saturation, volume, element%cell%data_pers%base_permeability, porosity, xi_w, flux_t)
+			call compute_wavespeeds(element, p, saturation, volume, element%cell%data_pers%base_permeability, porosity, xi_w, xi_n)
 
 			call gv_volume%add_to_element(element, volume)
 			call gv_xi_w%add_to_element(element, xi_w)
-			call gv_flux_t%add_to_element(element, flux_t)
+			call gv_xi_n%add_to_element(element, xi_n)
 		end subroutine
 
 
@@ -171,15 +172,9 @@
             integer :: j, i
 
             do j = 1, size(nodes)
-                if (any(nodes(j)%data_temp%is_pressure_dirichlet_boundary)) then
-                    do i = 1, _DARCY_LAYERS + 1
-                        call post_dof_op_correction(nodes(j)%data_temp%flux(i), nodes(j)%data_pers%d(i), nodes(j)%data_pers%saturation(i), nodes(j)%data_temp%volume(i), traversal%r_dt)
-                    end do
-                else
-                    do i = 1, _DARCY_LAYERS + 1
-                        call post_dof_op(nodes(j)%data_temp%flux(i), nodes(j)%data_pers%d(i), nodes(j)%data_temp%volume(i), traversal%r_dt)
-                    end do
-                end if
+                do i = 1, _DARCY_LAYERS + 1
+                    call post_dof_op(nodes(j)%data_temp%flux(i), nodes(j)%data_pers%d(i), nodes(j)%data_temp%volume(i), traversal%r_dt)
+                end do
             end do
 		end subroutine
 
@@ -196,37 +191,22 @@
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(xi_w, flux_t, volume)
- 			real (kind = GRID_SR), intent(out)		:: xi_w, flux_t
+		elemental subroutine pre_dof_op(xi_w, xi_n, volume)
+ 			real (kind = GRID_SR), intent(out)		:: xi_w, xi_n
 			real (kind = GRID_SR), intent(out)		:: volume
 
 			xi_w = 0.0_SR
-			flux_t = 0.0_SR
+			xi_n = 0.0_SR
 			volume = 0.0_SR
 		end subroutine
 
-		pure subroutine post_dof_op(xi_w, flux_t, volume, dt)
-			real (kind = GRID_SR), intent(in)		:: xi_w, flux_t
+		pure subroutine post_dof_op(xi_w, xi_n, volume, dt)
+			real (kind = GRID_SR), intent(in)		:: xi_w, xi_n
 			real (kind = GRID_SR), intent(in)		:: volume
 			real (kind = GRID_SR), intent(inout)	:: dt
 
-            if (xi_w * volume > 1.0e5_SR * tiny(1.0_SR)) then
-                dt = min(dt, volume / xi_w)
-            end if
-		end subroutine
-
-		subroutine post_dof_op_correction(xi_w, flux_t, saturation, volume, dt)
-			real (kind = GRID_SR), intent(in)		:: xi_w, flux_t
-			real (kind = GRID_SR), intent(in)		:: saturation, volume
-			real (kind = GRID_SR), intent(inout)	:: dt
-
-            real (kind = GRID_SR)                   :: lambda_w, lambda_n
-
-            if (xi_w * volume > 1.0e5_SR * tiny(1.0_SR)) then
-                lambda_w = l_w(saturation)
-                lambda_n = l_n(saturation)
-
-                dt = min(dt, volume / (xi_w + lambda_w / (lambda_w + lambda_n) * abs(flux_t)))
+            if ((xi_w + xi_n) * volume > 1.0e5_SR * tiny(1.0_SR)) then
+                dt = min(dt, volume / (xi_w + xi_n))
             end if
 		end subroutine
 
@@ -234,7 +214,7 @@
 		!Volume and DoF operators
 		!*******************************
 
-        subroutine compute_wavespeeds(element, p, saturation, volume, base_permeability, porosity, xi_w, flux_t)
+        subroutine compute_wavespeeds(element, p, saturation, volume, base_permeability, porosity, xi_w, xi_n)
 			type(t_element_base), intent(inout)	    :: element
 
 #           if (_DARCY_LAYERS > 0)
@@ -242,55 +222,50 @@
                 real (kind = GRID_SR), intent(in)	    :: base_permeability(:,:)
                 real (kind = GRID_SR), intent(in)	    :: porosity(:)
                 real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
-                real (kind = GRID_SR), intent(out)	    :: volume(:, :), xi_w(:, :), flux_t(:, :)
+                real (kind = GRID_SR), intent(out)	    :: volume(:, :), xi_w(:, :), xi_n(:, :)
 
                 real (kind = GRID_SR)                   :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
 
-                real (kind = GRID_SR)				    :: g_local(3), edge_length, surface, dz
+                real (kind = GRID_SR)				    :: g_local(3), dx, dy, dz, Ax, Ay, Az
 
                 volume(:, 1) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 2) = cfg%dz * 0.50_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 3) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
 
                 xi_w = 0.0_SR
-                flux_t = 0.0_SR
+                xi_n = 0.0_SR
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                edge_length = element%cell%geometry%get_leg_size()
-                surface = element%cell%geometry%get_volume()
-                dz = cfg%dz
-
-                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 0.5_SR * edge_length * dz, surface, g_local, u_w, u_n)
-                call compute_wave_speeds_3D(saturation, u_w, u_n, xi_w, flux_t)
+                call get_areas_and_lengths(element, dx, dy, dz, Ax, Ay, Az)
+                call compute_base_fluxes_3D(p, base_permeability, dx, dy, dz, Ax, Ay, Az, g_local, u_w, u_n)
+                call compute_wave_speeds_3D(saturation, u_w, u_n, xi_w, xi_n)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
                 real (kind = GRID_SR), intent(in)	    :: porosity
                 real (kind = GRID_SR), intent(in)	    :: saturation(:)
-                real (kind = GRID_SR), intent(out)	    :: volume(:), xi_w(:), flux_t(:)
+                real (kind = GRID_SR), intent(out)	    :: volume(:), xi_w(:), xi_n(:)
 
-                real (kind = GRID_SR)					:: g_local(2), edge_length
+                real (kind = GRID_SR)					:: g_local(2), dx, dy, Ax, Ay
                 real (kind = SR)                        :: u_w(2), u_n(2), u_norm
 
                 volume = [0.25_SR, 0.50_SR, 0.25_SR] * porosity * element%cell%geometry%get_volume()
 
                 xi_w = 0.0_SR
+                xi_n = 0.0_SR
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g(1:2)
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                edge_length = element%cell%geometry%get_leg_size()
 
                 !compute base fluxes
 
-                call compute_base_fluxes_2D(p, base_permeability, edge_length, 0.5_SR * edge_length, g_local(1:2), u_w, u_n)
-                call compute_wave_speeds_2D(saturation, u_w, u_n, xi_w, flux_t)
+                call get_areas_and_lengths(element, dx, dy, Ax, Ay)
+                call compute_base_fluxes_2D(p, base_permeability, dx, dy, Ax, Ay, g_local(1:2), u_w, u_n)
+                call compute_wave_speeds_2D(saturation, u_w, u_n, xi_w, xi_n)
 #           endif
 
             !Careful: the FEM pressure solution implies that u = 0 on the boundary.

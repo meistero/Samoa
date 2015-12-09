@@ -19,10 +19,12 @@
         type num_traversal_data
         end type
 
-		type(darcy_gv_p)							:: gv_p
-		type(darcy_gv_saturation)					:: gv_saturation
-		type(darcy_gv_volume)						:: gv_volume
-		type(darcy_gv_mat_diagonal)					:: gv_p_volume
+		type(darcy_gv_p)							    :: gv_p
+		type(darcy_gv_saturation)					    :: gv_saturation
+		type(darcy_gv_volume)						    :: gv_volume
+		type(darcy_gv_mat_diagonal)					    :: gv_p_volume
+        type(darcy_gv_is_pressure_dirichlet_boundary)   :: gv_is_pressure_dirichlet
+        type(darcy_gv_is_saturation_dirichlet_boundary) :: gv_is_saturation_dirichlet
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
 
@@ -110,6 +112,8 @@
 
 			dest_element%cell%data_pers%base_permeability = src_element%cell%data_pers%base_permeability
 			dest_element%cell%data_pers%porosity = src_element%cell%data_pers%porosity
+
+            call set_boundary_conditions(dest_element%t_element_base)
 		end subroutine
 
 		subroutine refine_op(traversal, section, src_element, dest_element, refinement_path)
@@ -168,7 +172,9 @@
 			!permeability & porosity
 
             call get_permeability_and_porosity_at_element(section, dest_element%t_element_base, dest_element%cell%data_pers%base_permeability, dest_element%cell%data_pers%porosity)
-		end subroutine
+
+            call set_boundary_conditions(dest_element%t_element_base)
+        end subroutine
 
 		subroutine coarsen_op(traversal, section, src_element, dest_element, coarsening_path)
   			type(t_darcy_adaption_traversal), intent(inout)							    :: traversal
@@ -227,7 +233,37 @@
 
             dest_element%cell%data_pers%base_permeability = mean_invert(mean_transform(dest_element%cell%data_pers%base_permeability) + (0.5_SR ** size(coarsening_path) * mean_transform(src_element%cell%data_pers%base_permeability)))
             dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%porosity
+
+            call set_boundary_conditions(dest_element%t_element_base)
 		end subroutine
+
+		subroutine set_boundary_conditions(element)
+			type(t_element_base), intent(inout)    :: element
+
+			real (kind = GRID_SR)   :: pos_well(2)
+			logical                 :: is_dirichlet(_DARCY_LAYERS + 1, 3)
+
+            pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
+
+            if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                    !injection well:
+                    is_dirichlet = spread([pos_well(1) > 0.5_SR, pos_well(1) + pos_well(2) .le. 0.5_SR, pos_well(2) > 0.5_SR], 1, _DARCY_LAYERS + 1)
+                    call gv_is_saturation_dirichlet%add_to_element(element, is_dirichlet)
+                end if
+            end if
+
+            pos_well = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
+            pos_well = samoa_world_to_barycentric_point(element%transform_data, pos_well)
+
+            if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                    !production well: map to nearest leg vertex
+                    is_dirichlet = spread([pos_well(1) > 0.5_SR, pos_well(1) + pos_well(2) .le. 0.5_SR, pos_well(2) > 0.5_SR], 1, _DARCY_LAYERS + 1)
+                    call gv_is_pressure_dirichlet%add_to_element(element, is_dirichlet)
+                end if
+            end if
+        end subroutine
 
 		!first touch ops
 		elemental subroutine cell_first_touch_op(traversal, section, cell)
@@ -244,7 +280,7 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
+			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary)
 		end subroutine
 
 		!merge ops
@@ -257,6 +293,8 @@
             local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
             local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
             local_node%data_temp%mat_diagonal = local_node%data_temp%mat_diagonal + neighbor_node%data_temp%mat_diagonal
+            local_node%data_temp%is_pressure_dirichlet_boundary = local_node%data_temp%is_pressure_dirichlet_boundary .or. neighbor_node%data_temp%is_pressure_dirichlet_boundary
+			local_node%data_temp%is_saturation_dirichlet_boundary = local_node%data_temp%is_saturation_dirichlet_boundary .or. neighbor_node%data_temp%is_saturation_dirichlet_boundary
         end subroutine
 
 		!last touch ops
@@ -284,7 +322,7 @@
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(saturation, volume, p, mat_diagonal, d, A_d, rhs)
+		elemental subroutine pre_dof_op(saturation, volume, p, mat_diagonal, d, A_d, rhs, is_pressure_dirichlet, is_saturation_dirichlet)
 			real (kind = GRID_SR), intent(out)		:: saturation
 			real (kind = GRID_SR), intent(out)		:: volume
 			real (kind = GRID_SR), intent(out)		:: p
@@ -292,6 +330,8 @@
 			real (kind = GRID_SR), intent(out)		:: d
 			real (kind = GRID_SR), intent(out)		:: A_d
 			real (kind = GRID_SR), intent(out)		:: rhs
+			logical, intent(out)                    :: is_pressure_dirichlet
+			logical, intent(out)                    :: is_saturation_dirichlet
 
 			saturation = 0.0_GRID_SR
 			volume = 0.0_GRID_SR
@@ -300,6 +340,8 @@
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
 			rhs = 0.0_SR
+			is_pressure_dirichlet = .false.
+			is_saturation_dirichlet = .false.
 		end subroutine
 
 		elemental subroutine post_dof_op(saturation, p, volume, p_volume)

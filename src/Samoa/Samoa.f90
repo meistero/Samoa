@@ -7,14 +7,13 @@
 
 MODULE Samoa
 	use SFC_data_types
-
 	use Tools_quadrature_rule_base
 
     implicit none
 
-	PUBLIC
+	public
 
-	CONTAINS
+	contains
 
 	!*******************************************
 	!Barycentric <-> World coordinate conversion
@@ -51,14 +50,14 @@ MODULE Samoa
 		m_w = td%custom_data%scaling * MATMUL(td%plotter_data%jacobian, m_b)
 	end function
 
-	!> Transforms a normal from barycentric to world coordinates (not length-preserving)
+	!> Transforms a normal from barycentric to world coordinates (length-preserving)
 	pure function samoa_barycentric_to_world_normal(td, x) result(r_pos)
 		type(t_transform_data), intent(in)						:: td
 		real (kind = GRID_SR), DIMENSION(:), intent(in)			:: x
 		real (kind = GRID_SR), DIMENSION(2)						:: r_pos
 
-		!> computes 1/s A^(-T) x
-		r_pos = MATMUL(x, td%plotter_data%jacobian_inv) / td%custom_data%scaling
+		!> computes A^(-T) / sqrt(|A^-T|) x
+		r_pos = MATMUL(x, td%plotter_data%jacobian_inv) * sqrt(abs(td%plotter_data%det_jacobian))
 	end function
 
 	!> Transforms a point from world to barycentric coordinates
@@ -91,14 +90,14 @@ MODULE Samoa
 		m_b = MATMUL(td%plotter_data%jacobian_inv, m_w) / td%custom_data%scaling
 	end function
 
-	!> Transforms a normal from world to barycentric coordinates (not length-preserving)
+	!> Transforms a normal from world to barycentric coordinates (length-preserving)
 	pure function samoa_world_to_barycentric_normal(td, x) result(r_pos)
 		type(t_transform_data), intent(in)						:: td
 		real (kind = GRID_SR), DIMENSION(:), intent(in)			:: x
 		real (kind = GRID_SR), DIMENSION(2)						:: r_pos
 
-		!> computes s A^T x
-		r_pos = td%custom_data%scaling * MATMUL(x, td%plotter_data%jacobian)
+		!> computes A^T / sqrt(|A^T|) x
+		r_pos = MATMUL(x, td%plotter_data%jacobian) / sqrt(abs(td%plotter_data%det_jacobian))
 	end function
 
 	!*********************

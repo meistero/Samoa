@@ -8,8 +8,7 @@
 #if defined(_DARCY)
 	MODULE Darcy_transport_eq
 		use SFC_edge_traversal
-		use Darcy_grad_p
-		use Darcy_initialize_saturation
+		use Darcy_permeability
 
 		use Samoa_darcy
 
@@ -197,12 +196,10 @@
 			type(t_node_data), intent(inout)				    :: node
 
             if (any(node%data_temp%is_pressure_dirichlet_boundary)) then
-                call post_dof_op_correction(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
+                call post_dof_op_production(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
+            else if (any(node%data_temp%is_saturation_dirichlet_boundary)) then
+                call post_dof_op_injection(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             else
-                where(node%data_temp%is_saturation_dirichlet_boundary)
-                    node%data_temp%flux = 0.0_SR
-                end where
-
                 call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             end if
 		end subroutine
@@ -279,8 +276,7 @@
 
                 real (kind = GRID_SR)                   :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
 
-                real (kind = GRID_SR)				    :: g_local(3), edge_length, surface, dz
-                integer                                 :: i
+                real (kind = GRID_SR)				    :: g_local(3), dx, dy, dz, Ax, Ay, Az
 
                 volume(:, 1) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 2) = cfg%dz * 0.50_SR * porosity(:) * element%cell%geometry%get_volume()
@@ -292,13 +288,9 @@
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                edge_length = element%cell%geometry%get_leg_size()
-                surface = element%cell%geometry%get_volume()
-                dz = cfg%dz
-
-                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 0.5_SR * edge_length * dz, surface, g_local, u_w, u_n)
+                call get_areas_and_lengths(element, dx, dy, dz, Ax, Ay, Az)
+                call compute_base_fluxes_3D(p, base_permeability, dx, dy, dz, Ax, Ay, Az, g_local, u_w, u_n)
                 call compute_fluxes_3D(saturation, u_w, u_n, flux_w, flux_n)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
@@ -307,7 +299,7 @@
                 real (kind = GRID_SR), intent(in)	    :: saturation(:)
                 real (kind = GRID_SR), intent(out)	    :: volume(:), flux_w(:), flux_n(:)
 
-                real (kind = GRID_SR)					:: g_local(2), edge_length
+                real (kind = GRID_SR)					:: g_local(2), dx, dy, Ax, Ay
                 real (kind = SR)                        :: u_w(2), u_n(2), u_norm
 
                 volume = [0.25_SR, 0.50_SR, 0.25_SR] * porosity * element%cell%geometry%get_volume()
@@ -318,13 +310,10 @@
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g(1:2)
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                edge_length = element%cell%geometry%get_leg_size()
 
                 !compute fluxes
-
-                call compute_base_fluxes_2D(p, base_permeability, edge_length, 0.5_SR * edge_length, g_local(1:2), u_w, u_n)
+                call get_areas_and_lengths(element, dx, dy, Ax, Ay)
+                call compute_base_fluxes_2D(p, base_permeability, dx, dy, Ax, Ay, g_local(1:2), u_w, u_n)
                 call compute_fluxes_2D(saturation, u_w, u_n, flux_w, flux_n)
 #           endif
 
@@ -355,13 +344,13 @@
             assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 
-        !> Update saturation and apply a divergence correction
+        !> Update saturation and produce fluid
         !>
-        !> Eliminate divergence by removing excess mass from the flux:
-        !> S'_w := S_w + dt/V * (f_w - lambda_w / (lambda_w + lambda_n) * (f_w + f_n))
-        !> S'_n := S_n + dt/V * (f_n - lambda_n / (lambda_w + lambda_n) * (f_w + f_n))
-        !> \Rightarrow S'_w + S'_n = S_w + S_n + dt/V * ((f_w + f_n) - (f_w + f_n)) = S_w + S_n
-		elemental subroutine post_dof_op_correction(dt, saturation, flux_w, flux_n, volume)
+        !> Eliminate divergence by adding an outflow with saturation S and total flux f_w + f_n:
+        !> S'_w := S_w - dt/V * (f_w - l_w(S) / (l_w(S) + l_n(S)) * (f_w + f_n))
+        !> S'_n := S_n - dt/V * (f_n - l_n(S) / (l_w(S) + l_n(S)) * (f_w + f_n))
+        !> \Rightarrow S'_w + S'_n = S_w + S_n - dt/V * ((f_w + f_n) - (f_w + f_n)) = S_w + S_n
+		elemental subroutine post_dof_op_production(dt, saturation, flux_w, flux_n, volume)
 			real (kind = GRID_SR), intent(in)		:: dt
 			real (kind = GRID_SR), intent(inout)	:: saturation
 			real (kind = GRID_SR), intent(in)		:: flux_w, flux_n
@@ -376,6 +365,30 @@
                 saturation = saturation - dt / volume * (flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
             else
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
+            end if
+
+            assert_pure(saturation .ge. 0.0_SR)
+            assert_pure(saturation .le. 1.0_SR)
+		end subroutine
+
+        !> Update saturation and inject fluid
+        !>
+        !> Eliminate divergence by adding an inflow with saturation 1 and total flux f_w + f_n:
+        !> S'_w := S_w - dt/V * (f_w - l_w(1) / (l_w(1) + l_n(1)) * (f_w + f_n)) = S_w + dt/V * f_n
+        !> S'_n := S_n - dt/V * (f_n - l_n(1) / (l_w(1) + l_n(1)) * (f_w + f_n)) = S_n - dt/V * f_n
+        !> \Rightarrow S'_w + S'_n = S_w + S_n - dt/V * (-f_n + f_n) = S_w + S_n
+		elemental subroutine post_dof_op_injection(dt, saturation, flux_w, flux_n, volume)
+			real (kind = GRID_SR), intent(in)		:: dt
+			real (kind = GRID_SR), intent(inout)	:: saturation
+			real (kind = GRID_SR), intent(in)		:: flux_w, flux_n
+			real (kind = GRID_SR), intent(in)		:: volume
+
+            real (kind = GRID_SR)                   :: lambda_w, lambda_n
+
+            if (volume > 0.0_SR) then
+                saturation = saturation + dt / volume * flux_n
+            else
+                saturation = max(0.0_SR, min(1.0_SR, saturation + flux_n))
             end if
 
             assert_pure(saturation .ge. 0.0_SR)

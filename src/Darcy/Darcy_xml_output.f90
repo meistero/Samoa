@@ -190,7 +190,8 @@
 
                 open(unit=f_out, file=s_file_name, action="write", status="replace")
 
-                write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
+                write(f_out, '("time,water rate,oil rate,water cumulative,oil cumulative,water cut,saturation")')
+
                 do i = 0, 4
                     write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
                 end do
@@ -384,12 +385,10 @@
 
 #           if (_DARCY_LAYERS > 0)
                 g_local = cfg%g
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, cfg%g(1:2))
 #           else
-                g_local = cfg%g(1:2)
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, cfg%g(1:2))
 #           endif
-
-            g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-            g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
             flux_w = 0.0_SR
             flux_n = 0.0_SR
@@ -400,7 +399,7 @@
 
                 !compute fluxes
 
-                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, edge_length, dz, 1.0_SR, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
                 call compute_flux_vector_3D(saturation, u_w, u_n, flux_w, flux_n)
 
                 do layer = 1, _DARCY_LAYERS
@@ -415,7 +414,6 @@
 
                     flux_t = 2.0_SR * (flux_w(layer, :) + flux_n(layer, :))
                     flux_t(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_t(1:2))
-                    flux_t(1:2) = flux_t(1:2) * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                     cell_data%u(i_cell_data_index, :) = flux_t / (_M / _S)  !return the flux in m/s
 
@@ -464,12 +462,11 @@
 
                 !compute fluxes
 
-                call compute_base_fluxes_2D(p, base_permeability, edge_length, 1.0_SR, g_local(1:2), u_w, u_n)
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, edge_length, 1.0_SR, 1.0_SR, g_local(1:2), u_w, u_n)
                 call compute_flux_vector_2D(saturation, u_w, u_n, flux_w, flux_n)
 
                 flux_t = 2.0_SR * (flux_w + flux_n)
                 flux_t = samoa_barycentric_to_world_normal(element%transform_data, flux_t)
-                flux_t = flux_t * (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 cell_data%u(i_cell_data_index, 1:2) = flux_t / (_M / _S)    !return the flux in m/s
                 cell_data%u(i_cell_data_index, 3) = 0.0_SR

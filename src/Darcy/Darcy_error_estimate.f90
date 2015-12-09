@@ -182,13 +182,12 @@
                 !rotate g from world to local space (no scaling!)
                 g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 edge_length = element%cell%geometry%get_leg_size()
                 surface = element%cell%geometry%get_volume()
                 dz = cfg%dz
 
-                call compute_base_fluxes_3D(p, base_permeability, edge_length, dz, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, edge_length, dz, 1.0_SR, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
                 call compute_flux_vector_3D(saturation, u_w, u_n, flux_w, flux_n)
 
                 !we should use a rotation-invariant norm such as the 2-norm as this is a vector in local space
@@ -210,11 +209,10 @@
                 !rotate g from world to local space (no scaling!)
                 g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
                 edge_length = element%cell%geometry%get_leg_size()
 
-                call compute_base_fluxes_2D(p, base_permeability, edge_length, 1.0_SR, g_local(1:2), u_w, u_n)
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, edge_length, 1.0_SR, 1.0_SR, g_local(1:2), u_w, u_n)
                 call compute_flux_vector_2D(saturation, u_w, u_n, flux_w, flux_n)
 
                 !we should use a rotation-invariant norm such as the 2-norm as this is a vector in local space
