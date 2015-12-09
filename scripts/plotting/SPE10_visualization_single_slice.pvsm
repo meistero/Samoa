@@ -78,7 +78,7 @@
         <Element index="0" value="0"/>
       </Property>
       <Property name="AnimatedPropertyName" id="265.AnimatedPropertyName" number_of_elements="1">
-        <Element index="0" value="time"/>
+        <Element index="0" value="Time"/>
       </Property>
       <Property name="AnimatedProxy" id="265.AnimatedProxy" number_of_elements="1">
         <Proxy value="259"/>

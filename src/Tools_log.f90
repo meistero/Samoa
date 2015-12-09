@@ -156,10 +156,8 @@ MODULE Tools_log
 		do file_unit = 10, huge(1)
 			inquire(unit=file_unit, opened=l_is_open, iostat=i_error)
 
-			if (i_error == 0) then
-				if (.not. l_is_open) then
-					exit
-				end if
+			if (i_error == 0 .and. .not. l_is_open) then
+                exit
 			end if
 		end do
 	end function
@@ -336,7 +334,7 @@ MODULE Tools_log
         double precision, intent(in)    :: time
         character(256)                  :: str
 
-        character(3), parameter         :: s_unit_names(7) = [character(3) :: "d", "h", "min", "s", "ms", "mus", "ns"]
+        character(3), parameter         :: s_unit_names(7) = [character(3) :: "d", "h", "min", "s", "ms", "µs", "ns"]
         integer , parameter             :: i_max_units = 3
         integer (kind = 8)              :: i_unit_values(7)
         integer                         :: i_unit, i_units

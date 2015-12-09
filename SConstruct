@@ -50,7 +50,7 @@ vars.AddVariables(
                 allowed_values=('integrate', 'sample')
               ),
 
-  EnumVariable( 'perm_averaging', 'permeability averaging', 'harmonic',
+  EnumVariable( 'perm_averaging', 'permeability averaging', 'geometric',
                 allowed_values=('arithmetic', 'geometric', 'harmonic')
               ),
 
@@ -78,9 +78,7 @@ vars.AddVariables(
 
   BoolVariable( 'standard', 'check for Fortran 2003 standard compatibility', False),
 
-  EnumVariable( 'asagi', 'ASAGI support', 'standard',
-                allowed_values=('noasagi', 'standard', 'numa')
-              ),
+  BoolVariable( 'asagi', 'ASAGI support', True),
 
   BoolVariable( 'asagi_timing', 'switch on timing of all ASAGI calls', False),
 
@@ -165,27 +163,27 @@ elif env['mpi'] == 'nompi':
 # set scenario with preprocessor macros
 if env['scenario'] == 'darcy':
   env['F90FLAGS'] += ' -D_DARCY'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 elif env['scenario'] == 'swe':
   env['F90FLAGS'] += ' -D_SWE'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 elif env['scenario'] == 'generic':
   env['F90FLAGS'] += ' -D_GENERIC'
-  env.SetDefault(asagi = 'noasagi')
+  env.SetDefault(asagi = False)
   env.SetDefault(library = True)
 elif env['scenario'] == 'flash':
   env['F90FLAGS'] += ' -D_FLASH'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 elif env['scenario'] == 'heateq':
   env['F90FLAGS'] += ' -D_HEAT_EQ'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library= False)
 elif env['scenario'] == 'tests':
   env['F90FLAGS'] += ' -D_TESTS'
-  env.SetDefault(asagi = 'noasagi')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 
 #set compilation flags for OpenMP
@@ -208,7 +206,7 @@ if env['openmp'] != 'noomp':
       print "******************************************************"
 
 #set compilation flags and preprocessor macros for the ASAGI library
-if env['asagi'] != 'noasagi':
+if env['asagi']:
   env.Append(F90PATH = os.path.abspath(env['asagi_dir'] + '/include'))
   env['F90FLAGS'] += ' -D_ASAGI'
   env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir'])
@@ -219,7 +217,7 @@ if env['asagi'] != 'noasagi':
 if env['asagi_timing']:
   env['F90FLAGS'] += ' -D_ASAGI_TIMING'
 
-  if env['asagi'] == 'noasagi':
+  if not env['asagi']:
     print "Error: asagi_timing must not be set if asagi is not active"
     Exit(-1)
 
@@ -367,7 +365,7 @@ if env['exe'] == 'samoa':
       program_name += '_' + env['mpi']
 
     if not env['asagi']:
-      program_name += '_' + env['asagi']
+      program_name += '_noasagi'
 
     if env['flux_solver'] != 'aug_riemann':
       program_name += '_' + env['flux_solver']

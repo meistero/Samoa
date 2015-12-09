@@ -69,19 +69,19 @@ module config
             logical                             :: l_lse_output                                     !< print out the linear equation system
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
-			double precision				    :: r_nu_w		                                    !< viscosity of the wetting phase
-			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase
-			double precision				    :: r_rho_w		                                    !< density of the wetting phase
-			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase
+			double precision				    :: r_nu_w		                                    !< viscosity of the wetting phase [Pa s]
+			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase [Pa s]
+			double precision				    :: r_rho_w		                                    !< density of the wetting phase [kg/m^3]
+			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase [kg/m^3]
 			double precision			        :: S_wr		                                        !< residual saturation of the wetting phase
 			double precision			        :: S_nr		                                        !< residual saturation of the non-wetting phase
 			double precision				    :: r_p_in			                                !< injection well pressure [psi]
 			double precision				    :: r_p_prod			                                !< production well pressure [psi]
-			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [psi]
-			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/s]
-			double precision			        :: r_pos_in(2)				                        !< injection well position
-			double precision			        :: r_pos_prod(2)				                    !< production well position
-			double precision			        :: g(3)				                                !< gravity vector
+			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [in]
+			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/d]
+			double precision			        :: r_pos_in(2)				                        !< injection well position [m]
+			double precision			        :: r_pos_prod(2)				                    !< production well position [m]
+			double precision			        :: g(3)				                                !< gravity vector [m/s^2]
 
 			double precision			        :: p_refinement_threshold				            !< pressure refinement threshold
 			double precision			        :: S_refinement_threshold				            !< saturation refinement threshold
@@ -91,9 +91,9 @@ module config
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
  			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
 
-            double precision                    :: t_min_eq, t_max_eq						        !< earthquake start and end time
-            double precision                    :: dt_eq                                            !< earthquake time step
-            double precision                    :: dry_tolerance                                    !< dry tolerance
+            double precision                    :: t_min_eq, t_max_eq						        !< earthquake start and end time [s]
+            double precision                    :: dt_eq                                            !< earthquake time step [s]
+            double precision                    :: dry_tolerance                                    !< dry tolerance [m]
 #    	elif defined(_FLASH)
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
@@ -117,7 +117,7 @@ module config
     subroutine add_real_parameter(config, name, default_value, help, address)
         class(t_config), intent(inout)          :: config
         character(*), intent(in)          		:: name, default_value, help
-        double precision, intent(in), pointer   :: address
+        double precision, pointer, intent(in)   :: address
 
         write(config%arguments, '(A, A, " ", A, " ")') config%arguments, name, default_value
 
@@ -308,7 +308,7 @@ module config
                     PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
-                    PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, ")"
+                    PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, " m)"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
                     PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"

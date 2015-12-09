@@ -1,12 +1,17 @@
 compiler='gnu'
-max_depths='8 9 10 11 12 13 14'
-perm_averagings='arithmetic geometric harmonic'
+perm_averagings='geometric'
 fperm="data/darcy_five_spot/spe_perm_renamed.nc"
 fpor="data/darcy_five_spot/spe_phi_renamed.nc"
-layers=32
+layers=85
+max_depths='8 10 14'
 epsilon=3.0e-5
-p_ref_th=1.0e-8
 S_ref_th=1.0e2
+
+if [ $layers = 0 ] ; then
+    p_ref_th=3.0e-9
+else
+    p_ref_th=2.0e-8
+fi
 
 virtual_cores=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
 threads_per_core=$(lscpu | grep "^Thread(s) per core" | grep -oE "[0-9]+" | tr "\n" " ")

@@ -115,49 +115,49 @@
 
 !Standard units:
 
-!> one unit meter, defined as the width and height of the full grid
+!> Unit meter, defined as the width and height of the full grid
 #define _UM     1.0_GRID_SR
 
-!> one second
+!> Second in simulation time
 #define _S      1.0_GRID_SR
 
-!> one kilogram
+!> Kilogram (standard mass)
 #define _KG     1.0_GRID_SR
 
 !Derived units and their conversion rules:
 
 !> Meter
 #define _M      (_UM / cfg%scaling)
-!> Minutes
+!> Minutes (exact)
 #define _MIN    (_S * 60.0_GRID_SR)
-!> Hours
+!> Hours (exact)
 #define _H      (_MIN * 60.0_GRID_SR)
-!> Days
+!> Days (exact)
 #define _D      (_H * 24.0_GRID_SR)
-!> Newton
+!> Newton (exact)
 #define _N      (_KG * _M / (_S * _S))
-!> Pascal
+!> Pascal (exact)
 #define _PA     (_N / (_M * _M))
-!> Centipoise
-#define _CP     (_PA * 1.0e-3_SR)
-!> Barrel (Oil)
-#define _BBL    (((_M) ** 3) / 6.2898105697751_GRID_SR)
-!> Inch
-#define _INCH   (_M / 39.3701_GRID_SR)
-!> Feet
+!> Centipoise (exact)
+#define _CP     (_PA * 1.0e-3_GRID_SR)
+!> Barrel Oil (exact)
+#define _BBL    (((_INCH) ** 3) * 9702.0_GRID_SR)
+!> Inch (exact)
+#define _INCH   (_M * 0.0254_GRID_SR)
+!> Feet (exact)
 #define _FT     (_INCH * 12.0_GRID_SR)
-!> Pound
-#define _LB     (_KG * 0.453592_SR)
-!> Pound Force
+!> Pound (exact)
+#define _LB     (_KG * 0.45359237_GRID_SR)
+!> Pound Force (exact)
 #define _LBF    (_LB * _G)
-!> Pound Force Per Square Inch
+!> Pound Force Per Square Inch (exact)
 #define _PPSI   (_LBF / (_INCH ** 2))
-!Millidarcy
-#define _MDY    (_DY * 1.0e-3_SR)
-!Darcy
-#define _DY     ((_M ** 2) * 9.869233e-13_SR)
+!> Millidarcy (exact)
+#define _MDY    (_DY * 1.0e-3_GRID_SR)
+!> Darcy (exact)
+#define _DY     ((_M ** 2) / 1.01325e12_GRID_SR)
 
 !Physical constants:
 
-!> Earth acceleration
-#define _G      9.80665 * _M / (_S ** 2)
+!> Standard gravitational field (exact)
+#define _G      9.80665_GRID_SR * _M / (_S ** 2)
