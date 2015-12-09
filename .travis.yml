@@ -6,7 +6,7 @@ install:
 env:
  global:
   - OMP_NUM_THREADS=4
-  - ASAGI=noasagi
+  - ASAGI=no
   - COMPILER=gnu
   - ASSERTIONS=no
   - LAYERS=0
