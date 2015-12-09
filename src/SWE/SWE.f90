@@ -255,6 +255,23 @@
 
 				call swe%adaption%traverse(grid)
 
+                !output grids during initial phase if and only if t_out is 0
+                if (cfg%r_output_time_step == 0.0_GRID_SR) then
+                    if (cfg%l_ascii_output) then
+                        call swe%ascii_output%traverse(grid)
+                    end if
+
+                    if(cfg%l_gridoutput) then
+                        call swe%xml_output%traverse(grid)
+                    end if
+
+                    if (cfg%l_pointoutput) then
+                        call swe%point_output%traverse(grid)
+                    end if
+
+                    r_time_next_output = r_time_next_output + cfg%r_output_time_step
+                end if
+
 				i_initial_step = i_initial_step + 1
 			end do
 
@@ -331,7 +348,7 @@
                         grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                         !$omp master
-                        _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0)') " SWE: EQ time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), " , dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                        _log_write(1, '(" SWE: EQ time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells
                         !$omp end master
                     end if
 
@@ -376,7 +393,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0)') " SWE: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), " , dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                    _log_write(1, '(" SWE: time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells
                     !$omp end master
                 end if
 

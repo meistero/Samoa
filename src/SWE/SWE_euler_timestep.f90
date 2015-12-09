@@ -88,10 +88,6 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            if (grid%r_dt == 0.0_SR) then
-                grid%r_dt = cfg%courant_number * cfg%scaling * get_cell_volume(cfg%i_max_depth) / ((get_edge_size(int(cfg%i_max_depth, BYTE) - 1_BYTE) + 2.0_SR * get_edge_size(cfg%i_max_depth)) * sqrt(g))
-            end if
-
 			if (cfg%r_max_time > 0.0_SR) then
                 grid%r_dt = min(cfg%r_max_time, grid%r_dt)
             end if
@@ -114,11 +110,12 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
+			grid%r_time = grid%r_time + grid%r_dt
+
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%r_dt_new, grid%sections%elements_alloc%r_dt_new, MPI_MIN, .true.)
 
             grid%r_dt_new = cfg%courant_number * grid%r_dt_new
-			grid%r_time = grid%r_time + grid%r_dt
 
             if (rank_MPI == 0) then
                 if (cfg%courant_number > grid%r_dt_new / grid%r_dt) then

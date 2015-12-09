@@ -182,7 +182,7 @@
                     cfg%offset = [0.5_SR * (asagi_grid_min(afh_perm, 0) + asagi_grid_max(afh_perm, 0) - cfg%scaling), 0.5_SR * (asagi_grid_min(afh_perm, 1) + asagi_grid_max(afh_perm, 1) - cfg%scaling)]
                     cfg%dz = real(asagi_grid_max(afh_perm, 2) - asagi_grid_min(afh_perm, 2), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
 
-                    cfg%r_pos_in = ([0.0_GRID_SR, 0.0_GRID_SR] - cfg%offset) / cfg%scaling
+                    cfg%r_pos_in = (0.5_SR * [asagi_grid_min(afh_perm, 0) + asagi_grid_max(afh_perm, 0), asagi_grid_min(afh_perm, 1) + asagi_grid_max(afh_perm, 1)] - cfg%offset) / cfg%scaling
                     cfg%r_pos_prod = ([asagi_grid_max(afh_perm, 0), asagi_grid_max(afh_perm, 1)] - cfg%offset) / cfg%scaling
 
                     if (rank_MPI == 0) then
@@ -319,6 +319,12 @@
                         exit
                     end if
 
+                    if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
+                        !$omp master
+                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations_time_step
+                        !$omp end master
+                    end if
+
                     i_nle_iterations = i_nle_iterations + 1
                 end do
 
@@ -326,7 +332,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, "(A, I0, A, I0, A, I0, A, I0)") " Darcy: adaptions: ", i_initial_step, ", NLE iterations: ", i_nle_iterations, ", LSE iterations: ", i_lse_iterations_time_step, ", cells: ", grid_info%i_cells
+                    _log_write(1, '(" Darcy: adaptions: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0, ", cells: ", I0)') i_initial_step, i_nle_iterations, i_lse_iterations_time_step, grid_info%i_cells
                     !$omp end master
                 end if
 
@@ -334,6 +340,17 @@
 				if (darcy%init_saturation%i_refinements_issued .le. 0 .or. i_initial_step >= 2 * cfg%i_max_depth) then
 					exit
 				endif
+
+                !output grids during initial phase if and only if t_out is 0
+                if (cfg%r_output_time_step == 0.0_GRID_SR) then
+                    !do a dummy transport step first to determine the initial production rates
+                    grid%r_dt = 0.0_SR
+                    call darcy%transport_eq%traverse(grid)
+
+                    !output grid
+                    call darcy%xml_output%traverse(grid)
+                    r_time_next_output = r_time_next_output + cfg%r_output_time_step
+                end if
 
 				!refine grid
 				call darcy%adaption%traverse(grid)
@@ -404,6 +421,12 @@
                         exit
                     end if
 
+                    if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
+                        !$omp master
+                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations_time_step
+                        !$omp end master
+                    end if
+
                     i_nle_iterations = i_nle_iterations + 1
                 end do
 
@@ -421,7 +444,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0, A, I0, A, I0)') " Darcy: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), ", dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", NLE iterations: ", i_nle_iterations, ", LSE iterations: ", i_lse_iterations_time_step
+                    _log_write(1, '(" Darcy: time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells, i_nle_iterations, i_lse_iterations_time_step
                     !$omp end master
                 end if
 

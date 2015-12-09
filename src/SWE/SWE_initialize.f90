@@ -237,7 +237,7 @@
             call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%r_dt_new, grid%sections%elements_alloc%r_dt_new, MPI_MIN, .true.)
 
-            grid%r_dt = grid%r_dt_new
+            grid%r_dt = cfg%courant_number * grid%r_dt_new
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -330,7 +330,7 @@
 				max_wave_speed = 0.0_GRID_SR
 			end where
 
-			section%r_dt_new = min(section%r_dt_new, cfg%scaling * element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(max_wave_speed)))
+			section%r_dt_new = min(section%r_dt_new, element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(max_wave_speed)))
 		end subroutine
 
 		function get_initial_dof_state_at_element(section, element) result(Q)
