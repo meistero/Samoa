@@ -483,8 +483,8 @@
                             dy = dy * 2.0_SR / PI * log(dy / cfg%r_well_radius)
                         end if
                     end if
-                end subroutine
-#           endif
+#               endif
+            end subroutine
 #       else
             subroutine get_areas_and_lengths(element, dx, dy, Ax, Ay)
                 type(t_element_base), intent(inout)				:: element
