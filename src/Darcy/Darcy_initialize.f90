@@ -491,10 +491,6 @@
                 end if
 #           endif
 
-            if (is_saturation_dirichlet) then
-                saturation = 1.0_SR
-            endif
-
             if (is_pressure_dirichlet) then
                 p = cfg%r_p_prod
             endif
