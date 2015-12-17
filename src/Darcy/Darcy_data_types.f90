@@ -26,10 +26,12 @@
 		integer, PARAMETER :: SHORT = selected_int_kind(4)
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
+        integer, parameter :: GRID_SL = BYTE
 
         integer, PARAMETER :: SR = GRID_SR
         integer, PARAMETER :: SI = GRID_SI
         integer, PARAMETER :: DI = GRID_DI
+        integer, parameter :: SL = GRID_SL
 
 		!*********************************************
 		!Persistent Entity data (geometric association)
@@ -41,6 +43,7 @@
             real (kind = GRID_SR)   :: A_d(_DARCY_LAYERS + 1), d(_DARCY_LAYERS + 1), r(_DARCY_LAYERS + 1)
 
             real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1)    !< wetting phase saturation
+			integer (kind = SI)     :: boundary_condition(1)
 		END type
 
 		!> persistent, scenario specific data on an edge
@@ -70,8 +73,6 @@
 
 			real (kind = GRID_SR)       :: flux(_DARCY_LAYERS + 1)
 			real (kind = GRID_SR)		:: volume(_DARCY_LAYERS + 1)
-			logical                     :: is_pressure_dirichlet_boundary(_DARCY_LAYERS + 1)
-			logical                     :: is_saturation_dirichlet_boundary(_DARCY_LAYERS + 1)
 		END type num_node_data_temp
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)

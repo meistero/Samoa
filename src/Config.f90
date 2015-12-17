@@ -51,11 +51,13 @@ module config
 	    character(512)				            :: s_testpoints			                            !< test points input string
 	    double precision, pointer		        :: r_testpoints(:,:)		                        !< test points array
 
-        double precision                        :: scaling, offset(2)                               !< grid scaling and offset
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
 
 #    	if defined(_DARCY)
-            double precision                    :: dz                                               !< layer height for 3D scenarios
+            double precision                    :: scaling, offset(3)                               !< grid scaling and offset of the computational domain
+            double precision                    :: x_min(3), x_max(3)                               !< lower and upper bounds of the data domain
+            double precision                    :: dx(3), dz                                        !< voxel size of the source data
+
             character(256)                      :: s_permeability_file                              !< permeability file
             character(256)                      :: s_porosity_file                                  !< porosity file
  			integer					 		    :: afh_permeability_X			                    !< asagi file handle to X-axis permeability data
@@ -79,13 +81,22 @@ module config
 			double precision				    :: r_p_prod			                                !< production well pressure [psi]
 			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [in]
 			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/d]
-			double precision			        :: r_pos_in(2)				                        !< injection well position [m]
-			double precision			        :: r_pos_prod(2)				                    !< production well position [m]
+
+            double precision			        :: r_pos_in(2, 1)				                    !< injection well position [m]
+
+#           if defined(_ASAGI)
+                double precision			    :: r_pos_prod(2, 4)				                    !< production well positions [m]
+#           else
+                double precision			    :: r_pos_prod(2, 1)				                    !< production well position [m]
+#           endif
+
 			double precision			        :: g(3)				                                !< gravity vector [m/s^2]
 
 			double precision			        :: p_refinement_threshold				            !< pressure refinement threshold
 			double precision			        :: S_refinement_threshold				            !< saturation refinement threshold
 #    	elif defined(_SWE)
+            double precision                    :: scaling, offset(2)                               !< grid scaling and offset of the computational domain
+
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
@@ -95,6 +106,8 @@ module config
             double precision                    :: dt_eq                                            !< earthquake time step [s]
             double precision                    :: dry_tolerance                                    !< dry tolerance [m]
 #    	elif defined(_FLASH)
+            double precision                    :: scaling, offset(2)                               !< grid scaling and offset of the computational domain
+
             character(256)                      :: s_bathymetry_file                                !< bathymetry file
             character(256)                      :: s_displacement_file                              !< displacement file
  			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data

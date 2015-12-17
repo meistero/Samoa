@@ -80,42 +80,41 @@
 #		include "Tools_grid_variable.f90"
 	END MODULE
 
-	MODULE Darcy_gv_is_pressure_dirichlet_boundary_mod
+    !> this is a wrapper module for the is_dirichlet variable required for the linear solvers
+    !> only reads are allowed
+	MODULE darcy_gv_is_dirichlet_mod
 		use SFC_data_types
 
-#		define _GV_TYPE_NAME		darcy_gv_is_pressure_dirichlet_boundary
-#		define _GV_TYPE				logical
-#		define _GV_NAME				is_pressure_dirichlet_boundary
-#		define _GV_PERSISTENT		0
-#		define _GV_ADD_OP			.or.
+        private
+        public :: darcy_gv_is_dirichlet
 
-#		include "Tools_grid_variable.f90"
+        type darcy_gv_is_dirichlet
+            contains
+
+            procedure, pass :: read_from_node
+
+            generic :: read => read_from_node
+        end type
+
+        contains
+
+        !> Fills the array is_dirichlet with true or false, depending on the boundary condition
+        pure subroutine read_from_node(gv, node, is_dirichlet)
+            class(darcy_gv_is_dirichlet), intent(in)            :: gv
+            type(t_node_data), intent(in)                       :: node
+            logical (kind = SL), intent(inout)	                :: is_dirichlet(:)
+
+#           if defined(_DARCY_INJ_INFLOW)
+                is_dirichlet = logical(node%data_pers%boundary_condition(1) < 0, SL)
+#           elif defined(_DARCY_INJ_PRESSURE)
+                is_dirichlet = logical(node%data_pers%boundary_condition(1) .ne. 0, SL)
+#           endif
+        end subroutine
 	END MODULE
-
-	MODULE Darcy_gv_is_saturation_dirichlet_boundary_mod
-		use SFC_data_types
-
-#		define _GV_TYPE_NAME		darcy_gv_is_saturation_dirichlet_boundary
-#		define _GV_TYPE				logical
-#		define _GV_NAME				is_saturation_dirichlet_boundary
-#		define _GV_PERSISTENT		0
-#		define _GV_ADD_OP			.or.
-
-#		include "Tools_grid_variable.f90"
-	END MODULE
-
-	!undefine macros to avoid compiler warnings
-#	undef _GV_CELL_SIZE
-#	undef _GV_EDGE_SIZE
-#	undef _GV_NODE_SIZE
 
 	!**********
 	!flow space
 	!**********
-
-#	define _GV_CELL_SIZE		    0
-#	define _GV_EDGE_SIZE		    0
-#	define _GV_NODE_SIZE		    (_DARCY_LAYERS + 1)
 
 	MODULE Darcy_gv_saturation_mod
 		use SFC_data_types
@@ -148,6 +147,36 @@
 #		define _GV_PERSISTENT		0
 
 #		include "Tools_grid_variable.f90"
+	END MODULE
+
+#	undef _GV_NODE_SIZE
+#	define _GV_NODE_SIZE		    1
+
+	MODULE Darcy_gv_boundary_condition_mod
+		use SFC_data_types
+
+#		define _GV_TYPE_NAME		darcy_gv_boundary_condition
+#		define _GV_TYPE				integer (kind = SI)
+#		define _GV_NAME				boundary_condition
+#		define _GV_PERSISTENT		1
+#       define _GV_ADD_OP(x, y)     add_boundary_conditions(x, y)
+
+#		include "Tools_grid_variable.f90"
+
+        !> merge two boundary condition evaluations
+        elemental function add_boundary_conditions(bc1, bc2) result(bc)
+            integer, intent(in) :: bc1, bc2
+            integer             :: bc
+
+            if (bc1 .ne. 0 .and. bc2 .ne. 0) then
+                !prioritize production over injection wells to avoid having an inflow without an outflow
+                bc = min(bc1, bc2)
+            else if(bc1 .ne. 0) then
+                bc = bc1
+            else
+                bc = bc2
+            end if
+        end function
 	END MODULE
 
 #	undef _GV_CELL_SIZE

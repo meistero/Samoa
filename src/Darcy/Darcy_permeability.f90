@@ -15,10 +15,12 @@
 
 		type(darcy_gv_saturation)				        :: gv_saturation
 		type(darcy_gv_p)						        :: gv_p
+		type(darcy_gv_r)						        :: gv_r
 		type(darcy_gv_rhs)						        :: gv_rhs
-		type(darcy_gv_is_pressure_dirichlet_boundary)   :: gv_is_pressure_dirichlet
-		type(darcy_gv_is_saturation_dirichlet_boundary) :: gv_is_saturation_dirichlet
+		type(darcy_gv_volume)                           :: gv_trace
 		type(darcy_gv_volume)                           :: gv_inflow
+		type(darcy_gv_boundary_condition)               :: gv_boundary_condition
+		type(darcy_gm_A)                                :: gm_A
 
 		public initialize_rhs, get_areas_and_lengths
 
@@ -81,7 +83,7 @@
  			type(t_grid_section), intent(in)					:: section
 			type(t_node_data), intent(inout)			        :: node
 
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%volume, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
 		end subroutine
 
 		elemental subroutine inner_node_first_touch_op(traversal, section, node)
@@ -89,11 +91,7 @@
  			type(t_grid_section), intent(in)					:: section
 			type(t_node_data), intent(inout)			        :: node
 
-            !ensure the temporary variables are set to .false., the may be invalid otherwise
-            node%data_temp%is_saturation_dirichlet_boundary = .false.
-            node%data_temp%is_pressure_dirichlet_boundary = .false.
-
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%volume, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -124,6 +122,7 @@
 			type(t_node_data), intent(inout)		:: local_node
  			type(t_node_data), intent(in)		    :: neighbor_node
 
+			local_node%data_pers%r = local_node%data_pers%r + neighbor_node%data_pers%r
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
@@ -133,51 +132,41 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			                :: node
 
-			real (kind = GRID_SR) :: total_inflow
-
-            total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
-
-			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%volume, total_inflow)
-		end subroutine
-
-		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, inflow, is_pressure_dirichlet, is_saturation_dirichlet)
-			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
-			real (kind = GRID_SR), intent(inout)				:: p
-			real (kind = GRID_SR), intent(inout)				:: saturation
-			real (kind = GRID_SR), intent(out)					:: rhs
-			real (kind = GRID_SR), intent(out)					:: inflow
-            logical, intent(inout)                              :: is_pressure_dirichlet, is_saturation_dirichlet
-
-            integer :: i
-
-			rhs = 0.0_SR
-			inflow = 0.0_SR
-
-#           if !defined(_ASAGI)
-                if (pos_x == 0.0_SR) then
-                    is_saturation_dirichlet = .true.
-                else if (pos_x == 1.0_SR) then
-                    is_pressure_dirichlet = .true.
+#           if defined(_DARCY_INJ_INFLOW)
+                if (any(node%data_pers%boundary_condition > 0)) then
+                    call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                end if
+#           elif defined(_DARCY_INJ_PRESSURE)
+                if (any(node%data_pers%boundary_condition > 0)) then
+                    call pressure_post_dof_op(node%data_pers%p, node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
                 end if
 #           endif
-
-            if (is_pressure_dirichlet) then
-                p = cfg%r_p_prod
-            endif
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(saturation, rhs, is_pressure_dirichlet, inflow, total_inflow)
-			real (kind = GRID_SR), intent(inout)				:: saturation
-			real (kind = GRID_SR), intent(inout)				:: rhs
-			real (kind = GRID_SR), intent(in)				    :: inflow
-			real (kind = GRID_SR), intent(in)				    :: total_inflow
-			logical, intent(in)			                        :: is_pressure_dirichlet
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, r, rhs, inflow)
+			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
+			real (kind = GRID_SR), intent(inout)				:: p, saturation
+			real (kind = GRID_SR), intent(out)					:: r, rhs, inflow
 
-            rhs = rhs + cfg%r_inflow * inflow / total_inflow
+			r = 0.0_SR
+			rhs = 0.0_SR
+			inflow = 0.0_SR
+		end subroutine
 
-            if (is_pressure_dirichlet) then
-                rhs = 0.0_SR
-            end if
+		pure subroutine inflow_post_dof_op(rhs, r, d)
+			real (kind = GRID_SR), intent(inout)				:: rhs(:)
+			real (kind = GRID_SR), intent(in)				    :: r(:), d(:)
+
+            rhs = rhs + cfg%r_inflow / sum(d) * d
+            !rhs = rhs + r + (cfg%r_inflow - sum(r)) / sum(d) * d
+		end subroutine
+
+		pure subroutine pressure_post_dof_op(p, rhs, r, d)
+			real (kind = GRID_SR), intent(inout)				:: p(:)
+			real (kind = GRID_SR), intent(in)				    :: rhs(:), r(:), d(:)
+
+            !limit pressure to the maximum injection pressure
+            p = p + min(0.0_SR, (cfg%r_inflow - sum(r)) / sum(d))
 		end subroutine
 
 #       if (_DARCY_LAYERS > 0)
@@ -189,120 +178,13 @@
                 real (kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
 
                 real (kind = GRID_SR)					            :: coords(2, 3)
-                real (kind = GRID_SR)					            :: g_local(3), pos_prod(2), pos_in(2), weights(3), edge_length, dx, dy, dz, Ax, Ay, Az, permeability_sum
+                real (kind = GRID_SR)					            :: g_local(3), weights(3), edge_length, dx, dy, dz, Ax, Ay, Az
                 real (kind = GRID_SR)                               :: lambda_t(_DARCY_LAYERS, 7)
-                real (kind = GRID_SR)                               :: inflow(_DARCY_LAYERS + 1, 3)
+                real (kind = GRID_SR)                               :: inflow((_DARCY_LAYERS + 1) * 3), r((_DARCY_LAYERS + 1) * 3)
                 integer                                             :: i, layer
-                logical		                                        :: is_dirichlet(_DARCY_LAYERS + 1, 3)
+                integer (kind = SI) 	                            :: boundary_condition(3)
 
                 rhs = 0.0_SR
-
-#               if defined(_ASAGI)
-                    call gv_is_saturation_dirichlet%read_from_element(element, is_dirichlet)
-
-                    if (any(is_dirichlet)) then
-                        pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
-
-                        !injection well:
-
-                        !The inflow condition is given in um^3 / s
-                        !If we devide this by the number of vertical layers, we obtain the 3D inflow for a vertical dual cell column
-                        !Split the inflow over all primary cells in each layer that share the dual cell column
-
-#                       define _DARCY_INJ_INFLOW
-#                       if defined(_DARCY_INJ_INFLOW)
-                            !set a water inflow condition
-
-                            !Using Peaceman's well model we consider the well as an internal boundary and assume that
-                            !near the well the following condition holds:
-                            !The radial derivative p_r is constant over r and z.
-                            !
-                            !Thus the inflow q is q(r,phi,z) = lambda_w(S) K_r(r,phi,z) (-p_r)
-                            !With \integral_{well boundary} q(r,phi,z) * dS = Q we obtain
-                            ! \integral_{well boundary} lambda_w(S) K_r(r,phi,z) (-p_r) dOmega = Q
-                            ! p_r = - Q / integral_(well boundary) lambda_w(S) K_r(r,phi,z) dOmega
-                            ! q(r,phi,z) = Q K_r(r,phi,z) / integral_(well boundary) K_r(r,phi,z) dOmega
-
-                            weights = 0.25_SR * [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
-                            inflow = 0.0_SR
-
-                            !split local inflows in primary layer and assign half contributions to dual layers
-
-                            do i = 1, 3
-                                inflow(1:_DARCY_LAYERS, i) = inflow(1:_DARCY_LAYERS, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
-                                inflow(2:_DARCY_LAYERS + 1, i) = inflow(2:_DARCY_LAYERS + 1, i) + 0.5_SR * base_permeability(:, 1) * weights(i)
-                            end do
-
-                            call gv_inflow%add_to_element(element, inflow)
-#                       elif defined(_DARCY_INJ_PRESSURE)
-                            !set a pressure Dirichlet condition
-
-                            weights = [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]
-
-                            do i = 1, 3
-                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
-                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_in
-
-                                    do layer = _DARCY_LAYERS, 1, -1
-                                        p(layer, i) = p(layer + 1, i) - &
-                                            (l_w(saturation(layer, i)) * cfg%r_rho_w + l_n(saturation(layer, i)) * cfg%r_rho_n) &
-                                            / (l_w(saturation(layer, i)) + l_n(saturation(layer, i))) * cfg%dz * g(3)
-                                    end do
-                                end if
-                            end do
-
-                            call gv_p%write_to_element(element, p)
-#                       else
-#                           error Injection condition must be defined!
-#                       endif
-                    end if
-
-                    call gv_is_pressure_dirichlet%read_from_element(element, is_dirichlet)
-
-                    if (any(is_dirichlet)) then
-                        !switch to a different discretizaion near the well:
-                        !the pressure becomes a logarithmic function p(r) - p(r0) = c log(r/r0),
-                        !hence dp/dr(x) = c * r0 / x = (p(r) - p(r0)) / (log(r/r0) * x/r0).
-                        !So dp/dr(r/2) = (p(r) - p(r0)) / (log(r/r0) * r/(2 r0))
-                        !instead of the finite difference term (p(r) - p(r0)) / (r - r0).
-
-#                       define _DARCY_PROD_ALL_PRESSURE
-#                       if defined(_DARCY_PROD_ALL_PRESSURE)
-                            !set a constant pressure condition
-
-                            do i = 1, 3
-                                if (is_dirichlet(_DARCY_LAYERS + 1, i)) then
-                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
-
-                                    do layer = _DARCY_LAYERS, 1, -1
-                                        p(layer, i) = p(layer + 1, i) - &
-                                            (l_w(saturation(layer, i)) * cfg%r_rho_w + l_n(saturation(layer, i)) * cfg%r_rho_n) &
-                                            / (l_w(saturation(layer, i)) + l_n(saturation(layer, i))) * cfg%dz * cfg%g(3)
-                                    end do
-                                end if
-                            end do
-
-                            call gv_p%write_to_element(element, p)
-#                       else
-#                           error Production condition must be defined!
-#                       endif
-                    end if
-#               else
-                    coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
-                    coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
-                    coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
-
-                    if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
-                        rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
-                        rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
-                    else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
-                        rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
-                        rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
-                    else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
-                        rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
-                        rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
-                    end if
-#               endif
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g
@@ -322,6 +204,102 @@
                     element%cell%data_pers%lambda_t(:, 6) = lambda_t(:, 7)
                     element%cell%data_pers%lambda_t(:, 7) = lambda_t(:, 6)
                 end if
+
+#               if defined(_ASAGI)
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+                    if (any(boundary_condition > 0)) then
+                        !injection well:
+
+#                       if defined(_DARCY_INJ_INFLOW)
+                            !set a water inflow condition
+
+                            inflow = 0.0_SR
+
+                            !ignore vertical contributions
+!                            element%cell%data_pers%lambda_t(:, 3:5) = 0.0_SR
+
+                            call gm_A%get_trace(element, inflow)
+                            call gv_trace%add_to_element(element, inflow)
+
+!                            if (element%transform_data%plotter_data%orientation > 0) then
+!                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 3:5)
+!                            else
+!                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 5:3:-1)
+!                            end if
+#                       elif defined(_DARCY_INJ_PRESSURE)
+                            !set a pressure Dirichlet condition
+
+                            inflow = 0.0_SR
+                            r = 0.0_SR
+
+                            do i = 1, 3
+                                if (boundary_condition(i) > 0) then
+                                    do layer = 1, _DARCY_LAYERS + 1
+                                        p(layer, i) = cfg%r_p_in - cfg%r_rho_w * (_DARCY_LAYERS + 1 - layer) * cfg%dz * cfg%g(3)
+                                    end do
+                                end if
+                            end do
+
+                            !ignore vertical contributions
+                            element%cell%data_pers%lambda_t(:, 3:5) = 0.0_SR
+
+                            call gm_A%get_trace(element, inflow)
+                            call gm_A%apply(element, reshape(p, [3 * (_DARCY_LAYERS + 1)]), r)
+
+                            if (element%transform_data%plotter_data%orientation > 0) then
+                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 3:5)
+                            else
+                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 5:3:-1)
+                            end if
+
+                            call gv_trace%add_to_element(element, inflow)
+                            call gv_r%add_to_element(element, r)
+                            call gv_p%write_to_element(element, p)
+#                       else
+#                           error Injection condition must be defined!
+#                       endif
+                    end if
+
+                    if (any(boundary_condition < 0)) then
+#                       if defined(_DARCY_PROD_PRESSURE)
+                            !set a constant pressure condition
+
+                            do i = 1, 3
+                                if (boundary_condition(i) < 0) then
+                                    p(_DARCY_LAYERS + 1, i) = cfg%r_p_prod
+
+                                    do layer = _DARCY_LAYERS, 1, -1
+                                        p(layer, i) = p(layer + 1, i) - &
+                                            (l_w(saturation(layer, i)) * cfg%r_rho_w + l_n(saturation(layer, i)) * cfg%r_rho_n) &
+                                            / (l_w(saturation(layer, i)) + l_n(saturation(layer, i))) * cfg%dz * cfg%g(3)
+                                    end do
+                                end if
+                            end do
+
+                            call gv_p%write_to_element(element, p)
+#                       else
+#                           error Production condition must be defined!
+#                       endif
+                    end if
+#               else
+                    if (any(boundary_condition > 0)) then
+                        coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
+                        coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
+                        coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+
+                        if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
+                            rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                            rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                        else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
+                            rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
+                            rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
+                        else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
+                            rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                            rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
+                        end if
+                    end if
+#               endif
             end subroutine
 #       else
             subroutine initialize_rhs(element, saturation, p, rhs, base_permeability)
@@ -332,82 +310,12 @@
                 real (kind = GRID_SR), intent(in)                                   :: base_permeability
 
                 real (kind = GRID_SR)					            :: coords(2, 3)
-                real (kind = GRID_SR)					            :: pos_prod(2), pos_in(2), inflow, dx, dy, Ax, Ay
+                real (kind = GRID_SR)					            :: inflow(3), r(3), dx, dy, Ax, Ay
                 real (kind = GRID_SR)                               :: g_local(2), lambda_t(2), weights(3)
-                logical		                                        :: is_dirichlet(3)
+                integer                                             :: i
+                integer (kind = SI)	                                :: boundary_condition(3)
 
                 rhs = 0.0_SR
-
-#               if defined(_ASAGI)
-                    call gv_is_saturation_dirichlet%read_from_element(element, is_dirichlet)
-
-                    if (any(is_dirichlet)) then
-                        !injection well:
-
-#                       define _DARCY_INJ_INFLOW
-#                       if defined(_DARCY_INJ_INFLOW)
-                            !set a water inflow condition
-
-                            pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
-
-                            weights = [pos_in(1), 2.0_SR - 2.0_SR * (pos_in(1) + pos_in(2)), pos_in(2)]
-
-                            if (base_permeability > 0) then
-                                !The inflow condition is given in um^3 / s
-                                !If we devide this by the height of the domain cfg%dz, we obtain the 2D inflow in um^2/s
-                                !Split the inflow over all primary cells that share the dual cell
-
-                                inflow = cfg%r_inflow / cfg%dz
-
-                                rhs = rhs + inflow / 8.0_SR * weights
-                           end if
-#                       elif defined(_DARCY_INJ_PRESSURE)
-                            !set a pressure Dirichlet condition
-
-                            where (is_dirichlet)
-                                p = cfg%r_p_in
-                            end where
-
-                            call gv_p%write_to_element(element, p)
-#                       else
-#                           error Injection condition must be defined!
-#                       endif
-                    end if
-
-                    call gv_is_pressure_dirichlet%read_from_element(element, is_dirichlet)
-
-                    if (any(is_dirichlet)) then
-                        !production well:
-
-#                       define _DARCY_PROD_ALL_PRESSURE
-#                       if defined(_DARCY_PROD_ALL_PRESSURE)
-                            !set a pressure Dirichlet condition
-
-                            where (is_dirichlet)
-                                p = cfg%r_p_prod
-                            end where
-
-                            call gv_p%write_to_element(element, p)
-#                       else
-#                           error Production condition must be defined!
-#                       endif
-                    end if
-#               else
-                    coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
-                    coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
-                    coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
-
-                    if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
-                        rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
-                        rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
-                    else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
-                        rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
-                        rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
-                    else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
-                        rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
-                        rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
-                    end if
-#               endif
 
                 !rotate g so it points in the right direction (no scaling!)
                 g_local = cfg%g(1:2)
@@ -422,15 +330,115 @@
                     element%cell%data_pers%lambda_t(1) = lambda_t(2)
                     element%cell%data_pers%lambda_t(2) = lambda_t(1)
                 end if
+
+#               if defined(_ASAGI)
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+                    if (any(boundary_condition > 0)) then
+                        !injection well:
+
+#                       if defined(_DARCY_INJ_INFLOW)
+                            !set a water inflow condition
+
+                            inflow = 0.0_SR
+
+                            call gm_A%get_trace(element, inflow)
+                            call gv_trace%add_to_element(element, inflow)
+#                       elif defined(_DARCY_INJ_PRESSURE)
+                            !set a pressure Dirichlet condition
+
+                            inflow = 0.0_SR
+                            r = 0.0_SR
+
+                            where (boundary_condition > 0)
+                                p = cfg%r_p_in
+                            end where
+
+                            call gm_A%get_trace(element, inflow)
+                            call gm_A%apply(element, p, r)
+
+                            call gv_trace%add_to_element(element, inflow)
+                            call gv_r%add_to_element(element, r)
+                            call gv_p%write_to_element(element, p)
+#                       else
+#                           error Injection condition must be defined!
+#                       endif
+                    end if
+
+                    if (any(boundary_condition < 0)) then
+                        !production well:
+
+#                       if defined(_DARCY_PROD_PRESSURE)
+                            !set an internal pressure Dirichlet condition
+
+                            where (boundary_condition < 0)
+                                p = cfg%r_p_prod
+                            end where
+
+                            call gv_p%write_to_element(element, p)
+#                       else
+#                           error Production condition must be defined!
+#                       endif
+                    end if
+#               else
+                    if (any(boundary_condition > 0)) then
+                        coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
+                        coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
+                        coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+
+                        if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
+                            rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                            rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                        else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
+                            rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
+                            rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
+                        else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
+                            rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                            rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
+                        end if
+                    end if
+#               endif
             end subroutine
 #       endif
+
+        !Apply a pressure correction term near wells:
+        !the total flux is assumed radial and constant, hence
+        ! Q / (2 pi r) = q(r) = -k p_r(r)
+        ! p_r(r) = -Q / (2 pi r k).
+        !The pressure is logarithmic:
+        ! p(r) = p(r_w) - Q/(2 pi k) * log(r/r_w).
+
+        !Setting n := r / dr for dr > 0, we approximate the pressure with Finite Differences as
+        ! (\tilde p(n + 1) - \tilde p(n)) / dr = q(dr * (n + 1/2))/k = -Q / (2 pi (dr * (n + 1/2)) k).
+        !Solving the recurrence equation returns
+        ! \tilde p(n) = p_w - Q / (2 pi k) * (H_{n - 1/2} + log(4)).
+
+        !Hence, the pressure error is
+        ! \tilde p(n) - p(n * dr)
+        ! = Q / (2 pi k) * log(n*dr/r_w) - Q / (2 pi k) * (H_{n - 1/2} + log(4))
+        ! = Q / (2 pi k) * (log(dr/r_w) + log(n) - (H_{n - 1/2} + log(4))
+        !which in the limit n -> infinity converges to:
+        ! = Q / (2 pi k) * (log(dx/r_w) - gamma - log(4)).
+
+        !Using the pressure correction p'_w := p_w - Q / (2 pi k) * (log(dx/r_w) - gamma - log(4))
+        !we get (p(1) - p_w) / dx = (p(1) - p'_w) / dx +
+        ! Q / (2 pi k) * (log(dx/r_w) - gamma - log(4))) / dx
+        !At the well the discretization gives -(p(1) - p'_w)/dx * dx/ 2 = Q / (8 k), so
+        ! (p(1) - p_w) / dx =
+        ! = (p(1) - p'_w) / dx + (p(1) - p'_w) / 2 * (4 / pi) * (log(dx/r_w) - gamma - log(4))) / dx
+        ! = (p(1) - p'_w) / dx * (1 + (2 / pi) * (log(dx/r_w) - gamma - log(4)))
+        !Thus (p(1) - p'_w) / dx = (p(1) - p_w) / (dx * (1 + (2 / pi) * (log(dx/r_w) - gamma - log(4))))
 
 #       if (_DARCY_LAYERS > 0)
             subroutine get_areas_and_lengths(element, dx, dy, dz, Ax, Ay, Az)
                 type(t_element_base), intent(inout)				:: element
                 real (kind = GRID_SR), intent(inout)		    :: dx, dy, dz, Ax, Ay, Az
 
-                logical		                                    :: is_dirichlet(_DARCY_LAYERS + 1, 3)
+                !> \gamma is the limit of the difference of harmonic function and logarithm at n = infinity
+                !> \gamma = (sum_(i = 0)^n H_n - log(n))
+                real (kind = GRID_SR), parameter                :: euler_gamma = 0.57721566490153286061_SR
+
+                integer (kind = SI)                             :: boundary_condition(3)
 
                 dx = element%cell%geometry%get_leg_size()
                 dy = dx
@@ -440,43 +448,15 @@
                 Az = element%cell%geometry%get_volume()
 
 #               if defined(_ASAGI)
-                    call gv_is_saturation_dirichlet%read_from_element(element, is_dirichlet)
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
 
-                    if (any(is_dirichlet)) then
-                        !switch to a different discretization near the well:
-                        !the pressure becomes a logarithmic function p(r) - p(r0) = c log(r/r0),
-                        !hence dp/dr(x) = c * r0 / x = (p(r) - p(r0)) / (log(r/r0) * x/r0).
-                        !So dp/dr(r/2) = (p(r) - p(r0)) / (log(r/r0) * r/(2 r0))
-                        !instead of the finite difference term (p(r) - p(r0)) / (r - r0).
-
-                        if (is_dirichlet(1, 1) .or. is_dirichlet(1, 2)) then
-                            dx = element%cell%geometry%get_leg_size()
-                            dx = dx * 2.0_SR / PI * log(dx / cfg%r_well_radius)
+                    if (any(boundary_condition .ne. 0)) then
+                        if (boundary_condition(1) .ne. 0 .or. boundary_condition(2) .ne. 0) then
+                            dx = dx + dx * 2.0_SR / PI * (log(dx / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
                         end if
 
-                        if (is_dirichlet(1, 3) .or. is_dirichlet(1, 2)) then
-                            dy = element%cell%geometry%get_leg_size()
-                            dy = dy * 2.0_SR / PI * log(dy / cfg%r_well_radius)
-                        end if
-                    end if
-
-                    call gv_is_pressure_dirichlet%read_from_element(element, is_dirichlet)
-
-                    if (any(is_dirichlet)) then
-                        !switch to a different discretization near the well:
-                        !the pressure becomes a logarithmic function p(r) - p(r0) = c log(r/r0),
-                        !hence dp/dr(x) = c * r0 / x = (p(r) - p(r0)) / (log(r/r0) * x/r0).
-                        !So dp/dr(r/2) = (p(r) - p(r0)) / (log(r/r0) * r/(2 r0))
-                        !instead of the finite difference term (p(r) - p(r0)) / (r - r0).
-
-                        if (is_dirichlet(1, 1) .or. is_dirichlet(1, 2)) then
-                            dx = element%cell%geometry%get_leg_size()
-                            dx = dx * 2.0_SR / PI * log(dx / cfg%r_well_radius)
-                        end if
-
-                        if (is_dirichlet(1, 3) .or. is_dirichlet(1, 2)) then
-                            dy = element%cell%geometry%get_leg_size()
-                            dy = dy * 2.0_SR / PI * log(dy / cfg%r_well_radius)
+                        if (boundary_condition(3) .ne. 0 .or. boundary_condition(2) .ne. 0) then
+                            dy = dy + dy * 2.0_SR / PI * (log(dy / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
                         end if
                     end if
 #               endif
@@ -486,7 +466,11 @@
                 type(t_element_base), intent(inout)				:: element
                 real (kind = GRID_SR), intent(inout)		    :: dx, dy, Ax, Ay
 
-                logical		                                    :: is_dirichlet(3)
+                !> \gamma is the limit of the difference of harmonic function and logarithm at n = infinity
+                !> \gamma = (sum_(i = 0)^n H_n - log(n))
+                real (kind = GRID_SR), parameter                :: euler_gamma = 0.57721566490153286061_SR
+
+                integer (kind = SI)                             :: boundary_condition(3)
 
                 dx = element%cell%geometry%get_leg_size()
                 dy = dx
@@ -494,43 +478,15 @@
                 Ay = Ax
 
 #               if defined(_ASAGI)
-                    call gv_is_saturation_dirichlet%read_from_element(element, is_dirichlet)
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
 
-                    if (any(is_dirichlet)) then
-                        !switch to a different discretization near the well:
-                        !the pressure becomes a logarithmic function p(r) - p(r0) = c log(r/r0),
-                        !hence dp/dr(x) = c * r0 / x = (p(r) - p(r0)) / (log(r/r0) * x/r0).
-                        !So dp/dr(r/2) = (p(r) - p(r0)) / (log(r/r0) * r/(2 r0))
-                        !instead of the finite difference term (p(r) - p(r0)) / (r - r0).
-
-                        if (is_dirichlet(1) .or. is_dirichlet(2)) then
-                            dx = element%cell%geometry%get_leg_size()
-                            dx = dx * 2.0_SR / PI * log(dx / cfg%r_well_radius)
+                    if (any(boundary_condition .ne. 0)) then
+                        if (boundary_condition(1) .ne. 0 .or. boundary_condition(2) .ne. 0) then
+                            dx = dx + dx * 2.0_SR / PI * (log(dx / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
                         end if
 
-                        if (is_dirichlet(3) .or. is_dirichlet(2)) then
-                            dy = element%cell%geometry%get_leg_size()
-                            dy = dy * 2.0_SR / PI * log(dy / cfg%r_well_radius)
-                        end if
-                    end if
-
-                    call gv_is_pressure_dirichlet%read_from_element(element, is_dirichlet)
-
-                    if (any(is_dirichlet)) then
-                        !switch to a different discretization near the well:
-                        !the pressure becomes a logarithmic function p(r) - p(r0) = c log(r/r0),
-                        !hence dp/dr(x) = c * r0 / x = (p(r) - p(r0)) / (log(r/r0) * x/r0).
-                        !So dp/dr(r/2) = (p(r) - p(r0)) / (log(r/r0) * r/(2 r0))
-                        !instead of the finite difference term (p(r) - p(r0)) / (r - r0).
-
-                        if (is_dirichlet(1) .or. is_dirichlet(2)) then
-                            dx = element%cell%geometry%get_leg_size()
-                            dx = dx * 2.0_SR / PI * log(dx / cfg%r_well_radius)
-                        end if
-
-                        if (is_dirichlet(3) .or. is_dirichlet(2)) then
-                            dy = element%cell%geometry%get_leg_size()
-                            dy = dy * 2.0_SR / PI * log(dy / cfg%r_well_radius)
+                        if (boundary_condition(3) .ne. 0 .or. boundary_condition(2) .ne. 0) then
+                            dy = dy + dy * 2.0_SR / PI * (log(dy / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
                         end if
                     end if
 #               endif

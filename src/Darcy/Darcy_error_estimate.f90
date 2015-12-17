@@ -126,27 +126,8 @@
                 real (kind = GRID_SR)   :: p(3)
 #           endif
 
-            real (kind = GRID_SR)   :: pos_in(2)
-
 			call gv_saturation%read_from_element(element, saturation)
 			call gv_p%read_from_element(element, p)
-
-            pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
-
-            if (norm2(pos_in) < 1.0_SR + epsilon(1.0_SR)) then
-                if (norm2(pos_in - 0.5_SR) < sqrt(0.5_SR) + epsilon(1.0_SR)) then
-                    !injection well:
-                    !set a constant saturation condition
-
-#                   if (_DARCY_LAYERS > 0)
-                        saturation(:, 1) = max(0.0_SR, min(1.0_SR, saturation(:, 1) + pos_in(1)))
-                        saturation(:, 2) = max(0.0_SR, min(1.0_SR, saturation(:, 2) + 1.0_SR - (pos_in(1) + pos_in(2))))
-                        saturation(:, 3) = max(0.0_SR, min(1.0_SR, saturation(:, 3) + pos_in(2)))
-#                   else
-                        saturation = max(0.0_SR, min(1.0_SR, saturation + [pos_in(1), 1.0_SR - (pos_in(1) + pos_in(2)), pos_in(2)]))
-#                   endif
-                end if
-            end if
 
 			!call element operator
 			call compute_refinement_indicator(element, traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)

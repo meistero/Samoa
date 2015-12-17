@@ -70,9 +70,13 @@ MODULE _CG_(step)
 #		define _GT_NODE_FIRST_TOUCH_OP			node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP			node_last_touch_op
 #		define _GT_NODE_REDUCE_OP			    node_reduce_op
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP    inner_node_first_touch_op
-#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
-#		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
+
+        !turn on optimizations if the dirichlet check is a temporary variable
+#       if defined(_gv_dirichlet_is_temporary)
+#		    define _GT_INNER_NODE_FIRST_TOUCH_OP    inner_node_first_touch_op
+#		    define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
+#		    define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
+#       endif
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_WRITE_OP		        node_write_op
@@ -231,7 +235,7 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(inout)			:: node
 
-        logical                                     :: is_dirichlet(_gv_node_size)
+        logical (kind = GRID_SL)                    :: is_dirichlet(_gv_node_size)
         integer                                     :: i
         real(kind = GRID_SR)                        :: x(_gv_node_size)
         real(kind = GRID_SR)                        :: r(_gv_node_size)
@@ -296,7 +300,7 @@ MODULE _CG_(step)
         type(t_grid_section), intent(in)					:: section
         type(t_node_data), intent(inout)			:: node
 
-        logical                 :: is_dirichlet(_gv_node_size)
+        logical (kind = GRID_SL)                 :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)    :: empty(_gv_node_size)
         real(kind = GRID_SR)    :: v(_gv_node_size)
         real(kind = GRID_SR)    :: trace_A(_gv_node_size)
@@ -330,12 +334,12 @@ MODULE _CG_(step)
         call gv_v%write(node, v)
     end subroutine
 
-    pure subroutine node_reduce_op(traversal, section, node)
+    subroutine node_reduce_op(traversal, section, node)
         type(_T_CG_(step_traversal)), intent(inout)     :: traversal
         type(t_grid_section), intent(in)			    :: section
         type(t_node_data), intent(in)				    :: node
 
-        logical                 :: is_dirichlet(_gv_node_size)
+        logical (kind = GRID_SL)                 :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)    :: r(_gv_node_size), d(_gv_node_size)
         real(kind = GRID_SR)    :: v(_gv_node_size), trace_A(_gv_node_size)
         integer				    :: i
@@ -497,8 +501,12 @@ MODULE _CG_(exact)
 #		define _GT_NODE_FIRST_TOUCH_OP			node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP			node_last_touch_op
 #		define _GT_NODE_REDUCE_OP			    node_reduce_op
-#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
-#		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
+
+        !turn on optimizations if the dirichlet check is a temporary variable
+#       if defined(_gv_dirichlet_is_temporary)
+#		    define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
+#		    define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
+#       endif
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_WRITE_OP		        node_write_op
@@ -645,7 +653,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
 
-        logical                 :: is_dirichlet(_gv_node_size)
+        logical (kind = GRID_SL)    :: is_dirichlet(_gv_node_size)
         real(kind = GRID_SR)	:: r(_gv_node_size)
         real(kind = GRID_SR)    :: rhs(_gv_node_size)
         real(kind = GRID_SR)    :: trace_A(_gv_node_size)
@@ -697,7 +705,7 @@ MODULE _CG_(exact)
         type(t_grid_section), intent(in)		    :: section
         type(t_node_data), intent(in)				:: node
 
-        logical                 :: is_dirichlet(_gv_node_size)
+        logical (kind = GRID_SL)                 :: is_dirichlet(_gv_node_size)
         real (kind = GRID_SR)   :: r(_gv_node_size)
         real (kind = GRID_SR)   :: trace_A(_gv_node_size)
         integer					:: i

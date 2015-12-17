@@ -30,7 +30,8 @@
 #   define _gv_d                darcy_gv_d
 #   define _gv_v                darcy_gv_A_d
 #   define _gv_trace_A          darcy_gv_mat_diagonal
-#   define _gv_dirichlet        darcy_gv_is_pressure_dirichlet_boundary
+#   define _gv_dirichlet        darcy_gv_is_dirichlet
+!#   define _gv_dirichlet_is_temporary
 
 #   include "../Solver/PipeCG.f90"
 #endif

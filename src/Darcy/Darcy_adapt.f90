@@ -23,8 +23,7 @@
 		type(darcy_gv_saturation)					    :: gv_saturation
 		type(darcy_gv_volume)						    :: gv_volume
 		type(darcy_gv_mat_diagonal)					    :: gv_p_volume
-        type(darcy_gv_is_pressure_dirichlet_boundary)   :: gv_is_pressure_dirichlet
-        type(darcy_gv_is_saturation_dirichlet_boundary) :: gv_is_saturation_dirichlet
+        type(darcy_gv_boundary_condition)               :: gv_boundary_condition
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
 
@@ -241,28 +240,52 @@
 			type(t_element_base), intent(inout)    :: element
 
 			real (kind = GRID_SR)   :: pos_well(2)
-			logical                 :: is_dirichlet(_DARCY_LAYERS + 1, 3)
+			integer (kind = SI)     :: boundary_condition(3)
+            integer :: i
 
-            pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
+            do i = 1, size(cfg%r_pos_in, 2)
+                pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in(:, i))
 
-            if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
-                if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
-                    !injection well:
-                    is_dirichlet = spread([pos_well(1) > 0.5_SR, pos_well(1) + pos_well(2) .le. 0.5_SR, pos_well(2) > 0.5_SR], 1, _DARCY_LAYERS + 1)
-                    call gv_is_saturation_dirichlet%add_to_element(element, is_dirichlet)
+                if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                    if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                        !injection well:
+
+                        boundary_condition = 0
+
+                        if (pos_well(1) > 0.5_SR) then
+                            boundary_condition(1) = i
+                        else if (pos_well(2) > 0.5_SR) then
+                            boundary_condition(3) = i
+                        else
+                            boundary_condition(2) = i
+                        end if
+
+                        call gv_boundary_condition%add_to_element(element, boundary_condition)
+                    end if
                 end if
-            end if
+            end do
 
-            pos_well = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
-            pos_well = samoa_world_to_barycentric_point(element%transform_data, pos_well)
+            do i = 1, size(cfg%r_pos_prod, 2)
+                pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_prod(:, i))
 
-            if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
-                if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
-                    !production well: map to nearest leg vertex
-                    is_dirichlet = spread([pos_well(1) > 0.5_SR, pos_well(1) + pos_well(2) .le. 0.5_SR, pos_well(2) > 0.5_SR], 1, _DARCY_LAYERS + 1)
-                    call gv_is_pressure_dirichlet%add_to_element(element, is_dirichlet)
+                if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                    if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                        !production well:
+
+                        boundary_condition = 0
+
+                        if (pos_well(1) > 0.5_SR) then
+                            boundary_condition(1) = -i
+                        else if (pos_well(2) > 0.5_SR) then
+                            boundary_condition(3) = -i
+                        else
+                            boundary_condition(2) = -i
+                        end if
+
+                        call gv_boundary_condition%add_to_element(element, boundary_condition)
+                    end if
                 end if
-            end if
+            end do
         end subroutine
 
 		!first touch ops
@@ -276,11 +299,12 @@
 		end subroutine
 
 		elemental subroutine node_first_touch_op(traversal, section, node)
- 			type(t_darcy_adaption_traversal), intent(in)							:: traversal
- 			type(t_grid_section), intent(in)							:: section
+ 			type(t_darcy_adaption_traversal), intent(in)	:: traversal
+ 			type(t_grid_section), intent(in)				:: section
 			type(t_node_data), intent(inout)				:: node
 
-			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary)
+			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
+            call init_boundary_conditions(node%position(1), node%position(2), node%data_pers%boundary_condition)
 		end subroutine
 
 		!merge ops
@@ -293,8 +317,7 @@
             local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
             local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
             local_node%data_temp%mat_diagonal = local_node%data_temp%mat_diagonal + neighbor_node%data_temp%mat_diagonal
-            local_node%data_temp%is_pressure_dirichlet_boundary = local_node%data_temp%is_pressure_dirichlet_boundary .or. neighbor_node%data_temp%is_pressure_dirichlet_boundary
-			local_node%data_temp%is_saturation_dirichlet_boundary = local_node%data_temp%is_saturation_dirichlet_boundary .or. neighbor_node%data_temp%is_saturation_dirichlet_boundary
+			call gv_boundary_condition%add(local_node, neighbor_node%data_pers%boundary_condition)
         end subroutine
 
 		!last touch ops
@@ -322,16 +345,8 @@
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine pre_dof_op(saturation, volume, p, mat_diagonal, d, A_d, rhs, is_pressure_dirichlet, is_saturation_dirichlet)
-			real (kind = GRID_SR), intent(out)		:: saturation
-			real (kind = GRID_SR), intent(out)		:: volume
-			real (kind = GRID_SR), intent(out)		:: p
-			real (kind = GRID_SR), intent(out)		:: mat_diagonal
-			real (kind = GRID_SR), intent(out)		:: d
-			real (kind = GRID_SR), intent(out)		:: A_d
-			real (kind = GRID_SR), intent(out)		:: rhs
-			logical, intent(out)                    :: is_pressure_dirichlet
-			logical, intent(out)                    :: is_saturation_dirichlet
+		elemental subroutine pre_dof_op(saturation, volume, p, mat_diagonal, d, A_d, rhs)
+			real (kind = GRID_SR), intent(out)		:: saturation, volume, p, mat_diagonal, d, A_d, rhs
 
 			saturation = 0.0_GRID_SR
 			volume = 0.0_GRID_SR
@@ -340,9 +355,22 @@
 			d = 0.0_GRID_SR
 			A_d = 0.0_GRID_SR
 			rhs = 0.0_SR
-			is_pressure_dirichlet = .false.
-			is_saturation_dirichlet = .false.
 		end subroutine
+
+		elemental subroutine init_boundary_conditions(pos_x, pos_y, boundary_condition)
+			real (kind = GRID_SR), intent(in)		:: pos_x, pos_y
+			integer (kind = SI), intent(out)        :: boundary_condition
+
+            boundary_condition = 0_SI
+
+#           if !defined(_ASAGI)
+                if (pos_x == 0.0_SR) then
+                    boundary_condition = 1_SI
+                else if (pos_x == 1.0_SR) then
+                    boundary_condition = -1_SI
+                end if
+#           endif
+        end subroutine
 
 		elemental subroutine post_dof_op(saturation, p, volume, p_volume)
  			real (kind = GRID_SR), intent(inout)	:: saturation

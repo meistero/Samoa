@@ -112,11 +112,10 @@
 #           endif
 		end function
 
-        recursive subroutine refine_2D_recursive(section, x1, x2, x3, perm, por, no_samples, depth, nz, x_min, x_max)
+        recursive subroutine refine_2D_recursive_inner(section, x1, x2, x3, perm, por, no_samples, depth, nz)
  			type(t_grid_section), intent(inout)     :: section
             real (kind = GRID_SR), intent(in)       :: x1(:), x2(:), x3(:)
             integer, intent(in)                     :: depth, nz
-            real (kind = GRID_SR), intent(in)       :: x_min(:), x_max(:)
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(inout)    :: perm(:, :), por(:)
@@ -132,14 +131,10 @@
             integer :: i, level, k, k_start, k_end
 
             if (depth > 0) then
-                call refine_2D_recursive(section, x1, 0.5_SR * (x1 + x3), x2, perm, por, no_samples, depth - 1, nz, x_min, x_max)
-                call refine_2D_recursive(section, x2, 0.5_SR * (x1 + x3), x3, perm, por, no_samples, depth - 1, nz, x_min, x_max)
+                call refine_2D_recursive_inner(section, x1, 0.5_SR * (x1 + x3), x2, perm, por, no_samples, depth - 1, nz)
+                call refine_2D_recursive_inner(section, x2, 0.5_SR * (x1 + x3), x3, perm, por, no_samples, depth - 1, nz)
             else
                 x(1:2) = (x1 + x2 + x3) / 3.0_SR
-
-                if (any(x(1:2) < x_min .or. x(1:2) > x_max)) then
-                    return
-                endif
 
 #               if (_DARCY_LAYERS > 0)
                     do level = 1, _DARCY_LAYERS
@@ -173,6 +168,44 @@
             end if
         end subroutine
 
+        recursive subroutine refine_2D_recursive(section, x1, x2, x3, perm, por, no_samples, depth, nz, x_min, x_max)
+ 			type(t_grid_section), intent(inout)     :: section
+            real (kind = GRID_SR), intent(in)       :: x1(:), x2(:), x3(:)
+            integer, intent(in)                     :: depth, nz
+            real (kind = GRID_SR), intent(in)       :: x_min(:), x_max(:)
+
+#           if (_DARCY_LAYERS > 0)
+                real (kind = GRID_SR), intent(inout)    :: perm(:, :), por(:)
+                integer, intent(inout)                  :: no_samples(:)
+                real (kind = GRID_SR)                   :: perm_buffer(2), por_buffer
+#           else
+                real (kind = GRID_SR), intent(inout)    :: perm, por
+                integer, intent(inout)                  :: no_samples
+                real (kind = GRID_SR)                   :: perm_buffer, por_buffer
+#           endif
+
+            real (kind = GRID_SR) :: x(3)
+
+            if (any(max(x1, x2, x3) < x_min .or. min(x1, x2, x3) > x_max)) then
+                return
+            else if (any(min(x1, x2, x3) < x_min .or. max(x1, x2, x3) > x_max)) then
+                if (depth > 0) then
+                    call refine_2D_recursive(section, x1, 0.5_SR * (x1 + x3), x2, perm, por, no_samples, depth - 1, nz, x_min, x_max)
+                    call refine_2D_recursive(section, x2, 0.5_SR * (x1 + x3), x3, perm, por, no_samples, depth - 1, nz, x_min, x_max)
+                else
+                    x(1:2) = (x1 + x2 + x3) / 3.0_SR
+
+                    if (any(x < x_min .or. x > x_max)) then
+                        return
+                    else
+                        call refine_2D_recursive_inner(section, x1, x2, x3, perm, por, no_samples, depth, nz)
+                    endif
+                end if
+            else
+                call refine_2D_recursive_inner(section, x1, x2, x3, perm, por, no_samples, depth, nz)
+            end if
+        end subroutine
+
         subroutine get_permeability_and_porosity_at_element(section, element, permeability, porosity)
 			type(t_grid_section), intent(inout)     :: section
 			type(t_element_base), intent(inout)     :: element
@@ -196,8 +229,8 @@
 
 #           if defined(_ADAPT_INTEGRATE)
 #               if defined(_ASAGI)
-                    ddepth = nint(log(1.0_SR / (asagi_grid_delta(cfg%afh_permeability_X, 0) * asagi_grid_delta(cfg%afh_permeability_X, 1) * _M * _M)) / log(2.0_SR)) - element%cell%geometry%i_depth
-                    nz = max(1, nint(cfg%dz * real(max(1, _DARCY_LAYERS, SR)) / (asagi_grid_delta(cfg%afh_permeability_X, 2)  * _M)))
+                    ddepth = nint(log(1.0_SR / (cfg%dx(1) * cfg%dx(2))) / log(2.0_SR)) - element%cell%geometry%i_depth
+                    nz = max(1, nint((cfg%x_max(3) - cfg%x_min(3)) / cfg%dx(3)))
 #               else
                     ddepth = cfg%i_max_depth - element%cell%geometry%i_depth
                     nz = 1
@@ -211,18 +244,7 @@
                 porosity = 0.0_SR
                 no_samples = 0
 
-#               if defined(_ASAGI)
-                    x_min = ([asagi_grid_min(cfg%afh_permeability_X, 0), asagi_grid_min(cfg%afh_permeability_X, 1)] - cfg%offset) / cfg%scaling
-                    x_max = ([asagi_grid_max(cfg%afh_permeability_X, 0), asagi_grid_max(cfg%afh_permeability_X, 1)] - cfg%offset) / cfg%scaling
-
-                    x_min = max(x_min, anint(x_min * 2.0_SR ** real(element%cell%geometry%i_depth / 2, SR)) * 0.5_SR ** real(element%cell%geometry%i_depth / 2, SR))
-                    x_max = min(x_max, anint(x_max * 2.0_SR ** real(element%cell%geometry%i_depth / 2, SR)) * 0.5_SR ** real(element%cell%geometry%i_depth / 2, SR))
-#               else
-                    x_min = 0.0_SR
-                    x_max = 1.0_SR
-#               endif
-
-                call refine_2D_recursive(section, x1, x2, x3, permeability, porosity, no_samples, 8, nz, x_min, x_max)
+                call refine_2D_recursive(section, x1, x2, x3, permeability, porosity, no_samples, min(ddepth, 8), nz, cfg%x_min(1:2), cfg%x_max(1:2))
 
 #               if (_DARCY_LAYERS > 0)
                     where(no_samples > 0)
@@ -273,8 +295,8 @@
 
             real (kind = GRID_SR)                               :: xs(3)
 
-            xs(1:2) = cfg%scaling * x(1:2) + cfg%offset
-            xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3)
+            xs(1:2) = cfg%scaling * x(1:2) + cfg%offset(1:2)
+            xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3) + cfg%offset(3)
 
             assert_ge(x(1), 0.0); assert_ge(x(2), 0.0)
             assert_le(x(1), 1.0); assert_le(x(2), 1.0)
@@ -356,8 +378,7 @@
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_p)						:: gv_p
 		type(darcy_gv_rhs)						:: gv_rhs
-		type(darcy_gv_is_pressure_dirichlet_boundary)    :: gv_is_pressure_dirichlet
-		type(darcy_gv_is_saturation_dirichlet_boundary)    :: gv_is_saturation_dirichlet
+		type(darcy_gv_boundary_condition)       :: gv_boundary_condition
 		type(darcy_gv_volume)					:: gv_inflow
 
 #		define	_GT_NAME						t_darcy_init_saturation_traversal
@@ -366,6 +387,7 @@
 
 #		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
+#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
 #		define	_GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
@@ -400,7 +422,7 @@
  			type(t_grid_section), intent(in)					:: section
 			type(t_node_data), intent(inout)			        :: node
 
-            call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%volume, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary)
+            call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
 		end subroutine
 
 		elemental subroutine inner_node_first_touch_op(traversal, section, node)
@@ -408,11 +430,7 @@
  			type(t_grid_section), intent(in)					:: section
 			type(t_node_data), intent(inout)			        :: node
 
-            !ensure the temporary variables are set to .false., the may be invalid otherwise
-            node%data_temp%is_saturation_dirichlet_boundary = .false.
-            node%data_temp%is_pressure_dirichlet_boundary = .false.
-
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%rhs, node%data_temp%volume, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%is_saturation_dirichlet_boundary)
+			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -443,35 +461,50 @@
 			type(t_node_data), intent(inout)		:: local_node
  			type(t_node_data), intent(in)		    :: neighbor_node
 
+			local_node%data_pers%r = local_node%data_pers%r + neighbor_node%data_pers%r
 			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
 
-		elemental subroutine node_last_touch_op(traversal, section, node)
- 			type(t_darcy_init_saturation_traversal), intent(in)                     :: traversal
+		subroutine inner_node_last_touch_op(traversal, section, node)
+ 			type(t_darcy_init_saturation_traversal), intent(in)         :: traversal
  			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			:: node
+			type(t_node_data), intent(inout)			                :: node
 
-			real (kind = GRID_SR) :: total_inflow
+#           if defined(_DARCY_INJ_INFLOW)
+                if (any(node%data_pers%boundary_condition > 0)) then
+                    call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                end if
+#           elif defined(_DARCY_INJ_PRESSURE)
+                if (any(node%data_pers%boundary_condition > 0)) then
+                    call pressure_post_dof_op(node%data_pers%p, node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                end if
+#           endif
+		end subroutine
 
-            total_inflow = tiny(1.0_SR) + sum(node%data_temp%volume)
+		subroutine node_last_touch_op(traversal, section, nodes)
+ 			type(t_darcy_init_saturation_traversal), intent(in)         :: traversal
+ 			type(t_grid_section), intent(in)							:: section
+			type(t_node_data), intent(inout)			                :: nodes(:)
 
-			call flow_post_dof_op(node%data_pers%saturation, node%data_pers%rhs, node%data_temp%is_pressure_dirichlet_boundary, node%data_temp%volume, total_inflow)
+            integer :: i
+
+            do i = 1, size(nodes)
+                call inner_node_last_touch_op(traversal, section, nodes(i))
+            end do
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, rhs, inflow, is_pressure_dirichlet, is_saturation_dirichlet)
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, r, rhs, inflow)
 			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
-			real (kind = GRID_SR), intent(inout)				:: p
-			real (kind = GRID_SR), intent(inout)				:: saturation
-			real (kind = GRID_SR), intent(out)					:: rhs
-			real (kind = GRID_SR), intent(out)					:: inflow
-            logical, intent(inout)                              :: is_pressure_dirichlet, is_saturation_dirichlet
+			real (kind = GRID_SR), intent(inout)				:: p, saturation
+			real (kind = GRID_SR), intent(out)					:: r, rhs, inflow
 
             saturation = 0.0_SR
+			r = 0.0_SR
 			rhs = 0.0_SR
 			inflow = 0.0_SR
 
@@ -483,38 +516,31 @@
                 else
                     saturation = 0.5_SR
                 end if
-
-                if (pos_x == 0.0_SR) then
-                    is_saturation_dirichlet = .true.
-                else if (pos_x == 1.0_SR) then
-                    is_pressure_dirichlet = .true.
-                end if
 #           endif
-
-            if (is_pressure_dirichlet) then
-                p = cfg%r_p_prod
-            endif
 		end subroutine
 
-		elemental subroutine flow_post_dof_op(saturation, rhs, is_pressure_dirichlet, inflow, total_inflow)
-			real (kind = GRID_SR), intent(inout)				:: saturation
-			real (kind = GRID_SR), intent(inout)				:: rhs
-			real (kind = GRID_SR), intent(in)				    :: inflow
-			real (kind = GRID_SR), intent(in)				    :: total_inflow
-			logical, intent(in)			                        :: is_pressure_dirichlet
+		subroutine inflow_post_dof_op(rhs, r, d)
+			real (kind = GRID_SR), intent(inout)				:: rhs(:)
+			real (kind = GRID_SR), intent(in)				    :: r(:), d(:)
 
-            rhs = rhs + cfg%r_inflow * inflow / total_inflow
+            rhs = rhs + cfg%r_inflow / sum(d) * d
+            !rhs = rhs + r + (cfg%r_inflow - sum(r)) / sum(d) * d
+		end subroutine
 
-            if (is_pressure_dirichlet) then
-                rhs = 0.0_SR
-            end if
+		subroutine pressure_post_dof_op(p, rhs, r, d)
+			real (kind = GRID_SR), intent(inout)				:: p(:)
+			real (kind = GRID_SR), intent(in)				    :: rhs(:), r(:), d(:)
+
+            !limit pressure to the maximum injection pressure
+            p = p + min(0.0_SR, (cfg%r_inflow - sum(r)) / sum(d))
 		end subroutine
 
 		subroutine alpha_volume_op(traversal, element, saturation, p, rhs, base_permeability)
  			type(t_darcy_init_saturation_traversal)                             :: traversal
 			type(t_element_base), intent(inout)									:: element
 
-			real (kind = GRID_SR)					                :: pos_prod(2), pos_in(2)
+			real (kind = GRID_SR)					                :: pos_min(2), pos_max(2)
+			integer (kind = SI)					                    :: boundary_condition(3)
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(inout)		        :: saturation(:, :)
@@ -537,22 +563,29 @@
 			call compute_refinement_indicator(element, traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
             element%cell%geometry%refinement = max(element%cell%geometry%refinement, 0)
 
+            !refine the domain boundary
             if (element%cell%geometry%i_depth < cfg%i_max_depth) then
-                pos_in = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in)
-                if (norm2(pos_in) < 1.0_SR + epsilon(1.0_SR)) then
-                    if (pos_in(1) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_in(1) + pos_in(2)) > -epsilon(1.0_SR) .and. pos_in(2) > - epsilon(1.0_SR)) then
-                        element%cell%geometry%refinement = 1
-                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                    end if
-                end if
+                pos_min = min(element%nodes(1)%ptr%position, element%nodes(2)%ptr%position, element%nodes(3)%ptr%position)
+                pos_max = max(element%nodes(1)%ptr%position, element%nodes(2)%ptr%position, element%nodes(3)%ptr%position)
 
-                pos_prod = sign(cfg%r_pos_prod - 0.5_SR, element%transform_data%custom_data%offset - 0.5_SR) + 0.5_SR
-                pos_prod = samoa_world_to_barycentric_point(element%transform_data, pos_prod)
-                if (norm2(pos_prod) < 4.0_SR + epsilon(1.0_SR)) then
-                    if (pos_prod(1) > -3.0_SR .and. 1.0_SR - (pos_prod(1) + pos_prod(2)) > -3.0_SR .and. pos_prod(2) > -3.0_SR) then
-                        element%cell%geometry%refinement = 1
-                        traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                    end if
+                !if at least one point is inside the domain and at least one point outside the domain, refine the triangle.
+                if (all(pos_max > cfg%x_min(1:2) + epsilon(1.0_SR) .and. pos_min < cfg%x_max(1:2) - epsilon(1.0_SR)) &
+                    .and. any(pos_min < cfg%x_min(1:2) - epsilon(1.0_SR) .or. pos_max > cfg%x_max(1:2) + epsilon(1.0_SR))) then
+
+                    element%cell%geometry%refinement = 1
+                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                end if
+            end if
+
+            !refine wells
+            call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+            if (any(boundary_condition .ne. 0)) then
+                if (element%cell%geometry%i_depth < cfg%i_max_depth) then
+                    element%cell%geometry%refinement = 1
+                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                else
+                    element%cell%geometry%refinement = 0
                 end if
             end if
 		end subroutine

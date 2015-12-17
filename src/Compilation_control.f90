@@ -20,6 +20,8 @@
 !> if true, element coordinates are not computed but stored in the nodes instead (which allows for irregular grids)
 !#define _STORE_NODE_COORDS
 
+# define _DARCY_INJ_PRESSURE
+# define _DARCY_PROD_PRESSURE
 
 !for the SWE scenario, a skeleton operator is required
 #if defined(_SWE) || defined(_NUMA) || defined(_FLASH)

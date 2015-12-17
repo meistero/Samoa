@@ -36,7 +36,6 @@
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 #		define _GT_NODE_REDUCE_OP		        node_reduce_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
-#		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 
@@ -187,32 +186,26 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
-            call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
-		end subroutine
-
-		elemental subroutine node_last_touch_op(traversal, section, node)
- 			type(t_darcy_transport_eq_traversal), intent(in)    :: traversal
- 			type(t_grid_section), intent(in)				    :: section
-			type(t_node_data), intent(inout)				    :: node
-
-            if (any(node%data_temp%is_pressure_dirichlet_boundary)) then
+            if (any(node%data_pers%boundary_condition < 0)) then
                 call post_dof_op_production(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
-            else if (any(node%data_temp%is_saturation_dirichlet_boundary)) then
+            else if (any(node%data_pers%boundary_condition > 0)) then
                 call post_dof_op_injection(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             else
                 call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             end if
 		end subroutine
 
+		subroutine node_last_touch_op(traversal, section, nodes)
+ 			type(t_darcy_transport_eq_traversal), intent(in)    :: traversal
+ 			type(t_grid_section), intent(in)				    :: section
+			type(t_node_data), intent(inout)				    :: nodes(:)
 
-		subroutine inner_node_reduce_op(traversal, section, node)
- 			type(t_darcy_transport_eq_traversal), intent(inout)	    :: traversal
- 			type(t_grid_section), intent(in)						:: section
-			type(t_node_data), intent(inout)				        :: node
+            integer :: i
 
-			! do nothing
+            do i = 1, size(nodes)
+                call inner_node_last_touch_op(traversal, section, nodes(i))
+            end do
 		end subroutine
-
 
 		subroutine node_reduce_op(traversal, section, node)
  			type(t_darcy_transport_eq_traversal), intent(inout)     :: traversal
@@ -220,9 +213,13 @@
 			type(t_node_data), intent(inout)				        :: node
 
 			real (kind = GRID_SR)  :: prod_w, prod_n
-			integer :: i
+			integer (kind = SI)    :: bnd_condition
+			integer                :: i
 
-            if (any(node%data_temp%is_pressure_dirichlet_boundary)) then
+			bnd_condition = node%data_pers%boundary_condition(1)
+
+            !track production rates on the producers
+            if (bnd_condition < 0) then
                 prod_w = 0.0_SR
                 prod_n = 0.0_SR
 
@@ -230,23 +227,8 @@
                     call reduce_op(node%data_pers%saturation(i), node%data_temp%flux(i), node%data_pers%d(i), prod_w, prod_n)
                 end do
 
-                if (node%position(2) > 0.5_SR) then
-                    if (node%position(1) < 0.5_SR) then
-                        traversal%prod_w(1) = traversal%prod_w(1) + prod_w
-                        traversal%prod_n(1) = traversal%prod_n(1) + prod_n
-                    else if (node%position(1) > 0.5_SR) then
-                        traversal%prod_w(2) = traversal%prod_w(2) + prod_w
-                        traversal%prod_n(2) = traversal%prod_n(2) + prod_n
-                    end if
-                else if (node%position(2) < 0.5_SR) then
-                    if (node%position(1) < 0.5_SR) then
-                        traversal%prod_w(4) = traversal%prod_w(4) + prod_w
-                        traversal%prod_n(4) = traversal%prod_n(4) + prod_n
-                    else if (node%position(1) > 0.5_SR) then
-                        traversal%prod_w(3) = traversal%prod_w(3) + prod_w
-                        traversal%prod_n(3) = traversal%prod_n(3) + prod_n
-                    end if
-                end if
+                traversal%prod_w(-bnd_condition) = traversal%prod_w(-bnd_condition) + prod_w
+                traversal%prod_n(-bnd_condition) = traversal%prod_n(-bnd_condition) + prod_n
             end if
 		end subroutine
 

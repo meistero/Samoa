@@ -259,9 +259,7 @@ MODULE SFC_data_types
 
 	!> Element-specific data for the generic triangle <-> Reference triangle transformation
 	type t_custom_transform_data
-		!TODO: real (kind = GRID_SR), DIMENSION(2:2)		:: matrix					!< Element matrix
-		!TODO: real (kind = GRID_SR), DIMENSION(2:2)		:: matrix_inv				!< Inverse element matrix
-		real (kind = GRID_SR), DIMENSION(:), pointer		:: offset					!< Element offset
+		real (kind = GRID_SR), pointer		                :: offset(:)				!< Element offset
 		real (kind = GRID_SR)								:: scaling					!< Element scaling
 	end type
 
@@ -269,6 +267,11 @@ MODULE SFC_data_types
 	type t_transform_data
 		type(t_cell_transform_data), pointer				:: plotter_data				!< Plotter grammar data
 		type(t_custom_transform_data)		 				:: custom_data				!< Element-specific custom data
+
+		contains
+
+        procedure, pass :: get_jacobian_2DH => t_transform_data_get_jacobian_2DH
+        procedure, pass :: get_jacobian_inv_2DH => t_transform_data_get_jacobian_inv_2DH
 	end type
 
 	type(t_cell_transform_data), target	                    :: ref_plotter_data(-8 : 8)			!< Reference plotter grammar data for the 16 possible triangle orientations
@@ -296,6 +299,26 @@ MODULE SFC_data_types
 	end type
 
 	contains
+
+	function t_transform_data_get_jacobian_2DH(td) result(jacobian_2DH)
+        class(t_transform_data), intent(in) :: td
+
+        real (kind = GRID_SR) :: jacobian_2DH(3, 3)
+
+        jacobian_2DH(1:2, 1:2) = td%custom_data%scaling * td%plotter_data%jacobian
+        jacobian_2DH(3, 1:2) = td%custom_data%offset
+        jacobian_2DH(1:3, 3) = [0.0_GRID_SR, 0.0_GRID_SR, 1.0_GRID_SR]
+    end function
+
+	function t_transform_data_get_jacobian_inv_2DH(td)  result(jacobian_inv_2DH)
+        class(t_transform_data), intent(in) :: td
+
+        real (kind = GRID_SR) :: jacobian_inv_2DH(3, 3)
+
+        jacobian_inv_2DH(1:2, 1:2) = td%plotter_data%jacobian_inv / td%custom_data%scaling
+        jacobian_inv_2DH(3, 1:2) = matmul(td%plotter_data%jacobian_inv, td%custom_data%offset) / td%custom_data%scaling
+        jacobian_inv_2DH(1:3, 3) = [0.0_GRID_SR, 0.0_GRID_SR, 1.0_GRID_SR]
+    end function
 
 	function t_edge_data_get_c_pointer(array) result(ptr)
         type(t_edge_data), pointer, intent(inout)	:: array(:)

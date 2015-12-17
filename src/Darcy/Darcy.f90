@@ -121,6 +121,7 @@
             integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
 			character(256)					        :: s_file_name
+			real (kind = SR)                        :: x_min(3), x_max(3), dx(3)
 
 #			if defined(_ASAGI)
                 cfg%afh_permeability_X = asagi_grid_create(ASAGI_FLOAT)
@@ -178,33 +179,53 @@
                 !$omp end parallel
 
                 associate(afh_perm => cfg%afh_permeability_X, afh_phi => cfg%afh_porosity)
-                    cfg%scaling = max(asagi_grid_max(afh_perm, 0) - asagi_grid_min(afh_perm, 0), asagi_grid_max(afh_perm, 1) - asagi_grid_min(afh_perm, 1))
-                    cfg%offset = [0.5_SR * (asagi_grid_min(afh_perm, 0) + asagi_grid_max(afh_perm, 0) - cfg%scaling), 0.5_SR * (asagi_grid_min(afh_perm, 1) + asagi_grid_max(afh_perm, 1) - cfg%scaling)]
-                    cfg%dz = real(asagi_grid_max(afh_perm, 2) - asagi_grid_min(afh_perm, 2), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
+                    x_min = [asagi_grid_min(afh_perm, 0), asagi_grid_min(afh_perm, 1), asagi_grid_min(afh_perm, 2)]
+                    x_max = [asagi_grid_max(afh_perm, 0), asagi_grid_max(afh_perm, 1), asagi_grid_max(afh_perm, 2)]
+                    dx = [asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)]
 
-                    cfg%r_pos_in = (0.5_SR * [asagi_grid_min(afh_perm, 0) + asagi_grid_max(afh_perm, 0), asagi_grid_min(afh_perm, 1) + asagi_grid_max(afh_perm, 1)] - cfg%offset) / cfg%scaling
-                    cfg%r_pos_prod = ([asagi_grid_max(afh_perm, 0), asagi_grid_max(afh_perm, 1)] - cfg%offset) / cfg%scaling
+                    !HACK: round to mm to eliminate single precision errors from ASAGI(?)
+                    x_min = anint(x_min * 1.0e3_SR) / 1.0e3_SR
+                    x_max = anint(x_max * 1.0e3_SR) / 1.0e3_SR
+                    dx = anint(dx * 1.0e3_SR) / 1.0e3_SR
+
+                    cfg%scaling = 32.0_SR/15.0_SR * (x_max(1) - x_min(1))
+                    cfg%offset = [0.5_SR * (x_min(1:2) + x_max(1:2) - cfg%scaling), x_min(3)]
+                    cfg%dz = (x_max(3) - x_min(3)) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
+
+                    cfg%x_min = (x_min - cfg%offset) / cfg%scaling
+                    cfg%x_max = (x_max - cfg%offset) / cfg%scaling
+                    cfg%dx = dx / cfg%scaling
+
+                    !put an injection well in the center and four producers in the four corners of the domain
+                    cfg%r_pos_in(:, 1) = 0.5_SR * (cfg%x_min(1:2) + cfg%x_max(1:2))
+                    cfg%r_pos_prod(:, 1) = [cfg%x_min(1), cfg%x_max(2)]
+                    cfg%r_pos_prod(:, 2) = [cfg%x_max(1), cfg%x_max(2)]
+                    cfg%r_pos_prod(:, 3) = [cfg%x_max(1), cfg%x_min(2)]
+                    cfg%r_pos_prod(:, 4) = [cfg%x_min(1), cfg%x_min(2)]
 
                     if (rank_MPI == 0) then
-                        _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
+                        _log_write(1, '(" Darcy: loaded ", A, ", domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') &
                             trim(cfg%s_permeability_file), asagi_grid_min(afh_perm, 0), asagi_grid_max(afh_perm, 0), asagi_grid_min(afh_perm, 1), asagi_grid_max(afh_perm, 1),  asagi_grid_min(afh_perm, 2), asagi_grid_max(afh_perm, 2)
-                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)
+                        _log_write(1, '(" Darcy:  dx [m]: [", F0.3, ", ", F0.3, ", ", F0.3, "]")') asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)
 
-                        _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
+                        _log_write(1, '(" Darcy: loaded ", A, ", domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') &
                             trim(cfg%s_porosity_file), asagi_grid_min(afh_phi, 0), asagi_grid_max(afh_phi, 0), asagi_grid_min(afh_phi, 1), asagi_grid_max(afh_phi, 1),  asagi_grid_min(afh_phi, 2), asagi_grid_max(afh_phi, 2)
-                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') asagi_grid_delta(afh_phi, 0), asagi_grid_delta(afh_phi, 1), asagi_grid_delta(afh_phi, 2)
+                        _log_write(1, '(" Darcy:  dx [m]: [", F0.3, ", ", F0.3, ", ", F0.3, "]")') asagi_grid_delta(afh_phi, 0), asagi_grid_delta(afh_phi, 1), asagi_grid_delta(afh_phi, 2)
 
-                        _log_write(1, '(" Darcy: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
-                        _log_write(1, '(" Darcy: injection position: [", F0.2, ", ", F0.2, "], production position [", F0.2, ", ", F0.2, "]")'), cfg%r_pos_in, cfg%r_pos_prod
+                        _log_write(1, '(" Darcy: computational domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling, cfg%offset(3), cfg%offset(3) + cfg%scaling * cfg%dz * max(1, _DARCY_LAYERS)
+                        _log_write(1, '(" Darcy: data domain [um]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') transpose(reshape([cfg%x_min, cfg%x_max], [3, 2]))
+                        _log_write(1, '(" Darcy: injector positions [um]: ", 1("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_in
+                        _log_write(1, '(" Darcy: producer positions [um]: ", 4("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_prod
                     end if
                 end associate
 #           else
                 cfg%scaling = 1.0_SR
-                cfg%offset = [0.0_SR, 0.0_SR]
+                cfg%offset = [0.0_SR, 0.0_SR, 0.0_SR]
                 cfg%dz = 1.0_SR / real(max(1, _DARCY_LAYERS), SR)
 
-                cfg%r_pos_in = [1.5_SR, 1.5_SR]
-                cfg%r_pos_prod = [1.5_SR, 1.5_SR]
+                !remove wells from the domain
+                cfg%r_pos_in = 1.5_SR
+                cfg%r_pos_prod = 1.5_SR
 #			endif
 
             !pressure is given in ppsi
@@ -221,6 +242,12 @@
 
             !Inflow is given in bbl/d
             cfg%r_inflow = cfg%r_inflow * _BBL / _D
+
+#           if _DARCY_LAYERS == 0
+                !In 3D, each layer has the correct height cfg%dz, in 2D the height is normed to 1.0
+                !Hence, divide the inflow by the height of the domain.
+                cfg%r_inflow = cfg%r_inflow / cfg%dz
+#           endif
 
             !The well radius is given in inch
             cfg%r_well_radius = cfg%r_well_radius * _INCH
@@ -302,6 +329,7 @@
 
 				!reset saturation to initial condition, setup pressure equation and set refinement flags
 				do
+
                     call darcy%init_saturation%traverse(grid)
 
                     !solve pressure equation
@@ -343,6 +371,7 @@
 
                 !output grids during initial phase if and only if t_out is 0
                 if (cfg%r_output_time_step == 0.0_GRID_SR) then
+
                     !do a dummy transport step first to determine the initial production rates
                     grid%r_dt = 0.0_SR
                     call darcy%transport_eq%traverse(grid)
