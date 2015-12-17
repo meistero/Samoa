@@ -477,7 +477,7 @@
                 end if
 #           elif defined(_DARCY_INJ_PRESSURE)
                 if (any(node%data_pers%boundary_condition > 0)) then
-                    call pressure_post_dof_op(node%data_pers%p, node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                    call pressure_post_dof_op(node%data_pers%rhs)
                 end if
 #           endif
 		end subroutine
@@ -524,15 +524,12 @@
 			real (kind = GRID_SR), intent(in)				    :: r(:), d(:)
 
             rhs = rhs + cfg%r_inflow / sum(d) * d
-            !rhs = rhs + r + (cfg%r_inflow - sum(r)) / sum(d) * d
 		end subroutine
 
-		subroutine pressure_post_dof_op(p, rhs, r, d)
-			real (kind = GRID_SR), intent(inout)				:: p(:)
-			real (kind = GRID_SR), intent(in)				    :: rhs(:), r(:), d(:)
+		subroutine pressure_post_dof_op(rhs)
+			real (kind = GRID_SR), intent(inout)				:: rhs(:)
 
-            !limit pressure to the maximum injection pressure
-            p = p + min(0.0_SR, (cfg%r_inflow - sum(r)) / sum(d))
+            rhs = (sum(rhs) + cfg%r_inflow) / (_DARCY_LAYERS + 1)
 		end subroutine
 
 		subroutine alpha_volume_op(traversal, element, saturation, p, rhs, base_permeability)

@@ -138,7 +138,7 @@
                 end if
 #           elif defined(_DARCY_INJ_PRESSURE)
                 if (any(node%data_pers%boundary_condition > 0)) then
-                    call pressure_post_dof_op(node%data_pers%p, node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                    call pressure_post_dof_op(node%data_pers%rhs)
                 end if
 #           endif
 		end subroutine
@@ -158,15 +158,12 @@
 			real (kind = GRID_SR), intent(in)				    :: r(:), d(:)
 
             rhs = rhs + cfg%r_inflow / sum(d) * d
-            !rhs = rhs + r + (cfg%r_inflow - sum(r)) / sum(d) * d
 		end subroutine
 
-		pure subroutine pressure_post_dof_op(p, rhs, r, d)
-			real (kind = GRID_SR), intent(inout)				:: p(:)
-			real (kind = GRID_SR), intent(in)				    :: rhs(:), r(:), d(:)
+		pure subroutine pressure_post_dof_op(rhs)
+			real (kind = GRID_SR), intent(inout)				:: rhs(:)
 
-            !limit pressure to the maximum injection pressure
-            p = p + min(0.0_SR, (cfg%r_inflow - sum(r)) / sum(d))
+            rhs = (sum(rhs) + cfg%r_inflow) / (_DARCY_LAYERS + 1)
 		end subroutine
 
 #       if (_DARCY_LAYERS > 0)
@@ -180,7 +177,7 @@
                 real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: g_local(3), weights(3), edge_length, dx, dy, dz, Ax, Ay, Az
                 real (kind = GRID_SR)                               :: lambda_t(_DARCY_LAYERS, 7)
-                real (kind = GRID_SR)                               :: inflow((_DARCY_LAYERS + 1) * 3), r((_DARCY_LAYERS + 1) * 3)
+                real (kind = GRID_SR)                               :: inflow((_DARCY_LAYERS + 1) * 3)
                 integer                                             :: i, layer
                 integer (kind = SI) 	                            :: boundary_condition(3)
 
@@ -230,32 +227,25 @@
 #                       elif defined(_DARCY_INJ_PRESSURE)
                             !set a pressure Dirichlet condition
 
-                            inflow = 0.0_SR
-                            r = 0.0_SR
-
                             do i = 1, 3
                                 if (boundary_condition(i) > 0) then
-                                    do layer = 1, _DARCY_LAYERS + 1
-                                        p(layer, i) = cfg%r_p_in - cfg%r_rho_w * (_DARCY_LAYERS + 1 - layer) * cfg%dz * cfg%g(3)
+                                    do layer = 1, _DARCY_LAYERS
+                                        p(layer, i) = p(_DARCY_LAYERS + 1, i) - cfg%r_rho_w * (_DARCY_LAYERS + 1 - layer) * cfg%dz * cfg%g(3)
                                     end do
+
+                                    !The well is a Dirichlet condition (of sorts), so set
+                                    !local contributions to 0.
+
+                                    if (element%transform_data%plotter_data%orientation > 0) then
+                                        element%cell%data_pers%lambda_t(:, 3 + (i - 1)) = 0.0_SR
+                                    else
+                                        element%cell%data_pers%lambda_t(:, 5 - (i - 1)) = 0.0_SR
+                                    end if
                                 end if
                             end do
 
-                            !ignore vertical contributions
-                            element%cell%data_pers%lambda_t(:, 3:5) = 0.0_SR
-
-                            call gm_A%get_trace(element, inflow)
-                            call gm_A%apply(element, reshape(p, [3 * (_DARCY_LAYERS + 1)]), r)
-
-                            if (element%transform_data%plotter_data%orientation > 0) then
-                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 3:5)
-                            else
-                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 5:3:-1)
-                            end if
-
-                            call gv_trace%add_to_element(element, inflow)
-                            call gv_r%add_to_element(element, r)
                             call gv_p%write_to_element(element, p)
+
 #                       else
 #                           error Injection condition must be defined!
 #                       endif
@@ -337,28 +327,22 @@
                     if (any(boundary_condition > 0)) then
                         !injection well:
 
+                        !in 2D, the two injection conditions should give the same output
+
 #                       if defined(_DARCY_INJ_INFLOW)
-                            !set a water inflow condition
+                            !set an inflow injection condition
 
                             inflow = 0.0_SR
 
                             call gm_A%get_trace(element, inflow)
                             call gv_trace%add_to_element(element, inflow)
 #                       elif defined(_DARCY_INJ_PRESSURE)
-                            !set a pressure Dirichlet condition
-
-                            inflow = 0.0_SR
-                            r = 0.0_SR
+                            !set a pressure injection condition
 
                             where (boundary_condition > 0)
                                 p = cfg%r_p_in
                             end where
 
-                            call gm_A%get_trace(element, inflow)
-                            call gm_A%apply(element, p, r)
-
-                            call gv_trace%add_to_element(element, inflow)
-                            call gv_r%add_to_element(element, r)
                             call gv_p%write_to_element(element, p)
 #                       else
 #                           error Injection condition must be defined!

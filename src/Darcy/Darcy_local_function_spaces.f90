@@ -104,11 +104,7 @@
             type(t_node_data), intent(in)                       :: node
             logical (kind = SL), intent(inout)	                :: is_dirichlet(:)
 
-#           if defined(_DARCY_INJ_INFLOW)
-                is_dirichlet = logical(node%data_pers%boundary_condition(1) < 0, SL)
-#           elif defined(_DARCY_INJ_PRESSURE)
-                is_dirichlet = logical(node%data_pers%boundary_condition(1) .ne. 0, SL)
-#           endif
+            is_dirichlet = logical(node%data_pers%boundary_condition(1) < 0, SL)
         end subroutine
 	END MODULE
 
@@ -188,12 +184,14 @@
 		use SFC_data_types
 		use darcy_gv_saturation_mod
 		use darcy_gv_p_mod
+		use Darcy_gv_boundary_condition_mod
 		use Samoa
 
 		implicit none
 
-		type(darcy_gv_saturation)   :: gv_s
-		type(darcy_gv_p)            :: gv_p
+		type(darcy_gv_saturation)           :: gv_s
+		type(darcy_gv_p)                    :: gv_p
+		type(Darcy_gv_boundary_condition)   :: gv_boundary_condition
 
 		private
 		public :: darcy_gm_A
@@ -210,6 +208,8 @@
         subroutine apply(gm_A, element, x, r)
             class(darcy_gm_A), intent(in)	        :: gm_A
             type(t_element_base), intent(in)        :: element
+
+            integer :: i, boundary_condition(3)
 
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), contiguous, intent(in)       :: x(:)
@@ -234,6 +234,23 @@
                     call apply2D(x(1), x(2), x(3), r(1), r(2), r(3), element%cell%data_pers%lambda_t)
                 else
                     call apply2D(x(3), x(2), x(1), r(3), r(2), r(1), element%cell%data_pers%lambda_t)
+                end if
+#           endif
+
+            !> if a pressure condition has been defined for injection wells,
+            !> we allow only scalar changes to the DoF column
+            !> hence, add up all residuals and pretend they are a single value.
+
+#           if defined(_DARCY_INJ_PRESSURE)
+                call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+                if (any(boundary_condition > 0)) then
+                    do i = 1, 3
+                        if (boundary_condition(i) > 0) then
+                            r((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1)) = &
+                                sum(r((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1))) / (_DARCY_LAYERS + 1)
+                        end if
+                    end do
                 end if
 #           endif
         end subroutine
@@ -292,6 +309,8 @@
             class(darcy_gm_A), intent(in)	    :: gm_A
             type(t_element_base), intent(in)    :: element
 
+            integer :: i, boundary_condition(3)
+
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), contiguous, intent(inout)       :: d(:)
 
@@ -311,6 +330,23 @@
                     call get_trace2D(d(1), d(2), d(3), element%cell%data_pers%lambda_t)
                 else
                     call get_trace2D(d(3), d(2), d(1), element%cell%data_pers%lambda_t)
+                end if
+#           endif
+
+            !> if a pressure condition has been defined for injection wells,
+            !> we allow only scalar changes to the DoF column
+            !> hence, add up all traces and pretend they are a single value.
+
+#           if defined(_DARCY_INJ_PRESSURE)
+                call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+                if (any(boundary_condition > 0)) then
+                    do i = 1, 3
+                        if (boundary_condition(i) > 0) then
+                            d((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1)) = &
+                                sum(d((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1))) / (_DARCY_LAYERS + 1)
+                        end if
+                    end do
                 end if
 #           endif
         end subroutine
