@@ -13,7 +13,9 @@
 		use Samoa_darcy
 
         type num_traversal_data
-            real (kind = GRID_SR)               :: prod_w(4), prod_n(4)
+            real (kind = GRID_SR)               :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)  !< water production rate
+            real (kind = GRID_SR)               :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)  !< oil production rate
+            real (kind = GRID_SR)               :: p_bh(_DARCY_INJECTOR_WELLS)                             !< bottom hole pressure
         end type
 
 		type(darcy_gv_p)				        :: gv_p
@@ -86,6 +88,7 @@
 
             traversal%prod_w = 0.0_SR
             traversal%prod_n = 0.0_SR
+            traversal%p_bh = 0.0_SR
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -94,6 +97,7 @@
 
             traversal%prod_w = 0.0_SR
             traversal%prod_n = 0.0_SR
+            traversal%p_bh = 0.0_SR
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
@@ -102,9 +106,14 @@
 
             integer                :: i
 
-            do i = 1, 4
+            do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
                 call reduce(traversal%prod_w(i), traversal%children%prod_w(i), MPI_SUM, .false.)
                 call reduce(traversal%prod_n(i), traversal%children%prod_n(i), MPI_SUM, .false.)
+            end do
+
+            !the injector pressure must be shared over all mpi ranks as it is used for the linear solver exit criterion
+            do i = 1, _DARCY_INJECTOR_WELLS
+                call reduce(traversal%p_bh(i), traversal%children%p_bh(i), MPI_MAX, .true.)
             end do
 
             !In the 2D case we always assumed that the height of the domain is 1, when in fact it should be delta_z.
@@ -115,12 +124,13 @@
 #           endif
 
             !accumulated production in bbl
-            grid%prod_w_acc = grid%prod_w_acc + (traversal%prod_w * grid%r_dt) / _BBL
-            grid%prod_n_acc = grid%prod_n_acc + (traversal%prod_n * grid%r_dt) / _BBL
+            grid%prod_w_acc = grid%prod_w_acc + (traversal%prod_w * grid%r_dt)
+            grid%prod_n_acc = grid%prod_n_acc + (traversal%prod_n * grid%r_dt)
 
             !production rate in bbl/d
-            grid%prod_w = traversal%prod_w / (_BBL / _D)
-            grid%prod_n = traversal%prod_n / (_BBL / _D)
+            grid%prod_w = traversal%prod_w
+            grid%prod_n = traversal%prod_n
+            grid%p_bh = traversal%p_bh
 
 			grid%r_time = grid%r_time + grid%r_dt
 		end subroutine
@@ -219,7 +229,7 @@
 			bnd_condition = node%data_pers%boundary_condition(1)
 
             !track production rates on the producers
-            if (bnd_condition < 0) then
+            if (bnd_condition .ne. 0) then
                 prod_w = 0.0_SR
                 prod_n = 0.0_SR
 
@@ -227,8 +237,12 @@
                     call reduce_op(node%data_pers%saturation(i), node%data_temp%flux(i), node%data_pers%d(i), prod_w, prod_n)
                 end do
 
-                traversal%prod_w(-bnd_condition) = traversal%prod_w(-bnd_condition) + prod_w
-                traversal%prod_n(-bnd_condition) = traversal%prod_n(-bnd_condition) + prod_n
+                traversal%prod_w(bnd_condition) = traversal%prod_w(bnd_condition) + prod_w
+                traversal%prod_n(bnd_condition) = traversal%prod_n(bnd_condition) + prod_n
+
+                if (bnd_condition > 0) then
+                    traversal%p_bh(bnd_condition) = node%data_pers%p(_DARCY_LAYERS + 1)
+                end if
             end if
 		end subroutine
 

@@ -82,13 +82,8 @@ module config
 			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [in]
 			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/d]
 
-            double precision			        :: r_pos_in(2, 1)				                    !< injection well position [m]
-
-#           if defined(_ASAGI)
-                double precision			    :: r_pos_prod(2, 4)				                    !< production well positions [m]
-#           else
-                double precision			    :: r_pos_prod(2, 1)				                    !< production well position [m]
-#           endif
+            double precision			        :: r_pos_in(2, _DARCY_INJECTOR_WELLS)				!< injector positions [m]
+            double precision			        :: r_pos_prod(2, _DARCY_PRODUCER_WELLS)				!< producer positions [m]
 
 			double precision			        :: g(3)				                                !< gravity vector [m/s^2]
 

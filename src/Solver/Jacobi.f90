@@ -278,13 +278,17 @@ MODULE _JACOBI
     implicit none
 
     type, extends(t_linear_solver)      :: _T_JACOBI
-        real (kind = GRID_SR)           :: max_error
         type(_T_JACOBI_(traversal))     :: jacobi
+
+        real (kind = GRID_SR)           :: max_error
+        integer (kind = GRID_SI)        :: min_iterations
+        integer (kind = GRID_SI)        :: max_iterations
 
         contains
 
         procedure, pass :: create
         procedure, pass :: destroy
+        procedure, pass :: set_parameter
         procedure, pass :: solve
         procedure, pass :: reduce_stats
         procedure, pass :: clear_stats
@@ -295,11 +299,12 @@ MODULE _JACOBI
 
     contains
 
-    subroutine create(solver, max_error)
-        class(_T_JACOBI), intent(inout) :: solver
-        real (kind = GRID_SR)           :: max_error
+    subroutine create(solver)
+        class(_T_JACOBI), intent(inout)   :: solver
 
-        solver%max_error = max_error
+        solver%max_error = epsilon(1.0_GRID_SR)
+        solver%min_iterations = 0_GRID_SI
+        solver%max_iterations = huge(1_GRID_SI)
 
         call solver%jacobi%create()
     end subroutine
@@ -308,6 +313,21 @@ MODULE _JACOBI
         class(_T_JACOBI), intent(inout) :: solver
 
         call solver%jacobi%destroy()
+    end subroutine
+
+    subroutine set_parameter(solver, param_idx, r_value)
+        class(_T_JACOBI), intent(inout)         :: solver
+        integer, intent(in)                     :: param_idx
+        real (kind = GRID_SR), intent(in)       :: r_value
+
+        select case (param_idx)
+            case (LS_MAX_ERROR)
+                solver%max_error = r_value
+            case (LS_MIN_ITERS)
+                solver%min_iterations = int(r_value)
+            case (LS_MAX_ITERS)
+                solver%max_iterations = int(r_value)
+        end select
     end subroutine
 
     !> Solves a poisson equation using a Jacobi solver
@@ -330,7 +350,7 @@ MODULE _JACOBI
         i_iteration = 0
 
         do
-            if (cfg%i_max_iterations .ge. 0 .and. i_iteration .ge. cfg%i_max_iterations) then
+            if (solver%max_iterations .ge. 0 .and. i_iteration .ge. solver%max_iterations) then
                 exit
             end if
 
@@ -348,7 +368,7 @@ MODULE _JACOBI
                 !$omp end master
             end if
 
-            if (r_sq < solver%max_error * solver%max_error) then
+            if (i_iteration .ge. solver%min_iterations .and. r_sq < solver%max_error * solver%max_error) then
                 exit
             end if
 

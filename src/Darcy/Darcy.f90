@@ -86,17 +86,20 @@
 
  			select case (cfg%i_lsolver)
                 case (0)
-                    call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR))
+                    call pressure_solver_jacobi%create()
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
-                    call pressure_solver_cg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_cg%create()
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
-                    call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_pipecg%create()
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 2")
             end select
+
+            call darcy%pressure_solver%set_parameter(LS_MAX_ITERS, real(cfg%i_max_iterations, SR))
+            call darcy%pressure_solver%set_parameter(LS_RESTART_ITERS, real(cfg%i_CG_restart, SR))
 
             call date_and_time(s_date, s_time)
 
@@ -120,7 +123,7 @@
 
             integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
-			character(256)					        :: s_file_name
+			character(256)					        :: s_file_name, s_tmp
 			real (kind = SR)                        :: x_min(3), x_max(3), dx(3)
 
 #			if defined(_ASAGI)
@@ -214,8 +217,11 @@
 
                         _log_write(1, '(" Darcy: computational domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling, cfg%offset(3), cfg%offset(3) + cfg%scaling * cfg%dz * max(1, _DARCY_LAYERS)
                         _log_write(1, '(" Darcy: data domain [um]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') transpose(reshape([cfg%x_min, cfg%x_max], [3, 2]))
-                        _log_write(1, '(" Darcy: injector positions [um]: ", 1("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_in
-                        _log_write(1, '(" Darcy: producer positions [um]: ", 4("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_prod
+
+                        write(s_tmp, "(I0)") _DARCY_INJECTOR_WELLS
+                        _log_write(1, '(" Darcy: injector positions [um]: ", ' // s_tmp // '("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_in
+                        write(s_tmp, "(I0)") _DARCY_PRODUCER_WELLS
+                        _log_write(1, '(" Darcy: producer positions [um]: ", ' // s_tmp // '("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_prod
                     end if
                 end associate
 #           else
@@ -333,6 +339,8 @@
                     call darcy%init_saturation%traverse(grid)
 
                     !solve pressure equation
+                    call darcy%pressure_solver%set_parameter(LS_MAX_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
+
                     if (cfg%l_lse_output) then
                         call darcy%lse_output%traverse(grid)
                         i_lse_iterations = darcy%pressure_solver%solve(grid)
@@ -434,6 +442,8 @@
                     call darcy%permeability%traverse(grid)
 
                     !solve pressure equation
+                    call darcy%pressure_solver%set_parameter(LS_MAX_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
+
                     if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
                         call darcy%lse_output%traverse(grid)
                         i_lse_iterations = darcy%pressure_solver%solve(grid)

@@ -103,8 +103,12 @@
 			logical                                         :: l_exists
             type(t_vtk_writer)                              :: vtk
 
-            real (kind = GRID_SR)   :: reduction_set(16)
-            real (kind = GRID_SR)   :: prod_w(0:4), prod_n(0:4), prod_w_acc(0:4), prod_n_acc(0:4)
+            real (kind = GRID_SR)   :: reduction_set(4 * (-_DARCY_PRODUCER_WELLS) + 1 : 4 * (_DARCY_INJECTOR_WELLS) + 4)
+            real (kind = GRID_SR)   :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: prod_w_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: prod_n_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: p_bh(_DARCY_INJECTOR_WELLS)
             integer                 :: i, f_out
 
 #           if defined(_MPI)
@@ -166,23 +170,30 @@
             ! write global data
             !******************
 
-            reduction_set(1:4) = grid%prod_w
-            reduction_set(5:8) = grid%prod_n
-            reduction_set(9:12) = grid%prod_w_acc
-            reduction_set(13:16) = grid%prod_n_acc
+            do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
+                reduction_set(4*i + 1) = grid%prod_w(i)
+                reduction_set(4*i + 2) = grid%prod_n(i)
+                reduction_set(4*i + 3) = grid%prod_w_acc(i)
+                reduction_set(4*i + 4) = grid%prod_n_acc(i)
+            end do
 
             call reduce(reduction_set, MPI_SUM)
 
             if (rank_MPI == 0) then
-                prod_w(1:4) = reduction_set(1:4)
-                prod_n(1:4) = reduction_set(5:8)
-                prod_w_acc(1:4) = reduction_set(9:12)
-                prod_n_acc(1:4) = reduction_set(13:16)
+                do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
+                    prod_w(i) = reduction_set(4*i + 1)
+                    prod_n(i) = reduction_set(4*i + 2)
+                    prod_w_acc(i) = reduction_set(4*i + 3)
+                    prod_n_acc(i) = reduction_set(4*i + 4)
+                end do
 
-                prod_w(0) = sum(prod_w(1:4))
-                prod_n(0) = sum(prod_n(1:4))
-                prod_w_acc(0)= sum(prod_w_acc(1:4))
-                prod_n_acc(0) = sum(prod_n_acc(1:4))
+                prod_w(0) = sum(prod_w(-_DARCY_PRODUCER_WELLS:-1))
+                prod_n(0) = sum(prod_n(-_DARCY_PRODUCER_WELLS:-1))
+                prod_w_acc(0)= sum(prod_w_acc(-_DARCY_PRODUCER_WELLS:-1))
+                prod_n_acc(0) = sum(prod_n_acc(-_DARCY_PRODUCER_WELLS:-1))
+
+                !we already reduce the bottom hole pressure in each iteration
+                p_bh = grid%p_bh
 
                 write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
 
@@ -190,10 +201,14 @@
 
                 open(unit=f_out, file=s_file_name, action="write", status="replace")
 
-                write(f_out, '("time,water rate,oil rate,water cumulative,oil cumulative,water cut,saturation")')
+                write(f_out, '("time,water rate,oil rate,water cumulative,oil cumulative,water cut,pressure")')
 
-                do i = 0, 4
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                do i = 0, -_DARCY_PRODUCER_WELLS, -1
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i) / (_BBL / _D), prod_n(i) / (_BBL / _D), prod_w_acc(i) / _BBL, prod_n_acc(i) / _BBL, prod_w(i) / (prod_w(i) + prod_n(i)), cfg%r_p_prod / _PPSI
+                end do
+
+                do i = 1, _DARCY_INJECTOR_WELLS
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i) / (_BBL / _D), prod_n(i) / (_BBL / _D), prod_w_acc(i) / _BBL, prod_n_acc(i) / _BBL, prod_w(i) / (prod_w(i) + prod_n(i)), p_bh(i) / _PPSI
                 end do
 
                 close(f_out)

@@ -42,10 +42,20 @@
 #define _HEAT_EQ_EDGE_SIZE 			(_HEAT_EQ_ORDER - 1)
 #define _HEAT_EQ_NODE_SIZE			1
 
-#define _FLASH_ORDER 					0
+#define _FLASH_ORDER 				0
 #define _FLASH_CELL_SIZE			((_FLASH_ORDER + 1) * (_FLASH_ORDER + 2)) / 2
 #define _FLASH_EDGE_SIZE 			_FLASH_CELL_SIZE
 #define _FLASH_EDGE_QUAD_SIZE			_FLASH_CELL_SIZE
+
+#if defined(_DARCY)
+#   if defined(_ASAGI)
+#	    define _DARCY_INJECTOR_WELLS    1
+#	    define _DARCY_PRODUCER_WELLS    4
+#   else
+#	    define _DARCY_INJECTOR_WELLS    1
+#	    define _DARCY_PRODUCER_WELLS    1
+#   endif
+#endif
 
 !compiler-dependent macros (traditional vs. modern preprocessor)
 #	define _id(x) x

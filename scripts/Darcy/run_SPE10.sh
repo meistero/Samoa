@@ -3,8 +3,8 @@ perm_averagings='geometric'
 fperm="data/darcy_five_spot/spe_perm_renamed.nc"
 fpor="data/darcy_five_spot/spe_phi_renamed.nc"
 layers=85
-max_depths='8 10 14'
-epsilon=3.0e-5
+max_depths='14 16'
+epsilon=1.0e-5
 S_ref_th=1.0e2
 
 if [ $layers = 0 ] ; then

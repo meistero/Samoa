@@ -177,14 +177,12 @@
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(inout)    :: perm(:, :), por(:)
                 integer, intent(inout)                  :: no_samples(:)
-                real (kind = GRID_SR)                   :: perm_buffer(2), por_buffer
 #           else
                 real (kind = GRID_SR), intent(inout)    :: perm, por
                 integer, intent(inout)                  :: no_samples
-                real (kind = GRID_SR)                   :: perm_buffer, por_buffer
 #           endif
 
-            real (kind = GRID_SR) :: x(3)
+            real (kind = GRID_SR) :: x(2)
 
             if (any(max(x1, x2, x3) < x_min .or. min(x1, x2, x3) > x_max)) then
                 return
@@ -193,7 +191,7 @@
                     call refine_2D_recursive(section, x1, 0.5_SR * (x1 + x3), x2, perm, por, no_samples, depth - 1, nz, x_min, x_max)
                     call refine_2D_recursive(section, x2, 0.5_SR * (x1 + x3), x3, perm, por, no_samples, depth - 1, nz, x_min, x_max)
                 else
-                    x(1:2) = (x1 + x2 + x3) / 3.0_SR
+                    x = (x1 + x2 + x3) / 3.0_SR
 
                     if (any(x < x_min .or. x > x_max)) then
                         return
@@ -218,7 +216,7 @@
                 real (kind = GRID_SR), intent(out)		:: porosity	            !< porosity
 #           endif
 
-            real (kind = GRID_SR)   :: x(3), x1(2), x2(2), x3(2), x_min(2), x_max(2)
+            real (kind = GRID_SR)   :: x(3), x1(2), x2(2), x3(2)
             integer					:: level, i, ddepth, nz
 
 #           if (_DARCY_LAYERS > 0)
@@ -229,7 +227,7 @@
 
 #           if defined(_ADAPT_INTEGRATE)
 #               if defined(_ASAGI)
-                    ddepth = nint(log(1.0_SR / (cfg%dx(1) * cfg%dx(2))) / log(2.0_SR)) - element%cell%geometry%i_depth
+                    ddepth = 2 * nint(-log(min(cfg%dx(1), cfg%dx(2))) / log(2.0_SR)) - element%cell%geometry%i_depth
                     nz = max(1, nint((cfg%x_max(3) - cfg%x_min(3)) / cfg%dx(3)))
 #               else
                     ddepth = cfg%i_max_depth - element%cell%geometry%i_depth
@@ -244,7 +242,7 @@
                 porosity = 0.0_SR
                 no_samples = 0
 
-                call refine_2D_recursive(section, x1, x2, x3, permeability, porosity, no_samples, min(ddepth, 8), nz, cfg%x_min(1:2), cfg%x_max(1:2))
+                call refine_2D_recursive(section, x1, x2, x3, permeability, porosity, no_samples, min(ddepth, 10), nz, cfg%x_min(1:2), cfg%x_max(1:2))
 
 #               if (_DARCY_LAYERS > 0)
                     where(no_samples > 0)

@@ -724,16 +724,20 @@ MODULE _CG
     implicit none
 
     type, extends(t_linear_solver)      :: _T_CG
-        real (kind = GRID_SR)           :: max_error
-        integer (kind = GRID_SI)        :: i_restart_interval
         type(_T_CG_(1_traversal))       :: cg1
         type(_T_CG_(2_traversal))       :: cg2
         type(_T_CG_(exact_traversal))   :: cg_exact
+
+        real (kind = GRID_SR)           :: max_error
+        integer (kind = GRID_SI)        :: min_iterations
+        integer (kind = GRID_SI)        :: max_iterations
+        integer (kind = GRID_SI)        :: restart_iterations
 
         contains
 
         procedure, pass :: create
         procedure, pass :: destroy
+        procedure, pass :: set_parameter
         procedure, pass :: solve
         procedure, pass :: reduce_stats
         procedure, pass :: clear_stats
@@ -744,13 +748,13 @@ MODULE _CG
 
     contains
 
-    subroutine create(solver, max_error, i_restart_interval)
+    subroutine create(solver)
         class(_T_CG), intent(inout)             :: solver
-        real (kind = GRID_SR), intent(in)       :: max_error
-        integer (kind = GRID_SI), intent(in)    :: i_restart_interval
 
-        solver%max_error = max_error
-        solver%i_restart_interval = i_restart_interval
+        solver%max_error = epsilon(1.0_GRID_SR)
+        solver%min_iterations = 0_GRID_SI
+        solver%max_iterations = huge(1_GRID_SI)
+        solver%restart_iterations = 256_GRID_SI
 
         call solver%cg1%create()
         call solver%cg2%create()
@@ -763,6 +767,23 @@ MODULE _CG
         call solver%cg1%destroy()
         call solver%cg2%destroy()
         call solver%cg_exact%destroy()
+    end subroutine
+
+    subroutine set_parameter(solver, param_idx, r_value)
+        class(_T_CG), intent(inout)             :: solver
+        integer, intent(in)                     :: param_idx
+        real (kind = GRID_SR), intent(in)       :: r_value
+
+        select case (param_idx)
+            case (LS_MAX_ERROR)
+                solver%max_error = r_value
+            case (LS_MIN_ITERS)
+                solver%min_iterations = int(r_value)
+            case (LS_MAX_ITERS)
+                solver%max_iterations = int(r_value)
+            case (LS_RESTART_ITERS)
+                solver%restart_iterations = int(r_value)
+        end select
     end subroutine
 
     !> Solves a linear equation system using a CG solver
@@ -795,7 +816,7 @@ MODULE _CG
             _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res (natural): ", r_C_r, ", res (prec): ", sqrt(r_sq)
             !$omp end master
 
-            if ((cfg%i_max_iterations .ge. 0 .and. i_iteration .ge. cfg%i_max_iterations) .or. r_sq < solver%max_error * solver%max_error) then
+            if ((solver%max_iterations .ge. 0 .and. i_iteration .ge. solver%max_iterations) .or. (i_iteration .ge. solver%min_iterations .and. r_sq < solver%max_error * solver%max_error)) then
                 exit
             end if
 
@@ -806,7 +827,7 @@ MODULE _CG
             _log_write(2, '(4X, A, ES17.10)') "d^T A d: ", d_u
 
             !every once in a while, we compute the residual r = b - A x explicitly to limit the numerical error
-            if (mod(i_iteration + 1, solver%i_restart_interval) == 0) then
+            if (mod(i_iteration + 1, solver%restart_iterations) == 0) then
                 call solver%cg_exact%traverse(grid)
                 r_C_r = solver%cg_exact%r_C_r
 

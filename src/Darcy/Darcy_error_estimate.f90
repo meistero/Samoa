@@ -18,6 +18,7 @@
 
         type(darcy_gv_saturation)				:: gv_saturation
         type(darcy_gv_p)						:: gv_p
+		type(darcy_gv_boundary_condition)       :: gv_boundary_condition
 
 #		define _GT_NAME							t_darcy_error_estimate_traversal
 
@@ -118,6 +119,8 @@
  			type(t_grid_section), intent(inout)						:: section
 			type(t_element_base), intent(inout)			            :: element
 
+			integer (kind = SI)					                    :: boundary_condition(3)
+
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1, 3)
                 real (kind = GRID_SR)   :: p(_DARCY_LAYERS + 1, 3)
@@ -131,6 +134,18 @@
 
 			!call element operator
 			call compute_refinement_indicator(element, traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
+
+            !refine wells
+            call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+            if (any(boundary_condition .ne. 0)) then
+                if (element%cell%geometry%i_depth < cfg%i_max_depth) then
+                    element%cell%geometry%refinement = 1
+                    traversal%i_refinements_issued = traversal%i_refinements_issued + 1
+                else
+                    element%cell%geometry%refinement = 0
+                end if
+            end if
 		end subroutine
 
 		!*******************************

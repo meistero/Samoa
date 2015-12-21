@@ -225,10 +225,11 @@
 !                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 5:3:-1)
 !                            end if
 #                       elif defined(_DARCY_INJ_PRESSURE)
-                            !set a pressure Dirichlet condition
-
                             do i = 1, 3
                                 if (boundary_condition(i) > 0) then
+                                    !the bottom hole pressure is determined by the linear solver,
+                                    !so just make sure that the well pressure is analytical.
+
                                     do layer = 1, _DARCY_LAYERS
                                         p(layer, i) = p(_DARCY_LAYERS + 1, i) - cfg%r_rho_w * (_DARCY_LAYERS + 1 - layer) * cfg%dz * cfg%g(3)
                                     end do
@@ -337,13 +338,7 @@
                             call gm_A%get_trace(element, inflow)
                             call gv_trace%add_to_element(element, inflow)
 #                       elif defined(_DARCY_INJ_PRESSURE)
-                            !set a pressure injection condition
-
-                            where (boundary_condition > 0)
-                                p = cfg%r_p_in
-                            end where
-
-                            call gv_p%write_to_element(element, p)
+                            !do nothing, the pressure should be evaluated on its own
 #                       else
 #                           error Injection condition must be defined!
 #                       endif
