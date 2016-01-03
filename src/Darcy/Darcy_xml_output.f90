@@ -490,8 +490,8 @@
                 cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
                 forall (i = 1 : 3)
-                    point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                    point_data%coords(point_data_indices(i), 3) = 0.0_SR
+                    point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
+                    point_data%coords(point_data_indices(i), 3) = cfg%offset(3)
                     point_data%p(point_data_indices(i)) = p(i) / _PPSI                  !return the pressure in ppsi
                     point_data%rhs(point_data_indices(i)) = rhs(i) / ((_M ** 2) / _S)   !return the rhs in m^2 / s
                     point_data%S(point_data_indices(i)) = saturation(i)

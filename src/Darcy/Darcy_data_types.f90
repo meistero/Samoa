@@ -93,10 +93,10 @@
 			real (kind = GRID_SR)       :: r_dt						!< time step
 			real (kind = GRID_SR)       :: u_max			        !< maximum velocity
 
-            real (kind = GRID_SR)       :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = [0.0_SR, 0.0_SR, 0.0_SR, 0.0_SR]
-            real (kind = GRID_SR)       :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = [tiny(1.0_SR), tiny(1.0_SR), tiny(1.0_SR), tiny(1.0_SR)]
-            real (kind = GRID_SR)       :: prod_w_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = [0.0_SR, 0.0_SR, 0.0_SR, 0.0_SR]
-            real (kind = GRID_SR)       :: prod_n_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = [0.0_SR, 0.0_SR, 0.0_SR, 0.0_SR]
+            real (kind = GRID_SR)       :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = 0.0_SR
+            real (kind = GRID_SR)       :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = tiny(1.0_SR)
+            real (kind = GRID_SR)       :: prod_w_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = 0.0_SR
+            real (kind = GRID_SR)       :: prod_n_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = 0.0_SR
             real (Kind = GRID_SR)       :: p_bh(_DARCY_INJECTOR_WELLS) = 0.0_SR
 		END type
 	END MODULE Darcy_data_types

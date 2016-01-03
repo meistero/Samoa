@@ -105,7 +105,7 @@ set style line 32 lc rgb "green"
 
 do for [i=1:20] {
     infile = sprintf('darcy%i.plt', i)
-    set title 'Darcy element througput'
+    set title 'Darcy element throughput'
 
     unset output
     set xrange [*:*]
@@ -125,7 +125,7 @@ do for [i=1:20] {
 
 do for [i=1:20] {
     infile = sprintf('swe%i.plt', i)
-    set title 'SWE element througput'
+    set title 'SWE element throughput'
 
     unset output
     set xrange [*:*]

@@ -90,16 +90,17 @@
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
                     call pressure_solver_cg%create()
+                    call pressure_solver_cg%set_parameter(CG_RESTART_ITERS, real(cfg%i_CG_restart, SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
                     call pressure_solver_pipecg%create()
+                    call pressure_solver_pipecg%set_parameter(PCG_RESTART_ITERS, real(cfg%i_CG_restart, SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 2")
             end select
 
             call darcy%pressure_solver%set_parameter(LS_MAX_ITERS, real(cfg%i_max_iterations, SR))
-            call darcy%pressure_solver%set_parameter(LS_RESTART_ITERS, real(cfg%i_CG_restart, SR))
 
             call date_and_time(s_date, s_time)
 
@@ -303,7 +304,7 @@
             class(t_darcy), intent(inout)	                            :: darcy
  			type(t_grid), intent(inout)									:: grid
 
-            integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_nle_iterations, i_lse_iterations, i_lse_iterations_time_step
+            integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_nle_iterations, i_lse_iterations
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_grid_info)           	                            :: grid_info, grid_info_max
             integer  (kind = GRID_SI)                                   :: i_stats_phase
@@ -331,33 +332,33 @@
 
 			do
                 i_nle_iterations = 1
-                i_lse_iterations_time_step = 0
+                i_lse_iterations = 0
+
+                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
 				!reset saturation to initial condition, setup pressure equation and set refinement flags
 				do
-
                     call darcy%init_saturation%traverse(grid)
 
                     !solve pressure equation
-                    call darcy%pressure_solver%set_parameter(LS_MAX_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
                     if (cfg%l_lse_output) then
                         call darcy%lse_output%traverse(grid)
-                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                        call darcy%pressure_solver%solve(grid)
                         call darcy%lse_output%traverse(grid)
                     else
-                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                        call darcy%pressure_solver%solve(grid)
                     end if
 
-                    i_lse_iterations_time_step = i_lse_iterations_time_step + i_lse_iterations
-
-                    if (i_lse_iterations == 0) then
+                    if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
                         exit
                     end if
 
+                    i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+
                     if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
                         !$omp master
-                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations_time_step
+                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
                         !$omp end master
                     end if
 
@@ -368,7 +369,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(" Darcy: adaptions: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0, ", cells: ", I0)') i_initial_step, i_nle_iterations, i_lse_iterations_time_step, grid_info%i_cells
+                    _log_write(1, '(" Darcy: adaptions: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0, ", cells: ", I0)') i_initial_step, i_nle_iterations, i_lse_iterations, grid_info%i_cells
                     !$omp end master
                 end if
 
@@ -435,34 +436,35 @@
                 call darcy%adaption%traverse(grid)
 
                 i_nle_iterations = 1
-                i_lse_iterations_time_step = 0
+                i_lse_iterations = 0
+
+                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
                 do
                     !setup pressure equation
                     call darcy%permeability%traverse(grid)
 
                     !solve pressure equation
-                    call darcy%pressure_solver%set_parameter(LS_MAX_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
                     if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
                         call darcy%lse_output%traverse(grid)
-                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                        call darcy%pressure_solver%solve(grid)
                         call darcy%lse_output%traverse(grid)
                     else if (mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
-                        i_lse_iterations = darcy%pressure_solver%solve(grid)
+                        call darcy%pressure_solver%solve(grid)
                     else
-                        i_lse_iterations = 0
-                    end if
-
-                    i_lse_iterations_time_step = i_lse_iterations_time_step + i_lse_iterations
-
-                    if (i_lse_iterations == 0) then
                         exit
                     end if
 
+                    if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
+                        exit
+                    end if
+
+                    i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+
                     if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
                         !$omp master
-                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations_time_step
+                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
                         !$omp end master
                     end if
 
@@ -483,7 +485,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(" Darcy: time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells, i_nle_iterations, i_lse_iterations_time_step
+                    _log_write(1, '(" Darcy: time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells, i_nle_iterations, i_lse_iterations
                     !$omp end master
                 end if
 
