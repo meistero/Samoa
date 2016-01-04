@@ -6,10 +6,9 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Thin_MPI_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Thin_MPI_Weak_Scaling_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
-mkdir -p $output_dir
 mkdir -p scripts
 
 echo "CPU(s) detected : "$cpus
@@ -17,28 +16,43 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-scons config=supermuc.py scenario=darcy openmp=noomp -j4 &
-scons config=supermuc.py scenario=swe openmp=noomp -j4 &
+scons config=supermuc_intel.py scenario=darcy openmp=noomp -j4 &
+scons config=supermuc_intel.py scenario=swe openmp=noomp -j4 &
 
 wait %1 %2
 
+if [ $? -ne 0 ]; then
+    exit
+fi
+
+mkdir -p $output_dir
+
 echo "Running scenarios..."
 
-class=test
 limit=02:00:00
 postfix=_noomp
 
 for asagimode in 2
 do
-	for sections in 8 16 32
+	for sections in 16
 	do
-		for cores in 16 32 64 128 256 512
+		for cores in 1 2 4 8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768
 		do
 			processes=$cores
 			threads=1
 			nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+			islands=$(( ($nodes - 1) / 512 + 1 ))
+			size=`echo "import numpy; print int(numpy.log2("$cores"))" | python`
 
-			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
+			if [ $nodes -le 32 ]; then
+               class=test
+            elif [ $nodes -le 512 ]; then
+               class=general
+            else
+               class=large
+            fi
+
+			script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
 			cat "$script_dir/run_supermuc_template.sh" > $script
 
 			sed -i 's=$asagimode='$asagimode'=g' $script
@@ -49,9 +63,10 @@ do
 			sed -i 's=$nodes='$nodes'=g' $script
 			sed -i 's=$limit='$limit'=g' $script
 			sed -i 's=$class='$class'=g' $script
+			sed -i 's=$islands='$islands'=g' $script
 			sed -i 's=$postfix='$postfix'=g' $script
-		    sed -i 's=-dmin 26=-dmin 26=g' $script
-	        sed -i 's=-dmax 29=-dmax 32=g' $script
+			sed -i 's=-dmin 26=-dmin '$((20 + $size))'=g' $script
+			sed -i 's=-dmax 29=-dmax '$((26 + $size))'=g' $script
 
 			llsubmit $script
 		done

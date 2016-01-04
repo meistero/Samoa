@@ -6,7 +6,7 @@
 #!/bin/bash
 
 #@ job_name = samoa
-#@ job_type = MPICH
+#@ job_type = parallel
 #@ wall_clock_limit = $limit
 #@ node = $nodes
 #@ total_tasks = $processes
@@ -24,8 +24,15 @@
 . /etc/profile 2>/dev/null
 . /etc/profile.d/modules.sh 2>/dev/null
 
+module switch mpi.intel mpi.ibm
+module switch gcc gcc/4.7
+
 export OMP_NUM_THREADS=$threads
-#export MP_TASK_AFFINITY=CORE:$threads
+
+if [ $threads -ge 2 ] ; then
+    export MP_SINGLE_THREAD=no
+    export MP_TASK_AFFINITY=core:$threads
+fi
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
@@ -33,10 +40,10 @@ echo "  Sections: "$sections
 echo "  ASAGI mode: "$asagimode
 
 echo "  Running Darcy..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -phases 4 -dmin 26 -dmax 40 -tsteps 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -n $processes ./bin/samoa_darcy$postfix -phases 4 -dmin 26 -dmax 40 -tsteps 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
 echo "  Running SWE..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -phases 4 -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -n $processes ./bin/samoa_swe$postfix -phases 4 -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
