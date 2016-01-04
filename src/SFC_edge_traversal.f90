@@ -55,15 +55,7 @@ module SFC_edge_traversal
 
         _log_write(4, '(3X, A)') "create splitting"
 
-        call src_grid%get_local_sections(i_first_src_section, i_last_src_section)
-
-        do i_src_section = i_first_src_section, i_last_src_section
-            call src_grid%sections%elements_alloc(i_src_section)%estimate_load()
-        end do
-
         i_src_sections = src_grid%sections%get_size()
-
-        !$omp barrier
 
         !$omp single
         call reduce(src_grid%load, src_grid%sections%elements_alloc%load, MPI_SUM, .false.)

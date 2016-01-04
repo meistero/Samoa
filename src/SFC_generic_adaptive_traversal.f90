@@ -245,6 +245,7 @@ subroutine traverse_in_place(traversal, grid)
 	class(_GT), target, intent(inout)	                :: traversal
 	type(t_grid), intent(inout)							:: grid
 
+    integer (kind = GRID_SI)                            :: i_src_section, i_first_src_section, i_last_src_section
 	integer                                             :: i_error
 	type(t_grid), save							        :: grid_temp
 	type(t_adaptive_statistics)                         :: thread_stats
@@ -277,6 +278,24 @@ subroutine traverse_in_place(traversal, grid)
 
     !$omp barrier
 
+    call grid%get_local_sections(i_first_src_section, i_last_src_section)
+
+    do i_src_section = i_first_src_section, i_last_src_section
+        call grid%sections%elements_alloc(i_src_section)%estimate_load()
+    end do
+
+    !$omp barrier
+
+    !balance load BEFORE refinement if splitting is DISABLED
+    if (.not. cfg%l_split_sections) then
+        thread_stats%r_load_balancing_time = -get_wtime()
+#	    if !defined(_GT_INPUT_DEST)
+	        !exchange grid sections with neighbors
+		    call distribute_load(grid, 0.0)
+#	    endif
+        thread_stats%r_load_balancing_time = thread_stats%r_load_balancing_time + get_wtime()
+    end if
+
     thread_stats%r_allocation_time = -get_wtime()
     call create_destination_grid(grid, grid_temp)
 
@@ -302,12 +321,15 @@ subroutine traverse_in_place(traversal, grid)
     call grid_temp%move(grid)
     !$omp end single
 
-    thread_stats%r_load_balancing_time = -get_wtime()
-#	if !defined(_GT_INPUT_DEST)
-	    !exchange grid sections with neighbors
-		call distribute_load(grid, 0.0)
-#	endif
-    thread_stats%r_load_balancing_time = thread_stats%r_load_balancing_time + get_wtime()
+    !balance load AFTER refinement if splitting is ENABLED
+    if (cfg%l_split_sections) then
+        thread_stats%r_load_balancing_time = -get_wtime()
+#	    if !defined(_GT_INPUT_DEST)
+	        !exchange grid sections with neighbors
+		    call distribute_load(grid, 0.0)
+#	    endif
+        thread_stats%r_load_balancing_time = thread_stats%r_load_balancing_time + get_wtime()
+    end if
 
     traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
     grid%threads%elements(i_thread)%stats = grid%threads%elements(i_thread)%stats + thread_stats
