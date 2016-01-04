@@ -1,3 +1,3 @@
 compiler='intel'
-asagi_dir='../../ASAGI_Intel_v0.4'
+asagi_dir='../../ASAGI_Intel'
 
