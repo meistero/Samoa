@@ -6,7 +6,7 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Thin_Production_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Thin_SPE10_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
@@ -30,8 +30,8 @@ else
     p_ref_th=2.0e-8
 fi
 
-scons config=supermuc_intel.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
-wait
+#scons config=supermuc_intel.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
+#wait
 
 if [ $? -ne 0 ]; then
     exit
@@ -46,6 +46,7 @@ do
 		processes=$cores
 		threads=1
 		nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+		islands=$(( ($nodes - 1) / 512 + 1 ))
 
 		if [ $nodes -le 32 ]; then
            class=test
@@ -65,10 +66,12 @@ do
 		sed -i 's=$nodes='$nodes'=g' $script
 		sed -i 's=$limit='$limit'=g' $script
 		sed -i 's=$class='$class'=g' $script
+        sed -i 's=$islands='$islands'=g' $script
 		sed -i 's=$postfix='$postfix'=g' $script
         sed -i 's=$dmax='$dmax'=g' $script
         sed -i 's=$p_ref_th='$p_ref_th'=g' $script
 
+        #cat $script
 		llsubmit $script
 	done
 done

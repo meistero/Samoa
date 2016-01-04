@@ -15,8 +15,8 @@
 #@ class = $class
 #@ network.MPI = sn_all,not_shared,us
 #@ initialdir = $(home)/Desktop/Samoa
-#@ output = $output_dir/run$postfix_p$processes_t$threads_s$sections_a$asagimode.$(jobid).out
-#@ error =  $output_dir/run$postfix_p$processes_t$threads_s$sections_a$asagimode.$(jobid).err
+#@ output = $output_dir/run$postfix_p$processes_t$threads_s$sections.$(jobid).out
+#@ error =  $output_dir/run$postfix_p$processes_t$threads_s$sections.$(jobid).err
 #@ energy_policy_tag = samoa_energy_tag
 #@ minimize_time_to_solution = yes
 #@ queue

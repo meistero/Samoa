@@ -6,7 +6,7 @@
 #!/bin/bash
 
 cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
-output_dir=output/Thin_Production_$(date +"%Y-%m-%d_%H-%M-%S")
+output_dir=output/Thin_Tohoku_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
 mkdir -p $output_dir
@@ -20,10 +20,10 @@ echo "Compiling..."
 class=general
 limit=48:00:00
 
-postfix=_noomp_upwind_l$layers
+postfix=_noomp
 sections=8
 
-scons config=supermuc_intel.py scenario=swe openmp=noomp -j4 &
+scons config=supermuc_intel.py scenario=swe openmp=noomp flux_solver=aug_riemann -j4 &
 wait
 
 if [ $? -ne 0 ]; then
@@ -39,6 +39,7 @@ do
 		processes=$cores
 		threads=1
 		nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+		islands=$(( ($nodes - 1) / 512 + 1 ))
 
 		if [ $nodes -le 32 ]; then
            class=test
@@ -58,9 +59,11 @@ do
 		sed -i 's=$nodes='$nodes'=g' $script
 		sed -i 's=$limit='$limit'=g' $script
 		sed -i 's=$class='$class'=g' $script
+        sed -i 's=$islands='$islands'=g' $script
 		sed -i 's=$postfix='$postfix'=g' $script
         sed -i 's=$dmax='$dmax'=g' $script
 
+        #cat $script
 		llsubmit $script
 	done
 done
