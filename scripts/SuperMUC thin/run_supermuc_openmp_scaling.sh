@@ -17,10 +17,10 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-scons config=supermuc.py scenario=darcy mpi=no openmp=tasks -j4 &
-scons config=supermuc.py scenario=swe mpi=no openmp=tasks -j4 &
-scons config=supermuc.py scenario=darcy mpi=no openmp=notasks -j4 &
-scons config=supermuc.py scenario=swe mpi=no openmp=notasks -j4 &
+scons config=supermuc_intel.py scenario=darcy mpi=no openmp=tasks -j4 &
+scons config=supermuc_intel.py scenario=swe mpi=no openmp=tasks -j4 &
+scons config=supermuc_intel.py scenario=darcy mpi=no openmp=notasks -j4 &
+scons config=supermuc_intel.py scenario=swe mpi=no openmp=notasks -j4 &
 
 wait %1 %2 %3 %4
 
@@ -39,7 +39,16 @@ do
 		    do
 			    processes=1
 			    threads=$cores
-			    nodes=1
+			    nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+				islands=$(( ($nodes - 1) / 512 + 1 ))
+
+				if [ $nodes -le 32 ]; then
+		           class=test
+		        elif [ $nodes -le 512 ]; then
+		           class=general
+		        else
+		           class=large
+		        fi
 
 			    script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".sh"
 			    cat "$script_dir/run_supermuc_template.sh" > $script
@@ -52,6 +61,7 @@ do
 			    sed -i 's=$nodes='$nodes'=g' $script
 			    sed -i 's=$limit='$limit'=g' $script
 			    sed -i 's=$class='$class'=g' $script
+				sed -i 's=$islands='$islands'=g' $script
 			    sed -i 's=$postfix='$postfix'=g' $script
 			    sed -i 's=-dmin 26=-dmin 22=g' $script
 			    sed -i 's=-dmax 29=-dmax 29=g' $script

@@ -10,7 +10,7 @@
 #@ wall_clock_limit = $limit
 #@ node = $nodes
 #@ total_tasks = $processes
-#@ island_count = 1
+#@ island_count = $islands
 #@ node_usage = not_shared
 #@ class = $class
 #@ network.MPI = sn_all,not_shared,us
@@ -25,6 +25,7 @@
 . /etc/profile.d/modules.sh 2>/dev/null
 
 export OMP_NUM_THREADS=$threads
+#export MP_TASK_AFFINITY=CORE:$threads
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
@@ -32,7 +33,7 @@ echo "  Sections: "$sections
 echo "  ASAGI mode: "$asagimode
 
 echo "  Running Darcy..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -max_iter 50 -tsteps 10 -lbsplit -epsilon 1.0e-4 -phases 4 -dmin 26 -dmax 40 -asagihints $asagimode -threads $threads -sections $sections $add_options > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -max_iter 50 -phases 4 -dmin 26 -dmax 40 -tsteps 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
 echo "  Running SWE..."

@@ -73,7 +73,7 @@ vars.AddVariables(
               ),
 
   EnumVariable( 'mpi', 'MPI support', 'default',
-                allowed_values=('nompi', 'default', 'intel', 'mpich2', 'openmpi')
+                allowed_values=('nompi', 'default', 'intel', 'mpich2', 'openmpi', 'ibm')
               ),
 
   BoolVariable( 'standard', 'check for Fortran 2003 standard compatibility', False),
@@ -133,7 +133,8 @@ env['LINKFLAGS'] = ''
 # Choose compiler
 if env['compiler'] == 'intel':
   fc = 'ifort'
-  env['F90FLAGS'] = '-implicitnone -nologo -fpp -allow nofpp-comments'
+  env['F90FLAGS'] = ' -implicitnone -nologo -fpp -allow nofpp-comments'
+  env['LINKFLAGS'] += ' -Bdynamic -shared-libgcc -shared-intel'
 elif  env['compiler'] == 'gnu':
   fc = 'gfortran'
   env['F90FLAGS'] = '-fimplicit-none -cpp -ffree-line-length-none'
@@ -141,6 +142,10 @@ elif  env['compiler'] == 'gnu':
 
 # If MPI is active, use the mpif90 wrapper for compilation
 if env['mpi'] == 'default':
+  env['F90'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
+  env['LINK'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
+  env['F90FLAGS'] += ' -D_MPI'
+elif env['mpi'] == 'ibm':
   env['F90'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
   env['LINK'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'

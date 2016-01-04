@@ -10,7 +10,7 @@
 #@ wall_clock_limit = $limit
 #@ node = $nodes
 #@ total_tasks = $processes
-#@ island_count = 1
+#@ island_count = $islands
 #@ node_usage = not_shared
 #@ class = $class
 #@ network.MPI = sn_all,not_shared,us
@@ -25,6 +25,7 @@
 . /etc/profile.d/modules.sh 2>/dev/null
 
 export OMP_NUM_THREADS=$threads
+#export MP_TASK_AFFINITY=CORE:$threads
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads

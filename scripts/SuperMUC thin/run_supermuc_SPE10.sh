@@ -24,16 +24,20 @@ layers=85
 postfix=_noomp_upwind_l$layers
 sections=8
 
-#scons config=supermuc.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
-#wait
-
-echo "Running scenarios..."
-
 if [ $layers = 0 ] ; then
     p_ref_th=3.0e-9
 else
     p_ref_th=2.0e-8
 fi
+
+scons config=supermuc_intel.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
+wait
+
+if [ $? -ne 0 ]; then
+    exit
+fi
+
+echo "Running scenarios..."
 
 for dmax in 14 16
 do
@@ -42,11 +46,13 @@ do
 		processes=$cores
 		threads=1
 		nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
-    
+
 		if [ $nodes -le 32 ]; then
            class=test
-        else
+        elif [ $nodes -le 512 ]; then
            class=general
+        else
+           class=large
         fi
 
 		script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
@@ -63,8 +69,7 @@ do
         sed -i 's=$dmax='$dmax'=g' $script
         sed -i 's=$p_ref_th='$p_ref_th'=g' $script
 
-        cat $script
-		#llsubmit $script
+		llsubmit $script
 	done
 done
 
