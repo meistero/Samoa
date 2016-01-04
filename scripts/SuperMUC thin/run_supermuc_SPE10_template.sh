@@ -31,11 +31,6 @@ echo "  Threads: "$threads
 echo "  Sections: "$sections
 echo "  ASAGI mode: "$asagimode
 
-echo "  Running Darcy..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -max_iter 50 -tsteps 10 -lbsplit -epsilon 1.0e-4 -phases 4 -dmin 26 -dmax 40 -tmax 1.728e8 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+echo "  Running SPE10..."
+mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -fperm "data/darcy_five_spot/spe_perm_renamed.nc" -fpor "data/darcy_five_spot/spe_por_renamed.nc" -sections $sections -threads $threads -dmin 0 -dmax $dmax -xmloutput -tout 86.4e4 -tmax 172.8e6 -epsilon 1.0e-5 -S_ref_th 1.0e2 -p_ref_th $p_ref_th -courant 1.0 -output_dir $output_dir
 echo "  Done."
-
-echo "  Running SWE..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -phases 4 -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
-echo "  Done."
-
