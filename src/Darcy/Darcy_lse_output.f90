@@ -21,15 +21,11 @@
             integer (kind = GRID_SI)								:: i_point_data_index
         end type
 
-        interface node_first_touch_op
-            module procedure node_first_touch_op_scalar
-            module procedure node_first_touch_op_array
-        end interface
-
         type(darcy_gm_A)										    :: gm_A
         type(darcy_gv_p)										    :: gv_p
         type(darcy_gv_r)										    :: gv_r
         type(darcy_gv_rhs)										    :: gv_rhs
+        type(darcy_gv_is_dirichlet)                                 :: gv_is_dirichlet
 
 #		define	_GT_NAME							t_darcy_lse_output_traversal
 
@@ -47,6 +43,7 @@
 #		define	_GT_ELEMENT_OP						element_op
 
 #		define  _GT_NODE_FIRST_TOUCH_OP			    node_first_touch_op
+#		define  _GT_INNER_NODE_FIRST_TOUCH_OP		inner_node_first_touch_op
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -186,29 +183,31 @@
             end do
 		end subroutine
 
-		subroutine node_first_touch_op_array(traversal, section, nodes)
+		subroutine node_first_touch_op(traversal, section, nodes)
  			type(t_darcy_lse_output_traversal), intent(inout)	:: traversal
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: nodes(:)
 
-			integer (kind = GRID_SI)						    :: i, j
+			integer (kind = GRID_SI)						    :: i
 
-            do j = 1, size(nodes)
-                do i = 1, _DARCY_LAYERS + 1
-                    call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, nodes(j)%data_pers%p(i), nodes(j)%data_pers%rhs(i), nodes(j)%data_pers%r(i), nodes(j)%data_temp%is_dirichlet_boundary(i))
-                end do
+            do i = 1, size(nodes)
+                call inner_node_first_touch_op(traversal, section, nodes(i))
             end do
 		end subroutine
 
-		subroutine node_first_touch_op_scalar(traversal, section, node)
+		subroutine inner_node_first_touch_op(traversal, section, node)
  			type(t_darcy_lse_output_traversal), intent(inout)	:: traversal
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
 			integer (kind = GRID_SI)						    :: i
 
+			logical (kind = SL) :: is_dirichlet(_DARCY_LAYERS + 1)
+
+			call gv_is_dirichlet%read(node, is_dirichlet)
+
 			do i = 1, _DARCY_LAYERS + 1
-				call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, node%data_pers%p(i), node%data_pers%rhs(i), node%data_pers%r(i), .false.)
+				call pre_dof_op(traversal%p, traversal%rhs, traversal%i_point_data_index, node%data_pers%p(i), node%data_pers%rhs(i), node%data_pers%r(i), is_dirichlet(i))
 			end do
 		end subroutine
 
@@ -219,7 +218,7 @@
 			real(kind = GRID_SR), intent(in)				:: p
 			real(kind = GRID_SR), intent(in)				:: rhs
 			real(kind = GRID_SR), intent(out)				:: r
-			logical, intent(in)                             :: is_dirichlet
+			logical (kind = SL), intent(in)                 :: is_dirichlet
 
             if (is_dirichlet) then
                 r = real(-1, GRID_SR)

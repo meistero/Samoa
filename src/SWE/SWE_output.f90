@@ -25,8 +25,10 @@
 		!> Output cell data
 		type t_output_cell_data
 			type(t_state)											:: Q
-			integer (kind = GRID_SI)								:: depth
-			integer (kind = GRID_SI)								:: refinement
+			integer (kind = GRID_SI)								:: rank
+			integer (kind = GRID_SI)								:: section_index
+			integer (kind = BYTE)								    :: depth
+			integer (kind = BYTE)								    :: refinement
 		end type
 
         type num_traversal_data
@@ -34,19 +36,18 @@
             type(t_output_cell_data), allocatable			        :: cell_data(:)
             character(len=64)							            :: s_file_stamp
 
-            integer (kind = GRID_SI)								:: i_output_iteration
+            integer (kind = GRID_SI)								:: i_output_iteration = 0
             integer (kind = GRID_SI)								:: i_point_data_index
             integer (kind = GRID_SI)								:: i_cell_data_index
         end type
 
-		integer, PARAMETER											:: i_element_order = 0
+		integer, parameter											:: i_element_order = 0
 
 		type(t_gv_Q)												:: gv_Q
 
 #		define _GT_NAME								t_swe_output_traversal
 
 #		define _GT_EDGES
-#		define _GT_REFINEMENTS
 
 #		define _GT_PRE_TRAVERSAL_OP					pre_traversal_op
 #		define _GT_POST_TRAVERSAL_OP				post_traversal_op
@@ -98,7 +99,7 @@
 
 			type(t_section_info)                                           :: grid_info
 			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
-			character (len = 64)										:: s_file_name
+			character (len = 256)										:: s_file_name
 			integer(4)													:: e_io, i
 
             grid_info = grid%get_info()
@@ -167,8 +168,8 @@
                         e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
                     endif
 
-                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
-                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
+                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', int(traversal%cell_data%depth))
+                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', int(traversal%cell_data%refinement))
                 e_io = vtk%VTK_END()
 #           endif
 

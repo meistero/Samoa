@@ -481,47 +481,51 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 		_log_write(6, '(A)') ""
 #	endif
 
-	if (section%cells%get_size() > 0) then
-        assert_ge(section%cells%get_size(), 2)
- 		call init(section, thread_traversal%elements(1))
+	select case (section%cells%get_size())
+        case (1)
+            !process the only element
+            call init(section, thread_traversal%elements(1))
+            call leaf(traversal, thread, section, thread_traversal%elements(1))
+        case (2:)
+            call init(section, thread_traversal%elements(1))
 
-		!process first element
-        call init(section, thread_traversal%elements(2))
-        call leaf(traversal, thread, section, thread_traversal%elements(1))
+            !process first element
+            call init(section, thread_traversal%elements(2))
+            call leaf(traversal, thread, section, thread_traversal%elements(1))
 
-        i_current_element = 2
+            i_current_element = 2
 
-		do
-            i_next_element = mod(i_current_element, 8) + 1
+            do
+                i_next_element = mod(i_current_element, 8) + 1
 
-			select case (thread_traversal%elements(i_current_element)%cell%geometry%i_entity_types)
-				case (INNER_OLD)
-                    !init next element for the skeleton operator
-                    call init(section, thread_traversal%elements(i_next_element))
-					call old_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
-				case (INNER_NEW)
-                    !init next element for the skeleton operator
-                    call init(section, thread_traversal%elements(i_next_element))
-					call new_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
-				case (INNER_OLD_BND)
-                    !init next element for the skeleton operator
-                    call init(section, thread_traversal%elements(i_next_element))
-                    call old_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
-				case (INNER_NEW_BND)
-                    !init next element for the skeleton operator
-                    call init(section, thread_traversal%elements(i_next_element))
-                    call new_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
-                case default
-                    !this should happen only for the last element
-                    exit
-			end select
+                select case (thread_traversal%elements(i_current_element)%cell%geometry%i_entity_types)
+                    case (INNER_OLD)
+                        !init next element for the skeleton operator
+                        call init(section, thread_traversal%elements(i_next_element))
+                        call old_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                    case (INNER_NEW)
+                        !init next element for the skeleton operator
+                        call init(section, thread_traversal%elements(i_next_element))
+                        call new_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                    case (INNER_OLD_BND)
+                        !init next element for the skeleton operator
+                        call init(section, thread_traversal%elements(i_next_element))
+                        call old_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                    case (INNER_NEW_BND)
+                        !init next element for the skeleton operator
+                        call init(section, thread_traversal%elements(i_next_element))
+                        call new_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                    case default
+                        !this should happen only for the last element
+                        exit
+                end select
 
-			i_current_element = i_next_element
-		end do
+                i_current_element = i_next_element
+            end do
 
-		!process last element
-        call leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
-	end if
+            !process last element
+            call leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+    end select
 
 #	if (_DEBUG_LEVEL > 4)
 		_log_write(5, '(2X, A)') "section output state :"

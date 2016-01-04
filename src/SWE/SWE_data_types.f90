@@ -126,8 +126,7 @@
 		type num_global_data
 			real (kind = GRID_SR)							:: r_time					!< simulation time
 			real (kind = GRID_SR)							:: r_dt						!< time step
-			real (kind = GRID_SR)							:: u_max					!< maximum wave velocity for cfl condition
-			integer (kind = BYTE)						    :: d_max					!< current maximum grid depth
+			real (kind = GRID_SR)							:: r_dt_new					!< new time step for the next iteration
 		end type
 
 		contains

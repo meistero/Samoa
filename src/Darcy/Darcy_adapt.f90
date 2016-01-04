@@ -19,10 +19,11 @@
         type num_traversal_data
         end type
 
-		type(darcy_gv_p)							:: gv_p
-		type(darcy_gv_saturation)					:: gv_saturation
-		type(darcy_gv_volume)						:: gv_volume
-		type(darcy_gv_mat_diagonal)					:: gv_p_volume
+		type(darcy_gv_p)							    :: gv_p
+		type(darcy_gv_saturation)					    :: gv_saturation
+		type(darcy_gv_volume)						    :: gv_volume
+		type(darcy_gv_mat_diagonal)					    :: gv_p_volume
+        type(darcy_gv_boundary_condition)               :: gv_boundary_condition
 
 #		define	_GT_NAME							t_darcy_adaption_traversal
 
@@ -45,10 +46,11 @@
         subroutine create_edge_mpi_type(mpi_edge_type)
             integer, intent(out)            :: mpi_edge_type
 
-            type(t_edge_data)               :: edge
-            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
-
 #           if defined(_MPI)
+                type(t_edge_data)                       :: edge
+                integer                                 :: blocklengths(2), types(2), disps(2), type_size, i_error
+                integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
                 blocklengths(1) = 1
                 blocklengths(2) = 1
 
@@ -61,11 +63,12 @@
                 call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
                 call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(sizeof(edge), extent)
+                call MPI_Type_size(mpi_edge_type, type_size, i_error); assert_eq(i_error, 0)
+                call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(0, extent)
+                assert_eq(0, lb)
+                assert_eq(0, type_size)
+                assert_eq(sizeof(edge), ub)
 #           endif
         end subroutine
 
@@ -73,9 +76,9 @@
 		!Geometry operators
 		!******************
 
-		subroutine transfer_op(traversal, grid, src_element, dest_element)
+		subroutine transfer_op(traversal, section, src_element, dest_element)
  			type(t_darcy_adaption_traversal), intent(inout)							:: traversal
- 			type(t_grid_section), intent(inout)							            :: grid
+ 			type(t_grid_section), intent(inout)							            :: section
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
 
@@ -108,18 +111,19 @@
 
 			dest_element%cell%data_pers%base_permeability = src_element%cell%data_pers%base_permeability
 			dest_element%cell%data_pers%porosity = src_element%cell%data_pers%porosity
+
+            call set_boundary_conditions(dest_element%t_element_base)
 		end subroutine
 
-		subroutine refine_op(traversal, grid, src_element, dest_element, refinement_path)
+		subroutine refine_op(traversal, section, src_element, dest_element, refinement_path)
  			type(t_darcy_adaption_traversal), intent(inout)							:: traversal
- 			type(t_grid_section), intent(inout)										:: grid
+ 			type(t_grid_section), intent(inout)										:: section
 			type(t_traversal_element), intent(inout)								:: src_element
 			type(t_traversal_element), intent(inout)								:: dest_element
 			integer, intent(in)										                :: refinement_path(:)
 
 			real (kind = GRID_SR)   :: p_in(_DARCY_LAYERS + 1, 3), saturation_in(_DARCY_LAYERS + 1, 3), porosity(_DARCY_LAYERS + 1), volume(3), weights(3, 3), r_cells(4)
-            real (kind = GRID_SR)   :: x(3), buffer(3)
-			integer					:: i, level
+            integer					:: level, i
 
             !make sure, the effective volume never turns out to be 0
             porosity = epsilon(1.0_SR)
@@ -166,41 +170,14 @@
 
 			!permeability & porosity
 
-#           if (_DARCY_LAYERS > 0)
-                x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
+            call get_permeability_and_porosity_at_element(section, dest_element%t_element_base, dest_element%cell%data_pers%base_permeability, dest_element%cell%data_pers%porosity)
 
-                do i = 1, _DARCY_LAYERS
-                    x(3) = (i - 0.5_SR) / real(_DARCY_LAYERS, SR)
+            call set_boundary_conditions(dest_element%t_element_base)
+        end subroutine
 
-                    dest_element%cell%data_pers%base_permeability(i, :) = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
-                    dest_element%cell%data_pers%porosity(i) = get_porosity(grid, x)
-                end do
-#           else
-                x(1:2) = samoa_barycentric_to_world_point(dest_element%transform_data, [1.0_SR / 3.0_SR, 1.0_SR / 3.0_SR])
-                x(3) = 1.0e-5_SR
-
-                dest_element%cell%data_pers%base_permeability = get_base_permeability(grid, x, dest_element%cell%geometry%i_depth / 2_GRID_SI)
-                dest_element%cell%data_pers%porosity = get_porosity(grid, x)
-#           endif
-		end subroutine
-
-		elemental function transform_perm(permeability) result(trans_permeability)
-            real (kind = SR), intent(in)    :: permeability
-            real (kind = SR)                :: trans_permeability
-
-            trans_permeability = 1.0_SR / permeability
-		end function
-
-		elemental function transform_perm_inv(trans_permeability) result(permeability)
-            real (kind = SR), intent(in)    :: trans_permeability
-            real (kind = SR)                :: permeability
-
-            permeability = 1.0_SR / trans_permeability
-		end function
-
-		subroutine coarsen_op(traversal, grid, src_element, dest_element, coarsening_path)
+		subroutine coarsen_op(traversal, section, src_element, dest_element, coarsening_path)
   			type(t_darcy_adaption_traversal), intent(inout)							    :: traversal
-			type(t_grid_section), intent(inout)										    :: grid
+			type(t_grid_section), intent(inout)										    :: section
 			type(t_traversal_element), intent(inout)									:: src_element
 			type(t_traversal_element), intent(inout)									:: dest_element
 			integer, dimension(:), intent(in)											:: coarsening_path
@@ -253,26 +230,81 @@
 
             !permeability and porosity: compute the average
 
-            dest_element%cell%data_pers%base_permeability = transform_perm_inv(transform_perm(dest_element%cell%data_pers%base_permeability) + (0.5 ** size(coarsening_path)) * transform_perm(src_element%cell%data_pers%base_permeability))
+            dest_element%cell%data_pers%base_permeability = mean_invert(mean_transform(dest_element%cell%data_pers%base_permeability) + (0.5_SR ** size(coarsening_path) * mean_transform(src_element%cell%data_pers%base_permeability)))
             dest_element%cell%data_pers%porosity = dest_element%cell%data_pers%porosity + (0.5 ** size(coarsening_path)) * src_element%cell%data_pers%porosity
+
+            call set_boundary_conditions(dest_element%t_element_base)
 		end subroutine
 
+		subroutine set_boundary_conditions(element)
+			type(t_element_base), intent(inout)    :: element
+
+			real (kind = GRID_SR)   :: pos_well(2)
+			integer (kind = SI)     :: boundary_condition(3)
+            integer :: i
+
+            do i = 1, size(cfg%r_pos_in, 2)
+                pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in(:, i))
+
+                if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                    if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                        !injection well:
+
+                        boundary_condition = 0
+
+                        if (pos_well(1) > 0.5_SR) then
+                            boundary_condition(1) = i
+                        else if (pos_well(2) > 0.5_SR) then
+                            boundary_condition(3) = i
+                        else
+                            boundary_condition(2) = i
+                        end if
+
+                        call gv_boundary_condition%add_to_element(element, boundary_condition)
+                    end if
+                end if
+            end do
+
+            do i = 1, size(cfg%r_pos_prod, 2)
+                pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_prod(:, i))
+
+                if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                    if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                        !production well:
+
+                        boundary_condition = 0
+
+                        if (pos_well(1) > 0.5_SR) then
+                            boundary_condition(1) = -i
+                        else if (pos_well(2) > 0.5_SR) then
+                            boundary_condition(3) = -i
+                        else
+                            boundary_condition(2) = -i
+                        end if
+
+                        call gv_boundary_condition%add_to_element(element, boundary_condition)
+                    end if
+                end if
+            end do
+        end subroutine
+
 		!first touch ops
-		elemental subroutine cell_first_touch_op(traversal, grid, cell)
+		elemental subroutine cell_first_touch_op(traversal, section, cell)
  			type(t_darcy_adaption_traversal), intent(in)							:: traversal
- 			type(t_grid_section), intent(in)							:: grid
+ 			type(t_grid_section), intent(in)							:: section
 			type(t_cell_data_ptr), intent(inout)				:: cell
 
-			cell%data_pers%base_permeability = transform_perm_inv(0.0_SR)
+            cell%data_pers%base_permeability = mean_invert(0.0_SR)
 			cell%data_pers%porosity = 0.0_SR
 		end subroutine
 
-		elemental subroutine node_first_touch_op(traversal, grid, node)
- 			type(t_darcy_adaption_traversal), intent(in)							:: traversal
- 			type(t_grid_section), intent(in)							:: grid
+		elemental subroutine node_first_touch_op(traversal, section, node)
+ 			type(t_darcy_adaption_traversal), intent(in)	:: traversal
+ 			type(t_grid_section), intent(in)				:: section
 			type(t_node_data), intent(inout)				:: node
 
 			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
+            call init_boundary_conditions(node%position(1), node%position(2), node%data_pers%boundary_condition)
 		end subroutine
 
 		!merge ops
@@ -285,6 +317,7 @@
             local_node%data_pers%saturation = local_node%data_pers%saturation + neighbor_node%data_pers%saturation
             local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
             local_node%data_temp%mat_diagonal = local_node%data_temp%mat_diagonal + neighbor_node%data_temp%mat_diagonal
+			call gv_boundary_condition%add(local_node, neighbor_node%data_pers%boundary_condition)
         end subroutine
 
 		!last touch ops
@@ -313,13 +346,7 @@
 		!*******************************
 
 		elemental subroutine pre_dof_op(saturation, volume, p, mat_diagonal, d, A_d, rhs)
-			real (kind = GRID_SR), intent(out)		:: saturation
-			real (kind = GRID_SR), intent(out)		:: volume
-			real (kind = GRID_SR), intent(out)		:: p
-			real (kind = GRID_SR), intent(out)		:: mat_diagonal
-			real (kind = GRID_SR), intent(out)		:: d
-			real (kind = GRID_SR), intent(out)		:: A_d
-			real (kind = GRID_SR), intent(out)		:: rhs
+			real (kind = GRID_SR), intent(out)		:: saturation, volume, p, mat_diagonal, d, A_d, rhs
 
 			saturation = 0.0_GRID_SR
 			volume = 0.0_GRID_SR
@@ -329,6 +356,21 @@
 			A_d = 0.0_GRID_SR
 			rhs = 0.0_SR
 		end subroutine
+
+		elemental subroutine init_boundary_conditions(pos_x, pos_y, boundary_condition)
+			real (kind = GRID_SR), intent(in)		:: pos_x, pos_y
+			integer (kind = SI), intent(out)        :: boundary_condition
+
+            boundary_condition = 0_SI
+
+#           if !defined(_ASAGI)
+                if (pos_x == 0.0_SR) then
+                    boundary_condition = 1_SI
+                else if (pos_x == 1.0_SR) then
+                    boundary_condition = -1_SI
+                end if
+#           endif
+        end subroutine
 
 		elemental subroutine post_dof_op(saturation, p, volume, p_volume)
  			real (kind = GRID_SR), intent(inout)	:: saturation

@@ -45,7 +45,7 @@
 		real (kind = GRID_SR), allocatable		:: r_testpoints(:,:)
 
         integer, parameter      :: out_unit = 20
-        character (len = 128)   :: pout_file_name
+        character (len = 256)   :: pout_file_name
 
 		type(t_gv_Q)			:: gv_Q
 
@@ -248,21 +248,18 @@
                 dist = sqrt(dot_product(distvec, distvec))
 
                 if (dist < r_testpoints(i,7)) then
+                    h = t_basis_Q_eval(local_coord, Q%h)			!insert transformed coordinates
+                    b = t_basis_Q_eval(local_coord, Q%b)
+                    p(1) = t_basis_Q_eval(local_coord, Q%p(1))	    !insert transformed coordinates, gives world coordinates
+                    p(2) = t_basis_Q_eval(local_coord, Q%p(2))
 
-				h = t_basis_Q_eval(local_coord, Q%h)			!insert transformed coordinates
-            	b = t_basis_Q_eval(local_coord, Q%b)
-				p(1) = t_basis_Q_eval(local_coord, Q%p(1))	    !insert transformed coordinates, gives world coordinates
-				p(2) = t_basis_Q_eval(local_coord, Q%p(2))
-
-                r_testpoints(i,3) = p(1)
-                r_testpoints(i,4) = p(2)
-                r_testpoints(i,5) = h
-                r_testpoints(i,6) = b
-                r_testpoints(i,7) = dist
-                r_testpoints(i,8) = section%r_time / 86400 + 70.240556 !time unit: days since start of year - for comparison with buoy data
-
+                    r_testpoints(i,3) = p(1)
+                    r_testpoints(i,4) = p(2)
+                    r_testpoints(i,5) = h
+                    r_testpoints(i,6) = b
+                    r_testpoints(i,7) = dist
+                    r_testpoints(i,8) = section%r_time / (24.0_SR * 60.0_SR * 60.0_SR) + 70.2422_SR !convert to days since start of year for comparison with buoy data
                 end if
-
 			end if
 		end do
 

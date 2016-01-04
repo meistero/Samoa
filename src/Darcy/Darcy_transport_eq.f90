@@ -8,14 +8,14 @@
 #if defined(_DARCY)
 	MODULE Darcy_transport_eq
 		use SFC_edge_traversal
-		use Darcy_grad_p
+		use Darcy_permeability
 
 		use Samoa_darcy
 
-		public compute_upwind_flux
-
         type num_traversal_data
-            real (kind = GRID_SR)               :: prod_w(4), prod_n(4)
+            real (kind = GRID_SR)               :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)  !< water production rate
+            real (kind = GRID_SR)               :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)  !< oil production rate
+            real (kind = GRID_SR)               :: p_bh(_DARCY_INJECTOR_WELLS)                             !< bottom hole pressure
         end type
 
 		type(darcy_gv_p)				        :: gv_p
@@ -38,7 +38,6 @@
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 #		define _GT_NODE_REDUCE_OP		        node_reduce_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
-#		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 
@@ -49,10 +48,11 @@
         subroutine create_edge_mpi_type(mpi_edge_type)
             integer, intent(out)            :: mpi_edge_type
 
-            type(t_edge_data)               :: edge
-            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
-
 #           if defined(_MPI)
+                type(t_edge_data)                       :: edge
+                integer                                 :: blocklengths(2), types(2), disps(2), type_size, i_error
+                integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
                 blocklengths(1) = 1
                 blocklengths(2) = 1
 
@@ -65,11 +65,12 @@
                 call MPI_Type_struct(2, blocklengths, disps, types, mpi_edge_type, i_error); assert_eq(i_error, 0)
                 call MPI_Type_commit(mpi_edge_type, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_extent(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(sizeof(edge), extent)
+                call MPI_Type_size(mpi_edge_type, type_size, i_error); assert_eq(i_error, 0)
+                call MPI_Type_get_extent(mpi_edge_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_size(mpi_edge_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(0, extent)
+                assert_eq(0, lb)
+                assert_eq(0, type_size)
+                assert_eq(sizeof(edge), ub)
 #           endif
         end subroutine
 
@@ -87,6 +88,7 @@
 
             traversal%prod_w = 0.0_SR
             traversal%prod_n = 0.0_SR
+            traversal%p_bh = 0.0_SR
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -95,6 +97,7 @@
 
             traversal%prod_w = 0.0_SR
             traversal%prod_n = 0.0_SR
+            traversal%p_bh = 0.0_SR
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
@@ -103,18 +106,31 @@
 
             integer                :: i
 
-            do i = 1, 4
+            do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
                 call reduce(traversal%prod_w(i), traversal%children%prod_w(i), MPI_SUM, .false.)
                 call reduce(traversal%prod_n(i), traversal%children%prod_n(i), MPI_SUM, .false.)
             end do
 
-            !accumulated production in bbl += dt in s * um^3/s * (6.28981077 bbl/m^3) * (cfg%scaling m/um)^3
-            grid%prod_w_acc = grid%prod_w_acc + traversal%prod_w * grid%r_dt * (6.28981077_SR) * (cfg%scaling ** 3)
-            grid%prod_n_acc = grid%prod_n_acc + traversal%prod_n * grid%r_dt * (6.28981077_SR) * (cfg%scaling ** 3)
+            !the injector pressure must be shared over all mpi ranks as it is used for the linear solver exit criterion
+            do i = 1, _DARCY_INJECTOR_WELLS
+                call reduce(traversal%p_bh(i), traversal%children%p_bh(i), MPI_MAX, .true.)
+            end do
 
-            !production rate in bbl/d = um^3/s * (6.28981077 bbl/m^3) * (cfg%scaling m/um)^3 * (86400 s/d)
-            grid%prod_w = traversal%prod_w * (6.28981077_SR * 86400.0_SR) * (cfg%scaling ** 3)
-            grid%prod_n = traversal%prod_n * (6.28981077_SR * 86400.0_SR) * (cfg%scaling ** 3)
+            !In the 2D case we always assumed that the height of the domain is 1, when in fact it should be delta_z.
+            !so multiply the rates by delta_z
+#           if (_DARCY_LAYERS == 0)
+                traversal%prod_w = traversal%prod_w * cfg%dz
+                traversal%prod_n = traversal%prod_n * cfg%dz
+#           endif
+
+            !accumulated production in bbl
+            grid%prod_w_acc = grid%prod_w_acc + (traversal%prod_w * grid%r_dt)
+            grid%prod_n_acc = grid%prod_n_acc + (traversal%prod_n * grid%r_dt)
+
+            !production rate in bbl/d
+            grid%prod_w = traversal%prod_w
+            grid%prod_n = traversal%prod_n
+            grid%p_bh = traversal%p_bh
 
 			grid%r_time = grid%r_time + grid%r_dt
 		end subroutine
@@ -180,30 +196,26 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
-            call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
-		end subroutine
-
-		elemental subroutine node_last_touch_op(traversal, section, node)
- 			type(t_darcy_transport_eq_traversal), intent(in)    :: traversal
- 			type(t_grid_section), intent(in)				    :: section
-			type(t_node_data), intent(inout)				    :: node
-
-            if (any(node%data_temp%is_dirichlet_boundary)) then
-                call post_dof_op_correction(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
+            if (any(node%data_pers%boundary_condition < 0)) then
+                call post_dof_op_production(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
+            else if (any(node%data_pers%boundary_condition > 0)) then
+                call post_dof_op_injection(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             else
                 call post_dof_op(section%r_dt, node%data_pers%saturation, node%data_temp%flux, node%data_pers%d, node%data_temp%volume)
             end if
 		end subroutine
 
+		subroutine node_last_touch_op(traversal, section, nodes)
+ 			type(t_darcy_transport_eq_traversal), intent(in)    :: traversal
+ 			type(t_grid_section), intent(in)				    :: section
+			type(t_node_data), intent(inout)				    :: nodes(:)
 
-		subroutine inner_node_reduce_op(traversal, section, node)
- 			type(t_darcy_transport_eq_traversal), intent(inout)	    :: traversal
- 			type(t_grid_section), intent(in)						:: section
-			type(t_node_data), intent(inout)				        :: node
+            integer :: i
 
-			! do nothing
+            do i = 1, size(nodes)
+                call inner_node_last_touch_op(traversal, section, nodes(i))
+            end do
 		end subroutine
-
 
 		subroutine node_reduce_op(traversal, section, node)
  			type(t_darcy_transport_eq_traversal), intent(inout)     :: traversal
@@ -211,9 +223,13 @@
 			type(t_node_data), intent(inout)				        :: node
 
 			real (kind = GRID_SR)  :: prod_w, prod_n
-			integer :: i
+			integer (kind = SI)    :: bnd_condition
+			integer                :: i
 
-            if (any(node%data_temp%is_dirichlet_boundary)) then
+			bnd_condition = node%data_pers%boundary_condition(1)
+
+            !track production rates on the producers
+            if (bnd_condition .ne. 0) then
                 prod_w = 0.0_SR
                 prod_n = 0.0_SR
 
@@ -221,22 +237,11 @@
                     call reduce_op(node%data_pers%saturation(i), node%data_temp%flux(i), node%data_pers%d(i), prod_w, prod_n)
                 end do
 
-                if (node%position(2) > 0.5_SR) then
-                    if (node%position(1) < 0.5_SR) then
-                        traversal%prod_w(1) = traversal%prod_w(1) + prod_w
-                        traversal%prod_n(1) = traversal%prod_n(1) + prod_n
-                    else if (node%position(1) > 0.5_SR) then
-                        traversal%prod_w(2) = traversal%prod_w(2) + prod_w
-                        traversal%prod_n(2) = traversal%prod_n(2) + prod_n
-                    end if
-                else if (node%position(2) < 0.5_SR) then
-                    if (node%position(1) < 0.5_SR) then
-                        traversal%prod_w(4) = traversal%prod_w(4) + prod_w
-                        traversal%prod_n(4) = traversal%prod_n(4) + prod_n
-                    else if (node%position(1) > 0.5_SR) then
-                        traversal%prod_w(3) = traversal%prod_w(3) + prod_w
-                        traversal%prod_n(3) = traversal%prod_n(3) + prod_n
-                    end if
+                traversal%prod_w(bnd_condition) = traversal%prod_w(bnd_condition) + prod_w
+                traversal%prod_n(bnd_condition) = traversal%prod_n(bnd_condition) + prod_n
+
+                if (bnd_condition > 0) then
+                    traversal%p_bh(bnd_condition) = node%data_pers%p(_DARCY_LAYERS + 1)
                 end if
             end if
 		end subroutine
@@ -265,47 +270,24 @@
                 real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
                 real (kind = GRID_SR), intent(out)	    :: volume(:, :), flux_w(:, :), flux_n(:, :)
 
-                real (kind = GRID_SR)                   :: u_w(7), u_n(7)
-                real (kind = GRID_SR)                   :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3)
+                real (kind = GRID_SR)                   :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
 
-                real (kind = GRID_SR)				    :: g_local(3), edge_length, surface, dz
-                integer                                 :: i
+                real (kind = GRID_SR)				    :: g_local(3), dx, dy, dz, Ax, Ay, Az
 
                 volume(:, 1) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 2) = cfg%dz * 0.50_SR * porosity(:) * element%cell%geometry%get_volume()
                 volume(:, 3) = cfg%dz * 0.25_SR * porosity(:) * element%cell%geometry%get_volume()
 
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
-
                 flux_w = 0.0_SR
                 flux_n = 0.0_SR
 
                 !rotate g so it points in the right direction (no scaling!)
-                g_local = g
+                g_local = cfg%g
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
 
-                edge_length = element%cell%geometry%get_leg_size()
-                surface = element%cell%geometry%get_volume()
-                dz = cfg%dz
-
-                do i = 1, _DARCY_LAYERS
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i, 2), p(i, 3), u_w(2), u_n(2), g_local(2))
-
-                    call compute_velocity_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 1), p(i + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_velocity_1D(dz, 0.50_SR * surface, base_permeability(i, 2), p(i, 2), p(i + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_velocity_1D(dz, 0.25_SR * surface, base_permeability(i, 2), p(i, 3), p(i + 1, 3), u_w(5), u_n(5), g_local(3))
-
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR * edge_length * dz, base_permeability(i, 1), p(i + 1, 2), p(i + 1, 3), u_w(7), u_n(7), g_local(2))
-
-                    !compute fluxes
-
-                    call compute_flux(u_w, lambda_w(i:i+1, :), flux_w(i:i+1, :))
-                    call compute_flux(u_n, lambda_n(i:i+1, :), flux_n(i:i+1, :))
-                end do
+                call get_areas_and_lengths(element, dx, dy, dz, Ax, Ay, Az)
+                call compute_base_fluxes_3D(p, base_permeability, dx, dy, dz, Ax, Ay, Az, g_local, u_w, u_n)
+                call compute_fluxes_3D(saturation, u_w, u_n, flux_w, flux_n)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
@@ -313,114 +295,27 @@
                 real (kind = GRID_SR), intent(in)	    :: saturation(:)
                 real (kind = GRID_SR), intent(out)	    :: volume(:), flux_w(:), flux_n(:)
 
-                real (kind = GRID_SR)                   :: lambda_w(3), lambda_n(3)
-                real (kind = GRID_SR)					:: g_local(2), edge_length
+                real (kind = GRID_SR)					:: g_local(2), dx, dy, Ax, Ay
                 real (kind = SR)                        :: u_w(2), u_n(2), u_norm
 
                 volume = [0.25_SR, 0.50_SR, 0.25_SR] * porosity * element%cell%geometry%get_volume()
-
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
 
                 flux_w = 0.0_SR
                 flux_n = 0.0_SR
 
                 !rotate g so it points in the right direction (no scaling!)
-                g_local = g
+                g_local = cfg%g(1:2)
                 g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-                g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                edge_length = element%cell%geometry%get_leg_size()
-
-                !compute velocities
-
-                call compute_velocity_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_velocity_1D(edge_length, 0.5_SR * edge_length, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
 
                 !compute fluxes
-
-                call compute_flux(u_w, lambda_w, flux_w)
-                call compute_flux(u_n, lambda_n, flux_n)
+                call get_areas_and_lengths(element, dx, dy, Ax, Ay)
+                call compute_base_fluxes_2D(p, base_permeability, dx, dy, Ax, Ay, g_local(1:2), u_w, u_n)
+                call compute_fluxes_2D(saturation, u_w, u_n, flux_w, flux_n)
 #           endif
 
             !Careful: the FEM pressure solution implies that u = 0 on the boundary.
             !If we define an outflow condition in the FV step, we will get a non-zero divergence.
 		end subroutine
-
-		subroutine compute_flux(u, lambda, flux)
-            real (kind = GRID_SR), intent(inout)       :: u(:)
-
-            !Upwind and F-Wave solver are identical except for the treatment of boundaries.
-
-#           if (_DARCY_LAYERS > 0)
-                real (kind = GRID_SR), intent(in)       :: lambda(:, :)
-                real (kind = GRID_SR), intent(out)	    :: flux(:, :)
-
-#               if defined(_UPWIND_FLUX)
-                    call compute_upwind_flux(u(1), lambda(1, 2), lambda(1, 1), flux(1, 2), flux(1, 1))
-                    call compute_upwind_flux(u(2), lambda(1, 2), lambda(1, 3), flux(1, 2), flux(1, 3))
-
-                    call compute_upwind_flux(u(3), lambda(1, 1), lambda(2, 1), flux(1, 1), flux(2, 1))
-                    call compute_upwind_flux(u(4), lambda(1, 2), lambda(2, 2), flux(1, 2), flux(2, 2))
-                    call compute_upwind_flux(u(5), lambda(1, 3), lambda(2, 3), flux(1, 3), flux(2, 3))
-
-                    call compute_upwind_flux(u(6), lambda(2, 2), lambda(2, 1), flux(2, 2), flux(2, 1))
-                    call compute_upwind_flux(u(7), lambda(2, 2), lambda(2, 3), flux(2, 2), flux(2, 3))
-#               elif defined(_FWAVE_FLUX)
-                    !Yeah, no..
-#                   error Not yet implemented!
-#               endif
-#           else
-                real (kind = GRID_SR), intent(in)       :: lambda(:)
-                real (kind = GRID_SR), intent(out)	    :: flux(:)
-
-#               if defined(_UPWIND_FLUX)
-                    call compute_upwind_flux(u(1), lambda(2), lambda(1), flux(2), flux(1))
-                    call compute_upwind_flux(u(2), lambda(2), lambda(3), flux(2), flux(3))
-#               elif defined(_FWAVE_FLUX)
-                    call compute_fwave_flux_dlambda(u(1), lambda(2), lambda(1), flux(2), flux(1))
-                    call compute_fwave_flux_dlambda(u(2), lambda(2), lambda(3), flux(2), flux(3))
-
-                    call compute_fwave_flux_du(-u(2), 0.0_SR, lambda(1), flux(1))
-                    call compute_fwave_flux_du(u(1) + u(2), 0.0_SR, lambda(1), flux(1))
-
-                    call compute_fwave_flux_du(-u(1), 0.0_SR, lambda(3), flux(3))
-                    call compute_fwave_flux_du(u(1) + u(2), 0.0_SR, lambda(3), flux(3))
-
-                    call compute_fwave_flux_du(-u(1), 0.0_SR, lambda(2), flux(2))
-                    call compute_fwave_flux_du(-u(2), 0.0_SR, lambda(2), flux(2))
-#               endif
-#           endif
-        end subroutine
-
-        subroutine compute_upwind_flux(u, lambdaL, lambdaR, fluxL, fluxR)
-            real (kind = GRID_SR), intent(in)       :: u, lambdaL, lambdaR
-            real (kind = GRID_SR), intent(out)	    :: fluxL, fluxR
-
-            fluxL = fluxL + (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
-            fluxR = fluxR - (lambdaL * max(u, 0.0_SR) + lambdaR * min(u, 0.0_SR))
-        end subroutine
-
-        subroutine compute_fwave_flux_dlambda(u, lambdaL, lambdaR, fluxL, fluxR)
-            real (kind = GRID_SR), intent(in)       :: u, lambdaL, lambdaR
-            real (kind = GRID_SR), intent(out)	    :: fluxL, fluxR
-
-            fluxL = fluxL + (lambdaR - lambdaL) * min(u, 0.0_SR)
-            fluxR = fluxR + (lambdaR - lambdaL) * max(u, 0.0_SR)
-        end subroutine
-
-        subroutine compute_fwave_flux_du(uL, uR, lambda, fluxR)
-            real (kind = GRID_SR), intent(in)       :: uL, uR, lambda
-            real (kind = GRID_SR), intent(out)	    :: fluxR
-
-            !if the intermediate state velocity is > 0 then add the flux difference to the left cell
-            !otherwise add it to the right cell
-
-            !But: since left and right cell are actually identical, we don't need the branch and the intermediate state.
-            !Exception: boundary cells.
-
-            fluxR = fluxR + lambda * (uR - uL)
-        end subroutine
 
         !> Update saturation
         !>
@@ -437,18 +332,21 @@
 
             if (volume > 0.0_SR) then
                 saturation = saturation - dt / volume * flux_w
+            else
+                saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
-            !assert_pure(flux_w + flux_n == 0.0_SR)
+            assert_pure(saturation .ge. 0.0_SR)
+            assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 
-        !> Update saturation and apply a divergence correction
+        !> Update saturation and produce fluid
         !>
-        !> Eliminate divergence by removing excess mass from the flux:
-        !> S'_w := S_w + dt/V * (f_w - lambda_w / (lambda_w + lambda_n) * (f_w + f_n))
-        !> S'_n := S_n + dt/V * (f_n - lambda_n / (lambda_w + lambda_n) * (f_w + f_n))
-        !> \Rightarrow S'_w + S'_n = S_w + S_n + dt/V * ((f_w + f_n) - (f_w + f_n)) = S_w + S_n
-		elemental subroutine post_dof_op_correction(dt, saturation, flux_w, flux_n, volume)
+        !> Eliminate divergence by adding an outflow with saturation S and total flux f_w + f_n:
+        !> S'_w := S_w - dt/V * (f_w - l_w(S) / (l_w(S) + l_n(S)) * (f_w + f_n))
+        !> S'_n := S_n - dt/V * (f_n - l_n(S) / (l_w(S) + l_n(S)) * (f_w + f_n))
+        !> \Rightarrow S'_w + S'_n = S_w + S_n - dt/V * ((f_w + f_n) - (f_w + f_n)) = S_w + S_n
+		elemental subroutine post_dof_op_production(dt, saturation, flux_w, flux_n, volume)
 			real (kind = GRID_SR), intent(in)		:: dt
 			real (kind = GRID_SR), intent(inout)	:: saturation
 			real (kind = GRID_SR), intent(in)		:: flux_w, flux_n
@@ -457,13 +355,40 @@
             real (kind = GRID_SR)                   :: lambda_w, lambda_n
 
             if (volume > 0.0_SR) then
-                lambda_w = (saturation * saturation) / cfg%r_nu_w
-                lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
 
                 saturation = saturation - dt / volume * (flux_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n))
+            else
+                saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
-            !assert_pure(saturation .le. 1.0_SR)
+            assert_pure(saturation .ge. 0.0_SR)
+            assert_pure(saturation .le. 1.0_SR)
+		end subroutine
+
+        !> Update saturation and inject fluid
+        !>
+        !> Eliminate divergence by adding an inflow with saturation 1 and total flux f_w + f_n:
+        !> S'_w := S_w - dt/V * (f_w - l_w(1) / (l_w(1) + l_n(1)) * (f_w + f_n)) = S_w + dt/V * f_n
+        !> S'_n := S_n - dt/V * (f_n - l_n(1) / (l_w(1) + l_n(1)) * (f_w + f_n)) = S_n - dt/V * f_n
+        !> \Rightarrow S'_w + S'_n = S_w + S_n - dt/V * (-f_n + f_n) = S_w + S_n
+		elemental subroutine post_dof_op_injection(dt, saturation, flux_w, flux_n, volume)
+			real (kind = GRID_SR), intent(in)		:: dt
+			real (kind = GRID_SR), intent(inout)	:: saturation
+			real (kind = GRID_SR), intent(in)		:: flux_w, flux_n
+			real (kind = GRID_SR), intent(in)		:: volume
+
+            real (kind = GRID_SR)                   :: lambda_w, lambda_n
+
+            if (volume > 0.0_SR) then
+                saturation = saturation + dt / volume * flux_n
+            else
+                saturation = max(0.0_SR, min(1.0_SR, saturation + flux_n))
+            end if
+
+            assert_pure(saturation .ge. 0.0_SR)
+            assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 
 		!> Compute production rates at the wells
@@ -474,8 +399,8 @@
 
             real (kind = GRID_SR)                   :: lambda_w, lambda_n
 
-            lambda_w = (saturation * saturation) / cfg%r_nu_w
-            lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+            lambda_w = l_w(saturation)
+            lambda_n = l_n(saturation)
 
             !Water and oil production rate:
             prod_w = prod_w - lambda_w / (lambda_w + lambda_n) * (flux_w + flux_n)

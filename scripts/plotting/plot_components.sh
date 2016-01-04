@@ -35,6 +35,7 @@ for file in darcy*.log ; do
 	    grep -E "r0.*Gradient" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Permeability" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Pressure Solver" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
+	    grep -E "r0.*Error Estimate" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Phase time" $phase | grep -oE "[-]*[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
         grep -E "r0.*Element throughput" $phase | grep -oE "[-]*[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
         echo -n $layers >> "darcy"$i".plt"
@@ -46,8 +47,8 @@ for file in darcy*.log ; do
     rm -f xx*
 done
 
-#Darcy: Cores Tics adap_time adap_ET integ_time lb_time updnb_time transp_time transp_ET grad_time grad_ET perm_time perm_ET pres_time pres_ET phase_time ET    layers
-#       1     2    3         4       5          6       7          8           9         10        11      12        13      14        15      16         17    18
+#Darcy: Cores Tics adap_time adap_ET integ_time lb_time updnb_time transp_time transp_ET grad_time grad_ET perm_time perm_ET pres_time pres_ET err_time err_ET phase_time ET    layers
+#       1     2    3         4       5          6       7          8           9         10        11      12        13      14        15      16       17     18         19    20
 
 for file in swe*.log ; do
 	flags=$(echo $file | grep -oE "(_no[a-zA-Z0-9]+)+")
@@ -118,11 +119,14 @@ set style line 5 lc rgb "blue"
 set style line 6 lc rgb "green"
 set style line 7 lc rgb "brown"
 set style line 8 lc rgb "purple"
+set style line 9 lc rgb "yellow"
 
 set style data histogram
 set style histogram rowstacked
 set style fill solid border 0
 set boxwidth 0.75
+
+max(x, y) = (x > y ? x : y)
 
 #*******
 # Darcy
@@ -136,14 +140,15 @@ do for [i=1:20] {
 
     unset output
 
-    plot infile u (10 / \$15 / (\$18 > 0 ? \$18 : 1)) ls 7 t "Pressure Solver", \
-	    '' u (1 / \$11 / (\$18 > 0 ? \$18 : 1)) ls 5 t "Gradient", \
-	    '' u (1 / \$9 / (\$18 > 0 ? \$18 : 1)) ls 4 t "Transport", \
-	    '' u (2 / \$13 / (\$18 > 0 ? \$18 : 1)) ls 6 t "Permeability", \
-	    '' u (\$5 / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)) ls 2 t "Conformity", \
-        '' u ((\$3 - \$7) / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)):xtic(2) ls 1 t "Adaption", \
-	    '' u (\$7 / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)) ls 8 t "Neighbor search", \
-	    '' u (\$6 / \$3 * 1 / \$4 / (\$18 > 0 ? \$18 : 1)) ls 3 t "Load Balancing"
+plot infile u (10 / \$15 / max(\$20, 1)) ls 7 t "Pressure Solver", \
+	    '' u (1 / \$11 / max(\$20, 1)) ls 5 t "Gradient", \
+	    '' u (1 / \$9 / max(\$20, 1)) ls 4 t "Transport", \
+	    '' u (1 / \$13 / max(\$20, 1)) ls 6 t "Permeability", \
+	    '' u (1 / \$17 / max(\$20, 1)) ls 9 t "Error Estimate", \
+	    '' u (\$5 / \$3 * 1 / \$4 / max(\$20, 1)) ls 2 t "Conformity", \
+        '' u ((\$3 - \$7) / \$3 * 1 / \$4 / max(\$20, 1)):xtic(2) ls 1 t "Adaption", \
+	    '' u (\$7 / \$3 * 1 / \$4 / max(\$20, 1)) ls 8 t "Neighbor search", \
+	    '' u (\$6 / \$3 * 1 / \$4 / max(\$20, 1)) ls 3 t "Load Balancing"
 
     outfile = sprintf('| ps2pdf - darcy%i_components.pdf', i)
     set output outfile

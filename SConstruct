@@ -42,8 +42,20 @@ vars.AddVariables(
                 allowed_values=('darcy', 'swe', 'generic', 'flash') #, 'heat_eq', 'tests')
               ),
 
-  EnumVariable( 'flux_solver', 'flux solver for FV problems', 'aug_riemann',
+  EnumVariable( 'flux_solver', 'flux solver for FV problems', 'upwind',
                 allowed_values=('upwind', 'lf', 'lfbath', 'llf', 'llfbath', 'fwave', 'aug_riemann')
+              ),
+
+  EnumVariable( 'data_refinement', 'input data refinement method', 'integrate',
+                allowed_values=('integrate', 'sample')
+              ),
+
+  EnumVariable( 'perm_averaging', 'permeability averaging', 'geometric',
+                allowed_values=('arithmetic', 'geometric', 'harmonic')
+              ),
+
+  EnumVariable( 'mobility', 'mobility term for porous media flow', 'quadratic',
+                allowed_values=('linear', 'quadratic', 'brooks-corey')
               ),
 
   EnumVariable( 'compiler', 'choice of compiler', 'intel',
@@ -66,13 +78,11 @@ vars.AddVariables(
 
   BoolVariable( 'standard', 'check for Fortran 2003 standard compatibility', False),
 
-  EnumVariable( 'asagi', 'ASAGI support', 'standard',
-                allowed_values=('noasagi', 'standard', 'numa')
-              ),
+  BoolVariable( 'asagi', 'ASAGI support', True),
 
   BoolVariable( 'asagi_timing', 'switch on timing of all ASAGI calls', False),
 
-  PathVariable( 'asagi_dir', 'ASAGI directory', '../ASAGI'),
+  PathVariable( 'asagi_dir', 'ASAGI directory', '.'),
 
   EnumVariable( 'precision', 'floating point precision', 'double',
                 allowed_values=('single', 'double', 'quad')
@@ -94,6 +104,7 @@ vars.AddVariables(
 )
 
 vars.Add('layers', 'number of vertical layers (0: 2D, >0: 3D)', 0)
+vars.Add('exe', 'name of the executable. Per default, some compilation options will be added as suffixes.', 'samoa')
 
 # set environment
 if 'INTEL_LICENSE_FILE' in os.environ:
@@ -134,16 +145,16 @@ if env['mpi'] == 'default':
   env['LINK'] = 'MPICH_F90=' + fc + ' OMPI_FC=' + fc + ' I_MPI_F90=' + fc + ' mpif90'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'mpich2':
-  env['F90'] = 'MPICH_F90=' + fc + ' mpif90'
-  env['LINK'] = 'MPICH_F90=' + fc + ' mpif90'
+  env['F90'] = 'MPICH_F90=' + fc + ' mpif90.mpich2'
+  env['LINK'] = 'MPICH_F90=' + fc + ' mpif90.mpich2'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'openmpi':
-  env['F90'] = 'OMPI_FC=' + fc + ' mpif90'
-  env['LINK'] = 'OMPI_FC=' + fc + ' mpif90'
+  env['F90'] = 'OMPI_FC=' + fc + ' mpif90.openmpi'
+  env['LINK'] = 'OMPI_FC=' + fc + ' mpif90.openmpi'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'intel':
-  env['F90'] = 'I_MPI_F90=' + fc + ' mpif90'
-  env['LINK'] = 'I_MPI_F90=' + fc + ' mpif90'
+  env['F90'] = 'I_MPI_F90=' + fc + ' mpif90.intel'
+  env['LINK'] = 'I_MPI_F90=' + fc + ' mpif90.intel'
   env['F90FLAGS'] += ' -D_MPI'
 elif env['mpi'] == 'nompi':
   env['F90'] = fc
@@ -152,27 +163,27 @@ elif env['mpi'] == 'nompi':
 # set scenario with preprocessor macros
 if env['scenario'] == 'darcy':
   env['F90FLAGS'] += ' -D_DARCY'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 elif env['scenario'] == 'swe':
   env['F90FLAGS'] += ' -D_SWE'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 elif env['scenario'] == 'generic':
   env['F90FLAGS'] += ' -D_GENERIC'
-  env.SetDefault(asagi = 'noasagi')
+  env.SetDefault(asagi = False)
   env.SetDefault(library = True)
 elif env['scenario'] == 'flash':
   env['F90FLAGS'] += ' -D_FLASH'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 elif env['scenario'] == 'heateq':
   env['F90FLAGS'] += ' -D_HEAT_EQ'
-  env.SetDefault(asagi = 'standard')
+  env.SetDefault(asagi = True)
   env.SetDefault(library= False)
 elif env['scenario'] == 'tests':
   env['F90FLAGS'] += ' -D_TESTS'
-  env.SetDefault(asagi = 'noasagi')
+  env.SetDefault(asagi = True)
   env.SetDefault(library = False)
 
 #set compilation flags for OpenMP
@@ -195,25 +206,18 @@ if env['openmp'] != 'noomp':
       print "******************************************************"
 
 #set compilation flags and preprocessor macros for the ASAGI library
-if env['asagi'] != 'noasagi':
+if env['asagi']:
   env.Append(F90PATH = os.path.abspath(env['asagi_dir'] + '/include'))
   env['F90FLAGS'] += ' -D_ASAGI'
   env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir'])
   env.Append(LIBPATH = env['asagi_dir'])
-
-  if env['asagi'] == 'numa':
-    env['F90FLAGS'] += ' -D_ASAGI_NUMA'
-
-  if env['openmp'] == 'noomp':
-    env.Append(LIBS = ['asagi_nomt'])
-  else:
-    env.Append(LIBS = ['asagi'])
+  env.Append(LIBS = ['asagi', 'numa'])
 
 #Enable or disable timing of ASAGI calls
 if env['asagi_timing']:
   env['F90FLAGS'] += ' -D_ASAGI_TIMING'
 
-  if env['asagi'] == 'noasagi':
+  if not env['asagi']:
     print "Error: asagi_timing must not be set if asagi is not active"
     Exit(-1)
 
@@ -233,8 +237,30 @@ elif env['flux_solver'] == 'fwave':
 elif env['flux_solver'] == 'aug_riemann':
   env['F90FLAGS'] += ' -D_AUG_RIEMANN_FLUX'
 
-if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind', 'fwave']:
-  print "Error: flux solver must be one of ", ['upwind', 'fwave']
+#Choose a mobility term
+if env['mobility'] == 'linear':
+  env['F90FLAGS'] += ' -D_DARCY_MOB_LINEAR'
+if env['mobility'] == 'quadratic':
+  env['F90FLAGS'] += ' -D_DARCY_MOB_QUADRATIC'
+elif env['mobility'] == 'brooks-corey':
+  env['F90FLAGS'] += ' -D_DARCY_MOB_BROOKS_COREY'
+
+#Choose a data refinement method
+if env['data_refinement'] == 'integrate':
+  env['F90FLAGS'] += ' -D_ADAPT_INTEGRATE'
+if env['data_refinement'] == 'sample':
+  env['F90FLAGS'] += ' -D_ADAPT_SAMPLE'
+
+#Choose a permeability averaging
+if env['perm_averaging'] == 'arithmetic':
+  env['F90FLAGS'] += ' -D_PERM_MEAN_ARITHMETIC'
+if env['perm_averaging'] == 'geometric':
+  env['F90FLAGS'] += ' -D_PERM_MEAN_GEOMETRIC'
+elif env['perm_averaging'] == 'harmonic':
+  env['F90FLAGS'] += ' -D_PERM_MEAN_HARMONIC'
+
+if env['scenario'] == 'darcy' and not env['flux_solver'] in ['upwind']:
+  print "Error: flux solver must be one of ", ['upwind']
   Exit(-1)
 
 if env['scenario'] == 'swe' and env['flux_solver'] in ['upwind']:
@@ -281,12 +307,15 @@ elif env['target'] == 'release':
     env['F90FLAGS'] += ' -fast -fno-alias -align all -inline-level=2 -funroll-loops -unroll -no-inline-min-size -no-inline-max-size -no-inline-max-per-routine -no-inline-max-per-compile -no-inline-factor -no-inline-max-total-size'
     env['LINKFLAGS'] += ' -O3 -ip -ipo'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += '  -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
-    env['LINKFLAGS'] += ' -Ofast -flto -fwhole-program -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['F90FLAGS'] += ' -Ofast -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
+    env['LINKFLAGS'] += '  -Ofast -march=native -malign-double -funroll-loops -fstrict-aliasing -finline-limit=2048'
 
-#In case the Intel compiler is active, add a vectorization report (can gnu do this too?)
+#In case the Intel compiler is active, add a vectorization report
 if env['compiler'] == 'intel':
   env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
+else:
+  env['F90FLAGS'] += ' -ftree-vectorizer-verbose=' + env['vec_report']
+  env['LINKFLAGS'] += ' -ftree-vectorizer-verbose=' + env['vec_report']
 
 #Set target machine (currently Intel only. Feel free to add GNU options if needed)
 if env['compiler'] == 'intel':
@@ -322,31 +351,38 @@ Help(vars.GenerateHelpText(env))
 #
 # setup the program name and the build directory
 #
-program_name = 'samoa'
 
-# add descriptors to the executable for any argument that is not default
-program_name += '_' + env['scenario']
+if env['exe'] == 'samoa':
+    program_name = 'samoa'
 
-if env['openmp'] != 'tasks':
-  program_name += '_' + env['openmp']
+    # add descriptors to the executable for any argument that is not default
+    program_name += '_' + env['scenario']
 
-if env['mpi'] != 'default':
-  program_name += '_' + env['mpi']
+    if env['openmp'] != 'tasks':
+      program_name += '_' + env['openmp']
 
-if not env['asagi']:
-  program_name += '_' + env['asagi']
+    if env['mpi'] != 'default':
+      program_name += '_' + env['mpi']
 
-if env['flux_solver'] != 'aug_riemann':
-  program_name += '_' + env['flux_solver']
+    if not env['asagi']:
+      program_name += '_noasagi'
 
-if env['precision'] != 'double':
-  program_name += '_' + env['precision']
+    if env['flux_solver'] != 'aug_riemann':
+      program_name += '_' + env['flux_solver']
 
-if env['compiler'] != 'intel':
-  program_name += '_' + env['compiler']
+    if env['precision'] != 'double':
+      program_name += '_' + env['precision']
 
-if env['target'] != 'release':
-  program_name += '_' + env['target']
+    if env['compiler'] != 'intel':
+      program_name += '_' + env['compiler']
+
+    if env['layers'] > 0:
+      program_name += '_l' + str(env['layers'])
+
+    if env['target'] != 'release':
+      program_name += '_' + env['target']
+else:
+    program_name = env['exe']
 
 if env['layers'] != '0':
   program_name += '_l' + env['layers']

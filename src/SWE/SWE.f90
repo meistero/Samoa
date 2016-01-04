@@ -11,9 +11,10 @@
 		use SWE_data_types
 
 		use SWE_adapt
-		use SWE_initialize
+		use SWE_initialize_bathymetry
+		use SWE_initialize_dofs
 		use SWE_displace
-		!use SWE_output
+		use SWE_output
 		use SWE_xml_output
 		use SWE_ascii_output
 		use SWE_point_output
@@ -27,11 +28,12 @@
 		PUBLIC t_swe
 
 		type t_swe
-            type(t_swe_init_traversal)              :: init
+            type(t_swe_init_b_traversal)            :: init_b
+            type(t_swe_init_dofs_traversal)         :: init_dofs
             type(t_swe_displace_traversal)          :: displace
-            !type(t_swe_output_traversal)            :: output
+            type(t_swe_output_traversal)            :: output
             type(t_swe_xml_output_traversal)        :: xml_output
-            type(t_swe_ascii_output_traversal)      :: ascii_output                     !-------------------------
+            type(t_swe_ascii_output_traversal)      :: ascii_output
 	        type(t_swe_point_output_traversal)	    :: point_output
 
             type(t_swe_euler_timestep_traversal)    :: euler
@@ -64,10 +66,10 @@
                 call mpi_bcast(s_time, len(s_time), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-			!write (swe%output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
-			write (swe%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
-            write (swe%point_output%s_file_stamp, "(A, A, A8, A, A6)") "output/swe", "_", s_date, "_", s_time
-			write (s_log_name, '(A, A)') TRIM(swe%xml_output%s_file_stamp), ".log"
+            swe%output%s_file_stamp = trim(cfg%output_dir) // "/swe_" // trim(s_date) // "_" // trim(s_time)
+			swe%xml_output%s_file_stamp = trim(cfg%output_dir) // "/swe_" // trim(s_date) // "_" // trim(s_time)
+            swe%point_output%s_file_stamp = trim(cfg%output_dir) // "/swe_" // trim(s_date) // "_" // trim(s_time)
+			s_log_name = trim(swe%xml_output%s_file_stamp) // ".log"
 
 			if (l_log) then
 				_log_open_file(s_log_name)
@@ -75,9 +77,10 @@
 
 			call load_scenario(grid, cfg%s_bathymetry_file, cfg%s_displacement_file)
 
-			call swe%init%create()
+			call swe%init_b%create()
+			call swe%init_dofs%create()
             call swe%displace%create()
-            !call swe%output%create()
+            call swe%output%create()
             call swe%xml_output%create()
             call swe%ascii_output%create()
             call swe%euler%create()
@@ -85,7 +88,7 @@
 		end subroutine
 
 		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
-			type(t_grid), target, intent(inout)     :: grid
+			type(t_grid), intent(inout)             :: grid
             character(*), intent(in)                :: ncd_bath, ncd_displ
             double precision, optional,intent(in)   :: scaling, offset(2)
 
@@ -93,57 +96,78 @@
 			integer                                 :: i_error
 
 #			if defined(_ASAGI)
+                cfg%afh_bathymetry = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_displacement = asagi_grid_create(ASAGI_FLOAT)
+
+#               if defined(_MPI)
+                    call asagi_grid_set_comm(cfg%afh_bathymetry, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_displacement, MPI_COMM_WORLD)
+#               endif
+
+                call asagi_grid_set_threads(cfg%afh_bathymetry, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_displacement, cfg%i_threads)
+
+                !convert ASAGI mode to ASAGI parameters
+
                 select case(cfg%i_asagi_mode)
                     case (0)
-                        i_asagi_hints = GRID_NO_HINT
+                        !i_asagi_hints = GRID_NO_HINT
                     case (1)
-                        i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        !i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        call asagi_grid_set_param(cfg%afh_bathymetry, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_displacement, "grid", "pass_through")
                     case (2)
-                        i_asagi_hints = GRID_NOMPI
+                        !i_asagi_hints = GRID_NOMPI
                     case (3)
-                        i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
+                        !i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
                     case (4)
-                        i_asagi_hints = GRID_LARGE_GRID
+                        !i_asagi_hints = GRID_LARGE_GRID
+                        call asagi_grid_set_param(cfg%afh_bathymetry, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_displacement, "grid", "cache")
                     case default
                         try(.false., "Invalid asagi mode, must be in range 0 to 4")
                 end select
 
-#               if defined(_ASAGI_NUMA)
-                    cfg%afh_bathymetry = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_displacement = grid_create_for_numa(grid_type = GRID_FLOAT, hint = ior(i_asagi_hints, GRID_HAS_TIME), levels = 1, tcount=omp_get_max_threads())
-#               else
-                    cfg%afh_bathymetry = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_displacement = asagi_create(grid_type = GRID_FLOAT, hint = ior(i_asagi_hints, GRID_HAS_TIME), levels = 1)
-#               endif
-
-#               if defined(_ASAGI_NUMA)
-                    !$omp parallel private(i_error)
-						i_error = grid_register_thread(cfg%afh_bathymetry); assert_eq(i_error, GRID_SUCCESS)
-						i_error = grid_register_thread(cfg%afh_displacement); assert_eq(i_error, GRID_SUCCESS)
-                    !$omp end parallel
-#               endif
-
-                i_error = asagi_open(cfg%afh_bathymetry, trim(ncd_bath), 0); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, GRID_SUCCESS)
+                !$omp parallel private(i_error), copyin(cfg)
+                    i_error = asagi_grid_open(cfg%afh_bathymetry,  trim(ncd_bath), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                !$omp end parallel
 
                 associate(afh_d => cfg%afh_displacement, afh_b => cfg%afh_bathymetry)
                     if (present(scaling)) then
                     else
-                        cfg%scaling = max(grid_max_x(afh_b) - grid_min_x(afh_b), grid_max_y(afh_b) - grid_min_y(afh_b))
+                        cfg%scaling = max(asagi_grid_max(afh_b, 0) - asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 1) - asagi_grid_min(afh_b, 1))
                     end if
 
                     if (present(offset)) then
                     else
-                        cfg%offset = [0.5_GRID_SR * (grid_min_x(afh_d) + grid_max_x(afh_d)), 0.5_GRID_SR * (grid_min_y(afh_d) + grid_max_y(afh_d))] - 0.5_GRID_SR * cfg%scaling
-                        cfg%offset = min(max(cfg%offset, [grid_min_x(afh_b), grid_min_y(afh_b)]), [grid_max_x(afh_b), grid_max_y(afh_b)] - cfg%scaling)
+                        cfg%offset = [0.5_GRID_SR * (asagi_grid_min(afh_d, 0) + asagi_grid_max(afh_d, 0)), 0.5_GRID_SR * (asagi_grid_min(afh_d, 1) + asagi_grid_max(afh_d, 1))] - 0.5_GRID_SR * cfg%scaling
+                        cfg%offset = min(max(cfg%offset, [asagi_grid_min(afh_b, 0), asagi_grid_min(afh_b, 1)]), [asagi_grid_max(afh_b, 0), asagi_grid_max(afh_b, 1)] - cfg%scaling)
                     end if
 
                     if (rank_MPI == 0) then
-                        _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_bath), grid_min_x(afh_b), grid_max_x(afh_b),  grid_min_y(afh_b), grid_max_y(afh_b),  grid_min_z(afh_b), grid_max_z(afh_b)
+                        _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
+                            trim(ncd_bath), asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 0),  asagi_grid_min(afh_b, 1), asagi_grid_max(afh_b, 1)
+                        _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2)') asagi_grid_delta(afh_b, 0), asagi_grid_delta(afh_b, 1)
 
-                        _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_displ), grid_min_x(afh_d), grid_max_x(afh_d),  grid_min_y(afh_d), grid_max_y(afh_d),  grid_min_z(afh_d), grid_max_z(afh_d)
+                        !if the data file has more than two dimensions, we assume that it contains time-dependent displacements
+                        if (asagi_grid_dimensions(afh_d) > 2) then
+                            _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
+                            trim(ncd_displ), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1), asagi_grid_min(afh_d, 2), asagi_grid_max(afh_d, 2)
+                            _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2, " dt: ", F0.2)') asagi_grid_delta(afh_d, 0), asagi_grid_delta(afh_d, 1), asagi_grid_delta(afh_d, 2)
+
+                            cfg%dt_eq = asagi_grid_delta(afh_d, 2)
+                            cfg%t_min_eq = asagi_grid_min(afh_d, 2)
+                            cfg%t_max_eq = asagi_grid_max(afh_d, 2)
+                        else
+                            _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
+                            trim(ncd_displ), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1)
+                            _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2)') asagi_grid_delta(afh_d, 0), asagi_grid_delta(afh_d, 1)
+
+                            cfg%dt_eq = 0.0_SR
+                            cfg%t_min_eq = 0.0_SR
+                            cfg%t_max_eq = 0.0_SR
+                        end if
 
                         _log_write(1, '(" SWE: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
                     end if
@@ -160,9 +184,10 @@
 			type(t_grid), intent(inout)     :: grid
 			logical, intent(in)		        :: l_log
 
-			call swe%init%destroy()
+			call swe%init_b%destroy()
+			call swe%init_dofs%destroy()
             call swe%displace%destroy()
-            !call swe%output%destroy()
+            call swe%output%destroy()
             call swe%xml_output%destroy()
             call swe%ascii_output%destroy()
             call swe%point_output%destroy()
@@ -170,8 +195,8 @@
             call swe%adaption%destroy()
 
 #			if defined(_ASAGI)
-				call asagi_close(cfg%afh_displacement)
-				call asagi_close(cfg%afh_bathymetry)
+				call asagi_grid_close(cfg%afh_displacement)
+				call asagi_grid_close(cfg%afh_bathymetry)
 #			endif
 
 			if (l_log) then
@@ -208,9 +233,12 @@
 
             i_initial_step = 0
 
+            !initialize the bathymetry
+            call swe%init_b%traverse(grid)
+
 			do
-				!set numerics and check for refinement
-				call swe%init%traverse(grid)
+				!initialize dofs and set refinement conditions
+				call swe%init_dofs%traverse(grid)
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
@@ -221,11 +249,28 @@
                 end if
 
                 grid_info%i_cells = grid%get_cells(MPI_SUM, .true.)
-				if (swe%init%i_refinements_issued .le. grid_info%i_cells / 100_GRID_DI) then
+				if (swe%init_dofs%i_refinements_issued .le. 0) then
 					exit
 				endif
 
 				call swe%adaption%traverse(grid)
+
+                !output grids during initial phase if and only if t_out is 0
+                if (cfg%r_output_time_step == 0.0_GRID_SR) then
+                    if (cfg%l_ascii_output) then
+                        call swe%ascii_output%traverse(grid)
+                    end if
+
+                    if(cfg%l_gridoutput) then
+                        call swe%xml_output%traverse(grid)
+                    end if
+
+                    if (cfg%l_pointoutput) then
+                        call swe%point_output%traverse(grid)
+                    end if
+
+                    r_time_next_output = r_time_next_output + cfg%r_output_time_step
+                end if
 
 				i_initial_step = i_initial_step + 1
 			end do
@@ -266,7 +311,7 @@
 			end if
 
             !$omp master
-            call swe%init%reduce_stats(MPI_SUM, .true.)
+            call swe%init_dofs%reduce_stats(MPI_SUM, .true.)
             call swe%adaption%reduce_stats(MPI_SUM, .true.)
             call grid%reduce_stats(MPI_SUM, .true.)
 
@@ -282,11 +327,11 @@
                 ! during the earthquake, do small time steps that include a displacement
 
                 do
-                    if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
+                    if ((cfg%r_max_time >= 0.0 .and. grid%r_time >= cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
                         exit
                     end if
 
-                    if (grid%r_time > grid_max_z(cfg%afh_displacement)) then
+                    if (grid%r_time > cfg%t_max_eq) then
                         exit
                     end if
 
@@ -303,7 +348,7 @@
                         grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                         !$omp master
-                        _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: EQ time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                        _log_write(1, '(" SWE: EQ time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells
                         !$omp end master
                     end if
 
@@ -334,7 +379,7 @@
             !regular tsunami time steps begin after the earthquake is over
 
 			do
-				if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
+				if ((cfg%r_max_time >= 0.0 .and. grid%r_time >= cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
 					exit
 				end if
 
@@ -348,7 +393,7 @@
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, ES14.7, A, ES14.7, A, I0)') " SWE: time step: ", i_time_step, ", sim. time:", grid%r_time, " s, dt:", grid%r_dt, " s, cells: ", grid_info%i_cells
+                    _log_write(1, '(" SWE: time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells
                     !$omp end master
                 end if
 
@@ -404,7 +449,7 @@
                 if (t_phase < huge(1.0d0)) then
                     t_phase = t_phase + get_wtime()
 
-                    call swe%init%reduce_stats(MPI_SUM, .true.)
+                    call swe%init_dofs%reduce_stats(MPI_SUM, .true.)
                     call swe%displace%reduce_stats(MPI_SUM, .true.)
                     call swe%euler%reduce_stats(MPI_SUM, .true.)
                     call swe%adaption%reduce_stats(MPI_SUM, .true.)
@@ -414,7 +459,7 @@
                         _log_write(0, *) ""
                         _log_write(0, *) "Phase statistics:"
                         _log_write(0, *) ""
-                        _log_write(0, '(A, T34, A)') " Init: ", trim(swe%init%stats%to_string())
+                        _log_write(0, '(A, T34, A)') " Init: ", trim(swe%init_dofs%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Displace: ", trim(swe%displace%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Time steps: ", trim(swe%euler%stats%to_string())
                         _log_write(0, '(A, T34, A)') " Adaptions: ", trim(swe%adaption%stats%to_string())
@@ -429,7 +474,7 @@
                     end if
                 end if
 
-                call swe%init%clear_stats()
+                call swe%init_dofs%clear_stats()
                 call swe%displace%clear_stats()
                 call swe%euler%clear_stats()
                 call swe%adaption%clear_stats()

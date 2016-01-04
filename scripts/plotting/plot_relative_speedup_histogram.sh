@@ -27,7 +27,7 @@ for file in darcy*.log ; do
     i=0
     for phase in xx* ; do
         #echo "#Element throughput by processes, threads, sections" > "darcy"$i".plt"
-	    echo -n $processes $threads $sections" " >> "darcy"$i".plt"
+	    echo -n $(( $processes * $threads )) $threads $sections" " >> "darcy"$i".plt"
 	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
         echo -n $layers >> "darcy"$i".plt"
 	    echo "" >> "darcy"$i".plt"
@@ -55,7 +55,7 @@ for file in swe*.log ; do
     i=0
     for phase in xx* ; do
         #echo "#Element throughput by processes, threads, sections" > "swe"$i".plt"
-	    echo -n $processes $threads $sections" "  >> "swe"$i".plt"
+	    echo -n $(( $processes * $threads )) $threads $sections" "  >> "swe"$i".plt"
 	    grep -E "r0.*Element throughput" $phase | grep -oE "[0-9]+\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
 	    echo ""  >> "swe"$i".plt"
 
@@ -115,13 +115,12 @@ do for [i=1:20] {
     unset output
     set yrange [0:*]
 
-    plot for [n=1:64] infile u (\$3 == n ? \$4 * (\$5 > 0 ? \$5 : 1) / (\$1*\$2) : 1/0):xtic(1) ls n notitle
+    plot for [n=1:64] infile u (\$3 == n ? \$4 * (\$5 > 0 ? \$5 : 1) / \$1 : 0):xtic(1) ls n notitle
 
     outfile = sprintf('| ps2pdf - darcy%i_rel_hist.pdf', i)
     set output outfile
  
     set yrange [0:GPVAL_Y_MAX]
-    set y2range [0:GPVAL_Y_MAX]
 
     replot
 }
@@ -137,13 +136,12 @@ do for [i=1:20] {
     unset output
     set yrange [0:*]
 
-    plot for [n=1:64] infile u (\$3 == n ? \$4 / (\$1*\$2) : 1/0):xtic(1) ls n notitle
+    plot for [n=1:64] infile u (\$3 == n ? \$4 / \$1 : 0):xtic(1) ls n notitle
 
     outfile = sprintf('| ps2pdf - swe%i_rel_hist.pdf', i)
     set output outfile
 
     set yrange [0:GPVAL_Y_MAX]
-    set y2range [0:GPVAL_Y_MAX]
 
     replot
 }

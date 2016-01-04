@@ -7,7 +7,11 @@
 
 module Tools_mpi
 #	if defined(_MPI)
-        include 'mpif.h'
+#       if defined(__GFORTRAN__)
+            use mpi
+#       else
+            include 'mpif.h'
+#       endif
 #	else
 		enum, bind(c)
 		    enumerator :: MPI_REQUEST_NULL = 0, MPI_STATUS_SIZE
@@ -134,7 +138,7 @@ MODULE Tools_log
     use Tools_openmp
 
 	private
-	public get_wtime, log_open_file, log_close_file, g_log_file_unit, raise_error, term_color, term_reset, time_to_hrt
+	public get_wtime, log_open_file, log_close_file, g_log_file_unit, get_free_file_unit, raise_error, term_color, term_reset, time_to_hrt
 
 
 	!> global file unit (there's only one log instance possible due to the lack of variadic functions and macros in Fortran,
@@ -143,27 +147,34 @@ MODULE Tools_log
 
 	contains
 
+    !> Looks for an available unit that can be used to open a file
+	function get_free_file_unit() result(file_unit)
+		integer 					:: i_error
+		logical						:: l_is_open
+		integer                     :: file_unit
+
+		do file_unit = 10, huge(1)
+			inquire(unit=file_unit, opened=l_is_open, iostat=i_error)
+
+			if (i_error == 0 .and. .not. l_is_open) then
+                exit
+			end if
+		end do
+	end function
+
 	!> Opens an external log file where the log write commands are written to,
 	!> if this is not called, the log is written to stdout instead
 	subroutine log_open_file(s_file_name)
 		character(*)				:: s_file_name
 
 		integer 					:: i_error
-		logical						:: l_is_open
 
 		assert_eq(g_log_file_unit, 6)
 
-		do g_log_file_unit = 10, huge(1)
-			inquire(unit=g_log_file_unit, opened=l_is_open, iostat=i_error)
+		g_log_file_unit = get_free_file_unit()
 
-			if (i_error == 0) then
-				if (.NOT. l_is_open) then
-					open(unit=g_log_file_unit, file=s_file_name, status='replace', access='sequential', iostat=i_error); assert_eq(i_error, 0)
-					flush(g_log_file_unit)
-                    return
-				end if
-			end if
-		end do
+        open(unit=g_log_file_unit, file=s_file_name, status='replace', access='sequential', iostat=i_error); assert_eq(i_error, 0)
+        flush(g_log_file_unit)
 	end subroutine
 
 	!> Closes an external log file,
@@ -195,9 +206,9 @@ MODULE Tools_log
     end function
 
     pure function term_reset() result(str)
-        character(5) :: str
+        character(4) :: str
 
-        character(5), parameter :: seq = CHAR(27) // "[0m"
+        character(4), parameter :: seq = CHAR(27) // "[0m"
 
         str = seq
     end function
@@ -323,7 +334,7 @@ MODULE Tools_log
         double precision, intent(in)    :: time
         character(256)                  :: str
 
-        character(3), parameter         :: s_unit_names(7) = [character(3) :: "d", "h", "min", "s", "ms", "mus", "ns"]
+        character(3), parameter         :: s_unit_names(7) = [character(3) :: "d", "h", "min", "s", "ms", "µs", "ns"]
         integer , parameter             :: i_max_units = 3
         integer (kind = 8)              :: i_unit_values(7)
         integer                         :: i_unit, i_units

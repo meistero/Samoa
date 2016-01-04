@@ -45,7 +45,7 @@
 #endif
 
 #if !defined(_GV_ADD_OP)
-#   define _GV_ADD_OP       +
+#   define _GV_ADD_OP(x, y)                     x + y
 #endif
 
 #define _GV_ACCESS_E(name, entity, subset)		entity%subset%name
@@ -106,7 +106,7 @@ pure subroutine add_node(xn, xl)
     integer :: i
 
     forall (i = 1:_GV_NODE_SIZE)
-        xn(i) = xn(i) _GV_ADD_OP xl(i)
+        xn(i) = _GV_ADD_OP(xn(i),  xl(i))
     end forall
 end subroutine
 
@@ -117,7 +117,7 @@ pure subroutine add_edge(xe, xl)
     integer :: i
 
     forall (i = 1:_GV_EDGE_SIZE)
-        xe(i) = xe(i) _GV_ADD_OP xl(i)
+        xe(i) = _GV_ADD_OP(xe(i), xl(i))
     end forall
 end subroutine
 
@@ -128,7 +128,7 @@ pure subroutine add_cell(xc, xl)
     integer :: i
 
     forall (i = 1:_GV_CELL_SIZE)
-        xc(i) = xc(i) _GV_ADD_OP xl(i)
+        xc(i) = _GV_ADD_OP(xc(i), xl(i))
     end forall
 end subroutine
 

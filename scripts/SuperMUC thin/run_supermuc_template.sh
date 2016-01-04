@@ -25,7 +25,6 @@
 . /etc/profile.d/modules.sh 2>/dev/null
 
 export OMP_NUM_THREADS=$threads
-module load mpi_pinning/hybrid_blocked
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
@@ -36,7 +35,7 @@ echo "  Running Darcy..."
 mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -max_iter 50 -tsteps 10 -lbsplit -epsilon 1.0e-4 -phases 4 -dmin 26 -dmax 40 -asagihints $asagimode -threads $threads -sections $sections $add_options > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
-#echo "  Running SWE..."
-#mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -phases 4 -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
-#echo "  Done."
+echo "  Running SWE..."
+mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -phases 4 -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+echo "  Done."
 

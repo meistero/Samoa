@@ -64,7 +64,7 @@ MODULE SFC_traversal
             !TODO: tests should be able to execute in addition to one of the scenarios!
 
             !create initial grid
-            call init_grid(grid)
+            call init_grid(grid, cfg%i_start_depth)
 			call tests_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
 			!$omp parallel copyin(cfg)
@@ -75,18 +75,18 @@ MODULE SFC_traversal
 			call tests_destroy(grid, cfg%l_log)
 #		elif defined (_HEAT_EQ)
             !create initial grid
-            call init_grid(grid)
+            call init_grid(grid, cfg%i_start_depth)
 			call heat_eq_create(grid, cfg%l_log, cfg%i_asagi_mode)
 
 			!$omp parallel copyin(cfg)
-			call heat_eq_run(grid)
+			call heat_eq_run(grid, cfg%i_start_depth)
             call grid%destroy()
 			!$omp end parallel
 
 			call heat_eq_destroy(grid, cfg%l_log)
 #		elif defined(_DARCY)
             !create initial grid
-            call init_grid(grid)
+            call init_grid(grid, cfg%i_start_depth)
 			call darcy%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
@@ -97,7 +97,7 @@ MODULE SFC_traversal
 			call darcy%destroy(grid, cfg%l_log)
 #		elif defined(_SWE)
             !create initial grid
-            call init_grid(grid)
+            call init_grid(grid, cfg%i_start_depth)
 			call swe%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
@@ -108,7 +108,7 @@ MODULE SFC_traversal
 			call swe%destroy(grid, cfg%l_log)
 #		elif defined(_FLASH)
             !create initial grid
-            call init_grid(grid)
+            call init_grid(grid, cfg%i_start_depth)
 			call flash%create(grid, cfg%l_log, cfg%i_asagi_mode)
 
             !$omp parallel copyin(cfg)
@@ -119,7 +119,7 @@ MODULE SFC_traversal
 			call flash%destroy(grid, cfg%l_log)
 #		elif defined(_NUMA)
             !create initial grid
-            call init_grid(grid)
+            call init_grid(grid, cfg%i_start_depth)
 			call numa%create(grid, cfg%l_log)
 
             !$omp parallel copyin(cfg)

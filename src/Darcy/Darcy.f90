@@ -86,17 +86,21 @@
 
  			select case (cfg%i_lsolver)
                 case (0)
-                    call pressure_solver_jacobi%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR))
+                    call pressure_solver_jacobi%create()
                     allocate(darcy%pressure_solver, source=pressure_solver_jacobi, stat=i_error); assert_eq(i_error, 0)
                 case (1)
-                    call pressure_solver_cg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_cg%create()
+                    call pressure_solver_cg%set_parameter(CG_RESTART_ITERS, real(cfg%i_CG_restart, SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_cg, stat=i_error); assert_eq(i_error, 0)
                 case (2)
-                    call pressure_solver_pipecg%create(real(cfg%r_epsilon * cfg%r_p_prod, GRID_SR), cfg%i_CG_restart)
+                    call pressure_solver_pipecg%create()
+                    call pressure_solver_pipecg%set_parameter(PCG_RESTART_ITERS, real(cfg%i_CG_restart, SR))
                     allocate(darcy%pressure_solver, source=pressure_solver_pipecg, stat=i_error); assert_eq(i_error, 0)
                 case default
                     try(.false., "Invalid linear solver, must be in range 0 to 2")
             end select
+
+            call darcy%pressure_solver%set_parameter(LS_MAX_ITERS, real(cfg%i_max_iterations, SR))
 
             call date_and_time(s_date, s_time)
 
@@ -105,10 +109,10 @@
                 call mpi_bcast(s_time, len(s_time), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-			write (darcy%vtk_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
-			write (darcy%xml_output%s_file_stamp, "(A, A, A8, A, A6)") "output/darcy", "_", s_date, "_", s_time
+			darcy%vtk_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
+			darcy%xml_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
 
-			write (s_log_name, '(A, A)') TRIM(darcy%vtk_output%s_file_stamp), ".log"
+			s_log_name = trim(darcy%vtk_output%s_file_stamp) // ".log"
 
 			if (l_log) then
 				_log_open_file(s_log_name)
@@ -120,124 +124,143 @@
 
             integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
-			character(256)					        :: s_file_name
+			character(256)					        :: s_file_name, s_tmp
+			real (kind = SR)                        :: x_min(3), x_max(3), dx(3)
 
 #			if defined(_ASAGI)
-                !convert ASAGI mode to ASAGI hints
+                cfg%afh_permeability_X = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_permeability_Y = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_permeability_Z = asagi_grid_create(ASAGI_FLOAT)
+                cfg%afh_porosity = asagi_grid_create(ASAGI_FLOAT)
+
+#               if defined(_MPI)
+                    call asagi_grid_set_comm(cfg%afh_permeability_X, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_permeability_Y, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_permeability_Z, MPI_COMM_WORLD)
+                    call asagi_grid_set_comm(cfg%afh_porosity, MPI_COMM_WORLD)
+#               endif
+
+                call asagi_grid_set_threads(cfg%afh_permeability_X, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_permeability_Y, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_permeability_Z, cfg%i_threads)
+                call asagi_grid_set_threads(cfg%afh_porosity, cfg%i_threads)
+
+                !convert ASAGI mode to ASAGI parameters
 
                 select case(cfg%i_asagi_mode)
                     case (0)
-                        i_asagi_hints = GRID_NO_HINT
+                        !i_asagi_hints = GRID_NO_HINT
                     case (1)
-                        i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        !i_asagi_hints = ieor(GRID_NOMPI, GRID_PASSTHROUGH)
+                        call asagi_grid_set_param(cfg%afh_permeability_X, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_permeability_Y, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_permeability_Z, "grid", "pass_through")
+                        call asagi_grid_set_param(cfg%afh_porosity, "grid", "pass_through")
                     case (2)
-                        i_asagi_hints = GRID_NOMPI
+                        !i_asagi_hints = GRID_NOMPI
                     case (3)
-                        i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
+                        !i_asagi_hints = ieor(GRID_NOMPI, SMALL_CACHE)
                     case (4)
-                        i_asagi_hints = GRID_LARGE_GRID
+                        !i_asagi_hints = GRID_LARGE_GRID
+                        call asagi_grid_set_param(cfg%afh_permeability_X, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_permeability_Y, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_permeability_Z, "grid", "cache")
+                        call asagi_grid_set_param(cfg%afh_porosity, "grid", "cache")
                     case default
                         try(.false., "Invalid asagi mode, must be in range 0 to 4")
                 end select
 
-#               if defined(_ASAGI_NUMA)
-                    cfg%afh_permeability_X = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_permeability_Y = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_permeability_Z = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-                    cfg%afh_porosity = grid_create_for_numa(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1, tcount=omp_get_max_threads())
-#               else
-                    cfg%afh_permeability_X = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_permeability_Y = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_permeability_Z = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-                    cfg%afh_porosity = asagi_create(grid_type = GRID_FLOAT, hint = i_asagi_hints, levels = 1)
-#               endif
+                call asagi_grid_set_param(cfg%afh_permeability_X, "variable", "Kx")
+                call asagi_grid_set_param(cfg%afh_permeability_Y, "variable", "Ky")
+                call asagi_grid_set_param(cfg%afh_permeability_Z, "variable", "Kz")
+                call asagi_grid_set_param(cfg%afh_porosity, "variable", "Phi")
 
-#               if defined(_ASAGI_NUMA)
-                    !$omp parallel private(i_error)
-						i_error = grid_register_thread(cfg%afh_permeability); assert_eq(i_error, GRID_SUCCESS)
-						i_error = grid_register_thread(cfg%afh_porosity); assert_eq(i_error, GRID_SUCCESS)
-                    !$omp end parallel
-#               endif
-
-                i_error = grid_set_param(cfg%afh_permeability_X, "variable-name", "z"); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_permeability_X, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
-
-                i_error = grid_set_param(cfg%afh_permeability_Y, "variable-name", "Ky"); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_permeability_Y, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
-
-                i_error = grid_set_param(cfg%afh_permeability_Z, "variable-name", "Kz"); assert_eq(i_error, GRID_SUCCESS)
-                i_error = asagi_open(cfg%afh_permeability_Z, trim(cfg%s_permeability_file), 0); assert_eq(i_error, GRID_SUCCESS)
-
-                i_error = asagi_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, GRID_SUCCESS)
+                !$omp parallel private(i_error), copyin(cfg)
+                    i_error = asagi_grid_open(cfg%afh_permeability_X, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_permeability_Y, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_permeability_Z, trim(cfg%s_permeability_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_porosity, trim(cfg%s_porosity_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                !$omp end parallel
 
                 associate(afh_perm => cfg%afh_permeability_X, afh_phi => cfg%afh_porosity)
-                    cfg%scaling = max((grid_max_x(afh_perm) - grid_min_x(afh_perm)), (grid_max_y(afh_perm) - grid_min_y(afh_perm)))
-                    cfg%offset = [0.5_SR * (grid_min_x(afh_perm) + grid_max_x(afh_perm) - cfg%scaling), 0.5_SR * (grid_min_y(afh_perm) + grid_max_y(afh_perm) - cfg%scaling)]
-                    cfg%dz = real(grid_max_z(afh_perm) - grid_min_z(afh_perm), SR) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
+                    x_min = [asagi_grid_min(afh_perm, 0), asagi_grid_min(afh_perm, 1), asagi_grid_min(afh_perm, 2)]
+                    x_max = [asagi_grid_max(afh_perm, 0), asagi_grid_max(afh_perm, 1), asagi_grid_max(afh_perm, 2)]
+                    dx = [asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)]
 
-                    cfg%r_pos_in = ([0.0_GRID_SR, 0.0_GRID_SR] - cfg%offset) / cfg%scaling
-                    cfg%r_pos_prod = ([grid_max_x(afh_perm), grid_max_y(afh_perm)] - cfg%offset) / cfg%scaling
+                    !HACK: round to mm to eliminate single precision errors from ASAGI(?)
+                    x_min = anint(x_min * 1.0e3_SR) / 1.0e3_SR
+                    x_max = anint(x_max * 1.0e3_SR) / 1.0e3_SR
+                    dx = anint(dx * 1.0e3_SR) / 1.0e3_SR
+
+                    cfg%scaling = 32.0_SR/15.0_SR * (x_max(1) - x_min(1))
+                    cfg%offset = [0.5_SR * (x_min(1:2) + x_max(1:2) - cfg%scaling), x_min(3)]
+                    cfg%dz = (x_max(3) - x_min(3)) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
+
+                    cfg%x_min = (x_min - cfg%offset) / cfg%scaling
+                    cfg%x_max = (x_max - cfg%offset) / cfg%scaling
+                    cfg%dx = dx / cfg%scaling
+
+                    !put an injection well in the center and four producers in the four corners of the domain
+                    cfg%r_pos_in(:, 1) = 0.5_SR * (cfg%x_min(1:2) + cfg%x_max(1:2))
+                    cfg%r_pos_prod(:, 1) = [cfg%x_min(1), cfg%x_max(2)]
+                    cfg%r_pos_prod(:, 2) = [cfg%x_max(1), cfg%x_max(2)]
+                    cfg%r_pos_prod(:, 3) = [cfg%x_max(1), cfg%x_min(2)]
+                    cfg%r_pos_prod(:, 4) = [cfg%x_min(1), cfg%x_min(2)]
 
                     if (rank_MPI == 0) then
-                        _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
-                            trim(cfg%s_permeability_file), grid_min_x(afh_perm), grid_max_x(afh_perm),  grid_min_y(afh_perm), grid_max_y(afh_perm),  grid_min_z(afh_perm), grid_max_z(afh_perm)
-                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') grid_delta_x(afh_perm), grid_delta_y(afh_perm), grid_delta_z(afh_perm)
+                        _log_write(1, '(" Darcy: loaded ", A, ", domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') &
+                            trim(cfg%s_permeability_file), asagi_grid_min(afh_perm, 0), asagi_grid_max(afh_perm, 0), asagi_grid_min(afh_perm, 1), asagi_grid_max(afh_perm, 1),  asagi_grid_min(afh_perm, 2), asagi_grid_max(afh_perm, 2)
+                        _log_write(1, '(" Darcy:  dx [m]: [", F0.3, ", ", F0.3, ", ", F0.3, "]")') asagi_grid_delta(afh_perm, 0), asagi_grid_delta(afh_perm, 1), asagi_grid_delta(afh_perm, 2)
 
-                        _log_write(1, '(" Darcy: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
-                            trim(cfg%s_porosity_file), grid_min_x(afh_phi), grid_max_x(afh_phi),  grid_min_y(afh_phi), grid_max_y(afh_phi),  grid_min_z(afh_phi), grid_max_z(afh_phi)
-                        _log_write(1, '(" Darcy:  dx: ", F0.2, " dy: ", F0.2, " dz: ", F0.2)') grid_delta_x(afh_phi), grid_delta_y(afh_phi), grid_delta_z(afh_phi)
+                        _log_write(1, '(" Darcy: loaded ", A, ", domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') &
+                            trim(cfg%s_porosity_file), asagi_grid_min(afh_phi, 0), asagi_grid_max(afh_phi, 0), asagi_grid_min(afh_phi, 1), asagi_grid_max(afh_phi, 1),  asagi_grid_min(afh_phi, 2), asagi_grid_max(afh_phi, 2)
+                        _log_write(1, '(" Darcy:  dx [m]: [", F0.3, ", ", F0.3, ", ", F0.3, "]")') asagi_grid_delta(afh_phi, 0), asagi_grid_delta(afh_phi, 1), asagi_grid_delta(afh_phi, 2)
 
-                        _log_write(1, '(" Darcy: computational domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")'), cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling
-                        _log_write(1, '(" Darcy: injection position: [", F0.2, ", ", F0.2, "], production position [", F0.2, ", ", F0.2, "]")'), cfg%r_pos_in, cfg%r_pos_prod
+                        _log_write(1, '(" Darcy: computational domain [m]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') cfg%offset(1), cfg%offset(1) + cfg%scaling, cfg%offset(2), cfg%offset(2) + cfg%scaling, cfg%offset(3), cfg%offset(3) + cfg%scaling * cfg%dz * max(1, _DARCY_LAYERS)
+                        _log_write(1, '(" Darcy: data domain [um]: [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "] x [", F0.3, ", ", F0.3, "]")') transpose(reshape([cfg%x_min, cfg%x_max], [3, 2]))
+
+                        write(s_tmp, "(I0)") _DARCY_INJECTOR_WELLS
+                        _log_write(1, '(" Darcy: injector positions [um]: ", ' // s_tmp // '("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_in
+                        write(s_tmp, "(I0)") _DARCY_PRODUCER_WELLS
+                        _log_write(1, '(" Darcy: producer positions [um]: ", ' // s_tmp // '("[", F0.3, ", ", F0.3, "] "))') cfg%r_pos_prod
                     end if
                 end associate
 #           else
                 cfg%scaling = 1.0_SR
-                cfg%offset = [0.0_SR, 0.0_SR]
+                cfg%offset = [0.0_SR, 0.0_SR, 0.0_SR]
                 cfg%dz = 1.0_SR / real(max(1, _DARCY_LAYERS), SR)
 
-                cfg%r_pos_in = [0.5_SR, -0.5_SR]
-                cfg%r_pos_prod = [0.5_SR, -1.0_SR]
-                cfg%r_well_radius = 0.1_SR
-                cfg%r_inflow = 0.0_SR
+                !remove wells from the domain
+                cfg%r_pos_in = 1.5_SR
+                cfg%r_pos_prod = 1.5_SR
 #			endif
 
-            !Conversion rules:
-            ! cfg%scaling m = 1 um
-            ! 6894.75729 Pa = 1 psi
-            ! 6.28981077 bbl = 1 m^3
-            ! 86400 s = 1 day
-            ! 40 in = 1 m
+            !pressure is given in ppsi
+            cfg%r_p_in = cfg%r_p_in * _PPSI
+            cfg%r_p_prod = cfg%r_p_prod * _PPSI
 
-            !u_w = 1 / mu K(grad p + rho g)
-            ![u_w] = um/s = [1 / mu K rho g] = 1 / (kg/(um s)) * um^2 * kg / um^3 * um/s^2
-            ![u_w] = um/s = [1 / mu K grad p] = 1 / (kg/(um s)) * um^2 * kg/(um s^2) / um
+            !viscosity is given in Pa * s (or cp)
+            cfg%r_nu_w = cfg%r_nu_w * _PA * _S
+            cfg%r_nu_n = cfg%r_nu_n * _PA * _S
 
-            !convert pressure: Pa * (cfg%scaling m/um) = psi (pounds per square inch) * (6894.75729 Pa/psi) * (cfg%scaling m/um)
-            !so: [grad p] = 1 Pa/m * (cfg%scaling m/um)^2 = 1 Pa/um * (cfg%scaling m/um)
-            cfg%r_p_in = cfg%r_p_in * 6894.75729_SR * cfg%scaling
-            cfg%r_p_prod = cfg%r_p_prod * 6894.75729_SR * cfg%scaling
+            !density is given in kg/m^3 (or lb/ft^3)
+            cfg%r_rho_w = cfg%r_rho_w * _KG / (_M ** 3)
+            cfg%r_rho_n = cfg%r_rho_n * _KG / (_M ** 3)
 
-            !convert viscosity: kg/(um * s) = kg/(m * s^2) * s * (cfg%scaling m/um) = N / m^2 * s * (cfg%scaling m/um) = Pa * s * (cfg%scaling m/um)
-            cfg%r_nu_w = cfg%r_nu_w * cfg%scaling
-            cfg%r_nu_n = cfg%r_nu_n * cfg%scaling
+            !Inflow is given in bbl/d
+            cfg%r_inflow = cfg%r_inflow * _BBL / _D
 
-            !convert density: kg/(um^3) = kg/(m^3) * (cfg%scaling m/um)^3
-            cfg%r_rho_w = cfg%r_rho_w * (cfg%scaling ** 3)
-            cfg%r_rho_n = cfg%r_rho_n * (cfg%scaling ** 3)
+#           if _DARCY_LAYERS == 0
+                !In 3D, each layer has the correct height cfg%dz, in 2D the height is normed to 1.0
+                !Hence, divide the inflow by the height of the domain.
+                cfg%r_inflow = cfg%r_inflow / cfg%dz
+#           endif
 
-            !Inflow condition: um^3 / s = (m^3 / s) / (cfg%scaling m/um)^3 = (bbl/day) / ((6.28981077 bbl/m^3) * (86400 s/day)) / (cfg%scaling m/um)^3
-            cfg%r_inflow = cfg%r_inflow / (6.28981077_SR * 86400.0_SR) / (cfg%scaling ** 3)
+            !The well radius is given in inch
+            cfg%r_well_radius = cfg%r_well_radius * _INCH
 
-            !Well radius: um = in / (40 in/m * cfg%scaling m/um)
-            cfg%r_well_radius = cfg%r_well_radius / (40.0_SR * cfg%scaling)
-
-            !convert g: (um / s^2) = (m / s^2) / (cfg%scaling m / um)
-            g = g / cfg%scaling
-
-            !In  total [u] = [K / nu * (-grad p + rho * g)] = 1 (m^2 / (cfg%scaling m/um)^2) / (Pa*(cfg%scaling m/um) * s) * (Pa*(cfg%scaling m/um)/um + (kg / m^3 * (cfg%scaling m/um)^3) * (m / s^2 / (cfg%scaling m / um))) =
-            != 1 m^2 / (Pa * s) / (cfg%scaling m/um)^3 * ((Pa / um)*(cfg%scaling m/um) + (Pa/m)*(cfg%scaling m/um)^2)
-            != 1 m^2 / (s * (cfg%scaling m/um)) * (1/m + 1/m) = 1 (m / s) / (cfg%scaling m/um)
+            !gravity is given in m / s^2
+            cfg%g = cfg%g * _M / (_S ** 2)
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
@@ -269,10 +292,10 @@
 			endif
 
 #			if defined(_ASAGI)
-				call asagi_close(cfg%afh_permeability_X)
-				call asagi_close(cfg%afh_permeability_Y)
-				call asagi_close(cfg%afh_permeability_Z)
-				call asagi_close(cfg%afh_porosity)
+				call asagi_grid_close(cfg%afh_permeability_X)
+				call asagi_grid_close(cfg%afh_permeability_Y)
+				call asagi_grid_close(cfg%afh_permeability_Z)
+				call asagi_grid_close(cfg%afh_porosity)
 #			endif
 		end subroutine
 
@@ -281,7 +304,7 @@
             class(t_darcy), intent(inout)	                            :: darcy
  			type(t_grid), intent(inout)									:: grid
 
-            integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_lse_iterations
+            integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_nle_iterations, i_lse_iterations
 			real (kind = GRID_SR)										:: r_time_next_output
 			type(t_grid_info)           	                            :: grid_info, grid_info_max
             integer  (kind = GRID_SI)                                   :: i_stats_phase
@@ -304,31 +327,67 @@
 			!set pressure initial condition
 			call darcy%init_pressure%traverse(grid)
 
-			do
-				!reset saturation to initial condition, compute permeability and set refinement flag
-				call darcy%init_saturation%traverse(grid)
+            !do some initial load balancing
+			call darcy%adaption%traverse(grid)
 
-                !solve pressure equation
-                if (cfg%l_lse_output) then
-                    call darcy%lse_output%traverse(grid)
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                    call darcy%lse_output%traverse(grid)
-                else
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                end if
+			do
+                i_nle_iterations = 1
+                i_lse_iterations = 0
+
+                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
+
+				!reset saturation to initial condition, setup pressure equation and set refinement flags
+				do
+                    call darcy%init_saturation%traverse(grid)
+
+                    !solve pressure equation
+
+                    if (cfg%l_lse_output) then
+                        call darcy%lse_output%traverse(grid)
+                        call darcy%pressure_solver%solve(grid)
+                        call darcy%lse_output%traverse(grid)
+                    else
+                        call darcy%pressure_solver%solve(grid)
+                    end if
+
+                    if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
+                        exit
+                    end if
+
+                    i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+
+                    if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
+                        !$omp master
+                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
+                        !$omp end master
+                    end if
+
+                    i_nle_iterations = i_nle_iterations + 1
+                end do
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, "(A, I0, A, I0, A, I0, A)") " Darcy: ", i_initial_step, " adaptions, ", i_lse_iterations, " iterations, ", grid_info%i_cells, " cells"
+                    _log_write(1, '(" Darcy: adaptions: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0, ", cells: ", I0)') i_initial_step, i_nle_iterations, i_lse_iterations, grid_info%i_cells
                     !$omp end master
                 end if
 
-                grid_info%i_cells = grid%get_cells(MPI_SUM, .true.)
-				if (i_initial_step .ge. cfg%i_max_depth .or. darcy%init_saturation%i_refinements_issued .le. 0) then
+				if (darcy%init_saturation%i_refinements_issued .le. 0 .or. i_initial_step >= 2 * cfg%i_max_depth) then
 					exit
 				endif
+
+                !output grids during initial phase if and only if t_out is 0
+                if (cfg%r_output_time_step == 0.0_GRID_SR) then
+
+                    !do a dummy transport step first to determine the initial production rates
+                    grid%r_dt = 0.0_SR
+                    call darcy%transport_eq%traverse(grid)
+
+                    !output grid
+                    call darcy%xml_output%traverse(grid)
+                    r_time_next_output = r_time_next_output + cfg%r_output_time_step
+                end if
 
 				!refine grid
 				call darcy%adaption%traverse(grid)
@@ -349,8 +408,13 @@
 
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
-				!call darcy%xml_output%traverse(grid)
-				!r_time_next_output = r_time_next_output + cfg%r_output_time_step
+                !do a dummy transport step first to determine the initial production rates
+                grid%r_dt = 0.0_SR
+				call darcy%transport_eq%traverse(grid)
+
+                !output grid
+				call darcy%xml_output%traverse(grid)
+				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
 			!print initial stats
@@ -363,27 +427,48 @@
             i_time_step = 0
 
 			do
-				if ((cfg%r_max_time >= 0.0 .and. grid%r_time > cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
+				if ((cfg%r_max_time >= 0.0 .and. grid%r_time >= cfg%r_max_time) .or. (cfg%i_max_time_steps >= 0 .and. i_time_step >= cfg%i_max_time_steps)) then
 					exit
 				end if
 
-				!refine grid if necessary
-				!if (darcy%permeability%i_refinements_issued > 0) then
-					!refine grid
-					call darcy%adaption%traverse(grid)
+                !refine grid
+                call darcy%adaption%traverse(grid)
 
-					!compute permeability
-					call darcy%permeability%traverse(grid)
-				!end if
+                i_nle_iterations = 1
+                i_lse_iterations = 0
 
-                !solve pressure equation
-                if (cfg%l_lse_output) then
-                    call darcy%lse_output%traverse(grid)
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                    call darcy%lse_output%traverse(grid)
-                else
-                    i_lse_iterations = darcy%pressure_solver%solve(grid)
-                end if
+                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
+
+                do
+                    !setup pressure equation
+                    call darcy%permeability%traverse(grid)
+
+                    !solve pressure equation
+
+                    if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
+                        call darcy%lse_output%traverse(grid)
+                        call darcy%pressure_solver%solve(grid)
+                        call darcy%lse_output%traverse(grid)
+                    else if (mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
+                        call darcy%pressure_solver%solve(grid)
+                    else
+                        exit
+                    end if
+
+                    if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
+                        exit
+                    end if
+
+                    i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+
+                    if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
+                        !$omp master
+                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
+                        !$omp end master
+                    end if
+
+                    i_nle_iterations = i_nle_iterations + 1
+                end do
 
 				!compute velocity field (to determine the time step size)
 				call darcy%grad_p%traverse(grid)
@@ -392,14 +477,14 @@
 				call darcy%transport_eq%traverse(grid)
 				i_time_step = i_time_step + 1
 
-				!compute refinement flag
+				!set refinement flags
 				call darcy%error_estimate%traverse(grid)
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
 
                     !$omp master
-                    _log_write(1, '(A, I0, A, A, A, ES14.7, A, I0, A, I0)') " Darcy: time step: ", i_time_step, ", sim. time:", trim(time_to_hrt(grid%r_time)), ", dt:", grid%r_dt, " s, cells: ", grid_info%i_cells, ", LSE iterations: ", i_lse_iterations
+                    _log_write(1, '(" Darcy: time step: ", I0, ", sim. time:", A, ", dt:", A, ", cells: ", I0, ", coupling iters: ", I0, ", linear iters: ", I0)') i_time_step, trim(time_to_hrt(grid%r_time)), trim(time_to_hrt(grid%r_dt)), grid_info%i_cells, i_nle_iterations, i_lse_iterations
                     !$omp end master
                 end if
 

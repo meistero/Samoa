@@ -26,25 +26,12 @@
 		integer, PARAMETER :: SHORT = selected_int_kind(4)
 		integer, PARAMETER :: GRID_SI = selected_int_kind(8)
 		integer, PARAMETER :: GRID_DI = selected_int_kind(16)
+        integer, parameter :: GRID_SL = BYTE
 
         integer, PARAMETER :: SR = GRID_SR
         integer, PARAMETER :: SI = GRID_SI
         integer, PARAMETER :: DI = GRID_DI
-
-#       if defined(_ASAGI)
-#           if (_DARCY_LAYERS > 0)
-                real (kind = SR)        :: g(3) = [0.0_SR, 0.0_SR, -9.81_SR]
-#           else
-                real (kind = SR)        :: g(2) = [0.0_SR, 0.0_SR]
-#           endif
-#       else
-#           if (_DARCY_LAYERS > 0)
-                real (kind = SR)        :: g(3) = [9.81_SR, 0.0_SR, 0.0_SR]
-#           else
-                real (kind = SR)        :: g(2) = [9.81_SR, 0.0_SR]
-#           endif
-#       endif
-
+        integer, parameter :: SL = GRID_SL
 
 		!*********************************************
 		!Persistent Entity data (geometric association)
@@ -56,6 +43,7 @@
             real (kind = GRID_SR)   :: A_d(_DARCY_LAYERS + 1), d(_DARCY_LAYERS + 1), r(_DARCY_LAYERS + 1)
 
             real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1)    !< wetting phase saturation
+			integer (kind = SI)     :: boundary_condition(1)
 		END type
 
 		!> persistent, scenario specific data on an edge
@@ -85,7 +73,6 @@
 
 			real (kind = GRID_SR)       :: flux(_DARCY_LAYERS + 1)
 			real (kind = GRID_SR)		:: volume(_DARCY_LAYERS + 1)
-			logical                     :: is_dirichlet_boundary(_DARCY_LAYERS + 1)
 		END type num_node_data_temp
 
 		!> temporary, scenario specific data on an edge (deleted after each traversal)
@@ -106,10 +93,11 @@
 			real (kind = GRID_SR)       :: r_dt						!< time step
 			real (kind = GRID_SR)       :: u_max			        !< maximum velocity
 
-            real (kind = GRID_SR)       :: prod_w(4) = [0.0_SR, 0.0_SR, 0.0_SR, 0.0_SR]
-            real (kind = GRID_SR)       :: prod_n(4) = [tiny(1.0_SR), tiny(1.0_SR), tiny(1.0_SR), tiny(1.0_SR)]
-            real (kind = GRID_SR)       :: prod_w_acc(4) = [0.0_SR, 0.0_SR, 0.0_SR, 0.0_SR]
-            real (kind = GRID_SR)       :: prod_n_acc(4) = [0.0_SR, 0.0_SR, 0.0_SR, 0.0_SR]
+            real (kind = GRID_SR)       :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = 0.0_SR
+            real (kind = GRID_SR)       :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = tiny(1.0_SR)
+            real (kind = GRID_SR)       :: prod_w_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = 0.0_SR
+            real (kind = GRID_SR)       :: prod_n_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS) = 0.0_SR
+            real (Kind = GRID_SR)       :: p_bh(_DARCY_INJECTOR_WELLS) = 0.0_SR
 		END type
 	END MODULE Darcy_data_types
 #endif

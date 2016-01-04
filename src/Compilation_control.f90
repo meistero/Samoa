@@ -20,6 +20,8 @@
 !> if true, element coordinates are not computed but stored in the nodes instead (which allows for irregular grids)
 !#define _STORE_NODE_COORDS
 
+# define _DARCY_INJ_PRESSURE
+# define _DARCY_PROD_PRESSURE
 
 !for the SWE scenario, a skeleton operator is required
 #if defined(_SWE) || defined(_NUMA) || defined(_FLASH)
@@ -40,10 +42,20 @@
 #define _HEAT_EQ_EDGE_SIZE 			(_HEAT_EQ_ORDER - 1)
 #define _HEAT_EQ_NODE_SIZE			1
 
-#define _FLASH_ORDER 					0
+#define _FLASH_ORDER 				0
 #define _FLASH_CELL_SIZE			((_FLASH_ORDER + 1) * (_FLASH_ORDER + 2)) / 2
 #define _FLASH_EDGE_SIZE 			_FLASH_CELL_SIZE
 #define _FLASH_EDGE_QUAD_SIZE			_FLASH_CELL_SIZE
+
+#if defined(_DARCY)
+#   if defined(_ASAGI)
+#	    define _DARCY_INJECTOR_WELLS    1
+#	    define _DARCY_PRODUCER_WELLS    4
+#   else
+#	    define _DARCY_INJECTOR_WELLS    1
+#	    define _DARCY_PRODUCER_WELLS    1
+#   endif
+#endif
 
 !compiler-dependent macros (traditional vs. modern preprocessor)
 #	define _id(x) x
@@ -113,3 +125,51 @@
 #define _log_close_file				call log_close_file
 #define _log_write(dl, f)			if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit,'(A, A, I0, A, I0, A)',advance='no') term_color(omp_get_thread_num() * size_MPI + rank_MPI), "(r", rank_MPI, ",t", omp_get_thread_num(), ") "; if (_DEBUG_LEVEL .ge. dl) write(g_log_file_unit, f)
 
+!Standard units:
+
+!> Unit meter, defined as the width and height of the full grid
+#define _UM     1.0_GRID_SR
+
+!> Second in simulation time
+#define _S      1.0_GRID_SR
+
+!> Kilogram (standard mass)
+#define _KG     1.0_GRID_SR
+
+!Derived units and their conversion rules:
+
+!> Meter
+#define _M      (_UM / cfg%scaling)
+!> Minutes (exact)
+#define _MIN    (_S * 60.0_GRID_SR)
+!> Hours (exact)
+#define _H      (_MIN * 60.0_GRID_SR)
+!> Days (exact)
+#define _D      (_H * 24.0_GRID_SR)
+!> Newton (exact)
+#define _N      (_KG * _M / (_S * _S))
+!> Pascal (exact)
+#define _PA     (_N / (_M * _M))
+!> Centipoise (exact)
+#define _CP     (_PA * 1.0e-3_GRID_SR)
+!> Barrel Oil (exact)
+#define _BBL    (((_INCH) ** 3) * 9702.0_GRID_SR)
+!> Inch (exact)
+#define _INCH   (_M * 0.0254_GRID_SR)
+!> Feet (exact)
+#define _FT     (_INCH * 12.0_GRID_SR)
+!> Pound (exact)
+#define _LB     (_KG * 0.45359237_GRID_SR)
+!> Pound Force (exact)
+#define _LBF    (_LB * _G)
+!> Pound Force Per Square Inch (exact)
+#define _PPSI   (_LBF / (_INCH ** 2))
+!> Millidarcy (exact)
+#define _MDY    (_DY * 1.0e-3_GRID_SR)
+!> Darcy (exact)
+#define _DY     ((_M ** 2) / 1.01325e12_GRID_SR)
+
+!Physical constants:
+
+!> Standard gravitational field (exact)
+#define _G      9.80665_GRID_SR * _M / (_S ** 2)

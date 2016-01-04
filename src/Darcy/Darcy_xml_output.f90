@@ -10,9 +10,6 @@
 		use LIB_VTK_IO
 
 		use SFC_edge_traversal
-		use Darcy_grad_p
-		use Darcy_transport_eq
-
 		use Samoa_darcy
 
 		!> Output point data
@@ -48,7 +45,7 @@
             type(t_output_point_data)                               :: point_data
             type(t_output_cell_data)                                :: cell_data
             integer (kind = GRID_SI), allocatable			        :: i_connectivity(:)
-            character(len=64)							            :: s_file_stamp
+            character(len=256)							            :: s_file_stamp
 
             integer (kind = GRID_SI)								:: i_output_iteration = 0
             integer (kind = GRID_SI)								:: i_point_data_index
@@ -100,14 +97,18 @@
 			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			character (len = 64)							:: s_file_name
+			character (len = 256)							:: s_file_name
             integer                                         :: i_error
 			integer(4)										:: i_rank, i_section, e_io
 			logical                                         :: l_exists
             type(t_vtk_writer)                              :: vtk
 
-            real (kind = GRID_SR)   :: reduction_set(16)
-            real (kind = GRID_SR)   :: prod_w(0:4), prod_n(0:4), prod_w_acc(0:4), prod_n_acc(0:4)
+            real (kind = GRID_SR)   :: reduction_set(4 * (-_DARCY_PRODUCER_WELLS) + 1 : 4 * (_DARCY_INJECTOR_WELLS) + 4)
+            real (kind = GRID_SR)   :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: prod_w_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: prod_n_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
+            real (kind = GRID_SR)   :: p_bh(_DARCY_INJECTOR_WELLS)
             integer                 :: i, f_out
 
 #           if defined(_MPI)
@@ -122,7 +123,7 @@
                     ! write VTK data
                     !******************
 
-                    write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+                    write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
 
                     e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
                         e_io = vtk%VTK_DAT_XML('pfield', 'OPEN')
@@ -138,7 +139,7 @@
                         e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
                             e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 3)
                             e_io = vtk%VTK_VAR_XML('porosity', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+                            e_io = vtk%VTK_VAR_XML('flux', 1.0_GRID_SR, 3)
                             e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
                             e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
                             e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
@@ -169,30 +170,45 @@
             ! write global data
             !******************
 
-            reduction_set(1:4) = grid%prod_w
-            reduction_set(5:8) = grid%prod_n
-            reduction_set(9:12) = grid%prod_w_acc
-            reduction_set(13:16) = grid%prod_n_acc
+            do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
+                reduction_set(4*i + 1) = grid%prod_w(i)
+                reduction_set(4*i + 2) = grid%prod_n(i)
+                reduction_set(4*i + 3) = grid%prod_w_acc(i)
+                reduction_set(4*i + 4) = grid%prod_n_acc(i)
+            end do
 
             call reduce(reduction_set, MPI_SUM)
 
             if (rank_MPI == 0) then
-                prod_w(1:4) = reduction_set(1:4)
-                prod_n(1:4) = reduction_set(5:8)
-                prod_w_acc(1:4) = reduction_set(9:12)
-                prod_n_acc(1:4) = reduction_set(13:16)
+                do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
+                    prod_w(i) = reduction_set(4*i + 1)
+                    prod_n(i) = reduction_set(4*i + 2)
+                    prod_w_acc(i) = reduction_set(4*i + 3)
+                    prod_n_acc(i) = reduction_set(4*i + 4)
+                end do
 
-                prod_w(0) = sum(prod_w(1:4))
-                prod_n(0) = sum(prod_n(1:4))
-                prod_w_acc(0)= sum(prod_w_acc(1:4))
-                prod_n_acc(0) = sum(prod_n_acc(1:4))
+                prod_w(0) = sum(prod_w(-_DARCY_PRODUCER_WELLS:-1))
+                prod_n(0) = sum(prod_n(-_DARCY_PRODUCER_WELLS:-1))
+                prod_w_acc(0)= sum(prod_w_acc(-_DARCY_PRODUCER_WELLS:-1))
+                prod_n_acc(0) = sum(prod_n_acc(-_DARCY_PRODUCER_WELLS:-1))
 
-                write (s_file_name, "(A, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
+                !we already reduce the bottom hole pressure in each iteration
+                p_bh = grid%p_bh
+
+                write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
+
+                f_out = get_free_file_unit()
+
                 open(unit=f_out, file=s_file_name, action="write", status="replace")
 
-                write(f_out, '("time, water rate, oil rate, water cumulative, oil cumulative, water cut, saturation")')
-                do i = 0, 4
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / (24.0_SR * 3600.0_SR), prod_w(i), prod_n(i), prod_w_acc(i), prod_n_acc(i), prod_w(i) / (prod_w(i) + prod_n(i)), sqrt(prod_w(i) * cfg%r_nu_w) / (sqrt(prod_w(i) * cfg%r_nu_w) + sqrt(prod_n(i) * cfg%r_nu_n))
+                write(f_out, '("time,water rate,oil rate,water cumulative,oil cumulative,water cut,pressure")')
+
+                do i = 0, -_DARCY_PRODUCER_WELLS, -1
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i) / (_BBL / _D), prod_n(i) / (_BBL / _D), prod_w_acc(i) / _BBL, prod_n_acc(i) / _BBL, prod_w(i) / (prod_w(i) + prod_n(i)), cfg%r_p_prod / _PPSI
+                end do
+
+                do i = 1, _DARCY_INJECTOR_WELLS
+                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i) / (_BBL / _D), prod_n(i) / (_BBL / _D), prod_w_acc(i) / _BBL, prod_n_acc(i) / _BBL, prod_w(i) / (prod_w(i) + prod_n(i)), p_bh(i) / _PPSI
                 end do
 
                 close(f_out)
@@ -229,6 +245,7 @@
  			type(t_darcy_xml_output_traversal), intent(inout)			:: traversal
 			type(t_grid_section), intent(inout)							:: section
 
+			character (len = 256)							            :: s_file_name
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
 			integer (1), dimension(:), allocatable						:: i_types
             type(t_vtk_writer)                                          :: vtk
@@ -259,12 +276,12 @@
                 end forall
 #           endif
 
-			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
+			write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
 #           if defined(_QUAD_PRECISION)
 #               warning VTK output does not work for quad precision
 #           else
-                e_io = vtk%VTK_INI_XML('binary', traversal%s_file_stamp, 'UnstructuredGrid')
+                e_io = vtk%VTK_INI_XML('binary', s_file_name, 'UnstructuredGrid')
                     e_io = vtk%VTK_DAT_XML('field', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(1, 'time', [section%r_time])
                     e_io = vtk%VTK_DAT_XML('field', 'CLOSE')
@@ -282,7 +299,7 @@
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
                         e_io = vtk%VTK_VAR_XML(i_cells, 'permeability', traversal%cell_data%permeability(:, 1), traversal%cell_data%permeability(:, 2), traversal%cell_data%permeability(:, 3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'porosity', traversal%cell_data%porosity)
-                        e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', traversal%cell_data%u(:, 1), traversal%cell_data%u(:, 2), traversal%cell_data%u(:, 3))
+                        e_io = vtk%VTK_VAR_XML(i_cells, 'flux', traversal%cell_data%u(:, 1), traversal%cell_data%u(:, 2), traversal%cell_data%u(:, 3))
                         e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
                         e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
@@ -354,89 +371,95 @@
                 real (kind = GRID_SR), intent(in)	    :: rhs(:, :)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability(:,:)
                 real (kind = GRID_SR), intent(in)	    :: porosity(:)
-                real (kind = GRID_SR), intent(in)	    :: saturation(:, :)
+                real (kind = GRID_SR), intent(inout)	    :: saturation(:, :)
                 integer (kind = GRID_SI), intent(in)    :: point_data_indices(:, :)
 
                 real (kind = SR)                :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3)
-                real (kind = SR)                :: u_w(7), u_n(7)
-                real (kind = GRID_SR)			:: g_local(3)
+                real (kind = SR)                :: u_w(_DARCY_LAYERS, 7), u_n(_DARCY_LAYERS, 7)
+                real (kind = GRID_SR)			:: g_local(3), flux_w(_DARCY_LAYERS, 3), flux_n(_DARCY_LAYERS, 3), flux_t(3)
 #           else
                 real (kind = GRID_SR), intent(in)	    :: p(:)
                 real (kind = GRID_SR), intent(in)	    :: rhs(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
                 real (kind = GRID_SR), intent(in)	    :: porosity
-                real (kind = GRID_SR), intent(in)	    :: saturation(:)
+                real (kind = GRID_SR), intent(inout)	    :: saturation(:)
                 integer (kind = GRID_SI), intent(in)    :: point_data_indices(:)
 
                 real (kind = SR)                :: lambda_w(3), lambda_n(3)
                 real (kind = SR)                :: u_w(2), u_n(2)
-                real (kind = GRID_SR)			:: g_local(2)
+                real (kind = GRID_SR)			:: g_local(2), flux_w(2), flux_n(2), flux_t(2)
 #           endif
 
             integer                         :: i, layer
-            real (kind = GRID_SR)			:: edge_length, dz, flux_w(3), dummy
+            real (kind = GRID_SR)			:: edge_length, dz
 
-            lambda_w = (saturation * saturation) / cfg%r_nu_w
-            lambda_n = (1.0_SR - saturation) * (1.0_SR - saturation) / cfg%r_nu_n
+            lambda_w = l_w(saturation)
+            lambda_n = l_n(saturation)
 
             !rotate g so it points in the right direction (no scaling!)
-            g_local = g
-            g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, g_local(1:2))
-            g_local(1:2) = g_local(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
+
+#           if (_DARCY_LAYERS > 0)
+                g_local = cfg%g
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, cfg%g(1:2))
+#           else
+                g_local(1:2) = samoa_world_to_barycentric_normal(element%transform_data, cfg%g(1:2))
+#           endif
+
+            flux_w = 0.0_SR
+            flux_n = 0.0_SR
 
 #           if (_DARCY_LAYERS > 0)
                 edge_length = element%cell%geometry%get_leg_size()
                 dz = cfg%dz
 
+                !compute fluxes
+
+                call compute_base_fluxes_3D(p, base_permeability, edge_length, edge_length, dz, 1.0_SR, 1.0_SR, 1.0_SR, g_local, u_w, u_n)
+                call compute_flux_vector_3D(saturation, u_w, u_n, flux_w, flux_n)
+
                 do layer = 1, _DARCY_LAYERS
                     cell_data%rank(i_cell_data_index) = rank_MPI
                     cell_data%section_index(i_cell_data_index) = section_index
-                    cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / 9.869233e-16_SR * (cfg%scaling ** 2)
-                    cell_data%porosity(i_cell_data_index) = porosity(layer)
+                    !convert the permeability back to millidarcy
+                    cell_data%permeability(i_cell_data_index, 1:2) = base_permeability(layer, 1) / _MDY
+                    cell_data%permeability(i_cell_data_index, 3) = base_permeability(layer, 2) / _MDY
 
-                    !compute fluxes
+                    !the grid porosity also contains residual saturation which has to be removed for output
+                    cell_data%porosity(i_cell_data_index) = porosity(layer) / (1.0_SR - cfg%S_wr - cfg%S_nr)
 
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 1), u_w(1), u_n(1), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer, 2), p(layer, 3), u_w(2), u_n(2), g_local(2))
+                    flux_t = 2.0_SR * (flux_w(layer, :) + flux_n(layer, :))
+                    flux_t(1:2) = samoa_barycentric_to_world_normal(element%transform_data, flux_t(1:2))
 
-                    call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 1), p(layer + 1, 1), u_w(3), u_n(3), g_local(3))
-                    call compute_velocity_1D(dz, 0.50_SR, base_permeability(layer, 2), p(layer, 2), p(layer + 1, 2), u_w(4), u_n(4), g_local(3))
-                    call compute_velocity_1D(dz, 0.25_SR, base_permeability(layer, 2), p(layer, 3), p(layer + 1, 3), u_w(5), u_n(5), g_local(3))
-
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 1), u_w(6), u_n(6), g_local(1))
-                    call compute_velocity_1D(edge_length, 0.25_SR, base_permeability(layer, 1), p(layer + 1, 2), p(layer + 1, 3), u_w(7), u_n(7), g_local(2))
-
-                    flux_w = 0.0_SR
-                    dummy = 0.0_SR
-                    call compute_upwind_flux(u_w(1), lambda_w(layer, 2), lambda_w(layer, 1), flux_w(1), dummy)
-                    call compute_upwind_flux(u_w(2), lambda_w(layer, 2), lambda_w(layer, 3), flux_w(2), dummy)
-                    call compute_upwind_flux(u_w(3), lambda_w(layer, 1), lambda_w(layer + 1, 1), flux_w(3), dummy)
-                    call compute_upwind_flux(u_w(4), lambda_w(layer, 2), lambda_w(layer + 1, 2), flux_w(3), dummy)
-                    call compute_upwind_flux(u_w(5), lambda_w(layer, 3), lambda_w(layer + 1, 3), flux_w(3), dummy)
-                    call compute_upwind_flux(u_w(6), lambda_w(layer + 1, 2), lambda_w(layer + 1, 1), flux_w(1), dummy)
-                    call compute_upwind_flux(u_w(7), lambda_w(layer + 1, 2), lambda_w(layer + 1, 3), flux_w(2), dummy)
-
-                    flux_w(1:2) = samoa_world_to_barycentric_normal(element%transform_data, flux_w(1:2))
-                    flux_w(1:2) = flux_w(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                    cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
+                    cell_data%u(i_cell_data_index, :) = flux_t / (_M / _S)  !return the flux in m/s
 
                     cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                     cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
-                    i_connectivity(6 * i_cell_data_index - 5 : 6 * i_cell_data_index - 3) = point_data_indices(layer, :) - 1
-                    i_connectivity(6 * i_cell_data_index - 2 : 6 * i_cell_data_index) = point_data_indices(layer + 1, :) - 1
+                    if (element%transform_data%plotter_data%orientation > 0) then
+                        i_connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 1) - 1
+                        i_connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 3) - 1
+                        i_connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 1) - 1
+                        i_connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 3) - 1
+                    else
+                        i_connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 3) - 1
+                        i_connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 1) - 1
+                        i_connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 3) - 1
+                        i_connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
+                        i_connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 1) - 1
+                    end if
 
                     i_cell_data_index = i_cell_data_index + 1
                 end do
 
                 do layer = 1, _DARCY_LAYERS + 1
                     forall (i = 1 : 3)
-                        point_data%coords(point_data_indices(layer, i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                        point_data%coords(point_data_indices(layer, i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz
-                        point_data%p(point_data_indices(layer, i)) = p(layer, i) / (cfg%scaling * 6894.75729_SR)
-                        point_data%rhs(point_data_indices(layer, i)) = rhs(layer, i) * (cfg%scaling ** 3)
+                        point_data%coords(point_data_indices(layer, i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
+                        point_data%coords(point_data_indices(layer, i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz + cfg%offset(3)
+                        point_data%p(point_data_indices(layer, i)) = p(layer, i) / _PPSI                !return the pressure in ppsi
+                        point_data%rhs(point_data_indices(layer, i)) = rhs(layer, i) / ((_M ** 3) / _S) !return the rhs in m^3 / s
                         point_data%S(point_data_indices(layer, i)) = saturation(layer, i)
                     end forall
                 end do
@@ -445,36 +468,44 @@
 
                 cell_data%rank(i_cell_data_index) = rank_MPI
                 cell_data%section_index(i_cell_data_index) = section_index
-                cell_data%permeability(i_cell_data_index, :) = base_permeability / 9.869233e-16_SR * (cfg%scaling ** 2)
-                cell_data%porosity(i_cell_data_index) = porosity
+
+                !convert the permeability back to millidarcy
+                cell_data%permeability(i_cell_data_index, :) = base_permeability / _MDY
+
+                !the grid porosity also contains residual saturation which has to be removed for output
+                cell_data%porosity(i_cell_data_index) = porosity / (1.0_SR - cfg%S_wr - cfg%S_nr)
 
                 !compute fluxes
 
-                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(1), u_w(1), u_n(1), g_local(1))
-                call compute_velocity_1D(edge_length, 1.0_SR, base_permeability, p(2), p(3), u_w(2), u_n(2), g_local(2))
+                call compute_base_fluxes_2D(p, base_permeability, edge_length, edge_length, 1.0_SR, 1.0_SR, g_local(1:2), u_w, u_n)
+                call compute_flux_vector_2D(saturation, u_w, u_n, flux_w, flux_n)
 
-                flux_w = 0.0_SR
-                dummy = 0.0_SR
-                call compute_upwind_flux(u_w(1), lambda_w(2), lambda_w(1), flux_w(1), dummy)
-                call compute_upwind_flux(u_w(2), lambda_w(2), lambda_w(3), flux_w(2), dummy)
+                flux_t = 2.0_SR * (flux_w + flux_n)
+                flux_t = samoa_barycentric_to_world_normal(element%transform_data, flux_t)
 
-                flux_w(1:2) = samoa_world_to_barycentric_normal(element%transform_data, flux_w(1:2))
-                flux_w(1:2) = flux_w(1:2) / (element%transform_data%custom_data%scaling * sqrt(abs(element%transform_data%plotter_data%det_jacobian)))
-
-                cell_data%u(i_cell_data_index, :) = cfg%scaling * flux_w
+                cell_data%u(i_cell_data_index, 1:2) = flux_t / (_M / _S)    !return the flux in m/s
+                cell_data%u(i_cell_data_index, 3) = 0.0_SR
 
                 cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                 cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
                 forall (i = 1 : 3)
-                    point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset
-                    point_data%coords(point_data_indices(i), 3) = 0.0_SR
-                    point_data%p(point_data_indices(i)) = p(i) / (cfg%scaling * 6894.75729_SR)
-                    point_data%rhs(point_data_indices(i)) = rhs(i) * (cfg%scaling ** 2)
+                    point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
+                    point_data%coords(point_data_indices(i), 3) = cfg%offset(3)
+                    point_data%p(point_data_indices(i)) = p(i) / _PPSI                  !return the pressure in ppsi
+                    point_data%rhs(point_data_indices(i)) = rhs(i) / ((_M ** 2) / _S)   !return the rhs in m^2 / s
                     point_data%S(point_data_indices(i)) = saturation(i)
                 end forall
 
-                i_connectivity(3 * i_cell_data_index - 2 : 3 * i_cell_data_index) = point_data_indices(1:3) - 1
+                if (element%transform_data%plotter_data%orientation > 0) then
+                    i_connectivity(3 * i_cell_data_index - 2) = point_data_indices(1) - 1
+                    i_connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
+                    i_connectivity(3 * i_cell_data_index - 0) = point_data_indices(3) - 1
+                else
+                    i_connectivity(3 * i_cell_data_index - 2) = point_data_indices(3) - 1
+                    i_connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
+                    i_connectivity(3 * i_cell_data_index - 0) = point_data_indices(1) - 1
+                end if
 
                 i_cell_data_index = i_cell_data_index + 1
 #           endif

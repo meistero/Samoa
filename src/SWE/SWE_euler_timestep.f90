@@ -54,10 +54,11 @@
         subroutine create_node_mpi_type(mpi_node_type)
             integer, intent(out)            :: mpi_node_type
 
-            type(t_node_data)               :: node
-            integer                         :: blocklengths(2), types(2), disps(2), i_error, extent
-
 #           if defined(_MPI)
+                type(t_node_data)                       :: node
+                integer                                 :: blocklengths(2), types(2), disps(2), type_size, i_error
+                integer (kind = MPI_ADDRESS_KIND)       :: lb, ub
+
                 blocklengths(1) = 1
                 blocklengths(2) = 1
 
@@ -70,11 +71,12 @@
                 call MPI_Type_struct(2, blocklengths, disps, types, mpi_node_type, i_error); assert_eq(i_error, 0)
                 call MPI_Type_commit(mpi_node_type, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_extent(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(sizeof(node), extent)
+                call MPI_Type_size(mpi_node_type, type_size, i_error); assert_eq(i_error, 0)
+                call MPI_Type_get_extent(mpi_node_type, lb, ub, i_error); assert_eq(i_error, 0)
 
-                call MPI_Type_size(mpi_node_type, extent, i_error); assert_eq(i_error, 0)
-                assert_eq(0, extent)
+                assert_eq(0, lb)
+                assert_eq(0, type_size)
+                assert_eq(sizeof(node), ub)
 #           endif
         end subroutine
 
@@ -86,38 +88,42 @@
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            grid%r_dt = cfg%courant_number * cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+			if (cfg%r_max_time > 0.0_SR) then
+                grid%r_dt = min(cfg%r_max_time, grid%r_dt)
+            end if
+
+			if (cfg%r_output_time_step > 0.0_SR) then
+                grid%r_dt = min(cfg%r_output_time_step, grid%r_dt)
+            end if
 
 #           if defined(_ASAGI)
-                if (grid%r_time < grid_max_z(cfg%afh_displacement)) then
-                    grid%r_dt = min(grid%r_dt, grid_delta_z(cfg%afh_displacement))
+                !if we are in the earthquake phase, limit the simulation time step by the earthquake time step
+                if (grid%r_time < cfg%t_max_eq) then
+                    grid%r_dt = min(grid%r_dt, cfg%dt_eq)
                 end if
 #           endif
 
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
-
-			grid%u_max = 0.0_GRID_SR
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)
 			type(t_swe_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			real (kind = GRID_SR)       :: r_dt_cfl, r_courant_cfl
-
-            call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
-            call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
 			grid%r_time = grid%r_time + grid%r_dt
 
-            r_dt_cfl = cfg%scaling * get_edge_size(grid%d_max) / ((2.0_GRID_SR + sqrt(2.0_GRID_SR)) * grid%u_max)
+            call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
+            call reduce(grid%r_dt_new, grid%sections%elements_alloc%r_dt_new, MPI_MIN, .true.)
 
-            if (grid%r_dt > r_dt_cfl) then
-                r_courant_cfl = r_dt_cfl * cfg%courant_number / grid%r_dt
+            grid%r_dt_new = cfg%courant_number * grid%r_dt_new
 
-                if (rank_MPI == 0) then
-                    _log_write(1, '("WARNING! Time step size was too big. dt (used): ", ES10.3, ", dt (CFL): ", ES10.3, ", correct courant number: ", F0.3)') grid%r_dt, r_dt_cfl, r_courant_cfl
+            if (rank_MPI == 0) then
+                if (cfg%courant_number > grid%r_dt_new / grid%r_dt) then
+                    _log_write(1, '("WARNING! Time step size was too big. dt (old): ", ES10.3, ", dt (CFL): ", ES10.3, ", maximum courant number: ", F0.3)') grid%r_dt, grid%r_dt_new / cfg%courant_number, grid%r_dt_new / grid%r_dt
                 end if
             end if
+
+            grid%r_dt = grid%r_dt_new
 
 			call scatter(grid%r_time, grid%sections%elements_alloc%r_time)
 		end subroutine
@@ -128,7 +134,7 @@
 
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0_GRID_DI
-			section%u_max = 0.0_GRID_SR
+			section%r_dt_new = huge(1.0_SR)
 		end subroutine
 
 		function cell_to_edge_op(element, edge) result(rep)
@@ -231,13 +237,13 @@
 			type(t_update)													:: bnd_flux
 
             !SLIP: reflect momentum at normal
-			bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
+			!bnd_rep = t_state(rep%Q(1)%h, rep%Q(1)%p - dot_product(rep%Q(1)%p, edge%transform_data%normal) * edge%transform_data%normal, rep%Q(1)%b)
 
             !NOSLIP: invert momentum (stable)
 			!bnd_rep = t_state(rep%Q(1)%h, -rep%Q(1)%p, rep%Q(1)%b)
 
 			!OUTFLOW: copy values
-			!bnd_rep = rep%Q(1)
+			bnd_rep = rep%Q(1)
 
 #			if defined (_LF_FLUX) || defined (_LF_BATH_FLUX) || defined (_LLF_FLUX) || defined (_LLF_BATH_FLUX)
 				call compute_lf_flux(edge%transform_data%normal, rep%Q(1), bnd_rep, update%flux(1), bnd_flux)
@@ -257,7 +263,7 @@
 			type(t_state)   :: dQ(_SWE_CELL_SIZE)
 
 			call volume_op(element%cell%geometry, traversal%i_refinements_issued, element%cell%geometry%i_depth, &
-                element%cell%geometry%refinement, section%u_max, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
+                element%cell%geometry%refinement, section%r_dt_new, dQ, [update1%flux, update2%flux, update3%flux], section%r_dt)
 
 			!if land is flooded, init water height to dry tolerance and velocity to 0
 			if (element%cell%data_pers%Q(1)%h < element%cell%data_pers%Q(1)%b + cfg%dry_tolerance .and. dQ(1)%h > 0.0_GRID_SR) then
@@ -284,11 +290,11 @@
 			b_norm = minval(abs(cell%data_pers%Q%h - cell%data_pers%Q%b))
 
 			!refine also on the coasts
-			if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 100.0_GRID_SR) then
-				cell%geometry%refinement = 1
-				traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
-			else if (b_norm < 300.0_GRID_SR) then
-				cell%geometry%refinement = max(cell%geometry%refinement, 0)
+			if (cell%geometry%i_depth < cfg%i_max_depth .and. b_norm < 20.0_GRID_SR) then
+				!cell%geometry%refinement = 1
+				!traversal%i_refinements_issued = traversal%i_refinements_issued + 1_GRID_DI
+			else if (b_norm < 100.0_GRID_SR) then
+				!cell%geometry%refinement = max(cell%geometry%refinement, 0)
 			endif
 		end subroutine
 
@@ -296,18 +302,19 @@
 		!Volume and DoF operators
 		!*******************************
 
-		subroutine volume_op(cell, i_refinements_issued, i_depth, i_refinement, u_max, dQ, fluxes, r_dt)
+		subroutine volume_op(cell, i_refinements_issued, i_depth, i_refinement, r_dt_new, dQ, fluxes, r_dt)
 			type(fine_triangle), intent(in)				                        :: cell
 			integer (kind = GRID_DI), intent(inout)							    :: i_refinements_issued
 			integer (kind = BYTE), intent(in)							        :: i_depth
 			integer (kind = BYTE), intent(out)							        :: i_refinement
-			real(kind = GRID_SR), intent(inout)								    :: u_max
+			real(kind = GRID_SR), intent(inout)								    :: r_dt_new
 			type(t_state), dimension(:), intent(out)						    :: dQ
 			type(t_update), dimension(:), intent(in)						    :: fluxes
 			real(kind = GRID_SR), intent(in)								    :: r_dt
 
 			real(kind = GRID_SR)											    :: volume, dQ_norm, edge_lengths(3)
 			integer (kind = BYTE)												:: i
+			real (kind = GRID_SR), parameter                                    :: refinement_threshold = 5.0_SR
 
 			_log_write(6, '(3X, A)') "swe cell update op:"
 			_log_write(6, '(4X, A, 4(X, F0.3))') "edge 1 flux in:", fluxes(1)
@@ -317,24 +324,24 @@
 			volume = cfg%scaling * cfg%scaling * cell%get_volume()
 			edge_lengths = cfg%scaling * cell%get_edge_sizes()
 
-			dQ%h = sum(edge_lengths * fluxes%h)
-			dQ%p(1) = sum(edge_lengths * fluxes%p(1))
-			dQ%p(2) = sum(edge_lengths * fluxes%p(2))
+			dQ%h = dot_product(edge_lengths, fluxes%h)
+			dQ%p(1) = dot_product(edge_lengths, fluxes%p(1))
+			dQ%p(2) = dot_product(edge_lengths, fluxes%p(2))
 			dQ%b = 0.0_GRID_SR
 
 			!set refinement condition
 
 			i_refinement = 0
-			dQ_norm = dot_product(dQ(1)%p, dQ(1)%p)
+			dQ_norm = abs(dQ(1)%h)
 
-			if (i_depth < cfg%i_max_depth .and. dQ_norm > (cfg%scaling * 2.0_GRID_SR) ** 2) then
+			if (i_depth < cfg%i_max_depth .and. dQ_norm > refinement_threshold * cfg%scaling * get_edge_size(cfg%i_max_depth)) then
 				i_refinement = 1
 				i_refinements_issued = i_refinements_issued + 1_GRID_DI
-			else if (i_depth > cfg%i_min_depth .and. dQ_norm < (cfg%scaling * 1.0_GRID_SR) ** 2) then
+			else if (i_depth > cfg%i_min_depth .and. dQ_norm < refinement_threshold * cfg%scaling * get_edge_size(cfg%i_max_depth) / 8.0_SR) then
 				i_refinement = -1
 			endif
 
-			u_max = max(u_max, maxval(fluxes%max_wave_speed))
+			r_dt_new = min(r_dt_new, volume / dot_product(edge_lengths, fluxes%max_wave_speed))
 
             do i = 1, _SWE_CELL_SIZE
                 dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-r_dt / volume)
@@ -350,24 +357,45 @@
 			type(t_update), intent(out) 						:: fluxL, fluxR
 			real(kind = GRID_SR), intent(in)		            :: normal(2)
 
-			real(kind = GRID_SR)								:: vL, vR, alpha
+			real(kind = GRID_SR)								:: vL, vR, hL, hR, alpha
 
 #           if defined(_LF_BATH_FLUX) || defined(_LLF_BATH_FLUX)
-                if (QL%h - QL%b < cfg%dry_tolerance) then
-                    vL = 0.0_GRID_SR
-                    fluxL%max_wave_speed = 0.0_GRID_SR
-                else
-                    vL = DOT_PRODUCT(normal, QL%p / (QL%h - QL%b))
-                    fluxL%max_wave_speed = sqrt(g * (QL%h - QL%b)) + abs(vL)
+                if (QL%h - QL%b < cfg%dry_tolerance .or. QR%h - QR%b < cfg%dry_tolerance) then
+                    hL = 0.0_SR; hR = 0.0_SR
+                    vL = 0.0_SR; vR = 0.0_SR
+
+                    fluxL%max_wave_speed = 0.0_SR; fluxR%max_wave_speed = 0.0_SR
+                    fluxL%h = 0.0_SR; fluxR%h = 0.0_SR
+                    fluxL%p = 0.0_SR; fluxR%p = 0.0_SR
+
+                    !This boundary treatment assumes a wall condition.
+                    !For the mass flux, we choose pR := -hL * vL, vR = 0 (walls are immovable), hence hR must be infinite.
+                    !For the momentum flux we choose hR := 0, vR := 0 (implying there is no hydrostatic pressure), bR := bL + hL (there is a wall to the right)
+
+                    if (QL%h - QL%b < cfg%dry_tolerance .and. QR%h - QR%b < cfg%dry_tolerance) then
+                    else if (QL%h - QL%b < cfg%dry_tolerance) then
+                        hR = max(QR%h - QR%b, 0.0_SR)
+                        vR = dot_product(normal, QR%p / (QR%h - QR%b))
+                        fluxR%max_wave_speed = sqrt(g * hR) + abs(vR)
+                        fluxR%p = -0.5_SR * vR * QR%p - 0.5_GRID_SR * g * hR * hR * normal + 0.5_SR * fluxR%max_wave_speed * QR%p
+                    else if (QR%h - QR%b < cfg%dry_tolerance) then
+                        hL = max(QL%h - QL%b, 0.0_SR)
+                        vL = dot_product(normal, QL%p / (QL%h - QL%b))
+                        fluxL%max_wave_speed = sqrt(g * hL) + abs(vL)
+                        fluxL%p = 0.5_SR * vL * QL%p + 0.5_GRID_SR * g * hL * hL * normal + 0.5_SR * fluxL%max_wave_speed * QL%p
+                    end if
+
+                    return
                 end if
 
-                if (QR%h - QR%b < cfg%dry_tolerance) then
-                    vR = 0.0_GRID_SR
-                    fluxR%max_wave_speed = 0.0_GRID_SR
-                else
-                    vR = DOT_PRODUCT(normal, QR%p / (QR%h - QR%b))
-                    fluxR%max_wave_speed = sqrt(g * (QR%h - QR%b)) + abs(vR)
-                end if
+                hL = max(QL%h - QL%b, 0.0_SR)
+                hR = max(QR%h - QR%b, 0.0_SR)
+
+                vL = dot_product(normal, QL%p / (QL%h - QL%b))
+                vR = dot_product(normal, QR%p / (QR%h - QR%b))
+
+                fluxL%max_wave_speed = sqrt(g * hL) + abs(vL)
+                fluxR%max_wave_speed = sqrt(g * hR) + abs(vR)
 
 #               if defined(_LLF_BATH_FLUX)
                     alpha = max(fluxL%max_wave_speed, fluxR%max_wave_speed)
@@ -375,17 +403,26 @@
                     alpha = 100.0_GRID_SR
 #               endif
 
-                fluxL%h = 0.5_GRID_SR * (vL * (QL%h - QL%b) + vR * (QR%h - QR%b) + alpha * (QL%h - QR%h))
+                !Except for the diffusion term, the mass flux is the standard LF flux
+                fluxL%h = 0.5_GRID_SR * (hL * vL + hR * vR + alpha * (QL%h - QR%h))
                 fluxR%h = -fluxL%h
 
-                fluxL%p = 0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) + 0.5_GRID_SR * g * (max(QR%h - QL%b, 0.0_GRID_SR) ** 2) * normal
-                fluxR%p = -0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) - 0.5_GRID_SR * g * (max(QL%h - QR%b, 0.0_GRID_SR) ** 2) * normal
+                !The base momentum flux is similar to the standard LF flux.
+                fluxL%p = 0.5_GRID_SR * (QL%p * vL + QR%p * vR + 0.5_GRID_SR * g * (hL * hL + hR * hR) * normal + alpha * (QL%p - QR%p))
+                fluxR%p = -fluxL%p
+
+                !The source term $\Delta x \ \Psi = $-1/2 g \ \frac{1}{2} \ (h_l + h_r) \ (b_r - b_l)$ [LeVeque] is added on both sides with a weight of 1/2.
+                !This factor ensures that the method is well-balanced.
+                fluxL%p = fluxL%p + 0.25_SR * g * (hL + hR) * (QR%b - QL%b) * normal
+                fluxR%p = fluxR%p + 0.25_SR * g * (hL + hR) * (QR%b - QL%b) * normal
 #           elif defined(_LF_FLUX) || defined(_LLF_FLUX)
                 real(kind = GRID_SR), parameter					:: b = 0.0_GRID_SR     !default constant bathymetry
 
-                !use the height of the water pillars for computation
-                vL = DOT_PRODUCT(normal, QL%p / (QL%h - b))
-                vR = DOT_PRODUCT(normal, QR%p / (QR%h - b))
+                hL = max(QL%h - b, 0.0_SR)
+                hR = max(QR%h - b, 0.0_SR)
+
+                vL = dot_product(normal, QL%p / (QL%h - b))
+                vR = dot_product(normal, QR%p / (QR%h - b))
 
                 fluxL%max_wave_speed = sqrt(g * (QL%h - b)) + abs(vL)
                 fluxR%max_wave_speed = sqrt(g * (QR%h - b)) + abs(vR)
@@ -396,11 +433,11 @@
                     alpha = 100.0_GRID_SR
 #               endif
 
-                fluxL%h = 0.5_GRID_SR * (vL * (QL%h - b) + vR * (QR%h - b) + alpha * (QL%h - QR%h))
+                fluxL%h = 0.5_GRID_SR * (vL * hL + vR * hR + alpha * (QL%h - QR%h))
                 fluxR%h = -fluxL%h
 
-                fluxL%p = 0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) + 0.5_GRID_SR * g * (QR%h - b) * (QR%h - b) * normal
-                fluxR%p = -0.5_GRID_SR * ((vL + alpha) * QL%p + (vR - alpha) * QR%p) - 0.5_GRID_SR * g * (QL%h - b) * (QL%h - b) * normal
+                fluxL%p = 0.5_GRID_SR * (vL * vL * hL + vR * vR * hR + 0.5_GRID_SR * g * (hL * hL + hR * hR) * normal + alpha * (QL%p - QR%p))
+                fluxR%p = -fluxL%p
 #           endif
 		end subroutine
 

@@ -41,7 +41,7 @@ type _CNT
 	_T, pointer				    :: elements(:) => null()		!< element array
 	_T, pointer				    :: elements_alloc(:) => null()	!< element array in allocation order
 	integer(kind = GRID_DI)     :: i_current_element = 0		!< stream current element
-
+    logical                     :: forward = .true.
 	contains
 
 	procedure, pass :: resize => resize_by_value
@@ -150,6 +150,7 @@ subroutine resize_by_value(stream, i_elements)
         stream%elements_alloc => alloc_wrapper(i_elements)
 
         stream%elements => stream%elements_alloc
+        stream%forward = .true.
     end if
 end subroutine
 
@@ -165,9 +166,9 @@ subroutine resize_auto(stream)
     else
         assert(.not. associated(stream%elements_alloc))
         stream%elements_alloc => alloc_wrapper(_CHUNK_SIZE)
+        stream%elements => stream%elements_alloc
+        stream%forward = .true.
     end if
-
-	stream%elements => stream%elements_alloc
 end subroutine
 
 subroutine clear(stream)
@@ -190,6 +191,7 @@ pure subroutine attach(stream, elements)
 	stream%elements_alloc => elements
 	stream%elements => elements
 	stream%i_current_element = 0
+	stream%forward = .true.
 end subroutine
 
 !> unattaches a stream from its target
@@ -349,6 +351,7 @@ elemental subroutine reverse_stream(stream)
 
 	stream%elements => elements_temp
 	stream%i_current_element = 0
+	stream%forward = .not. stream%forward
 end subroutine
 
 elemental subroutine reset_stream(stream)
@@ -372,10 +375,9 @@ function is_forward(stream)
 	class(_CNT), intent(in)     :: stream					!< stream object
     logical                     :: is_forward
 
-    assert(associated(stream%elements))
-    assert_ge(stream%get_size(), 1)
+    assert(stream%get_size() < 2 .or. (loc(stream%elements(1)) .lt. loc(stream%elements(size(stream%elements))) .eqv. stream%forward))
 
-    is_forward = loc(stream%elements(1)) .le. loc(stream%elements(size(stream%elements)))
+    is_forward = stream%forward
 end function
 
 !> Returns the size of the list
