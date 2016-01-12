@@ -1,6 +1,7 @@
 language: c++
 
 install: 
+ - sudo add-apt-repository ppa:ubuntu-toolchain-r/test
  - sudo apt-get install -qq gfortran scons mpich2 libopenmpi-dev
 
 env:
