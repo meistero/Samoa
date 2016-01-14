@@ -285,7 +285,7 @@ subroutine traverse(traversal, grid)
         type is (_GT)
             !$omp single
             call pre_traversal_grid(traversal, grid)
-            !$omp end single
+            !$omp end single nowait
         class default
             assert(.false.)
     end select
@@ -303,6 +303,8 @@ subroutine traverse(traversal, grid)
         end do
         thread_traversal%stats%r_pre_compute_time = thread_traversal%stats%r_pre_compute_time + get_wtime()
 #   endif
+
+    !$omp barrier
 
     do i_section = i_first_local_section, i_last_local_section
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
