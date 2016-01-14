@@ -1,8 +1,8 @@
 Samoa
 =====
 
-Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications.
-Website: [Samoa](https://github.com/meistero/Samoa)
+sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications.
+Website: [sam(oa)²](https://github.com/meistero/Samoa)
 
 ## Contents
 
@@ -24,7 +24,7 @@ The following prerequisites are necessary in order to install and run sam(oa)²:
 
 ## Installation
 
-### Local systems
+### Local Systems
 
 Create a directory (named samoa_dir here) and execute the following steps:
 
@@ -60,12 +60,11 @@ Assuming scons has been installed in the folder scons_dir, set the following var
     export PYTHONPATH=<scons_dir>/build/lib/:$PYTHONPATH
     export SCONS_LIB_DIR=<scons_dir>/build/lib/
 
-Additionally, in order to compile and run ASAGI and sam(oa)² on the SuperMUC the following modules must be loaded:
+Additionally, in order to compile and run ASAGI and sam(oa)² on the SuperMUC, we must add the netcdf library to the CMAKE prefix path and load the following modules:
 
-    module load git gcc/4.7 cmake netcdf
-    module switch ccomp ccomp/intel/13.1
-    module switch fortran fortran/intel/13.1
-    module switch mpi.ibm mpi.intel
+    module unload gcc
+    module load git gcc/4.7 cmake/4.1 netcdf
+    export CMAKE_PREFIX_PATH=$NETCDF_BASE
 
 sam(oa)² supports both multithreaded and single-threaded MPI. Both ASAGI and sam(oa)² must link to the same respective libraries, thus it is necessary to compile ASAGI twice:
 once without MT support and once with MT support. Rename the single-threaded library to "libasagi_nomt.so" and the multi-threaded library to "libasagi.so".
@@ -112,6 +111,6 @@ Executables will be created in the directory samoa_dir/bin and should be run fro
 
 For execution parameters refer to the online help by calling the executable with '-h' or '--help'.
 
-##Build status
+##Build Status
 
 [![Build Status](https://travis-ci.org/meistero/Samoa.svg)](https://travis-ci.org/meistero/Samoa)

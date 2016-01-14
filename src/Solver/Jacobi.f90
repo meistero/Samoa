@@ -336,7 +336,7 @@ MODULE _JACOBI
 
         integer (kind = GRID_SI)									:: i_iteration
         real (kind = GRID_SR)										:: r_t1, r_t2
-        real (kind = GRID_SR)										:: r_sq, r_sq_old, max_error
+        real (kind = GRID_SR)										:: r_sq, r_sq_old, max_error_sq
 
         !$omp master
         _log_write(2, '(2X, "Jacobi solver: max abs error:", ES14.7, ", max rel error:", ES14.7)') solver%abs_error, solver%rel_error
@@ -351,7 +351,7 @@ MODULE _JACOBI
         r_sq = solver%jacobi%r_sq
         r_sq_old = r_sq
 
-        max_error = sqrt(min(solver%rel_error * r_sq, solver%abs_error))
+        max_error_sq = min(solver%rel_error * solver%rel_error * r_sq, solver%abs_error * solver%abs_error)
 
         do
             if (iand(i_iteration, z'3ff') == z'3ff') then
@@ -364,7 +364,7 @@ MODULE _JACOBI
                 !$omp end master
             end if
 
-            if ((solver%max_iterations .ge. 0 .and. i_iteration .ge. solver%max_iterations) .or. (i_iteration .ge. solver%min_iterations .and. r_sq .le. max_error * max_error)) then
+            if ((solver%max_iterations .ge. 0 .and. i_iteration .ge. solver%max_iterations) .or. (i_iteration .ge. solver%min_iterations .and. r_sq .le. max_error_sq)) then
                 exit
             end if
 

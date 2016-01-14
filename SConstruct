@@ -107,11 +107,7 @@ vars.Add('layers', 'number of vertical layers (0: 2D, >0: 3D)', 0)
 vars.Add('exe', 'name of the executable. Per default, some compilation options will be added as suffixes.', 'samoa')
 
 # set environment
-if 'INTEL_LICENSE_FILE' in os.environ:
-    env = Environment(ENV = {'PATH': os.environ['PATH'], 'INTEL_LICENSE_FILE': os.environ['INTEL_LICENSE_FILE']}, variables=vars)
-else:
-    env = Environment(ENV = {'PATH': os.environ['PATH']}, variables=vars)
-
+env = Environment(ENV = os.environ, variables=vars)
 
 # handle unknown, maybe misspelled variables
 unknownVariables = vars.UnknownVariables()

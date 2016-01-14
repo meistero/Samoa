@@ -800,7 +800,7 @@ MODULE _CG
         type(t_grid), intent(inout)		        :: grid
 
         integer (kind = GRID_SI)		        :: i_iteration
-        real (kind = GRID_SR)			        :: r_sq, d_u, r_C_r, r_C_r_old, alpha, beta, max_error
+        real (kind = GRID_SR)			        :: r_sq, d_u, r_C_r, r_C_r_old, alpha, beta, max_error_sq
 
         !$omp master
         _log_write(2, '(2X, "CG solver: max abs error:", ES14.7, ", max rel error:", ES14.7)') solver%abs_error, solver%rel_error
@@ -813,19 +813,19 @@ MODULE _CG
         !compute initial residual
 
         call solver%cg_exact%traverse(grid)
-        r_sq = solver%cg_exact%r_sq
         r_C_r = solver%cg_exact%r_C_r
+        r_sq = solver%cg_exact%r_sq
         i_iteration = 0
         _log_write(3, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
-        max_error = sqrt(min(solver%rel_error * r_sq, solver%abs_error))
+        max_error_sq = min(solver%rel_error * solver%rel_error * r_sq, solver%abs_error * solver%abs_error)
 
         do
             !$omp master
             _log_write(2, '(3X, A, I0, A, F0.10, A, F0.10, A, ES17.10, A, ES17.10)')  "i: ", i_iteration, ", alpha: ", alpha, ", beta: ", beta, ", res (natural): ", r_C_r, ", res (prec): ", sqrt(r_sq)
             !$omp end master
 
-            if ((solver%max_iterations .ge. 0 .and. i_iteration .ge. solver%max_iterations) .or. (i_iteration .ge. solver%min_iterations .and. r_sq .le. max_error * max_error)) then
+            if ((solver%max_iterations .ge. 0 .and. i_iteration .ge. solver%max_iterations) .or. (i_iteration .ge. solver%min_iterations .and. r_sq .le. max_error_sq)) then
                 exit
             end if
 
@@ -859,8 +859,8 @@ MODULE _CG
             !second step: apply unknowns update (alpha * d) and residual update (alpha * A d)
             solver%cg2%alpha = alpha
             call solver%cg2%traverse(grid)
-            r_sq = solver%cg2%r_sq
             r_C_r = solver%cg2%r_C_r
+            r_sq = solver%cg2%r_sq
 
             _log_write(3, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
