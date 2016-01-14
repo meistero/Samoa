@@ -281,7 +281,7 @@ module config
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
         		PRINT '(A, L, A)',     "	-xmloutput              [-tout required] turns on grid output (value: ", config%l_gridoutput, ")"
-        		PRINT '(A, L, A)',     "	-output_dir             output directory (value: ", trim(config%output_dir), ")"
+        		PRINT '(A, A, A)',     "	-output_dir             output directory (value: ", trim(config%output_dir), ")"
                 PRINT '(A, L, A)',      "	-noprint                print log to file instead of console (value: ", config%l_log, ")"
                 PRINT '(A)',            "	--help, -h              display this help and exit"
                 PRINT '(A)',            "	--version, -v           output version information and exit"

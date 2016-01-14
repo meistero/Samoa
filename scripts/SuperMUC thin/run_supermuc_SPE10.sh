@@ -9,7 +9,6 @@ cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
 output_dir=output/Thin_SPE10_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
-mkdir -p $output_dir
 mkdir -p scripts
 
 echo "CPU(s) detected : "$cpus
@@ -17,12 +16,10 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-class=general
 limit=48:00:00
-
 layers=85
-postfix=_noomp_upwind_l$layers
-sections=8
+postfix=_noomp_ibm_upwind_l$layers
+sections=1
 
 if [ $layers = 0 ] ; then
     p_ref_th=3.0e-9
@@ -30,18 +27,27 @@ else
     p_ref_th=2.0e-8
 fi
 
-#scons config=supermuc_intel.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
+. /etc/profile 2>/dev/null
+. /etc/profile.d/modules.sh 2>/dev/null
+
+module switch mpi.intel mpi.ibm
+module unload gcc
+module load gcc/4.7
+
+#scons config=supermuc_ibm.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
 #wait
 
 if [ $? -ne 0 ]; then
     exit
 fi
 
+mkdir -p $output_dir
+
 echo "Running scenarios..."
 
-for dmax in 14 16
+for dmax in 14
 do
-	for cores in 1024
+	for cores in 128
 	do
 		processes=$cores
 		threads=1
@@ -56,7 +62,7 @@ do
            class=large
         fi
 
-		script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
+		script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_noomp.sh"
 		cat "$script_dir/run_supermuc_SPE10_template.sh" > $script
 
 		sed -i 's=$sections='$sections'=g' $script

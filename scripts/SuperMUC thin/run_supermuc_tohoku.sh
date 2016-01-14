@@ -9,7 +9,6 @@ cpus=$(lscpu | grep "^CPU(s)" | grep -oE "[0-9]+" | tr "\n" " ")
 output_dir=output/Thin_Tohoku_$(date +"%Y-%m-%d_%H-%M-%S")
 script_dir=$(dirname "$0")
 
-mkdir -p $output_dir
 mkdir -p scripts
 
 echo "CPU(s) detected : "$cpus
@@ -17,18 +16,24 @@ echo "Output directory: "$output_dir
 echo ""
 echo "Compiling..."
 
-class=general
 limit=48:00:00
-
-postfix=_noomp
+postfix=_noomp_ibm
 sections=8
 
-scons config=supermuc_intel.py scenario=swe openmp=noomp flux_solver=aug_riemann -j4 &
-wait
+. /etc/profile 2>/dev/null
+. /etc/profile.d/modules.sh 2>/dev/null
+
+module switch mpi.intel mpi.ibm
+module unload gcc
+module load gcc/4.7
+
+#scons config=supermuc_ibm.py scenario=swe openmp=noomp flux_solver=aug_riemann -j4
 
 if [ $? -ne 0 ]; then
     exit
 fi
+
+mkdir -p $output_dir
 
 echo "Running scenarios..."
 
@@ -49,7 +54,7 @@ do
            class=large
         fi
 
-		script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode"_noomp.sh"
+		script="scripts/cache/run_thin"$postfix"_p"$processes"_t"$threads"_s"$sections"_noomp.sh"
 		cat "$script_dir/run_supermuc_tohoku_template.sh" > $script
 
 		sed -i 's=$sections='$sections'=g' $script

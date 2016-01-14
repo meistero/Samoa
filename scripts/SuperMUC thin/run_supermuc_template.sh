@@ -25,7 +25,11 @@
 . /etc/profile.d/modules.sh 2>/dev/null
 
 export OMP_NUM_THREADS=$threads
-#export MP_TASK_AFFINITY=CORE:$threads
+
+if [ $threads -ge 2 ] ; then
+    export MP_SINGLE_THREAD=no
+    export MP_TASK_AFFINITY=core:$threads
+fi
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads

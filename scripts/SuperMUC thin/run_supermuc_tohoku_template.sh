@@ -6,7 +6,7 @@
 #!/bin/bash
 
 #@ job_name = samoa
-#@ job_type = MPICH
+#@ job_type = parallel
 #@ wall_clock_limit = $limit
 #@ node = $nodes
 #@ total_tasks = $processes
@@ -24,14 +24,20 @@
 . /etc/profile 2>/dev/null
 . /etc/profile.d/modules.sh 2>/dev/null
 
+module switch mpi.intel mpi.ibm
+module switch gcc gcc/4.7
+
 export OMP_NUM_THREADS=$threads
-#export MP_TASK_AFFINITY=CORE:$threads
+
+if [ $threads -ge 2 ] ; then
+    export MP_SINGLE_THREAD=no
+    export MP_TASK_AFFINITY=core:$threads
+fi
 
 echo "  Processes: "$processes
 echo "  Threads: "$threads
 echo "  Sections: "$sections
-echo "  ASAGI mode: "$asagimode
 
 echo "  Running Tohoku..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -sections $sections -threads $threads -courant 0.95 -tout 20.0 -dmin 0 -dmax $dmax -tmax 10.8e3 -fdispl "data/tohoku_static/displ.nc" -fbath "data/tohoku_static/bath.nc" -stestpoints "545735.266126 62716.4740303,935356.566012 -817289.628677,1058466.21575 765077.767857" -output_dir $output_dir
+mpiexec -n $processes ./bin/samoa_swe$postfix -lbtime -sections $sections -threads $threads -courant 0.95 -tout 20.0 -dmin 0 -dmax $dmax -tmax 10.8e3 -fdispl "data/tohoku_static/displ.nc" -fbath "data/tohoku_static/bath.nc" -stestpoints "545735.266126 62716.4740303,935356.566012 -817289.628677,1058466.21575 765077.767857" -output_dir $output_dir
 echo "  Done."
