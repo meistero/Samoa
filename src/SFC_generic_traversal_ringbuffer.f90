@@ -285,7 +285,7 @@ subroutine traverse(traversal, grid)
         type is (_GT)
             !$omp single
             call pre_traversal_grid(traversal, grid)
-            !$omp end single nowait
+            !$omp end single
         class default
             assert(.false.)
     end select
@@ -359,7 +359,7 @@ subroutine traverse(traversal, grid)
 #   elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
         call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   else
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal
+        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   endif
 
     thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
