@@ -21,6 +21,8 @@ module Tools_statistics
 
 	type, extends(t_section_statistics) :: t_statistics
         double precision					        	    :: r_traversal_time = 0.0d0
+        double precision					        	    :: r_pre_compute_time = 0.0d0
+        double precision					        	    :: r_post_compute_time = 0.0d0
         double precision					        	    :: r_sync_time = 0.0d0
         double precision					        	    :: r_barrier_time = 0.0d0
 
@@ -77,6 +79,8 @@ module Tools_statistics
         integer, intent(in)                 :: mpi_op
 
 		call reduce(s%r_traversal_time, v%r_traversal_time, mpi_op, .false.)
+        call reduce(s%r_pre_compute_time, v%r_pre_compute_time, mpi_op, .false.)
+        call reduce(s%r_post_compute_time, v%r_post_compute_time, mpi_op, .false.)
 		call reduce(s%r_computation_time, v%r_computation_time, mpi_op, .false.)
 		call reduce(s%r_sync_time, v%r_sync_time, mpi_op, .false.)
 		call reduce(s%r_barrier_time, v%r_barrier_time, mpi_op, .false.)
@@ -109,6 +113,8 @@ module Tools_statistics
 
 		call reduce(s%r_traversal_time, mpi_op)
 		call reduce(s%r_computation_time, mpi_op)
+        call reduce(s%r_pre_compute_time, mpi_op)
+        call reduce(s%r_post_compute_time, mpi_op)
 		call reduce(s%r_sync_time, mpi_op)
 		call reduce(s%r_barrier_time, mpi_op)
 		call reduce(s%r_asagi_time, mpi_op)
@@ -152,6 +158,8 @@ module Tools_statistics
 
 		sr%r_traversal_time = s2%r_traversal_time
 		sr%r_computation_time = s2%r_computation_time
+        sr%r_pre_compute_time = s2%r_pre_compute_time
+        sr%r_post_compute_time = s2%r_post_compute_time
 		sr%r_sync_time = s2%r_sync_time
 		sr%r_barrier_time = s2%r_barrier_time
 		sr%r_asagi_time = s2%r_asagi_time
@@ -170,6 +178,8 @@ module Tools_statistics
 
 		sr%r_traversal_time = s1%r_traversal_time + s2%r_traversal_time
 		sr%r_computation_time = s1%r_computation_time + s2%r_computation_time
+        sr%r_pre_compute_time = s1%r_pre_compute_time + s2%r_pre_compute_time
+        sr%r_post_compute_time = s1%r_post_compute_time + s2%r_post_compute_time
 		sr%r_sync_time = s1%r_sync_time + s2%r_sync_time
 		sr%r_barrier_time = s1%r_barrier_time + s2%r_barrier_time
 		sr%r_asagi_time = s1%r_asagi_time + s2%r_asagi_time
@@ -214,6 +224,8 @@ module Tools_statistics
 
 		sr%r_traversal_time = -s1%r_traversal_time
 		sr%r_computation_time = -s1%r_computation_time
+        sr%r_pre_compute_time = -s1%r_pre_compute_time
+        sr%r_post_compute_time = -s1%r_post_compute_time
 		sr%r_sync_time = -s1%r_sync_time
 		sr%r_barrier_time = -s1%r_barrier_time
 		sr%r_asagi_time = -s1%r_asagi_time
@@ -245,6 +257,8 @@ module Tools_statistics
 
 		sr%r_traversal_time = s%r_traversal_time * scaling
 		sr%r_computation_time = s%r_computation_time * scaling
+        sr%r_pre_compute_time = s%r_pre_compute_time * scaling
+        sr%r_post_compute_time = s%r_post_compute_time * scaling
 		sr%r_sync_time = s%r_sync_time * scaling
 		sr%r_barrier_time = s%r_barrier_time * scaling
 		sr%r_asagi_time = s%r_asagi_time * scaling
@@ -290,8 +304,8 @@ module Tools_statistics
         class(t_statistics), intent(in)			:: s
 		character (len = 512)					:: str
 
-        write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s)")') &
-            s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time
+        write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s (pre: ", F0.4, " s inner: ", F0.4, " s post: ", F0.4, " s) asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s)")') &
+            s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_pre_compute_time, s%r_computation_time - s%r_pre_compute_time - s%r_post_compute_time, s%r_post_compute_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time
 
         if (s%r_traversal_time > 0.0d0) then
             write(str, '(A, " ET: ", F0.4, " M/s  MT: ", F0.4, " GB/s")') trim(str), dble(s%i_traversed_cells) / (1.0d6 * s%r_traversal_time), dble(s%i_traversed_memory) / (1024.0d0 * 1024.0d0 * 1024.0d0 * s%r_traversal_time)
@@ -304,8 +318,8 @@ module Tools_statistics
         class(t_adaptive_statistics), intent(in)	:: s
 		character (len = 512)					    :: str
 
-        write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s update distances: ", F0.4, " s update neighbors: ", F0.4, " s) integrity: ", F0.4, " s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")') &
-            s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time, s%r_update_distances_time, s%r_update_neighbors_time, &
+        write(str, '("#travs: ", I0, " time: ", F0.4, " s (comp: ", F0.4, " s (pre: ", F0.4, " s inner: ", F0.4, " s post: ", F0.4, " s) asagi: ", F0.4, " s sync: ", F0.4, " s barr: ", F0.4, " s update distances: ", F0.4, " s update neighbors: ", F0.4, " s) integrity: ", F0.4, " s load balancing: ", F0.4, " s (de)allocation: ", F0.4, " s")') &
+            s%i_traversals, s%r_traversal_time, s%r_computation_time, s%r_pre_compute_time, s%r_computation_time - s%r_pre_compute_time - s%r_post_compute_time, s%r_post_compute_time, s%r_asagi_time, s%r_sync_time, s%r_barrier_time, s%r_update_distances_time, s%r_update_neighbors_time, &
             s%r_integrity_time, s%r_load_balancing_time, s%r_allocation_time
 
         if (s%r_traversal_time > 0.0d0) then

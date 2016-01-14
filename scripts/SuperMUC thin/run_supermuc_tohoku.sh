@@ -25,8 +25,7 @@ echo "Running scenarios..."
 class=general
 limit=48:00:00
 
-layers=85
-postfix=_noomp_upwind_l$layers
+postfix=_noomp
 sections=8
 
 for dmax in 22 26 30

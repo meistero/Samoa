@@ -368,7 +368,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 #   endif
 
     thread_stats%r_barrier_time = -get_wtime()
-
     select type (traversal)
         type is (_GT)
             !$omp single
@@ -380,17 +379,16 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
         class default
             assert(.false.)
     end select
-
     thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
 
-    !call pre traversal operator
     thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
 
+    !call pre traversal operator
+    thread_stats%r_pre_compute_time = -get_wtime()
     do i_dest_section = i_first_local_section, i_last_local_section
-        dest_section => dest_grid%sections%elements(i_dest_section)
-
-        call pre_traversal_dest(traversal%children(i_dest_section), dest_section)
+        call pre_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
     end do
+    thread_stats%r_pre_compute_time = thread_stats%r_pre_compute_time + get_wtime()
 
     thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
@@ -403,13 +401,13 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
         i_src_cell = 0
     end if
 
-    thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
-
     !traverse all destination sections
     do i_dest_section = i_first_local_section, i_last_local_section
 #       if defined(_OPENMP_TASKS_ADAPTIVITY)
             !$omp task default(shared) firstprivate(i_dest_section) private(dest_section) mergeable
 #       endif
+
+        thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
 
         dest_section => dest_grid%sections%elements(i_dest_section)
 
@@ -468,6 +466,8 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
         call find_section_boundary_elements(dest_grid%threads%elements(i_thread), dest_section, dest_section%cells%i_current_element, traversal%threads(i_thread)%p_dest_element%previous%next_edge_data)
 
+        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+
 #       if defined(_OPENMP_TASKS_ADAPTIVITY)
             !$omp end task
 #       endif
@@ -476,8 +476,6 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 #   if defined(_OPENMP_TASKS_ADAPTIVITY)
         !$omp taskwait
 #   endif
-
-    thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
     thread_stats%r_update_distances_time = -get_wtime()
     call update_distances(dest_grid)
@@ -494,8 +492,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     !$omp barrier
 
-    thread_stats%r_sync_time = -get_wtime()
-
+    thread_stats%r_sync_time = thread_stats%r_sync_time - get_wtime()
     do i_dest_section = i_first_local_section, i_last_local_section
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
             call recv_mpi_boundary(dest_grid%sections%elements(i_dest_section))
@@ -520,18 +517,18 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 #   elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
         call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   else
-        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=trav
 #   endif
 
     thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
-    thread_stats%r_computation_time = thread_stats%r_computation_time - get_wtime()
-
+    thread_stats%r_post_compute_time = -get_wtime()
     do i_dest_section = i_first_local_section, i_last_local_section
         call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
     end do
+    thread_stats%r_post_compute_time = thread_stats%r_post_compute_time + get_wtime()
 
-    thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+    thread_stats%r_computation_time = thread_stats%r_computation_time + thread_stats%r_post_compute_time
 
     !$omp barrier
 
