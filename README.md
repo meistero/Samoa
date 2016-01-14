@@ -39,7 +39,6 @@ Create a directory on the SuperMUC (named samoa_dir here). SuperMUC restricts ac
 two methods to clone sam(oa)² from github on the SuperMUC:
 * By accessing the SuperMUC file system as a remote directory. git can then be executed locally:
 
-
         nohup sshfs <login>@supermuc.lrz.de:<samoa_dir> <local_dir>
         cd <local_dir>
         git clone https://github.com/meistero/samoa .
@@ -52,22 +51,11 @@ two methods to clone sam(oa)² from github on the SuperMUC:
         git clone git://localhost:<port>/meistero/Samoa .
 
 This will download the source files for samoa into samoa_dir. 
-scons must be installed manually on the SuperMUC as the current version is not compatible with sam(oa)².
-Assuming scons has been installed in the folder scons_dir, set the following variables:
-
-    module load python
-    export PATH=<scons_dir>/build/scripts/:$PATH
-    export PYTHONPATH=<scons_dir>/build/lib/:$PYTHONPATH
-    export SCONS_LIB_DIR=<scons_dir>/build/lib/
-
 Additionally, in order to compile and run ASAGI and sam(oa)² on the SuperMUC, we must add the netcdf library to the CMAKE prefix path and load the following modules:
 
     module unload gcc
-    module load git gcc/4.7 cmake/4.1 netcdf
+    module load git scons gcc/4.7 cmake/4.1 netcdf
     export CMAKE_PREFIX_PATH=$NETCDF_BASE
-
-sam(oa)² supports both multithreaded and single-threaded MPI. Both ASAGI and sam(oa)² must link to the same respective libraries, thus it is necessary to compile ASAGI twice:
-once without MT support and once with MT support. Rename the single-threaded library to "libasagi_nomt.so" and the multi-threaded library to "libasagi.so".
 
 At this point, you should be able to compile ASAGI and sam(oa)².
 
@@ -82,7 +70,7 @@ This will download the source files for samoa into samoa_dir.
 The following modules should be loaded before compiling ASAGI and sam(oa)² on the Linux and MAC clusters
 
     module unload gcc python
-    module load git cmake netcdf gcc/4.7 python/2.7.5
+    module load git cmake scons netcdf gcc/4.7
     module load gnuplot
 
 sam(oa)² supports both multithreaded and single-threaded MPI. Both ASAGI and sam(oa)² must link to the same respective libraries, thus it is necessary to compile ASAGI twice:
@@ -103,7 +91,7 @@ Typical settings are:
 
 If you wish to simulate simple scenarios that do not require data files you can also disable asagi with the flag
 
-    scons asagi=noasagi ...
+    scons asagi=No ...
 
 Executables will be created in the directory samoa_dir/bin and should be run from samoa_dir.
 
