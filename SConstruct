@@ -94,11 +94,7 @@ vars.AddVariables(
 )
 
 # set environment
-if 'INTEL_LICENSE_FILE' in os.environ:
-    env = Environment(ENV = {'PATH': os.environ['PATH'], 'INTEL_LICENSE_FILE': os.environ['INTEL_LICENSE_FILE']}, variables=vars)
-else:
-    env = Environment(ENV = {'PATH': os.environ['PATH']}, variables=vars)
-
+env = Environment(ENV = os.environ, variables=vars)
 
 # handle unknown, maybe misspelled variables
 unknownVariables = vars.UnknownVariables()
