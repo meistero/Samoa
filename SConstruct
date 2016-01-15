@@ -327,6 +327,14 @@ if env['compiler'] == 'intel':
   elif env['machine'] == 'AVX':
     env['F90FLAGS'] += ' -xAVX'
 
+if env['compiler'] == 'gnu':
+  if env['machine'] == 'host':
+    env['F90FLAGS'] += ' -march=native'
+  elif env['machine'] == 'SSE4.2':
+    env['F90FLAGS'] += ' -msse4.2 -mno-avx'
+  elif env['machine'] == 'AVX':
+    env['F90FLAGS'] += ' -mavx'
+
 #Enable or disable assertions
 if env['assertions']:
   env['F90FLAGS'] += ' -D_ASSERT'
