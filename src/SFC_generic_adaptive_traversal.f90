@@ -286,16 +286,16 @@ subroutine traverse_in_place(traversal, grid)
         call grid%sections%elements_alloc(i_src_section)%estimate_load()
     end do
 
-    !$omp barrier
+    !duplicate source grid boundary before load balancing
+    thread_stats%r_sync_time = thread_stats%r_sync_time - get_wtime()
+    call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
+    thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+
+    !!$omp barrier is included in duplicate_boundary_data
 
     !balance load BEFORE refinement if splitting is DISABLED
     if (.not. cfg%l_split_sections) then
 #	    if !defined(_GT_INPUT_DEST)
-            !duplicate source grid boundary before load balancing
-            thread_stats%r_sync_time = thread_stats%r_sync_time - get_wtime()
-            call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
-            thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
-			
 	        !exchange source grid sections with neighbors
             thread_stats%r_load_balancing_time = -get_wtime()
 		    call distribute_load(grid, 0.0)
@@ -317,11 +317,6 @@ subroutine traverse_in_place(traversal, grid)
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
     thread_stats%r_allocation_time = thread_stats%r_allocation_time + get_wtime()
 
-    !duplicate source grid boundary before adaptive refinement
-    thread_stats%r_sync_time = thread_stats%r_sync_time - get_wtime()
-    call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
-    thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
-
     !refine grid
     call traverse_out_of_place(traversal, grid, grid_temp)
 
@@ -340,7 +335,7 @@ subroutine traverse_in_place(traversal, grid)
             thread_stats%r_sync_time = thread_stats%r_sync_time - get_wtime()
             call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
             thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
-			
+
 	        !exchange destination grid sections with neighbors
             thread_stats%r_load_balancing_time = -get_wtime()
 		    call distribute_load(grid, 0.0)
