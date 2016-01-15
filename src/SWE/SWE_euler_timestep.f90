@@ -46,6 +46,8 @@
 #		define _GT_BND_SKELETON_OP				bnd_skeleton_op
 #		define _GT_CELL_UPDATE_OP				cell_update_op
 #		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
+#		define _GT_NODE_WRITE_OP			    node_write_op
+#		define _GT_EDGE_WRITE_OP			    edge_write_op
 
 #		define _GT_NODE_MPI_TYPE
 
@@ -475,5 +477,20 @@
 			fluxR%p = matmul(net_updatesR(2:3), transform_matrix)
 			fluxR%max_wave_speed = max_wave_speed
 		end subroutine
+
+        pure subroutine node_write_op(local_node, neighbor_node)
+            type(t_node_data), intent(inout)			    :: local_node
+            type(t_node_data), intent(in)				    :: neighbor_node
+
+            !do nothing
+        end subroutine
+
+
+        pure subroutine edge_write_op(local_node, neighbor_node)
+            type(t_edge_data), intent(inout)			    :: local_node
+            type(t_edge_data), intent(in)				    :: neighbor_node
+
+            !do nothing
+        end subroutine
 	END MODULE
 #endif

@@ -336,10 +336,6 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end where
 
-            if (any(volume <= 0.0_SR .and. flux_w .ne. 0.0_SR)) then
-                print *, flux_w
-            end if
-
             assert_ge(minval(saturation), 0.0_SR)
             assert_le(maxval(saturation), 1.0_SR)
 		end subroutine
