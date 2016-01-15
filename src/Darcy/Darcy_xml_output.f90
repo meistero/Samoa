@@ -19,6 +19,8 @@
 			real (kind = GRID_SR), allocatable			        :: S(:)
 			real (kind = GRID_SR), allocatable			        :: rhs(:)
 
+            integer (kind = GRID_SI)                            :: index
+
 			contains
 
 			procedure, pass :: create => point_data_create
@@ -34,6 +36,9 @@
             integer (kind = GRID_SI), allocatable			    :: section_index(:)
 			integer (BYTE), allocatable					        :: depth(:)
 			integer (BYTE), allocatable					        :: refinement(:)
+            integer (kind = GRID_SI), allocatable			    :: connectivity(:)
+
+            integer (kind = GRID_SI)                            :: index
 
 			contains
 
@@ -42,20 +47,17 @@
 		end type
 
         type num_traversal_data
-            type(t_output_point_data)                               :: point_data
-            type(t_output_cell_data)                                :: cell_data
-            integer (kind = GRID_SI), allocatable			        :: i_connectivity(:)
+            type(t_output_point_data), pointer                      :: point_data => null()
+            type(t_output_cell_data), pointer                       :: cell_data => null()
             character(len=256)							            :: s_file_stamp
-
             integer (kind = GRID_SI)								:: i_output_iteration = 0
-            integer (kind = GRID_SI)								:: i_point_data_index
-            integer (kind = GRID_SI)								:: i_cell_data_index
-        end type
 
-        interface node_first_touch_op
-            module procedure node_first_touch_op_scalar
-            module procedure node_first_touch_op_array
-        end interface
+            contains
+
+            procedure, pass :: assign_num_traversal_data
+
+            generic :: assignment(=) => assign_num_traversal_data
+        end type
 
         type(darcy_gv_p)										    :: gv_p
         type(darcy_gv_rhs)										    :: gv_rhs
@@ -72,8 +74,6 @@
 
 #		define	_GT_PRE_TRAVERSAL_GRID_OP			pre_traversal_grid_op
 #		define	_GT_POST_TRAVERSAL_GRID_OP			post_traversal_grid_op
-#		define	_GT_PRE_TRAVERSAL_OP				pre_traversal_op
-#		define	_GT_POST_TRAVERSAL_OP				post_traversal_op
 
 #		define	_GT_ELEMENT_OP						element_op
 
@@ -81,13 +81,117 @@
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
+		subroutine point_data_create(point_data, i_points)
+			class(t_output_point_data), intent(inout)		:: point_data
+			integer(kind = GRID_SI), intent(in)			    :: i_points
+
+			integer (kind = GRID_SI)						:: i_error
+
+			allocate(point_data%coords(i_points, 3), stat = i_error); assert_eq(i_error, 0)
+			allocate(point_data%p(i_points), stat = i_error); assert_eq(i_error, 0)
+			allocate(point_data%S(i_points), stat = i_error); assert_eq(i_error, 0)
+			allocate(point_data%rhs(i_points), stat = i_error); assert_eq(i_error, 0)
+
+			point_data%index = 1
+		end subroutine
+
+		subroutine point_data_destroy(point_data)
+			class(t_output_point_data), intent(inout)		:: point_data
+
+			integer (kind = GRID_SI)						:: i_error
+
+			deallocate(point_data%coords, stat = i_error); assert_eq(i_error, 0)
+			deallocate(point_data%p, stat = i_error); assert_eq(i_error, 0)
+			deallocate(point_data%S, stat = i_error); assert_eq(i_error, 0)
+			deallocate(point_data%rhs, stat = i_error); assert_eq(i_error, 0)
+		end subroutine
+
+		subroutine cell_data_create(cell_data, i_cells)
+			class(t_output_cell_data), intent(inout)		:: cell_data
+			integer(kind = GRID_SI), intent(in)			    :: i_cells
+
+			integer (kind = GRID_SI)						:: i_error
+
+			allocate(cell_data%permeability(i_cells, 3), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%porosity(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%u(i_cells, 3), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%rank(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%section_index(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%depth(i_cells), stat = i_error); assert_eq(i_error, 0)
+			allocate(cell_data%refinement(i_cells), stat = i_error); assert_eq(i_error, 0)
+
+#           if (_DARCY_LAYERS > 0)
+                allocate(cell_data%connectivity(6 * i_cells), stat = i_error); assert_eq(i_error, 0)
+#           else
+                allocate(cell_data%connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
+#           endif
+
+			cell_data%index = 1
+		end subroutine
+
+		subroutine cell_data_destroy(cell_data)
+			class(t_output_cell_data), intent(inout)		:: cell_data
+
+			integer (kind = GRID_SI)						:: i_error
+
+			deallocate(cell_data%permeability, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%porosity, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%u, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%rank, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%section_index, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%depth, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%refinement, stat = i_error); assert_eq(i_error, 0)
+			deallocate(cell_data%connectivity, stat = i_error); assert_eq(i_error, 0)
+		end subroutine
+
+        subroutine assign_num_traversal_data(data_1, data_2)
+            class(num_traversal_data), intent(inout)  :: data_1
+            type(num_traversal_data), intent(in)      :: data_2
+
+            assert(associated(data_2%point_data))
+            assert(associated(data_2%cell_data))
+
+            data_1%point_data => data_2%point_data
+            data_1%cell_data => data_2%cell_data
+
+            data_1%s_file_stamp = data_2%s_file_stamp
+            data_1%i_output_iteration = data_2%i_output_iteration
+		end subroutine
+
 		subroutine pre_traversal_grid_op(traversal, grid)
 			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
+			type(t_grid_info)                                       :: grid_info
+            type(t_section_info)         	                        :: section_info
+			integer (kind = GRID_SI)								:: i_section, i_cells, i_points, i_error, i
+
             if (rank_MPI == 0) then
                 _log_write(1, '(A, I0, A, I0)') " Darcy: output step: ", traversal%i_output_iteration
             end if
+
+            !we can not use grid%get_infoi in a seqeuntioal OpenMP environment, hence reduce the grid info manually
+
+            grid_info = t_grid_info()
+
+            do i_section = 1, size(grid%sections%elements_alloc)
+                section_info = grid%sections%elements_alloc(i_section)%get_info()
+                grid_info = grid_info + section_info%t_grid_info
+            end do
+
+			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
+			i_points = (_DARCY_LAYERS + 1) * (grid_info%i_nodes + sum(grid_info%i_boundary_nodes))
+
+            allocate(traversal%point_data, stat = i_error); assert_eq(i_error, 0)
+            allocate(traversal%cell_data, stat = i_error); assert_eq(i_error, 0)
+
+			call traversal%point_data%create(i_points)
+			call traversal%cell_data%create(i_cells)
+
+            do i = 1, size(traversal%children)
+                traversal%children(i)%point_data => traversal%point_data
+                traversal%children(i)%cell_data => traversal%cell_data
+            end do
 
             call scatter(traversal%s_file_stamp, traversal%children%s_file_stamp)
             call scatter(traversal%i_output_iteration, traversal%children%i_output_iteration)
@@ -97,167 +201,37 @@
 			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-			character (len = 256)							:: s_file_name
-            integer                                         :: i_error
-			integer(4)										:: i_rank, i_section, e_io
-			logical                                         :: l_exists
-            type(t_vtk_writer)                              :: vtk
-
-            real (kind = GRID_SR)   :: reduction_set(4 * (-_DARCY_PRODUCER_WELLS) + 1 : 4 * (_DARCY_INJECTOR_WELLS) + 4)
-            real (kind = GRID_SR)   :: prod_w(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
-            real (kind = GRID_SR)   :: prod_n(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
-            real (kind = GRID_SR)   :: prod_w_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
-            real (kind = GRID_SR)   :: prod_n_acc(-_DARCY_PRODUCER_WELLS : _DARCY_INJECTOR_WELLS)
-            real (kind = GRID_SR)   :: p_bh(_DARCY_INJECTOR_WELLS)
-            integer                 :: i, f_out
-
-#           if defined(_MPI)
-                call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
-#           endif
-
-#           if defined(_QUAD_PRECISION)
-#               warning VTK output does not work for quad precision
-#           else
-                if (rank_MPI == 0) then
-                    !******************
-                    ! write VTK data
-                    !******************
-
-                    write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
-
-                    e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
-                        e_io = vtk%VTK_DAT_XML('pfield', 'OPEN')
-                            e_io = vtk%VTK_VAR_XML('time', 1.0_GRID_SR, 1)
-                        e_io = vtk%VTK_DAT_XML('pfield', 'CLOSE')
-
-                        e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
-                            e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('rhs', 1.0_GRID_SR, 1)
-                        e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
-
-                        e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
-                            e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 3)
-                            e_io = vtk%VTK_VAR_XML('porosity', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('flux', 1.0_GRID_SR, 3)
-                            e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
-                            e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
-                            e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
-                            e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
-                        e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
-
-                        e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
-
-                        do i_rank = 0, size_MPI
-                            do i_section = 1, huge(1)
-                                write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
-                                inquire(file = s_file_name, exist = l_exists)
-
-                                if (l_exists) then
-                                    write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
-                                    e_io = vtk%VTK_GEO_XML(s_file_name)
-                                else
-                                    exit
-                                end if
-                            end do
-                        end do
-
-                    e_io = vtk%VTK_END_XML()
-                end if
-#           endif
-
-            !******************
-            ! write global data
-            !******************
-
-            do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
-                reduction_set(4*i + 1) = grid%prod_w(i)
-                reduction_set(4*i + 2) = grid%prod_n(i)
-                reduction_set(4*i + 3) = grid%prod_w_acc(i)
-                reduction_set(4*i + 4) = grid%prod_n_acc(i)
-            end do
-
-            call reduce(reduction_set, MPI_SUM)
+            integer (kind = GRID_SI)								:: i_error
+            call write_vtu_file(traversal, grid)
 
             if (rank_MPI == 0) then
-                do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
-                    prod_w(i) = reduction_set(4*i + 1)
-                    prod_n(i) = reduction_set(4*i + 2)
-                    prod_w_acc(i) = reduction_set(4*i + 3)
-                    prod_n_acc(i) = reduction_set(4*i + 4)
-                end do
-
-                prod_w(0) = sum(prod_w(-_DARCY_PRODUCER_WELLS:-1))
-                prod_n(0) = sum(prod_n(-_DARCY_PRODUCER_WELLS:-1))
-                prod_w_acc(0)= sum(prod_w_acc(-_DARCY_PRODUCER_WELLS:-1))
-                prod_n_acc(0) = sum(prod_n_acc(-_DARCY_PRODUCER_WELLS:-1))
-
-                !we already reduce the bottom hole pressure in each iteration
-                p_bh = grid%p_bh
-
-                write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".csv"
-
-                f_out = get_free_file_unit()
-
-                open(unit=f_out, file=s_file_name, action="write", status="replace")
-
-                write(f_out, '("time,water rate,oil rate,water cumulative,oil cumulative,water cut,pressure")')
-
-                do i = 0, -_DARCY_PRODUCER_WELLS, -1
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i) / (_BBL / _D), prod_n(i) / (_BBL / _D), prod_w_acc(i) / _BBL, prod_n_acc(i) / _BBL, prod_w(i) / (prod_w(i) + prod_n(i)), cfg%r_p_prod / _PPSI
-                end do
-
-                do i = 1, _DARCY_INJECTOR_WELLS
-                    write(f_out, '(6(ES18.7E3, ","), ES18.7E3)') grid%r_time / _D, prod_w(i) / (_BBL / _D), prod_n(i) / (_BBL / _D), prod_w_acc(i) / _BBL, prod_n_acc(i) / _BBL, prod_w(i) / (prod_w(i) + prod_n(i)), p_bh(i) / _PPSI
-                end do
-
-                close(f_out)
+                call write_pvtu_file(traversal, grid)
             end if
 
+			call traversal%point_data%destroy()
+			call traversal%cell_data%destroy()
+
+            deallocate(traversal%point_data, stat = i_error); assert_eq(i_error, 0)
+            deallocate(traversal%cell_data, stat = i_error); assert_eq(i_error, 0)
+
             traversal%i_output_iteration = traversal%i_output_iteration + 1
-		end subroutine
+        end subroutine
 
-		subroutine pre_traversal_op(traversal, section)
- 			type(t_darcy_xml_output_traversal), intent(inout)			:: traversal
- 			type(t_grid_section), intent(inout)							:: section
+        subroutine write_vtu_file(traversal, grid)
+			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
+			type(t_grid), intent(inout)							    :: grid
 
-			type(t_section_info)                                        :: grid_info
-			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
+			integer (kind = GRID_SI)								:: i_cells, i_points, i_error, i
+            integer (kind = GRID_SI), allocatable                   :: i_offsets(:)
+            integer (kind = 1), allocatable                         :: i_types(:)
 
-            grid_info = section%get_info()
-			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
+			character (len = 256)							        :: s_file_name
+            type(t_vtk_writer)                                      :: vtk
+			integer(4)												:: e_io
 
-			i_points = (_DARCY_LAYERS + 1) * (grid_info%i_nodes + sum(grid_info%i_boundary_nodes))
-
-#           if (_DARCY_LAYERS > 0)
-                allocate(traversal%i_connectivity(6 * i_cells), stat = i_error); assert_eq(i_error, 0)
-#           else
-                allocate(traversal%i_connectivity(3 * i_cells), stat = i_error); assert_eq(i_error, 0)
-#           endif
-			call traversal%point_data%create(i_points)
-			call traversal%cell_data%create(i_cells)
-
-			traversal%i_cell_data_index = 1
-			traversal%i_point_data_index = 1
-		end subroutine
-
-		subroutine post_traversal_op(traversal, section)
- 			type(t_darcy_xml_output_traversal), intent(inout)			:: traversal
-			type(t_grid_section), intent(inout)							:: section
-
-			character (len = 256)							            :: s_file_name
-			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
-			integer (1), dimension(:), allocatable						:: i_types
-            type(t_vtk_writer)                                          :: vtk
-
-			type(t_section_info)                                        :: grid_info
-			integer (kind = GRID_SI)									:: i_error, i_cells, i_points
-			integer(4)													:: e_io, i
-
-            grid_info = section%get_info()
-
-			i_cells = max(1, _DARCY_LAYERS) * grid_info%i_cells
-			i_points = (_DARCY_LAYERS + 1) * (grid_info%i_nodes + sum(grid_info%i_boundary_nodes))
+            !we can figurte the actual number of cells and points out by using the global counters
+			i_cells = traversal%cell_data%index - 1_SI
+			i_points = traversal%point_data%index - 1_SI
 
 			allocate(i_offsets(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
@@ -276,24 +250,24 @@
                 end forall
 #           endif
 
-			write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
+			write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, ".vtu"
 
 #           if defined(_QUAD_PRECISION)
 #               warning VTK output does not work for quad precision
 #           else
                 e_io = vtk%VTK_INI_XML('binary', s_file_name, 'UnstructuredGrid')
                     e_io = vtk%VTK_DAT_XML('field', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML(1, 'time', [section%r_time])
+                        e_io = vtk%VTK_VAR_XML(1, 'time', [grid%r_time])
                     e_io = vtk%VTK_DAT_XML('field', 'CLOSE')
 
-                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(:, 1), traversal%point_data%coords(:, 2), traversal%point_data%coords(:, 3))
+                    e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1:i_points, 1), traversal%point_data%coords(1:i_points, 2), traversal%point_data%coords(1:i_points, 3))
 
-                    e_io = vtk%VTK_CON_XML(i_cells, traversal%i_connectivity, i_offsets, i_types)
+                    e_io = vtk%VTK_CON_XML(i_cells, traversal%cell_data%connectivity, i_offsets, i_types)
 
                     e_io = vtk%VTK_DAT_XML('node', 'OPEN')
-                        e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p)
-                        e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S)
-                        e_io = vtk%VTK_VAR_XML(i_points, 'rhs',  traversal%point_data%rhs)
+                        e_io = vtk%VTK_VAR_XML(i_points, 'pressure', traversal%point_data%p(1:i_points))
+                        e_io = vtk%VTK_VAR_XML(i_points, 'saturation', traversal%point_data%S(1:i_points))
+                        e_io = vtk%VTK_VAR_XML(i_points, 'rhs',  traversal%point_data%rhs(1:i_points))
                     e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
                     e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
@@ -312,14 +286,62 @@
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
+        end subroutine
 
-			deallocate(traversal%i_connectivity, stat = i_error); assert_eq(i_error, 0)
+        subroutine write_pvtu_file(traversal, grid)
+			type(t_darcy_xml_output_traversal), intent(inout)		:: traversal
+			type(t_grid), intent(inout)							    :: grid
 
-			call traversal%point_data%destroy()
-			call traversal%cell_data%destroy()
+			character (len = 256)							        :: s_file_name
+            type(t_vtk_writer)                                      :: vtk
+			integer(4)												:: e_io
 
-			traversal%i_output_iteration = traversal%i_output_iteration + 1
+			integer (kind = GRID_SI) :: i_rank
+
+#           if defined(_QUAD_PRECISION)
+#               warning VTK output does not work for quad precision
+#           else
+                write (s_file_name, "(A, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
+
+                e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
+                    e_io = vtk%VTK_DAT_XML('pfield', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML('time', 1.0_GRID_SR, 1)
+                    e_io = vtk%VTK_DAT_XML('pfield', 'CLOSE')
+
+                    e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML('pressure', 1.0_GRID_SR, 1)
+                        e_io = vtk%VTK_VAR_XML('saturation', 1.0_GRID_SR, 1)
+                        e_io = vtk%VTK_VAR_XML('rhs', 1.0_GRID_SR, 1)
+                    e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
+
+                    e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
+                        e_io = vtk%VTK_VAR_XML('permeability', 1.0_GRID_SR, 3)
+                        e_io = vtk%VTK_VAR_XML('porosity', 1.0_GRID_SR, 1)
+                        e_io = vtk%VTK_VAR_XML('flux', 1.0_GRID_SR, 3)
+                        e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
+                        e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
+                        e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
+                        e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
+                    e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
+
+                    e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
+
+                    do i_rank = 0, size_MPI - 1
+                        write(s_file_name, '(A, "_", I0, "_r", I0, ".vtu")') trim(remove_dir_from_path(traversal%s_file_stamp)), traversal%i_output_iteration, i_rank
+
+                        e_io = vtk%VTK_GEO_XML(s_file_name)
+                    end do
+
+                e_io = vtk%VTK_END_XML()
+#           endif
 		end subroutine
+
+        function remove_dir_from_path(in_file_name) result(out_file_name)
+            character(*)            :: in_file_name
+            character(len = 256)    :: out_file_name
+
+            out_file_name = trim(in_file_name(scan(in_file_name, "/\", .true.) + 1 :))
+        end function
 
 		!******************
 		!Geometry operators
@@ -354,16 +376,14 @@
 
 			point_data_indices = int(r_point_data_indices, kind=GRID_SI)
 
-            call write_element_data(traversal%i_connectivity, section%index, element, p, rhs, saturation, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity, traversal%cell_data, traversal%i_cell_data_index, traversal%point_data, point_data_indices)
+            call write_element_data(section%index, element, p, rhs, saturation, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity, traversal%cell_data, traversal%point_data, point_data_indices)
 		end subroutine
 
 
-        subroutine write_element_data(i_connectivity, section_index, element, p, rhs, saturation, base_permeability, porosity, cell_data, i_cell_data_index, point_data, point_data_indices)
+        subroutine write_element_data(section_index, element, p, rhs, saturation, base_permeability, porosity, cell_data, point_data, point_data_indices)
 			type(t_element_base), intent(inout)	        :: element
             type(t_output_cell_data), intent(inout)     :: cell_data
             type(t_output_point_data), intent(inout)    :: point_data
-            integer  (kind = GRID_SI), intent(inout)    :: i_cell_data_index
-            integer (kind = GRID_SI), intent(inout)     :: i_connectivity(:)
             integer  (kind = GRID_SI), intent(in)       :: section_index
 
 #           if (_DARCY_LAYERS > 0)
@@ -371,7 +391,7 @@
                 real (kind = GRID_SR), intent(in)	    :: rhs(:, :)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability(:,:)
                 real (kind = GRID_SR), intent(in)	    :: porosity(:)
-                real (kind = GRID_SR), intent(inout)	    :: saturation(:, :)
+                real (kind = GRID_SR), intent(inout)	:: saturation(:, :)
                 integer (kind = GRID_SI), intent(in)    :: point_data_indices(:, :)
 
                 real (kind = SR)                :: lambda_w(_DARCY_LAYERS + 1, 3), lambda_n(_DARCY_LAYERS + 1, 3)
@@ -382,7 +402,7 @@
                 real (kind = GRID_SR), intent(in)	    :: rhs(:)
                 real (kind = GRID_SR), intent(in)	    :: base_permeability
                 real (kind = GRID_SR), intent(in)	    :: porosity
-                real (kind = GRID_SR), intent(inout)	    :: saturation(:)
+                real (kind = GRID_SR), intent(inout)	:: saturation(:)
                 integer (kind = GRID_SI), intent(in)    :: point_data_indices(:)
 
                 real (kind = SR)                :: lambda_w(3), lambda_n(3)
@@ -392,6 +412,19 @@
 
             integer                         :: i, layer
             real (kind = GRID_SR)			:: edge_length, dz
+            integer  (kind = GRID_SI)       :: i_cell_data_index
+
+#           if defined(_OPENMP)
+                integer, save :: index_lock
+
+                call omp_set_lock(index_lock)
+                    i_cell_data_index = cell_data%index
+                    cell_data%index = cell_data%index + _DARCY_LAYERS
+                call omp_unset_lock(index_lock)
+#           else
+                i_cell_data_index = cell_data%index
+                cell_data%index = cell_data%index + _DARCY_LAYERS
+#           endif
 
             lambda_w = l_w(saturation)
             lambda_n = l_n(saturation)
@@ -436,19 +469,19 @@
                     cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
                     if (element%transform_data%plotter_data%orientation > 0) then
-                        i_connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 1) - 1
-                        i_connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
-                        i_connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 3) - 1
-                        i_connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 1) - 1
-                        i_connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
-                        i_connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 3) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 1) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 3) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 1) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 3) - 1
                     else
-                        i_connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 3) - 1
-                        i_connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
-                        i_connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 1) - 1
-                        i_connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 3) - 1
-                        i_connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
-                        i_connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 1) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 5) = point_data_indices(layer, 3) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 4) = point_data_indices(layer, 2) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 3) = point_data_indices(layer, 1) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 2) = point_data_indices(layer + 1, 3) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 1) = point_data_indices(layer + 1, 2) - 1
+                        cell_data%connectivity(6 * i_cell_data_index - 0) = point_data_indices(layer + 1, 1) - 1
                     end if
 
                     i_cell_data_index = i_cell_data_index + 1
@@ -498,102 +531,46 @@
                 end forall
 
                 if (element%transform_data%plotter_data%orientation > 0) then
-                    i_connectivity(3 * i_cell_data_index - 2) = point_data_indices(1) - 1
-                    i_connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
-                    i_connectivity(3 * i_cell_data_index - 0) = point_data_indices(3) - 1
+                    cell_data%connectivity(3 * i_cell_data_index - 2) = point_data_indices(1) - 1
+                    cell_data%connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
+                    cell_data%connectivity(3 * i_cell_data_index - 0) = point_data_indices(3) - 1
                 else
-                    i_connectivity(3 * i_cell_data_index - 2) = point_data_indices(3) - 1
-                    i_connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
-                    i_connectivity(3 * i_cell_data_index - 0) = point_data_indices(1) - 1
+                    cell_data%connectivity(3 * i_cell_data_index - 2) = point_data_indices(3) - 1
+                    cell_data%connectivity(3 * i_cell_data_index - 1) = point_data_indices(2) - 1
+                    cell_data%connectivity(3 * i_cell_data_index - 0) = point_data_indices(1) - 1
                 end if
-
-                i_cell_data_index = i_cell_data_index + 1
 #           endif
 		end subroutine
 
-		subroutine node_first_touch_op_array(traversal, section, nodes)
- 			type(t_darcy_xml_output_traversal), intent(inout)	:: traversal
- 			type(t_grid_section), intent(in)				    :: section
-			type(t_node_data), intent(inout)				    :: nodes(:)
-
-			integer (kind = GRID_SI)						    :: j
-
-            do j = 1, size(nodes)
-                call node_first_touch_op_scalar(traversal, section, nodes(j))
-            end do
-		end subroutine
-
-		subroutine node_first_touch_op_scalar(traversal, section, node)
+		subroutine node_first_touch_op(traversal, section, node)
  			type(t_darcy_xml_output_traversal), intent(inout)	:: traversal
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
-			integer (kind = GRID_SI) :: i
+			integer (kind = GRID_SI) :: i, i_point_data_index
+
+#           if defined(_OPENMP)
+                integer, save :: index_lock
+
+                call omp_set_lock(index_lock)
+                    i_point_data_index = traversal%point_data%index
+                    traversal%point_data%index = traversal%point_data%index + _DARCY_LAYERS + 1
+                call omp_unset_lock(index_lock)
+#           else
+                i_point_data_index = traversal%point_data%index
+                traversal%point_data%index = traversal%point_data%index + _DARCY_LAYERS + 1
+#           endif
 
             do i = 1, _DARCY_LAYERS + 1
-                call pre_dof_op(traversal%i_point_data_index, node%data_pers%r(i))
+                call pre_dof_op(i_point_data_index + i - 1, node%data_pers%r(i))
             end do
 		end subroutine
 
-		elemental subroutine pre_dof_op(i_point_data_index, r)
- 			integer(kind = GRID_SI), intent(inout)			:: i_point_data_index
+		subroutine pre_dof_op(i_point_data_index, r)
+ 			integer(kind = GRID_SI), intent(in)			    :: i_point_data_index
 			real(kind = GRID_SR), intent(out)				:: r
 
-			r = real(i_point_data_index, GRID_SR)
-			i_point_data_index = i_point_data_index + 1
-		end subroutine
-
-
-		subroutine point_data_create(point_data, i_points)
-			class(t_output_point_data), intent(inout)		:: point_data
-			integer(kind = GRID_SI), intent(in)			    :: i_points
-
-			integer (kind = GRID_SI)						:: i_error
-
-			allocate(point_data%coords(i_points, 3), stat = i_error); assert_eq(i_error, 0)
-			allocate(point_data%p(i_points), stat = i_error); assert_eq(i_error, 0)
-			allocate(point_data%S(i_points), stat = i_error); assert_eq(i_error, 0)
-			allocate(point_data%rhs(i_points), stat = i_error); assert_eq(i_error, 0)
-		end subroutine
-
-		subroutine point_data_destroy(point_data)
-			class(t_output_point_data), intent(inout)		:: point_data
-
-			integer (kind = GRID_SI)						:: i_error
-
-			deallocate(point_data%coords, stat = i_error); assert_eq(i_error, 0)
-			deallocate(point_data%p, stat = i_error); assert_eq(i_error, 0)
-			deallocate(point_data%S, stat = i_error); assert_eq(i_error, 0)
-			deallocate(point_data%rhs, stat = i_error); assert_eq(i_error, 0)
-		end subroutine
-
-		subroutine cell_data_create(cell_data, i_cells)
-			class(t_output_cell_data), intent(inout)		:: cell_data
-			integer(kind = GRID_SI), intent(in)			    :: i_cells
-
-			integer (kind = GRID_SI)						:: i_error
-
-			allocate(cell_data%permeability(i_cells, 3), stat = i_error); assert_eq(i_error, 0)
-			allocate(cell_data%porosity(i_cells), stat = i_error); assert_eq(i_error, 0)
-			allocate(cell_data%u(i_cells, 3), stat = i_error); assert_eq(i_error, 0)
-			allocate(cell_data%rank(i_cells), stat = i_error); assert_eq(i_error, 0)
-			allocate(cell_data%section_index(i_cells), stat = i_error); assert_eq(i_error, 0)
-			allocate(cell_data%depth(i_cells), stat = i_error); assert_eq(i_error, 0)
-			allocate(cell_data%refinement(i_cells), stat = i_error); assert_eq(i_error, 0)
-		end subroutine
-
-		subroutine cell_data_destroy(cell_data)
-			class(t_output_cell_data), intent(inout)		:: cell_data
-
-			integer (kind = GRID_SI)						:: i_error
-
-			deallocate(cell_data%permeability, stat = i_error); assert_eq(i_error, 0)
-			deallocate(cell_data%porosity, stat = i_error); assert_eq(i_error, 0)
-			deallocate(cell_data%u, stat = i_error); assert_eq(i_error, 0)
-			deallocate(cell_data%rank, stat = i_error); assert_eq(i_error, 0)
-			deallocate(cell_data%section_index, stat = i_error); assert_eq(i_error, 0)
-			deallocate(cell_data%depth, stat = i_error); assert_eq(i_error, 0)
-			deallocate(cell_data%refinement, stat = i_error); assert_eq(i_error, 0)
+            r = real(i_point_data_index, GRID_SR)
 		end subroutine
 	END MODULE
 #endif

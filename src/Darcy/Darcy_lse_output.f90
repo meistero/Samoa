@@ -42,7 +42,7 @@
 
 #		define	_GT_ELEMENT_OP						element_op
 
-#		define  _GT_NODE_FIRST_TOUCH_OP			    node_first_touch_op
+#		define  _GT_NODE_FIRST_TOUCH_OP			    inner_node_first_touch_op
 #		define  _GT_INNER_NODE_FIRST_TOUCH_OP		inner_node_first_touch_op
 
 #		include "SFC_generic_traversal_ringbuffer.f90"

@@ -29,7 +29,6 @@
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 
 #		define	_GT_ELEMENT_OP					element_op
 
@@ -47,9 +46,9 @@
 		!******************
 
 		subroutine element_op(traversal, section, element)
- 			type(t_darcy_init_pressure_traversal)                       :: traversal
+ 			type(t_darcy_init_pressure_traversal), intent(inout)        :: traversal
  			type(t_grid_section), intent(inout)							:: section
-			type(t_element_base), intent(inout)											:: element
+			type(t_element_base), intent(inout)						    :: element
 
 			call get_permeability_and_porosity_at_element(section, element, element%cell%data_pers%base_permeability, element%cell%data_pers%porosity)
 
@@ -57,23 +56,10 @@
             element%cell%geometry%refinement = 0
 		end subroutine
 
-		subroutine node_first_touch_op(traversal, section, nodes)
- 			type(t_darcy_init_pressure_traversal), intent(in)   :: traversal
- 			type(t_grid_section), intent(inout)				    :: section
-			type(t_node_data), intent(inout)			        :: nodes(:)
-
-            integer :: i
-
-            do i = 1, size(nodes)
-                call inner_node_first_touch_op(traversal, section, nodes(i))
-            end do
-		end subroutine
-
-		subroutine inner_node_first_touch_op(traversal, section, node)
- 			type(t_darcy_init_pressure_traversal), intent(in)                       :: traversal
- 			type(t_grid_section), intent(inout)		    :: section
-			type(t_node_data), intent(inout)			:: node
-			integer										:: i
+		elemental subroutine node_first_touch_op(traversal, section, node)
+ 			type(t_darcy_init_pressure_traversal), intent(in)       :: traversal
+ 			type(t_grid_section), intent(in)		                :: section
+			type(t_node_data), intent(inout)			            :: node
 
 			call pressure_pre_dof_op(real(cfg%r_p_prod, GRID_SR), node%data_pers%p, node%data_pers%r, node%data_pers%d, node%data_pers%A_d)
 		end subroutine
@@ -383,9 +369,7 @@
 
 #		define _GT_NODES
 
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
 #		define	_GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
@@ -423,14 +407,6 @@
             call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
 		end subroutine
 
-		elemental subroutine inner_node_first_touch_op(traversal, section, node)
- 			type(t_darcy_init_saturation_traversal), intent(in) :: traversal
- 			type(t_grid_section), intent(in)					:: section
-			type(t_node_data), intent(inout)			        :: node
-
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
-		end subroutine
-
 		subroutine element_op(traversal, section, element)
  			type(t_darcy_init_saturation_traversal)                 :: traversal
  			type(t_grid_section), intent(inout)						:: section
@@ -464,7 +440,7 @@
 			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
 		end subroutine
 
-		subroutine inner_node_last_touch_op(traversal, section, node)
+		elemental subroutine node_last_touch_op(traversal, section, node)
  			type(t_darcy_init_saturation_traversal), intent(in)         :: traversal
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			                :: node
@@ -478,18 +454,6 @@
                     call pressure_post_dof_op(node%data_pers%rhs)
                 end if
 #           endif
-		end subroutine
-
-		subroutine node_last_touch_op(traversal, section, nodes)
- 			type(t_darcy_init_saturation_traversal), intent(in)         :: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			                :: nodes(:)
-
-            integer :: i
-
-            do i = 1, size(nodes)
-                call inner_node_last_touch_op(traversal, section, nodes(i))
-            end do
 		end subroutine
 
 		!*******************************
@@ -517,14 +481,14 @@
 #           endif
 		end subroutine
 
-		subroutine inflow_post_dof_op(rhs, r, d)
+		pure subroutine inflow_post_dof_op(rhs, r, d)
 			real (kind = GRID_SR), intent(inout)				:: rhs(:)
 			real (kind = GRID_SR), intent(in)				    :: r(:), d(:)
 
             rhs = rhs + cfg%r_inflow / sum(d) * d
 		end subroutine
 
-		subroutine pressure_post_dof_op(rhs)
+		pure subroutine pressure_post_dof_op(rhs)
 			real (kind = GRID_SR), intent(inout)				:: rhs(:)
 
             rhs = (sum(rhs) + cfg%r_inflow) / (_DARCY_LAYERS + 1)

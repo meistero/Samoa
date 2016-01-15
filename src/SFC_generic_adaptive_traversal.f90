@@ -291,6 +291,9 @@ subroutine traverse_in_place(traversal, grid)
     assert_eqv(grid%sections%is_forward(), grid_temp%sections%is_forward())
     thread_stats%r_allocation_time = thread_stats%r_allocation_time + get_wtime()
 
+    !duplicate source grid boundary before adaptive refinement
+    call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
+
     !refine grid
     call traverse_out_of_place(traversal, grid, grid_temp)
 
@@ -304,6 +307,9 @@ subroutine traverse_in_place(traversal, grid)
 
     thread_stats%r_load_balancing_time = -get_wtime()
 #	if !defined(_GT_INPUT_DEST)
+        !duplicate destination grid boundary before load balancing
+        call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
+
 	    !exchange grid sections with neighbors
 		call distribute_load(grid, 0.0)
 #	endif
@@ -511,15 +517,14 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     !sync and call post traversal operator
 #   if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
-        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
+        call collect_boundary_data(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op)
 #   elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
-        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type)
+        call collect_boundary_data(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type)
 #   elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
-        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
+        call collect_boundary_data(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   else
-        call sync_boundary(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=trav
+        call collect_boundary_data(dest_grid, edge_merge_wrapper_op, node_merge_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   endif
-
     thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
     thread_stats%r_post_compute_time = -get_wtime()

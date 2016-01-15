@@ -205,19 +205,35 @@
 		type(_GT), intent(inout)					                :: traversal
 		type(t_grid_section), intent(inout)					        :: section
 
-		integer (kind = GRID_SI)							        :: i_color
+		integer (kind = GRID_SI)							        :: i_color, i_node, i_edge
 
 #		if defined(_GT_PRE_TRAVERSAL_OP)
 			call _GT_PRE_TRAVERSAL_OP(traversal, section)
 #		endif
 
 		do i_color = RED, GREEN
-#			if defined(_GT_NODES) && defined(_GT_NODE_FIRST_TOUCH_OP)
-                call _GT_NODE_FIRST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements)
+#			if defined(_GT_EDGES)
+                _log_write(5, '(5X, A)'), "boundary edges:"
+
+                do i_edge = 1, size(section%boundary_edges(i_color)%elements)
+#			        if defined(_GT_EDGE_FIRST_TOUCH_OP)
+                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
+                            call _GT_EDGE_FIRST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
+                        endif
+#			        endif
+               end do
 #			endif
 
-#			if defined(_GT_EDGES) && defined(_GT_EDGE_FIRST_TOUCH_OP)
-                call _GT_EDGE_FIRST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
+#			if defined(_GT_NODES)
+                _log_write(5, '(5X, A)'), "boundary nodes:"
+
+                do i_node = 1, size(section%boundary_nodes(i_color)%elements)
+#    			    if defined(_GT_NODE_FIRST_TOUCH_OP)
+                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
+                            call _GT_NODE_FIRST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements(i_node))
+                        endif
+#                   endif
+                end do
 #			endif
 		end do
 	end subroutine
@@ -236,33 +252,37 @@
 #			if defined(_GT_EDGES)
                 _log_write(5, '(5X, A)'), "boundary edges:"
 
-#			    if defined(_GT_EDGE_LAST_TOUCH_OP)
-                    call _GT_EDGE_LAST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
-#			    endif
+                do i_edge = 1, size(section%boundary_edges(i_color)%elements)
+#			        if defined(_GT_EDGE_LAST_TOUCH_OP)
+                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
+                            call _GT_EDGE_LAST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
+                        endif
+#			        endif
 
-				do i_edge = 1, size(section%boundary_edges(i_color)%elements)
-                    if (section%boundary_edges(i_color)%elements(i_edge)%owned_globally) then
-#			            if defined(_GT_EDGE_REDUCE_OP)
+#			        if defined(_GT_EDGE_REDUCE_OP)
+                        if (section%boundary_edges(i_color)%elements(i_edge)%owned_globally) then
                             call _GT_EDGE_REDUCE_OP(traversal, section, section%boundary_edges(i_color)%elements(i_edge))
-#			            endif
-                    endif
+                        endif
+#			        endif
                end do
 #			endif
 
 #			if defined(_GT_NODES)
                 _log_write(5, '(5X, A)'), "boundary nodes:"
 
-#			    if defined(_GT_NODE_LAST_TOUCH_OP)
-                    call _GT_NODE_LAST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements)
-#               endif
-
                 do i_node = 1, size(section%boundary_nodes(i_color)%elements)
-                    if (section%boundary_nodes(i_color)%elements(i_node)%owned_globally) then
-#			            if defined(_GT_NODE_REDUCE_OP)
+#    			    if defined(_GT_NODE_LAST_TOUCH_OP)
+                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
+                            call _GT_NODE_LAST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements(i_node))
+                        endif
+#                   endif
+
+#    			    if defined(_GT_NODE_REDUCE_OP)
+                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_globally) then
                             call _GT_NODE_REDUCE_OP(traversal, section, section%boundary_nodes(i_color)%elements(i_node))
-#           			endif
-                    endif
-				end do
+                        endif
+#                   endif
+                end do
 #			endif
 		end do
 

@@ -35,8 +35,6 @@
 #		define _GT_ELEMENT_OP					element_op
 
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_INNER_NODE_FIRST_TOUCH_OP	inner_node_first_touch_op
-
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 #		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
@@ -79,14 +77,6 @@
 		!*******************************
 
 		elemental subroutine node_first_touch_op(traversal, section, node)
- 			type(t_darcy_permeability_traversal), intent(in)    :: traversal
- 			type(t_grid_section), intent(in)					:: section
-			type(t_node_data), intent(inout)			        :: node
-
-			call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
-		end subroutine
-
-		elemental subroutine inner_node_first_touch_op(traversal, section, node)
  			type(t_darcy_permeability_traversal), intent(in)    :: traversal
  			type(t_grid_section), intent(in)					:: section
 			type(t_node_data), intent(inout)			        :: node

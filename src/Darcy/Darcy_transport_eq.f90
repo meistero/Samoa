@@ -35,7 +35,7 @@
 #		define _GT_ELEMENT_OP					element_op
 
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
+#		define _GT_NODE_LAST_TOUCH_OP		    inner_node_last_touch_op
 #		define _GT_NODE_REDUCE_OP		        node_reduce_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
 
@@ -323,21 +323,25 @@
         !> S'_w := S_w + dt/V * f_w
         !> S'_n := S_n + dt/V * f_n
         !> \Rightarrow S'_w + S'_n = S_w + S_n + dt/V * (f_w + f_n) = S_w + S_n
-		elemental subroutine post_dof_op(dt, saturation, flux_w, flux_n, volume)
+		subroutine post_dof_op(dt, saturation, flux_w, flux_n, volume)
 			real (kind = GRID_SR), intent(in)		:: dt
-			real (kind = GRID_SR), intent(inout)	:: saturation
-			real (kind = GRID_SR), intent(in)		:: flux_w
-			real (kind = GRID_SR), intent(in)		:: flux_n
-			real (kind = GRID_SR), intent(in)		:: volume
+			real (kind = GRID_SR), intent(inout)	:: saturation(:)
+			real (kind = GRID_SR), intent(in)		:: flux_w(:)
+			real (kind = GRID_SR), intent(in)		:: flux_n(:)
+			real (kind = GRID_SR), intent(in)		:: volume(:)
 
-            if (volume > 0.0_SR) then
+            where (volume > 0.0_SR)
                 saturation = saturation - dt / volume * flux_w
-            else
+            else where
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
+            end where
+
+            if (any(volume <= 0.0_SR .and. flux_w .ne. 0.0_SR)) then
+                print *, flux_w
             end if
 
-            assert_pure(saturation .ge. 0.0_SR)
-            assert_pure(saturation .le. 1.0_SR)
+            assert_ge(minval(saturation), 0.0_SR)
+            assert_le(maxval(saturation), 1.0_SR)
 		end subroutine
 
         !> Update saturation and produce fluid
@@ -387,7 +391,7 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation + flux_n))
             end if
 
-            assert_pure(saturation .ge. 0.0_SR)
+            !assert_pure(saturation .ge. 0.0_SR)
             assert_pure(saturation .le. 1.0_SR)
 		end subroutine
 

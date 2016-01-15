@@ -378,9 +378,11 @@ module SFC_edge_traversal
         type(t_int64_list), allocatable, intent(inout)      :: neighbor_min_distances(:)
         integer (BYTE), intent(in)				            :: i_color
 
-        integer(kind = GRID_DI), allocatable                :: local_min_distances(:)
-        integer, allocatable							    :: requests(:, :), i_neighbor_sections(:)
-        integer											    :: i_comm, i_neighbors, i_section, i_error, i_sections
+        integer(kind = GRID_DI)                             :: local_min_distances(grid%sections%get_size())
+        integer							                    :: requests(rank_list%get_size(), 2)
+        integer                                             :: state(MPI_STATUS_SIZE)
+        integer											    :: i_comm, i_neighbors, i_neighbor_sections, i_section, i_error, i_sections
+        logical                                             :: exists
 
         !Collect minimum distances from all sections of all neighbor processes
         _log_write(3, '(3X, A, A)') "collect minimum distances from sections: ", trim(color_to_char(i_color))
@@ -389,10 +391,7 @@ module SFC_edge_traversal
             i_sections = grid%sections%get_size()
             i_neighbors = rank_list%get_size()
 
-		   	allocate(requests(i_neighbors, 2), stat = i_error); assert_eq(i_error, 0)
 		    requests = MPI_REQUEST_NULL
-
-            allocate(local_min_distances(i_sections), stat = i_error); assert_eq(i_error, 0)
             local_min_distances(:) = grid%sections%elements_alloc(:)%min_distance(i_color)
 
             _log_write(4, '(4X, A, I0, A)') "rank: ", rank_MPI, " (local)"
@@ -400,33 +399,20 @@ module SFC_edge_traversal
                 _log_write(4, '(5X, A, I0, A, F0.4)') "local section ", i_section, " distance: ", decode_distance(local_min_distances(i_section))
             end do
 
-            allocate(neighbor_min_distances(i_neighbors), stat = i_error); assert_eq(i_error, 0)
-            allocate(i_neighbor_sections(i_neighbors), stat = i_error); assert_eq(i_error, 0)
-
-            !send/receive distances
-            assert_veq(requests, MPI_REQUEST_NULL)
-
 		    do i_comm = 1, i_neighbors
-                call mpi_irecv(i_neighbor_sections(i_comm), 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
-                call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
- 		    end do
-
-            call mpi_waitall(i_neighbors, requests(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-            call mpi_waitall(i_neighbors, requests(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-
-		    do i_comm = 1, i_neighbors
-                call neighbor_min_distances(i_comm)%resize(i_neighbor_sections(i_comm))
- 		    end do
-
-            assert_veq(requests, MPI_REQUEST_NULL)
-
-		    do i_comm = 1, i_neighbors
-                call mpi_irecv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections(i_comm), MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
                 call mpi_isend(local_min_distances(1), i_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
  		    end do
 
+            allocate(neighbor_min_distances(i_neighbors), stat = i_error); assert_eq(i_error, 0)
+
+		    do i_comm = 1, i_neighbors
+                call mpi_probe(rank_list%elements(i_comm), 0, MPI_COMM_WORLD, state, i_error); assert_eq(i_error, 0)
+                call mpi_get_count(state, MPI_INTEGER8, i_neighbor_sections, i_error); assert_eq(i_error, 0)
+                call neighbor_min_distances(i_comm)%resize(i_neighbor_sections)
+                call mpi_recv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+ 		    end do
+
             call mpi_waitall(i_neighbors, requests(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-            call mpi_waitall(i_neighbors, requests(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
             do i_comm = 1, i_neighbors
                 _log_write(4, '(4X, A, I0)') "rank: ", rank_list%elements(i_comm)
@@ -434,10 +420,6 @@ module SFC_edge_traversal
                     _log_write(4, '(5X, A, I0, A, F0.4)') "section: ", i_section, " , distance: ", decode_distance(neighbor_min_distances(i_comm)%elements(i_section))
                 end do
             end do
-
-            deallocate(i_neighbor_sections, stat = i_error); assert_eq(i_error, 0)
-        	deallocate(requests, stat = i_error); assert_eq(i_error, 0)
-        	deallocate(local_min_distances, stat = i_error); assert_eq(i_error, 0)
 #		endif
     end subroutine
 
@@ -573,7 +555,7 @@ module SFC_edge_traversal
             assert_eq(i_section_2, section_2%index)
 
             if (section_2%min_distance(i_color) .le. max_distance) then
-                call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = rank_MPI, local_section = section%index, neighbor_section = section_2%index, min_distance = section_2%min_distance(i_color)))
+                call section%comms_type(NEW, i_color)%add(t_comm_interface(local_rank = rank_MPI, neighbor_rank = rank_MPI, local_section = section%index, neighbor_section = i_section_2, min_distance = section_2%min_distance(i_color)))
                 max_distance = section_2%min_distance(i_color)
             end if
         end do
@@ -1005,59 +987,42 @@ module SFC_edge_traversal
 #       endif
     end subroutine
 
-    subroutine finish_send(grid, mpi_edge_size, mpi_node_size)
-        type(t_grid), intent(inout)						:: grid
+    subroutine finish_send(section, i_color, mpi_edge_size, mpi_node_size)
+        type(t_grid_section), intent(inout)			    :: section
+        integer (BYTE), intent(in)					    :: i_color
         integer, intent(in)                             :: mpi_edge_size, mpi_node_size
 
-        integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section, i_comm
+        integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i_error
-        integer (BYTE)							        :: i_color
-        type(t_grid_section), pointer					:: section
         type(t_comm_interface), pointer			        :: comm
 
 #       if defined(_MPI)
-            call grid%get_local_sections(i_first_local_section, i_last_local_section)
+            do i_comm = 1, section%comms(i_color)%get_size()
+                comm => section%comms(i_color)%elements(i_comm)
 
-            _log_write(4, '(6X, "wait for MPI sends:")')
+                assert(associated(comm%p_local_edges))
+                assert(associated(comm%p_local_nodes))
 
-            do i_section = i_first_local_section, i_last_local_section
-                section => grid%sections%elements_alloc(i_section)
-                assert_eq(i_section, section%index)
+                if (comm%neighbor_rank .ne. rank_MPI .and. comm%neighbor_rank .ge. 0) then
+                    _log_write(4, '(7X, (A))') trim(comm%to_string())
 
-                _log_write(4, '(4X, A, I0)') "gather neighbor data: section ", section%index
+                    assert(associated(comm%p_neighbor_edges))
+                    assert(associated(comm%p_neighbor_nodes))
 
-                 do i_color = RED, GREEN
+                    _log_write(5, '(8X, A, I0, X, I0, A, I0, X, I0)') "send from : ", comm%local_rank, comm%local_section, " to  : ", comm%neighbor_rank, comm%neighbor_section
 
-                    _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
+                    if (mpi_edge_size > 0) then
+                        assert_ne(comm%send_requests(1), MPI_REQUEST_NULL)
+                        call mpi_wait(comm%send_requests(1), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
+                        assert_eq(comm%send_requests(1), MPI_REQUEST_NULL)
+                    end if
 
-                    do i_comm = 1, section%comms(i_color)%get_size()
-                        comm => section%comms(i_color)%elements(i_comm)
-
-                        assert(associated(comm%p_local_edges))
-                        assert(associated(comm%p_local_nodes))
-
-                        if (comm%neighbor_rank .ne. rank_MPI .and. comm%neighbor_rank .ge. 0) then
-                            _log_write(4, '(7X, (A))') trim(comm%to_string())
-
-                            assert(associated(comm%p_neighbor_edges))
-                            assert(associated(comm%p_neighbor_nodes))
-
-                            _log_write(5, '(8X, A, I0, X, I0, A, I0, X, I0)') "send from : ", comm%local_rank, comm%local_section, " to  : ", comm%neighbor_rank, comm%neighbor_section
-
-                            if (mpi_edge_size > 0) then
-                                assert_ne(comm%send_requests(1), MPI_REQUEST_NULL)
-                                call mpi_wait(comm%send_requests(1), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
-                                assert_eq(comm%send_requests(1), MPI_REQUEST_NULL)
-                            end if
-
-                            if (mpi_node_size > 0) then
-                                assert_ne(comm%send_requests(2), MPI_REQUEST_NULL)
-                                call mpi_wait(comm%send_requests(2), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
-                                assert_eq(comm%send_requests(2), MPI_REQUEST_NULL)
-                            end if
-                        end if
-                    end do
-                end do
+                    if (mpi_node_size > 0) then
+                        assert_ne(comm%send_requests(2), MPI_REQUEST_NULL)
+                        call mpi_wait(comm%send_requests(2), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
+                        assert_eq(comm%send_requests(2), MPI_REQUEST_NULL)
+                    end if
+                end if
             end do
 #       endif
     end subroutine
@@ -1181,13 +1146,12 @@ module SFC_edge_traversal
         end if
     end subroutine
 
-    subroutine write_back(grid, section, i_color, edge_write_op, node_write_op, mpi_edge_size, mpi_node_size)
+    subroutine duplicate_section_boundary_data(grid, section, i_color, edge_write_op, node_write_op)
         type(t_grid), intent(inout)			            :: grid
         type(t_grid_section), intent(inout)			    :: section
         integer (BYTE), intent(in)					    :: i_color
         procedure(op_edge_merge)                        :: edge_write_op
         procedure(op_node_merge)                        :: node_write_op
-        integer, intent(in)                             :: mpi_edge_size, mpi_node_size
 
         integer (kind = GRID_SI)						:: i_comm
         integer                                         :: i
@@ -1249,19 +1213,15 @@ module SFC_edge_traversal
         end do
     end subroutine
 
-    subroutine sync_boundary(grid, edge_merge_op, node_merge_op, edge_write_op, node_write_op, mpi_edge_type_optional, mpi_node_type_optional)
+    subroutine collect_boundary_data(grid, edge_merge_op, node_merge_op, mpi_edge_type_optional, mpi_node_type_optional)
         type(t_grid), intent(inout)						:: grid
-        procedure(op_edge_merge)                        :: edge_merge_op, edge_write_op
-        procedure(op_node_merge)                        :: node_merge_op, node_write_op
+        procedure(op_edge_merge)                        :: edge_merge_op
+        procedure(op_node_merge)                        :: node_merge_op
         integer, intent(in), optional                   :: mpi_edge_type_optional, mpi_node_type_optional
 
         integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section, i_comm
         integer                                         :: i_error
         integer (BYTE)							        :: i_color
-        type(t_grid_section), pointer					:: section
-        type(t_comm_interface), pointer			        :: comm
-        integer (kind = GRID_SI)       					:: i_first_node, i_last_node, i, i_iteration
-        logical                                         :: l_conform, l_section_conform
         integer                                         :: mpi_edge_size, mpi_node_size
 
         _log_write(4, '(3X, A)') "sync boundary sections:"
@@ -1269,8 +1229,6 @@ module SFC_edge_traversal
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
 #       if defined(_MPI)
-            _log_write(4, '(6X, "wait for MPI sends:")')
-
             if (present(mpi_edge_type_optional)) then
                 call MPI_Type_size(mpi_edge_type_optional, mpi_edge_size, i_error); assert_eq(i_error, 0)
             else
@@ -1282,9 +1240,19 @@ module SFC_edge_traversal
             else
                 mpi_node_size = 1
             end if
-#       endif
 
-        call finish_send(grid, mpi_edge_size, mpi_node_size)
+            _log_write(4, '(6X, "wait for MPI sends:")')
+
+            do i_section = i_first_local_section, i_last_local_section
+                _log_write(4, '(4X, A, I0)') "section: ", i_section
+
+                do i_color = RED, GREEN
+                    _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
+
+                    call finish_send(grid%sections%elements_alloc(i_section), i_color, mpi_edge_size, mpi_node_size)
+                end do
+            end do
+#       endif
 
         !$omp barrier
 
@@ -1293,17 +1261,39 @@ module SFC_edge_traversal
         _log_write(4, '(3X, A, I0)') "wait for MPI receives, read and write merged data"
 
         do i_section = i_first_local_section, i_last_local_section
-            section => grid%sections%elements_alloc(i_section)
-            assert_eq(i_section, section%index)
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
 
             _log_write(4, '(4X, A, I0)') "section: ", i_section
 
             do i_color = RED, GREEN
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
-                call finish_receive_and_merge(section, i_color, edge_merge_op, node_merge_op, mpi_edge_size, mpi_node_size)
+                call finish_receive_and_merge(grid%sections%elements_alloc(i_section), i_color, edge_merge_op, node_merge_op, mpi_edge_size, mpi_node_size)
+            end do
+        end do
+    end subroutine
 
-                call write_back(grid, section, i_color, edge_write_op, node_write_op, mpi_edge_size, mpi_node_size)
+    subroutine duplicate_boundary_data(grid, edge_write_op, node_write_op)
+        type(t_grid), intent(inout)						:: grid
+        procedure(op_edge_merge)                        :: edge_write_op
+        procedure(op_node_merge)                        :: node_write_op
+
+        integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section
+        integer (BYTE)							        :: i_color
+
+        _log_write(4, '(3X, A)') "write back boundary sections:"
+
+        call grid%get_local_sections(i_first_local_section, i_last_local_section)
+
+        do i_section = i_first_local_section, i_last_local_section
+            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
+
+            _log_write(4, '(4X, A, I0)') "section: ", i_section
+
+            do i_color = RED, GREEN
+                _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
+
+                call duplicate_section_boundary_data(grid, grid%sections%elements_alloc(i_section), i_color, edge_write_op, node_write_op)
             end do
         end do
 

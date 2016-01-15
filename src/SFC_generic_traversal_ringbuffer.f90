@@ -307,6 +307,30 @@ subroutine traverse(traversal, grid)
     !$omp barrier
 
     do i_section = i_first_local_section, i_last_local_section
+#       if defined(_OPENMP_TASKS)
+            !$omp task default(shared) firstprivate(i_section) mergeable
+#       endif
+
+        thread_traversal%stats%r_pre_compute_time = thread_traversal%stats%r_pre_compute_time - get_wtime()
+        traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time - get_wtime()
+        call pre_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
+        traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
+        thread_traversal%stats%r_pre_compute_time = thread_traversal%stats%r_pre_compute_time + get_wtime()
+
+#       if defined(_OPENMP_TASKS)
+            !$omp end task
+#       endif
+    end do
+
+#   if defined(_OPENMP_TASKS)
+        !$omp taskwait
+#   endif
+
+    thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time - get_wtime()
+    call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
+    thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
+
+    do i_section = i_first_local_section, i_last_local_section
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
             call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
 #       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
@@ -324,13 +348,7 @@ subroutine traverse(traversal, grid)
 #       endif
 
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time - get_wtime()
-
-        thread_traversal%stats%r_pre_compute_time = thread_traversal%stats%r_pre_compute_time - get_wtime()
-        call pre_traversal_wrapper(traversal%children(i_section), grid%sections%elements_alloc(i_section))
-        thread_traversal%stats%r_pre_compute_time = thread_traversal%stats%r_pre_compute_time + get_wtime()
-
         call traverse_section_wrapper(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
-
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
 
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
@@ -355,15 +373,14 @@ subroutine traverse(traversal, grid)
     !sync and call post traversal operator
     thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time - get_wtime()
 #   if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op)
+        call collect_boundary_data(grid, edge_merge_wrapper_op, node_merge_wrapper_op)
 #   elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type)
+        call collect_boundary_data(grid, edge_merge_wrapper_op, node_merge_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type)
 #   elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
+        call collect_boundary_data(grid, edge_merge_wrapper_op, node_merge_wrapper_op, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   else
-        call sync_boundary(grid, edge_merge_wrapper_op, node_merge_wrapper_op, edge_write_wrapper_op, node_write_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal%mpi_edge_type)
+        call collect_boundary_data(grid, edge_merge_wrapper_op, node_merge_wrapper_op, mpi_node_type_optional=traversal%mpi_node_type, mpi_edge_type_optional=traversal%mpi_edge_type)
 #   endif
-
     thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
 
     thread_traversal%stats%r_post_compute_time = thread_traversal%stats%r_post_compute_time - get_wtime()

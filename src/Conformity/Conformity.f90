@@ -292,7 +292,8 @@ module Conformity
         thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
         thread_stats%r_sync_time = -get_wtime()
-        call sync_boundary(grid, edge_merge_op_integrity, node_merge_op_integrity, edge_write_op_integrity, node_write_op_integrity, mpi_node_type_optional=conformity%mpi_node_type)
+        call collect_boundary_data(grid, edge_merge_op_integrity, node_merge_op_integrity, mpi_node_type_optional=conformity%mpi_node_type)
+        call duplicate_boundary_data(grid, edge_write_op_integrity, node_write_op_integrity)
         thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
         thread_stats%r_barrier_time = -get_wtime()
@@ -1332,17 +1333,17 @@ module Conformity
         local_edges%coarsen = neighbor_edges%coarsen
     end function
 
-    function node_merge_op_integrity(local_nodes, neighbor_nodes) result(l_conform)
-        type(t_node_data), intent(inout)    :: local_nodes
-        type(t_node_data), intent(in)       :: neighbor_nodes
+    function node_merge_op_integrity(local_node, neighbor_node) result(l_conform)
+        type(t_node_data), intent(inout)    :: local_node
+        type(t_node_data), intent(in)       :: neighbor_node
         logical                             :: l_conform
 
         l_conform = .true.
     end function
 
-    function node_write_op_integrity(local_nodes, neighbor_nodes) result(l_conform)
-        type(t_node_data), intent(inout)    :: local_nodes
-        type(t_node_data), intent(in)       :: neighbor_nodes
+    function node_write_op_integrity(local_node, neighbor_node) result(l_conform)
+        type(t_node_data), intent(inout)    :: local_node
+        type(t_node_data), intent(in)       :: neighbor_node
         logical                             :: l_conform
 
         l_conform = .true.
