@@ -177,12 +177,12 @@ MODULE SFC_data_types
 			type(num_cell_update)							:: update
 #		endif
 
-        integer (kind = GRID_DI)                            :: min_distance         !< edge minimum distance (only defined for boundary edges)
-        logical                             :: owned_locally        !< if true, the current section owns the edge, defined only for boundary nodes!
-        logical                             :: owned_globally       !< if true, the current rank owns the edge, defined only for boundary nodes!
-        integer (kind = BYTE)                                  :: depth                !< edge depth
+        integer (kind = GRID_DI)                            :: min_distance             !< edge minimum distance (only defined for boundary edges)
+        logical                                             :: owned_locally = .true.   !< if true, the current section owns the edge, defined only for boundary nodes!
+        logical                                             :: owned_globally = .true.  !< if true, the current rank owns the edge, defined only for boundary nodes!
+        integer (kind = BYTE)                               :: depth                    !< edge depth
 
-		type(t_edge_transform_data), pointer				:: transform_data		!< local edge transform data
+		type(t_edge_transform_data), pointer				:: transform_data		    !< local edge transform data
 	end type
 
 	! Node storage
@@ -208,8 +208,8 @@ MODULE SFC_data_types
 #		endif
 
         integer (kind = GRID_DI)                            :: distance             !< node distance, defined only for boundary nodes!
-        logical                                             :: owned_locally        !< if true, the current section owns the node, defined only for boundary nodes!
-        logical                                             :: owned_globally       !< if true, the current rank owns the node, defined only for boundary nodes!
+        logical                                             :: owned_locally = .true.        !< if true, the current section owns the node, defined only for boundary nodes!
+        logical                                             :: owned_globally = .true.       !< if true, the current rank owns the node, defined only for boundary nodes!
 	end type
 
 	!traversal data types

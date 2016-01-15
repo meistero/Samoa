@@ -489,7 +489,6 @@ MODULE _CG_(exact)
 #		    define _GT_NODES
 #		endif
 
-#		define _GT_NODES
 #		define _GT_NO_COORDS
 
 #		define _GT_PRE_TRAVERSAL_GRID_OP		pre_traversal_grid_op
@@ -501,8 +500,11 @@ MODULE _CG_(exact)
 #		define _GT_NODE_FIRST_TOUCH_OP			node_first_touch_op
 #		define _GT_NODE_LAST_TOUCH_OP			node_last_touch_op
 #		define _GT_NODE_REDUCE_OP			    node_reduce_op
-#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
-#		define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
+
+#       if defined(_gv_dirichlet_is_temporary)
+#		    define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
+#		    define _GT_INNER_NODE_REDUCE_OP		    inner_node_reduce_op
+#       endif
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 

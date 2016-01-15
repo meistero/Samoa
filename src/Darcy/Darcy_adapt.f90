@@ -35,7 +35,7 @@
 
 #		define _GT_CELL_FIRST_TOUCH_OP				cell_first_touch_op
 #		define _GT_NODE_FIRST_TOUCH_OP				node_first_touch_op
-#		define _GT_NODE_LAST_TOUCH_OP				node_last_touch_op
+#		define _GT_NODE_LAST_TOUCH_OP				inner_node_last_touch_op
 #		define _GT_INNER_NODE_LAST_TOUCH_OP			inner_node_last_touch_op
 
 #		define _GT_NODE_MERGE_OP				    node_merge_op

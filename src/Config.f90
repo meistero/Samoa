@@ -45,11 +45,6 @@ module config
 
 	    logical 				                :: l_gridoutput			                            !< grid output on/off
 	    character(256)				            :: output_dir			                            !< output directory
-        logical                                 :: l_ascii_output                                   !< ascii output on/off
-        integer                                 :: i_ascii_width                                    !< width of the ascii output
-	    logical					                :: l_pointoutput                                    !< test points output on/off
-	    character(512)				            :: s_testpoints			                            !< test points input string
-	    double precision, pointer		        :: r_testpoints(:,:)		                        !< test points array
 
         double precision                        :: courant_number                                   !< time step size relative to the CFL condition
 
@@ -89,6 +84,8 @@ module config
 
 			double precision			        :: p_refinement_threshold				            !< pressure refinement threshold
 			double precision			        :: S_refinement_threshold				            !< saturation refinement threshold
+
+            logical 				            :: l_well_output			                        !< well output on/off
 #    	elif defined(_SWE)
             double precision                    :: scaling, offset(2)                               !< grid scaling and offset of the computational domain
 
@@ -100,6 +97,12 @@ module config
             double precision                    :: t_min_eq, t_max_eq						        !< earthquake start and end time [s]
             double precision                    :: dt_eq                                            !< earthquake time step [s]
             double precision                    :: dry_tolerance                                    !< dry tolerance [m]
+
+            logical                             :: l_ascii_output                                   !< ascii output on/off
+            integer                             :: i_ascii_width                                    !< width of the ascii output
+            logical					            :: l_pointoutput                                    !< test points output on/off
+            character(512)				        :: s_testpoints			                            !< test points input string
+            double precision, pointer		    :: r_testpoints(:,:)		                        !< test points array
 #    	elif defined(_FLASH)
             double precision                    :: scaling, offset(2)                               !< grid scaling and offset of the computational domain
 
@@ -153,7 +156,7 @@ module config
             write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.5d0 " // &
             "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
             "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 1025.18d0 -rho_n 848.98d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
-            "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. "
+            "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. -welloutput .true. "
 
 #           if (_DARCY_LAYERS > 0)
                 write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d0 -S_ref_th 1.0d0 "
@@ -207,19 +210,9 @@ module config
         config%l_serial_lb = lget('samoa_lbserial')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
-        config%l_ascii_output = lget('samoa_asciioutput')
-        config%i_ascii_width = iget('samoa_asciioutput_width')
         config%courant_number = rget('samoa_courant')
         config%l_gridoutput = lget('samoa_xmloutput')
         config%output_dir = sget('samoa_output_dir', 256)
-        config%s_testpoints = sget('samoa_stestpoints', 512)
-
-        if (len(trim(config%s_testpoints)) .ne. 2) then
-            config%l_pointoutput = .true.
-            call parse_testpoints(config)
-        else
-            config%l_pointoutput = .false.
-        end if
 
 #    	if defined(_DARCY)
             config%s_permeability_file = sget('samoa_fperm', 256)
@@ -237,7 +230,6 @@ module config
             config%i_lse_skip = iget('samoa_lse_skip')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
-            config%l_lse_output = lget('samoa_lseoutput')
             config%r_well_radius = rget('samoa_well_radius')
             config%r_inflow = rget('samoa_inflow')
 
@@ -245,10 +237,24 @@ module config
             config%S_refinement_threshold = rget('samoa_S_ref_th')
 
             config%g = [rget('samoa_g_x'), rget('samoa_g_y'), rget('samoa_g_z')]
+
+            config%l_lse_output = lget('samoa_lseoutput')
+            config%l_well_output = lget('samoa_welloutput')
 #    	elif defined(_SWE) || defined(_FLASH)
             config%s_bathymetry_file = sget('samoa_fbath', 256)
             config%s_displacement_file = sget('samoa_fdispl', 256)
             config%dry_tolerance = rget('samoa_drytolerance')
+
+            config%l_ascii_output = lget('samoa_asciioutput')
+            config%i_ascii_width = iget('samoa_asciioutput_width')
+            config%s_testpoints = sget('samoa_stestpoints', 512)
+
+            if (len(trim(config%s_testpoints)) .ne. 2) then
+                config%l_pointoutput = .true.
+                call parse_testpoints(config)
+            else
+                config%l_pointoutput = .false.
+            end if
 #       endif
 
         if (rank_MPI == 0) then
@@ -301,13 +307,14 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-p_prod                 production well pressure (value: ", config%r_p_prod, " psi)"
                     PRINT '(A, ES9.2, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow, " BBL/d)"
                     PRINT '(A, 3(ES9.2, X), A)',  "	-g_x -g_y -g_z          gravity vector (value: (", config%g, ") m/s^2)"
-                    PRINT '(A, ES8.1, A)',  "	-well_radius            [has no effect currently] injection and production well radius (value: ", config%r_well_radius, " inch)"
+                    PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius, " inch)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver                linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
                     PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
                     PRINT '(A, I0, A)',        "	-lse_skip               number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart             CG restart interval (value: ", config%i_CG_restart, ")"
                     PRINT '(A, L, A)',     "	-lseoutput              enable LSE output (value: ", config%l_lse_output, ")"
+                    PRINT '(A, L, A)',     "	-welloutput             enable well data output (value: ", config%l_well_output, ")"
                     PRINT '(A, ES9.2, A)',  "	-p_ref_th               pressure refinement threshold (value: ", config%p_refinement_threshold, ")"
                     PRINT '(A, ES9.2, A)',  "	-S_ref_th               saturation refinement threshold (value: ", config%S_refinement_threshold, ")"
 #          	    elif defined(_SWE)
@@ -538,148 +545,136 @@ module config
         _log_write(0, '("")')
     end subroutine
 
-    subroutine parse_testpoints(config)
-	class(t_config), intent(inout)          :: config
+#   if defined(_SWE)
+        subroutine parse_testpoints(config)
+            class(t_config), intent(inout)          :: config
 
-	!local variables
-	logical					:: l_wrong_format, l_point, l_comma, l_space, l_number_pre, l_number_post, l_sign, l_ycoord
-        integer          			:: i, i_error, points, j, coordstart(50,2), k, counter
-        character(512)                          :: checkstring
+            !local variables
+            logical					:: l_wrong_format, l_point, l_comma, l_space, l_number_pre, l_number_post, l_sign, l_ycoord
+                integer          			:: i, i_error, points, j, coordstart(50,2), k, counter
+                character(512)                          :: checkstring
 
-	! check for correctness
-	l_wrong_format = .false.
-	checkstring = config%s_testpoints
+            ! check for correctness
+            l_wrong_format = .false.
+            checkstring = config%s_testpoints
 
-	l_sign = .true.
-	l_number_pre = .true.
-	l_number_post = .false.
-	l_space = .false.
-	l_comma = .false.
-	l_point = .false.
-	l_ycoord = .false.
+            l_sign = .true.
+            l_number_pre = .true.
+            l_number_post = .false.
+            l_space = .false.
+            l_comma = .false.
+            l_point = .false.
+            l_ycoord = .false.
 
-	counter = len(trim(config%s_testpoints))
+            counter = len(trim(config%s_testpoints))
 
-	do while ((l_wrong_format .eqv. .false.) .and. (counter > 0))
-		if ((l_sign .eqv. .true.) .and. (checkstring(1:1) == "-")) then
-			! sign ('-' only)
-			checkstring = checkstring (2:)
-			counter = counter - 1
-			l_number_pre = .true.
-			l_number_post = .false.
-			l_sign = .false.
-			l_space = .false.
-			l_comma = .false.
-			l_point = .false.
-		else if ((l_number_pre .eqv. .true.) .and. &
-		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
-	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
-		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
-		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
-		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
-			! number before the point
-			checkstring = checkstring(2:)
-			counter = counter - 1
-			l_number_pre = .true.
-			l_number_post = .false.
-			l_sign = .false.
-			l_space = .false.
-			l_comma = .false.
-			l_point = .true.
-		else if ((l_number_post .eqv. .true.) .and. &
-		   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
-	 	   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
-		   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
-		   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
-		   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
-			! number behind the point
-			checkstring = checkstring(2:)
-			counter = counter - 1
-			l_number_pre = .false.
-			l_number_post = .true.
-			l_sign = .false.
-			l_space = .true.
-			l_comma = .true.
-			l_point = .false.
-		else if ((l_point .eqv. .true.) .and. (checkstring(1:1) == ".")) then
-			! point
-			checkstring = checkstring(2:)
-			counter = counter - 1
-			l_number_pre = .false.
-			l_number_post = .true.
-			l_sign = .false.
-			l_space = .false.
-			l_comma = .false.
-			l_point = .false.
-		else if ((l_comma .eqv. .true.) .and. (l_ycoord .eqv. .true.) &
-		    .and. (checkstring(1:1) == ",")) then
-			! comma
-			checkstring = checkstring(2:)
-			counter = counter - 1
-			l_number_pre = .true.
-			l_number_post = .false.
-			l_sign = .true.
-			l_space = .false.
-			l_comma = .false.
-			l_point = .false.
-			l_ycoord = .false.
-		else if ((l_space .eqv. .true.) .and. (l_ycoord .eqv. .false.) &
-		   .and. (checkstring(1:1) == " ")) then
-			! space
-			checkstring = checkstring(2:)
-			counter = counter - 1
-			l_number_pre = .true.
-			l_number_post = .false.
-			l_sign = .true.
-			l_space = .false.
-			l_comma = .false.
-			l_point = .false.
-			l_ycoord = .true.
-		else
-			write (*,'(A,$)') 'Position with wrong symbol (counting from the end):'
-			write (*,*) counter
-			l_wrong_format = .true.
-		end if
-	end do
+            do while ((l_wrong_format .eqv. .false.) .and. (counter > 0))
+                if ((l_sign .eqv. .true.) .and. (checkstring(1:1) == "-")) then
+                    ! sign ('-' only)
+                    checkstring = checkstring (2:)
+                    counter = counter - 1
+                    l_number_pre = .true.
+                    l_number_post = .false.
+                    l_sign = .false.
+                    l_space = .false.
+                    l_comma = .false.
+                    l_point = .false.
+                else if ((l_number_pre .eqv. .true.) .and. &
+                   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
+                   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
+                   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
+                   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
+                   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
+                    ! number before the point
+                    checkstring = checkstring(2:)
+                    counter = counter - 1
+                    l_number_pre = .true.
+                    l_number_post = .false.
+                    l_sign = .false.
+                    l_space = .false.
+                    l_comma = .false.
+                    l_point = .true.
+                else if ((l_number_post .eqv. .true.) .and. &
+                   (checkstring(1:1) == "1" .or. checkstring(1:1) == "2" .or. &
+                   checkstring(1:1) == "3" .or. checkstring(1:1) == "4" .or. &
+                   checkstring(1:1) == "5" .or. checkstring(1:1) == "6" .or. &
+                   checkstring(1:1) == "7" .or. checkstring(1:1) == "8" .or. &
+                   checkstring(1:1) == "9" .or. checkstring(1:1) == "0")) then
+                    ! number behind the point
+                    checkstring = checkstring(2:)
+                    counter = counter - 1
+                    l_number_pre = .false.
+                    l_number_post = .true.
+                    l_sign = .false.
+                    l_space = .true.
+                    l_comma = .true.
+                    l_point = .false.
+                else if ((l_point .eqv. .true.) .and. (checkstring(1:1) == ".")) then
+                    ! point
+                    checkstring = checkstring(2:)
+                    counter = counter - 1
+                    l_number_pre = .false.
+                    l_number_post = .true.
+                    l_sign = .false.
+                    l_space = .false.
+                    l_comma = .false.
+                    l_point = .false.
+                else if ((l_comma .eqv. .true.) .and. (l_ycoord .eqv. .true.) &
+                    .and. (checkstring(1:1) == ",")) then
+                    ! comma
+                    checkstring = checkstring(2:)
+                    counter = counter - 1
+                    l_number_pre = .true.
+                    l_number_post = .false.
+                    l_sign = .true.
+                    l_space = .false.
+                    l_comma = .false.
+                    l_point = .false.
+                    l_ycoord = .false.
+                else if ((l_space .eqv. .true.) .and. (l_ycoord .eqv. .false.) &
+                   .and. (checkstring(1:1) == " ")) then
+                    ! space
+                    checkstring = checkstring(2:)
+                    counter = counter - 1
+                    l_number_pre = .true.
+                    l_number_post = .false.
+                    l_sign = .true.
+                    l_space = .false.
+                    l_comma = .false.
+                    l_point = .false.
+                    l_ycoord = .true.
+                else
+                    write (*,'(A,$)') 'Position with wrong symbol (counting from the end):'
+                    write (*,*) counter
+                    l_wrong_format = .true.
+                end if
+            end do
 
-	try((.not. l_wrong_format), 'Error in submitted testpoints')
+            try((.not. l_wrong_format), 'Error in submitted testpoints')
 
-	!convert stestpoints (string) to r_testpoints (real array)
-	points = 0
-	!k = 1
-	if (l_wrong_format .eqv. .false.) then
-	    points = 1
-	    coordstart(1,1) = 1
-	    do j=1, len(trim(config%s_testpoints))
-		if (config%s_testpoints(j:j) == " ") then
-			coordstart(points,2) = j+1
-		end if
-		if (config%s_testpoints(j:j) == ",") then
-		    points = points + 1
-		    coordstart(points,1) = j+1
-		end if
-	    end do
+            !convert stestpoints (string) to r_testpoints (real array)
+            points = 0
+            !k = 1
+            if (l_wrong_format .eqv. .false.) then
+                points = 1
+                coordstart(1,1) = 1
+                do j=1, len(trim(config%s_testpoints))
+                if (config%s_testpoints(j:j) == " ") then
+                    coordstart(points,2) = j+1
+                end if
+                if (config%s_testpoints(j:j) == ",") then
+                    points = points + 1
+                    coordstart(points,1) = j+1
+                end if
+                end do
 
-	    allocate (config%r_testpoints(points,2), stat = i_error); assert_eq(i_error,0)
+                allocate (config%r_testpoints(points,2), stat = i_error); assert_eq(i_error,0)
 
-		!uncomment the following do to check if starts of coordinates are correctly detected
-		!do j=1, points
-		!	write (*,*) coordstart(j,1)
-		!	write (*,*) coordstart(j,2)
-		!end do
-	     do j=1, points
-			read(unit=config%s_testpoints(coordstart(j,1):), fmt=*) config%r_testpoints(j,1)
-			read(unit=config%s_testpoints(coordstart(j,2):), fmt=*) config%r_testpoints(j,2)
-	     end do
-
-		!uncomment the following do to check if testpoints are correctly saved in the double precision array
-		!write (*,*) 'testpoints read:'
-		!do j=1,  size(config%r_testpoints,dim=1)
-		!	write (*,*) config%r_testpoints(j,1)
-		!	write (*,*) config%r_testpoints(j,2)
-		!end do
-
-	end if
-
-    end subroutine
+                 do j=1, points
+                    read(unit=config%s_testpoints(coordstart(j,1):), fmt=*) config%r_testpoints(j,1)
+                    read(unit=config%s_testpoints(coordstart(j,2):), fmt=*) config%r_testpoints(j,2)
+                 end do
+            end if
+        end subroutine
+#   endif
 end module

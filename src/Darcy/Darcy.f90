@@ -10,7 +10,7 @@
 		use Darcy_data_types
 		use Darcy_initialize_pressure
 		use Darcy_initialize_saturation
-		use Darcy_vtk_output
+		use Darcy_well_output
 		use Darcy_xml_output
 		use Darcy_lse_output
 		use Darcy_grad_p
@@ -31,7 +31,7 @@
 		type t_darcy
             type(t_darcy_init_pressure_traversal)           :: init_pressure
             type(t_darcy_init_saturation_traversal)         :: init_saturation
-            type(t_darcy_vtk_output_traversal)              :: vtk_output
+            type(t_darcy_well_output_traversal)             :: well_output
             type(t_darcy_xml_output_traversal)              :: xml_output
             type(t_darcy_lse_output_traversal)              :: lse_output
             type(t_darcy_grad_p_traversal)                  :: grad_p
@@ -73,7 +73,7 @@
 
             call darcy%init_pressure%create()
             call darcy%init_saturation%create()
-            call darcy%vtk_output%create()
+            call darcy%well_output%create()
             call darcy%xml_output%create()
             call darcy%lse_output%create()
             call darcy%grad_p%create()
@@ -109,10 +109,10 @@
                 call mpi_bcast(s_time, len(s_time), MPI_CHARACTER, 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-			darcy%vtk_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
+			darcy%well_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
 			darcy%xml_output%s_file_stamp = trim(cfg%output_dir) // "/darcy_" // trim(s_date) // "_" // trim(s_time)
 
-			s_log_name = trim(darcy%vtk_output%s_file_stamp) // ".log"
+			s_log_name = trim(darcy%xml_output%s_file_stamp) // ".log"
 
 			if (l_log) then
 				_log_open_file(s_log_name)
@@ -272,7 +272,7 @@
 
             call darcy%init_pressure%destroy()
             call darcy%init_saturation%destroy()
-            call darcy%vtk_output%destroy()
+            call darcy%well_output%destroy()
             call darcy%xml_output%destroy()
             call darcy%lse_output%destroy()
             call darcy%grad_p%destroy()
@@ -377,15 +377,20 @@
 					exit
 				endif
 
-                !output grids during initial phase if and only if t_out is 0
+                !output grid during initial phase if and only if t_out is 0
                 if (cfg%r_output_time_step == 0.0_GRID_SR) then
+                    if (cfg%l_well_output) then
+                        !do a dummy transport step first to determine the initial production rates
+                        grid%r_dt = 0.0_SR
 
-                    !do a dummy transport step first to determine the initial production rates
-                    grid%r_dt = 0.0_SR
-                    call darcy%transport_eq%traverse(grid)
+                        call darcy%transport_eq%traverse(grid)
+                        call darcy%well_output%traverse(grid)
+                    end if
 
-                    !output grid
-                    call darcy%xml_output%traverse(grid)
+                    if (cfg%l_gridoutput) then
+                        call darcy%xml_output%traverse(grid)
+                    endif
+
                     r_time_next_output = r_time_next_output + cfg%r_output_time_step
                 end if
 
@@ -408,12 +413,18 @@
 
 			!output initial grid
 			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
-                !do a dummy transport step first to determine the initial production rates
-                grid%r_dt = 0.0_SR
-				call darcy%transport_eq%traverse(grid)
+                if (cfg%l_well_output) then
+                    !do a dummy transport step first to determine the initial production rates
+                    grid%r_dt = 0.0_SR
 
-                !output grid
-				call darcy%xml_output%traverse(grid)
+                    call darcy%transport_eq%traverse(grid)
+                    call darcy%well_output%traverse(grid)
+                end if
+
+                if (cfg%l_gridoutput) then
+                    call darcy%xml_output%traverse(grid)
+                endif
+
 				r_time_next_output = r_time_next_output + cfg%r_output_time_step
 			end if
 
@@ -490,7 +501,14 @@
 
 				!output grid
 				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
-					call darcy%xml_output%traverse(grid)
+                    if (cfg%l_well_output) then
+                        call darcy%well_output%traverse(grid)
+                    end if
+
+                    if (cfg%l_gridoutput) then
+                        call darcy%xml_output%traverse(grid)
+                    endif
+
 					r_time_next_output = r_time_next_output + cfg%r_output_time_step
 				end if
 

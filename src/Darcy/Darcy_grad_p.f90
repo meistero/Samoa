@@ -32,8 +32,7 @@
 #		define _GT_ELEMENT_OP					element_op
 
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
-#		define _GT_INNER_NODE_LAST_TOUCH_OP		inner_node_last_touch_op
+#		define _GT_NODE_REDUCE_OP		        node_reduce_op
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
 
@@ -152,29 +151,15 @@
 
 		!last touches
 
-		subroutine inner_node_last_touch_op(traversal, section, node)
+		subroutine node_reduce_op(traversal, section, node)
  			type(t_darcy_grad_p_traversal), intent(inout)       :: traversal
  			type(t_grid_section), intent(in)				    :: section
-			type(t_node_data), intent(inout)				    :: node
+			type(t_node_data), intent(in)				        :: node
 
             integer :: i
 
             do i = 1, _DARCY_LAYERS + 1
-                call post_dof_op(node%data_temp%flux(i), node%data_pers%d(i), node%data_temp%volume(i), traversal%r_dt)
-            end do
-		end subroutine
-
-		subroutine node_last_touch_op(traversal, section, nodes)
- 			type(t_darcy_grad_p_traversal), intent(inout)       :: traversal
- 			type(t_grid_section), intent(inout)				    :: section
-			type(t_node_data), intent(inout)			        :: nodes(:)
-
-            integer :: j, i
-
-            do j = 1, size(nodes)
-                do i = 1, _DARCY_LAYERS + 1
-                    call post_dof_op(nodes(j)%data_temp%flux(i), nodes(j)%data_pers%d(i), nodes(j)%data_temp%volume(i), traversal%r_dt)
-                end do
+                call reduce_dof_op(node%data_temp%flux(i), node%data_pers%d(i), node%data_temp%volume(i), traversal%r_dt)
             end do
 		end subroutine
 
@@ -200,7 +185,7 @@
 			volume = 0.0_SR
 		end subroutine
 
-		pure subroutine post_dof_op(xi_w, xi_n, volume, dt)
+		pure subroutine reduce_dof_op(xi_w, xi_n, volume, dt)
 			real (kind = GRID_SR), intent(in)		:: xi_w, xi_n
 			real (kind = GRID_SR), intent(in)		:: volume
 			real (kind = GRID_SR), intent(inout)	:: dt

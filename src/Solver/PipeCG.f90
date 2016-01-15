@@ -79,7 +79,7 @@ MODULE _CG_(step)
 #       endif
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
-!#		define _GT_NODE_WRITE_OP		        node_write_op
+#		define _GT_NODE_WRITE_OP		        node_write_op
 
 !#		define _GT_NODE_MPI_TYPE
 #		define _GT_EDGE_MPI_TYPE
@@ -394,15 +394,11 @@ MODULE _CG_(step)
         type(t_node_data), intent(inout)			    :: local_node
         type(t_node_data), intent(in)				    :: neighbor_node
 
-        real(kind = GRID_SR)                            :: v(_gv_node_size)
         real(kind = GRID_SR)                            :: trace_A(_gv_node_size)
 
-        assert_pure(neighbor_node%data_temp%mat_diagonal(1) .ge. local_node%data_temp%mat_diagonal(1))
+        local_node%data_pers = neighbor_node%data_pers
 
-        call gv_v%read(neighbor_node, v)
-        call gv_v%write(local_node, v)
-
-        call gv_trace_A%read(neighbor_node, trace_A)
+        trace_A = tiny(1.0_GRID_SR)
         call gv_trace_A%write(local_node, trace_A)
     end subroutine
 
@@ -509,7 +505,6 @@ MODULE _CG_(exact)
 #       endif
 
 #		define _GT_NODE_MERGE_OP		        node_merge_op
-#		define _GT_NODE_WRITE_OP		        node_write_op
 
 !#		define _GT_NODE_MPI_TYPE
 #		define _GT_EDGE_MPI_TYPE
@@ -750,22 +745,6 @@ MODULE _CG_(exact)
 
         call gv_trace_A%read(neighbor_node, trace_A)
         call gv_trace_A%add(local_node, trace_A)
-    end subroutine
-
-    pure subroutine node_write_op(local_node, neighbor_node)
-        type(t_node_data), intent(inout)			    :: local_node
-        type(t_node_data), intent(in)				    :: neighbor_node
-
-        real (kind = GRID_SR) :: r(_gv_node_size)
-        real (kind = GRID_SR) :: trace_A(_gv_node_size)
-
-        assert_pure(neighbor_node%data_temp%mat_diagonal(1) .ge. local_node%data_temp%mat_diagonal(1))
-
-        call gv_r%read(neighbor_node, r)
-        call gv_r%write(local_node, r)
-
-        call gv_trace_A%read(neighbor_node, trace_A)
-        call gv_trace_A%write(local_node, trace_A)
     end subroutine
 
     !*******************************
