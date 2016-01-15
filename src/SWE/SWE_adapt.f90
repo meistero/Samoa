@@ -37,9 +37,11 @@
 #		define _GT_COARSEN_OP					coarsen_op
 
 #		define _GT_CELL_TO_EDGE_OP				cell_to_edge_op
-#		define _GT_CELL_LAST_TOUCH_OP			cell_last_touch_op
 
 #		define _GT_NODE_MPI_TYPE
+
+#		define _GT_NODE_WRITE_OP			    node_write_op
+#		define _GT_EDGE_WRITE_OP			    edge_write_op
 
 #		include "SFC_generic_adaptive_traversal.f90"
 
@@ -166,10 +168,19 @@
 			end if
 		end subroutine
 
-		subroutine cell_last_touch_op(traversal, section, cell)
- 			type(t_swe_adaption_traversal), intent(inout)	                :: traversal
-			type(t_grid_section), intent(inout)							:: section
-			type(t_cell_data_ptr), intent(inout)				:: cell
-		end subroutine
+        pure subroutine node_write_op(local_node, neighbor_node)
+            type(t_node_data), intent(inout)			    :: local_node
+            type(t_node_data), intent(in)				    :: neighbor_node
+
+            !do nothing
+        end subroutine
+
+
+        pure subroutine edge_write_op(local_node, neighbor_node)
+            type(t_edge_data), intent(inout)			    :: local_node
+            type(t_edge_data), intent(in)				    :: neighbor_node
+
+            !do nothing
+        end subroutine
 	END MODULE
 #endif
