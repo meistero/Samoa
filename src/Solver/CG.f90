@@ -820,7 +820,7 @@ MODULE _CG
         i_iteration = 0
         _log_write(3, '(4X, A, ES17.10, A, ES17.10)') "r^T r: ", r_sq, " r^T C r: ", r_C_r
 
-        max_error_sq = min(solver%rel_error * solver%rel_error * r_sq, solver%abs_error * solver%abs_error)
+        max_error_sq = max(solver%rel_error * solver%rel_error * r_sq, solver%abs_error * solver%abs_error)
 
         do
             !$omp master

@@ -164,7 +164,7 @@ MODULE _JACOBI_(1)
         call gv_r%write(node, r)
     end subroutine
 
-    pure subroutine inner_node_last_touch_op(traversal, section, node)
+    elemental subroutine inner_node_last_touch_op(traversal, section, node)
         type(_T_JACOBI_(traversal)), intent(in)			:: traversal
         type(t_grid_section), intent(in)				:: section
         type(t_node_data), intent(inout)				:: node
@@ -206,7 +206,7 @@ MODULE _JACOBI_(1)
                 call reduce_dof_op(traversal%r_sq, r(i))
             end if
         end do
-   end subroutine
+    end subroutine
 
     pure subroutine inner_node_reduce_op(traversal, section, node)
         type(_T_JACOBI_(traversal)), intent(inout)	    :: traversal
@@ -344,14 +344,14 @@ MODULE _JACOBI
 
         !set step size to some initial value
         solver%jacobi%alpha = 1.0_GRID_SR
-        i_iteration = 1
+        i_iteration = 0
 
         !do a jacobi step
         call solver%jacobi%traverse(grid)
         r_sq = solver%jacobi%r_sq
         r_sq_old = r_sq
 
-        max_error_sq = min(solver%rel_error * solver%rel_error * r_sq, solver%abs_error * solver%abs_error)
+        max_error_sq = max(solver%rel_error * solver%rel_error * r_sq, solver%abs_error * solver%abs_error)
 
         do
             if (iand(i_iteration, z'3ff') == z'3ff') then

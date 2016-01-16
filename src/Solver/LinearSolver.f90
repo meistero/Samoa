@@ -91,8 +91,8 @@ module linear_solver
     subroutine base_create(solver)
         class(t_linear_solver), intent(inout)   :: solver
 
-        solver%rel_error = 1.0_GRID_SR + epsilon(1.0_SR)
-        solver%abs_error = huge(1.0_GRID_SR)
+        solver%rel_error = epsilon(1.0_GRID_SR)
+        solver%abs_error = 0.0_GRID_SR
         solver%cur_error = huge(1.0_GRID_SR)
         solver%min_iterations = 0_GRID_SI
         solver%max_iterations = huge(1_GRID_SI)
@@ -127,11 +127,9 @@ module linear_solver
 
         select case (param_idx)
             case (LS_ABS_ERROR)
-                solver%rel_error = 1.0_GRID_SR + epsilon(1.0_SR)
                 solver%abs_error = r_value
             case (LS_REL_ERROR)
                 solver%rel_error = r_value
-                solver%abs_error = huge(1.0_GRID_SR)
             case (LS_MIN_ITERS)
                 solver%min_iterations = int(r_value)
             case (LS_MAX_ITERS)

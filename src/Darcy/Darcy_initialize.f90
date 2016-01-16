@@ -357,6 +357,7 @@
 
         type num_traversal_data
             integer (kind = GRID_DI)			:: i_refinements_issued
+            logical                             :: is_matrix_modified
         end type
 
 		type(darcy_gv_saturation)				:: gv_saturation
@@ -385,6 +386,7 @@
  			type(t_grid), intent(inout)							        :: grid
 
 			call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
+            call reduce(traversal%is_matrix_modified, traversal%children%is_matrix_modified, MPI_LOR, .true.)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -393,6 +395,7 @@
 
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0
+            traversal%is_matrix_modified = .false.
 		end subroutine
 
 		!******************
@@ -445,14 +448,16 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			                :: node
 
-#           if defined(_DARCY_INJ_INFLOW)
-                if (any(node%data_pers%boundary_condition > 0)) then
-                    call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
-                end if
-#           elif defined(_DARCY_INJ_PRESSURE)
-                if (any(node%data_pers%boundary_condition > 0)) then
-                    call pressure_post_dof_op(node%data_pers%rhs)
-                end if
+#           if defined(_ASAGI)
+#               if defined(_DARCY_INJ_INFLOW)
+                    if (any(node%data_pers%boundary_condition > 0)) then
+                        call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                    end if
+#               elif defined(_DARCY_INJ_PRESSURE)
+                    if (any(node%data_pers%boundary_condition > 0)) then
+                        call pressure_post_dof_op(node%data_pers%rhs)
+                    end if
+#               endif
 #           endif
 		end subroutine
 
@@ -515,7 +520,7 @@
 
             !set boundary conditions and source terms
 
-            call initialize_rhs(element, saturation, p, rhs, base_permeability)
+            call initialize_rhs(element, saturation, p, rhs, base_permeability, traversal%is_matrix_modified)
 
 			!check refinement indicator
             !make sure no coarsening happens during the initial phase

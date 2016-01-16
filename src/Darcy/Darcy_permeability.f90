@@ -11,6 +11,7 @@
 		use Samoa_darcy
 
         type num_traversal_data
+            logical                                     :: is_matrix_modified
         end type
 
 		type(darcy_gv_saturation)				        :: gv_saturation
@@ -31,6 +32,9 @@
 #		endif
 
 #		define _GT_NODES
+
+#		define _GT_PRE_TRAVERSAL_OP		        pre_traversal_op
+#		define _GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 
 #		define _GT_ELEMENT_OP					element_op
 
@@ -72,6 +76,20 @@
 #           endif
         end subroutine
 
+		subroutine pre_traversal_op(traversal, section)
+			type(t_darcy_permeability_traversal), intent(inout)		:: traversal
+			type(t_grid_section), intent(inout)							    :: section
+
+            traversal%is_matrix_modified = .false.
+		end subroutine
+
+		subroutine post_traversal_grid_op(traversal, grid)
+			type(t_darcy_permeability_traversal), intent(inout)		:: traversal
+			type(t_grid), intent(inout)							    :: grid
+
+            call reduce(traversal%is_matrix_modified, traversal%children%is_matrix_modified, MPI_LOR, .true.)
+		end subroutine
+
 		!*******************************
 		!Geometry operators
 		!*******************************
@@ -103,7 +121,7 @@
 			call gv_p%read_from_element(element, p)
 
 			!call element operator
-            call initialize_rhs(element, saturation, p, rhs, element%cell%data_pers%base_permeability)
+            call initialize_rhs(element, saturation, p, rhs, element%cell%data_pers%base_permeability, traversal%is_matrix_modified)
 
 			call gv_rhs%add_to_element(element, rhs)
 		end subroutine
@@ -122,14 +140,16 @@
  			type(t_grid_section), intent(in)							:: section
 			type(t_node_data), intent(inout)			                :: node
 
-#           if defined(_DARCY_INJ_INFLOW)
-                if (any(node%data_pers%boundary_condition > 0)) then
-                    call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
-                end if
-#           elif defined(_DARCY_INJ_PRESSURE)
-                if (any(node%data_pers%boundary_condition > 0)) then
-                    call pressure_post_dof_op(node%data_pers%rhs)
-                end if
+#           if defined(_ASAGI)
+#               if defined(_DARCY_INJ_INFLOW)
+                    if (any(node%data_pers%boundary_condition > 0)) then
+                        call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
+                    end if
+#               elif defined(_DARCY_INJ_PRESSURE)
+                    if (any(node%data_pers%boundary_condition > 0)) then
+                        call pressure_post_dof_op(node%data_pers%rhs)
+                    end if
+#               endif
 #           endif
 		end subroutine
 
@@ -157,12 +177,13 @@
 		end subroutine
 
 #       if (_DARCY_LAYERS > 0)
-            subroutine initialize_rhs(element, saturation, p, rhs, base_permeability)
+            subroutine initialize_rhs(element, saturation, p, rhs, base_permeability, is_matrix_modified)
                 type(t_element_base), intent(inout)				                    :: element
                 real (kind = GRID_SR), intent(inout)		                        :: saturation(:, :)
                 real (kind = GRID_SR), intent(inout)			                    :: p(:, :)
                 real (kind = GRID_SR), intent(out)									:: rhs(:, :)
                 real (kind = GRID_SR), intent(inout)                                :: base_permeability(:, :)
+                logical, intent(inout)                                              :: is_matrix_modified
 
                 real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: g_local(3), weights(3), edge_length, dx, dy, dz, Ax, Ay, Az
@@ -180,18 +201,6 @@
                 call get_areas_and_lengths(element, dx, dy, dz, Ax, Ay, Az)
                 call setup_lse_3D(saturation, p, base_permeability, dx, dy, dz, Ax, Ay, Az, g_local, rhs, lambda_t)
 
-                if (element%transform_data%plotter_data%orientation > 0) then
-                    element%cell%data_pers%lambda_t = lambda_t
-                else
-                    element%cell%data_pers%lambda_t(:, 1) = lambda_t(:, 2)
-                    element%cell%data_pers%lambda_t(:, 2) = lambda_t(:, 1)
-                    element%cell%data_pers%lambda_t(:, 3) = lambda_t(:, 5)
-                    element%cell%data_pers%lambda_t(:, 4) = lambda_t(:, 4)
-                    element%cell%data_pers%lambda_t(:, 5) = lambda_t(:, 3)
-                    element%cell%data_pers%lambda_t(:, 6) = lambda_t(:, 7)
-                    element%cell%data_pers%lambda_t(:, 7) = lambda_t(:, 6)
-                end if
-
 #               if defined(_ASAGI)
                     call gv_boundary_condition%read_from_element(element, boundary_condition)
 
@@ -203,17 +212,8 @@
 
                             inflow = 0.0_SR
 
-                            !ignore vertical contributions
-!                            element%cell%data_pers%lambda_t(:, 3:5) = 0.0_SR
-
                             call gm_A%get_trace(element, inflow)
                             call gv_trace%add_to_element(element, inflow)
-
-!                            if (element%transform_data%plotter_data%orientation > 0) then
-!                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 3:5)
-!                            else
-!                                element%cell%data_pers%lambda_t(:, 3:5) = lambda_t(:, 5:3:-1)
-!                            end if
 #                       elif defined(_DARCY_INJ_PRESSURE)
                             do i = 1, 3
                                 if (boundary_condition(i) > 0) then
@@ -225,13 +225,9 @@
                                     end do
 
                                     !The well is a Dirichlet condition (of sorts), so set
-                                    !local contributions to 0.
+                                    !local vertical contributions to 0.
 
-                                    if (element%transform_data%plotter_data%orientation > 0) then
-                                        element%cell%data_pers%lambda_t(:, 3 + (i - 1)) = 0.0_SR
-                                    else
-                                        element%cell%data_pers%lambda_t(:, 5 - (i - 1)) = 0.0_SR
-                                    end if
+                                    lambda_t(:, 2 + i) = 0.0_SR
                                 end if
                             end do
 
@@ -255,6 +251,9 @@
                                             (l_w(saturation(layer, i)) * cfg%r_rho_w + l_n(saturation(layer, i)) * cfg%r_rho_n) &
                                             / (l_w(saturation(layer, i)) + l_n(saturation(layer, i))) * cfg%dz * cfg%g(3)
                                     end do
+
+                                    !Due to the Dirichlet condition the local vertical contributions are ignored,
+                                    !we do not have to set them to 0 explicitly.
                                 end if
                             end do
 
@@ -264,31 +263,52 @@
 #                       endif
                     end if
 #               else
-                    if (any(boundary_condition > 0)) then
-                        coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
-                        coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
-                        coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
 
-                        if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
+                    if (any(boundary_condition > 0)) then
+                        if (boundary_condition(1) > 0 .and. boundary_condition(2) > 0) then
                             rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
                             rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
-                        else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
+                        else if (boundary_condition(1) > 0 .and. boundary_condition(3) > 0) then
                             rhs(:, 1) = rhs(:, 1) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
                             rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_hypo_size()
-                        else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
+                        else if (boundary_condition(2) > 0 .and. boundary_condition(3) > 0) then
                             rhs(:, 2) = rhs(:, 2) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
                             rhs(:, 3) = rhs(:, 3) + cfg%r_inflow / real(_DARCY_LAYERS + 1, SR) * 0.5_SR * element%cell%geometry%get_leg_size()
                         end if
                     end if
+
+                    if (any(boundary_condition < 0)) then
+                        !set a constant pressure condition
+
+                        do i = 1, 3
+                            if (boundary_condition(i) < 0) then
+                                p(:, i) = cfg%r_p_prod
+                            end if
+                        end do
+
+                        call gv_p%write_to_element(element, p)
+                    end if
 #               endif
+
+                if (element%transform_data%plotter_data%orientation > 0) then
+                    is_matrix_modified = is_matrix_modified .or. any(element%cell%data_pers%lambda_t .ne. lambda_t)
+
+                    element%cell%data_pers%lambda_t = lambda_t
+                else
+                    is_matrix_modified = is_matrix_modified .or. any(element%cell%data_pers%lambda_t .ne. lambda_t(:, [2, 1, 5, 4, 3, 7, 6]))
+
+                    element%cell%data_pers%lambda_t = lambda_t(:, [2, 1, 5, 4, 3, 7, 6])
+                end if
             end subroutine
 #       else
-            subroutine initialize_rhs(element, saturation, p, rhs, base_permeability)
+            subroutine initialize_rhs(element, saturation, p, rhs, base_permeability, is_matrix_modified)
                 type(t_element_base), intent(inout)				                    :: element
                 real (kind = GRID_SR), intent(inout)		                        :: saturation(:)
                 real (kind = GRID_SR), intent(inout)			                    :: p(:)
                 real (kind = GRID_SR), intent(out)									:: rhs(:)
                 real (kind = GRID_SR), intent(in)                                   :: base_permeability
+                logical, intent(inout)                                              :: is_matrix_modified
 
                 real (kind = GRID_SR)					            :: coords(2, 3)
                 real (kind = GRID_SR)					            :: inflow(3), r(3), dx, dy, Ax, Ay
@@ -304,13 +324,6 @@
 
                 call get_areas_and_lengths(element, dx, dy, Ax, Ay)
                 call setup_lse_2D(saturation, p, base_permeability, dx, dy, Ax, Ay, g_local, rhs, lambda_t)
-
-                if (element%transform_data%plotter_data%orientation > 0) then
-                    element%cell%data_pers%lambda_t = lambda_t
-                else
-                    element%cell%data_pers%lambda_t(1) = lambda_t(2)
-                    element%cell%data_pers%lambda_t(2) = lambda_t(1)
-                end if
 
 #               if defined(_ASAGI)
                     call gv_boundary_condition%read_from_element(element, boundary_condition)
@@ -350,23 +363,43 @@
 #                       endif
                     end if
 #               else
-                    if (any(boundary_condition > 0)) then
-                        coords(:, 1) = samoa_barycentric_to_world_point(element%transform_data, [1.0_SR, 0.0_SR])
-                        coords(:, 2) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 0.0_SR])
-                        coords(:, 3) = samoa_barycentric_to_world_point(element%transform_data, [0.0_SR, 1.0_SR])
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
 
-                        if (coords(1, 1) + coords(1, 2) < epsilon(1.0_SR)) then
+                    if (any(boundary_condition > 0)) then
+                        if (boundary_condition(1) > 0 .and. boundary_condition(2) > 0) then
                             rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
                             rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
-                        else if (coords(1, 1) + coords(1, 3) < epsilon(1.0_SR)) then
+                        else if (boundary_condition(1) > 0 .and. boundary_condition(3) > 0) then
                             rhs(1) = rhs(1) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
                             rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_hypo_size()
-                        else if (coords(1, 2) + coords(1, 3) < epsilon(1.0_SR)) then
+                        else if (boundary_condition(2) > 0 .and. boundary_condition(3) > 0) then
                             rhs(2) = rhs(2) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
                             rhs(3) = rhs(3) + cfg%r_inflow * 0.5_SR * element%cell%geometry%get_leg_size()
                         end if
                     end if
+
+                    if (any(boundary_condition < 0)) then
+                        !set a constant pressure condition
+
+                        where (boundary_condition < 0)
+                            p = cfg%r_p_prod
+                        end where
+
+                        call gv_p%write_to_element(element, p)
+                    end if
 #               endif
+
+                !check if any values of lambda_t changed, indicating that the linear system must be solved again
+
+                if (element%transform_data%plotter_data%orientation > 0) then
+                    is_matrix_modified = is_matrix_modified .or. any(element%cell%data_pers%lambda_t .ne. lambda_t)
+
+                    element%cell%data_pers%lambda_t = lambda_t
+                else
+                    is_matrix_modified = is_matrix_modified .or. any(element%cell%data_pers%lambda_t .ne. lambda_t([2, 1]))
+
+                    element%cell%data_pers%lambda_t = lambda_t([2, 1])
+                end if
             end subroutine
 #       endif
 
