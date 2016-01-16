@@ -239,53 +239,71 @@
 		subroutine set_boundary_conditions(element)
 			type(t_element_base), intent(inout)    :: element
 
-			real (kind = GRID_SR)   :: pos_well(2)
+			real (kind = GRID_SR)   :: pos_well(2), pos_vertex(2, 3)
 			integer (kind = SI)     :: boundary_condition(3)
             integer :: i
 
-            do i = 1, size(cfg%r_pos_in, 2)
-                pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in(:, i))
+#           if defined(_ASAGI)
+                do i = 1, size(cfg%r_pos_in, 2)
+                    pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_in(:, i))
 
-                if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
-                    if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
-                        !injection well:
+                    if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                        if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                            !injection well:
 
-                        boundary_condition = 0
+                            boundary_condition = 0
 
-                        if (pos_well(1) > 0.5_SR) then
-                            boundary_condition(1) = i
-                        else if (pos_well(2) > 0.5_SR) then
-                            boundary_condition(3) = i
-                        else
-                            boundary_condition(2) = i
+                            if (pos_well(1) > 0.5_SR) then
+                                boundary_condition(1) = i
+                            else if (pos_well(2) > 0.5_SR) then
+                                boundary_condition(3) = i
+                            else
+                                boundary_condition(2) = i
+                            end if
+
+                            call gv_boundary_condition%add_to_element(element, boundary_condition)
                         end if
-
-                        call gv_boundary_condition%add_to_element(element, boundary_condition)
                     end if
-                end if
-            end do
+                end do
 
-            do i = 1, size(cfg%r_pos_prod, 2)
-                pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_prod(:, i))
+                do i = 1, size(cfg%r_pos_prod, 2)
+                    pos_well = samoa_world_to_barycentric_point(element%transform_data, cfg%r_pos_prod(:, i))
 
-                if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
-                    if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
-                        !production well:
+                    if (norm2(pos_well) < 1.0_SR + epsilon(1.0_SR)) then
+                        if (pos_well(1) > -epsilon(1.0_SR) .and. pos_well(2) > -epsilon(1.0_SR) .and. 1.0_SR - (pos_well(1) + pos_well(2)) > -epsilon(1.0_SR)) then
+                            !production well:
 
-                        boundary_condition = 0
+                            boundary_condition = 0_SI
 
-                        if (pos_well(1) > 0.5_SR) then
-                            boundary_condition(1) = -i
-                        else if (pos_well(2) > 0.5_SR) then
-                            boundary_condition(3) = -i
-                        else
-                            boundary_condition(2) = -i
+                            if (pos_well(1) > 0.5_SR) then
+                                boundary_condition(1) = -i
+                            else if (pos_well(2) > 0.5_SR) then
+                                boundary_condition(3) = -i
+                            else
+                                boundary_condition(2) = -i
+                            end if
+
+                            call gv_boundary_condition%add_to_element(element, boundary_condition)
                         end if
-
-                        call gv_boundary_condition%add_to_element(element, boundary_condition)
                     end if
+                end do
+#           else
+                pos_vertex(:, 1) = element%nodes(1)%ptr%position
+                pos_vertex(:, 2) = element%nodes(2)%ptr%position
+                pos_vertex(:, 3) = element%nodes(3)%ptr%position
+
+                if (any(pos_vertex(1, :) == 0.0 .or. pos_vertex(1, :) == 1.0_SR)) then
+                    boundary_condition = 0_SI
+
+                    where (pos_vertex(1, :) == 0.0_SR)
+                        boundary_condition = 1_SI
+                    else where (pos_vertex(1, :) == 1.0_SR)
+                        boundary_condition = -1_SI
+                    end where
+
+                    call gv_boundary_condition%add_to_element(element, boundary_condition)
                 end if
-            end do
+#           endif
         end subroutine
 
 		!first touch ops
@@ -298,14 +316,14 @@
 			cell%data_pers%porosity = 0.0_SR
 		end subroutine
 
-		elemental subroutine node_first_touch_op(traversal, section, node)
+		subroutine node_first_touch_op(traversal, section, node)
  			type(t_darcy_adaption_traversal), intent(in)	:: traversal
  			type(t_grid_section), intent(in)				:: section
 			type(t_node_data), intent(inout)				:: node
 
 			call pre_dof_op(node%data_pers%saturation, node%data_temp%volume, node%data_pers%p, node%data_temp%mat_diagonal, node%data_pers%d, node%data_pers%A_d, node%data_pers%rhs)
-            call init_boundary_conditions(node%position(1), node%position(2), node%data_pers%boundary_condition)
-		end subroutine
+            call init_boundary_conditions(node%data_pers%boundary_condition)
+        end subroutine
 
 		!merge ops
 
@@ -357,19 +375,10 @@
 			rhs = 0.0_SR
 		end subroutine
 
-		elemental subroutine init_boundary_conditions(pos_x, pos_y, boundary_condition)
-			real (kind = GRID_SR), intent(in)		:: pos_x, pos_y
+		elemental subroutine init_boundary_conditions(boundary_condition)
 			integer (kind = SI), intent(out)        :: boundary_condition
 
             boundary_condition = 0_SI
-
-#           if !defined(_ASAGI)
-                if (pos_x == 0.0_SR) then
-                    boundary_condition = 1_SI
-                else if (pos_x == 1.0_SR) then
-                    boundary_condition = -1_SI
-                end if
-#           endif
         end subroutine
 
 		elemental subroutine post_dof_op(saturation, p, volume, p_volume)
