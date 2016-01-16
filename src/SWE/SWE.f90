@@ -75,7 +75,7 @@
 				_log_open_file(s_log_name)
 			endif
 
-			call load_scenario(grid, cfg%s_bathymetry_file, cfg%s_displacement_file)
+			call load_scenario(grid)
 
 			call swe%init_b%create()
 			call swe%init_dofs%create()
@@ -87,12 +87,9 @@
             call swe%adaption%create()
 		end subroutine
 
-		subroutine load_scenario(grid, ncd_bath, ncd_displ, scaling, offset)
+		subroutine load_scenario(grid)
 			type(t_grid), intent(inout)             :: grid
-            character(*), intent(in)                :: ncd_bath, ncd_displ
-            double precision, optional,intent(in)   :: scaling, offset(2)
 
-			integer						            :: i_asagi_hints
 			integer                                 :: i_error
 
 #			if defined(_ASAGI)
@@ -129,31 +126,25 @@
                 end select
 
                 !$omp parallel private(i_error), copyin(cfg)
-                    i_error = asagi_grid_open(cfg%afh_bathymetry,  trim(ncd_bath), 0); assert_eq(i_error, ASAGI_SUCCESS)
-                    i_error = asagi_grid_open(cfg%afh_displacement, trim(ncd_displ), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_bathymetry,  trim(cfg%s_bathymetry_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
+                    i_error = asagi_grid_open(cfg%afh_displacement, trim(cfg%s_displacement_file), 0); assert_eq(i_error, ASAGI_SUCCESS)
                 !$omp end parallel
 
                 associate(afh_d => cfg%afh_displacement, afh_b => cfg%afh_bathymetry)
-                    if (present(scaling)) then
-                    else
-                        cfg%scaling = max(asagi_grid_max(afh_b, 0) - asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 1) - asagi_grid_min(afh_b, 1))
-                    end if
+                    cfg%scaling = max(asagi_grid_max(afh_b, 0) - asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 1) - asagi_grid_min(afh_b, 1))
 
-                    if (present(offset)) then
-                    else
-                        cfg%offset = [0.5_GRID_SR * (asagi_grid_min(afh_d, 0) + asagi_grid_max(afh_d, 0)), 0.5_GRID_SR * (asagi_grid_min(afh_d, 1) + asagi_grid_max(afh_d, 1))] - 0.5_GRID_SR * cfg%scaling
-                        cfg%offset = min(max(cfg%offset, [asagi_grid_min(afh_b, 0), asagi_grid_min(afh_b, 1)]), [asagi_grid_max(afh_b, 0), asagi_grid_max(afh_b, 1)] - cfg%scaling)
-                    end if
+                    cfg%offset = [0.5_GRID_SR * (asagi_grid_min(afh_d, 0) + asagi_grid_max(afh_d, 0)), 0.5_GRID_SR * (asagi_grid_min(afh_d, 1) + asagi_grid_max(afh_d, 1))] - 0.5_GRID_SR * cfg%scaling
+                    cfg%offset = min(max(cfg%offset, [asagi_grid_min(afh_b, 0), asagi_grid_min(afh_b, 1)]), [asagi_grid_max(afh_b, 0), asagi_grid_max(afh_b, 1)] - cfg%scaling)
 
                     if (rank_MPI == 0) then
                         _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_bath), asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 0),  asagi_grid_min(afh_b, 1), asagi_grid_max(afh_b, 1)
+                            trim(cfg%s_bathymetry_file), asagi_grid_min(afh_b, 0), asagi_grid_max(afh_b, 0),  asagi_grid_min(afh_b, 1), asagi_grid_max(afh_b, 1)
                         _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2)') asagi_grid_delta(afh_b, 0), asagi_grid_delta(afh_b, 1)
 
                         !if the data file has more than two dimensions, we assume that it contains time-dependent displacements
                         if (asagi_grid_dimensions(afh_d) > 2) then
                             _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "], time: [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_displ), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1), asagi_grid_min(afh_d, 2), asagi_grid_max(afh_d, 2)
+                            trim(cfg%s_displacement_file), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1), asagi_grid_min(afh_d, 2), asagi_grid_max(afh_d, 2)
                             _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2, " dt: ", F0.2)') asagi_grid_delta(afh_d, 0), asagi_grid_delta(afh_d, 1), asagi_grid_delta(afh_d, 2)
 
                             cfg%dt_eq = asagi_grid_delta(afh_d, 2)
@@ -161,7 +152,7 @@
                             cfg%t_max_eq = asagi_grid_max(afh_d, 2)
                         else
                             _log_write(1, '(" SWE: loaded ", A, ", domain: [", F0.2, ", ", F0.2, "] x [", F0.2, ", ", F0.2, "]")') &
-                            trim(ncd_displ), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1)
+                            trim(cfg%s_displacement_file), asagi_grid_min(afh_d, 0), asagi_grid_max(afh_d, 0),  asagi_grid_min(afh_d, 1), asagi_grid_max(afh_d, 1)
                             _log_write(1, '(" SWE:  dx: ", F0.2, " dy: ", F0.2)') asagi_grid_delta(afh_d, 0), asagi_grid_delta(afh_d, 1)
 
                             cfg%dt_eq = 0.0_SR

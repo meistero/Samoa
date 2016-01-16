@@ -53,12 +53,16 @@ module config
             double precision                    :: x_min(3), x_max(3)                               !< lower and upper bounds of the data domain
             double precision                    :: dx(3), dz                                        !< voxel size of the source data
 
-            character(256)                      :: s_permeability_file                              !< permeability file
-            character(256)                      :: s_porosity_file                                  !< porosity file
- 			integer					 		    :: afh_permeability_X			                    !< asagi file handle to X-axis permeability data
- 			integer					 		    :: afh_permeability_Y			                    !< asagi file handle to Y-axis permeability data
- 			integer					 		    :: afh_permeability_Z			                    !< asagi file handle to Z-axis permeability data
- 			integer					 		    :: afh_porosity			                            !< asagi file handle to porosity data
+#           if defined(_ASAGI)
+                character(256)                  :: s_permeability_file                              !< permeability file
+                character(256)                  :: s_porosity_file                                  !< porosity file
+
+                integer					 	    :: afh_permeability_X			                    !< asagi file handle to X-axis permeability data
+                integer					 	    :: afh_permeability_Y			                    !< asagi file handle to Y-axis permeability data
+                integer					 	    :: afh_permeability_Z			                    !< asagi file handle to Z-axis permeability data
+                integer					 	    :: afh_porosity			                            !< asagi file handle to porosity data
+#           endif
+
             integer			        	        :: i_lsolver			                		    !< linear solver
             integer			        	        :: i_max_iterations			                		!< maximum iterations of the linear solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
@@ -89,10 +93,12 @@ module config
 #    	elif defined(_SWE)
             double precision                    :: scaling, offset(2)                               !< grid scaling and offset of the computational domain
 
-            character(256)                      :: s_bathymetry_file                                !< bathymetry file
-            character(256)                      :: s_displacement_file                              !< displacement file
- 			integer					 		    :: afh_displacement			                        !< asagi file handle to displacement data
- 			integer					 		    :: afh_bathymetry			                        !< asagi file handle to bathymetry da
+#           if defined(_ASAGI)
+                character(256)                  :: s_bathymetry_file                                !< bathymetry file
+                character(256)                  :: s_displacement_file                              !< displacement file
+                integer					 		:: afh_displacement			                        !< asagi file handle to displacement data
+                integer					 		:: afh_bathymetry			                        !< asagi file handle to bathymetry da
+#           endif
 
             double precision                    :: t_min_eq, t_max_eq						        !< earthquake start and end time [s]
             double precision                    :: dt_eq                                            !< earthquake time step [s]
@@ -215,8 +221,11 @@ module config
         config%output_dir = sget('samoa_output_dir', 256)
 
 #    	if defined(_DARCY)
-            config%s_permeability_file = sget('samoa_fperm', 256)
-            config%s_porosity_file = sget('samoa_fpor', 256)
+#		    if defined(_ASAGI)
+                config%s_permeability_file = sget('samoa_fperm', 256)
+                config%s_porosity_file = sget('samoa_fpor', 256)
+#           endif
+
             config%r_epsilon = rget('samoa_epsilon')
 			config%r_nu_w = rget('samoa_nu_w')
 			config%r_nu_n = rget('samoa_nu_n')
@@ -241,8 +250,11 @@ module config
             config%l_lse_output = lget('samoa_lseoutput')
             config%l_well_output = lget('samoa_welloutput')
 #    	elif defined(_SWE) || defined(_FLASH)
-            config%s_bathymetry_file = sget('samoa_fbath', 256)
-            config%s_displacement_file = sget('samoa_fdispl', 256)
+#		    if defined(_ASAGI)
+                config%s_bathymetry_file = sget('samoa_fbath', 256)
+                config%s_displacement_file = sget('samoa_fdispl', 256)
+#           endif
+
             config%dry_tolerance = rget('samoa_drytolerance')
 
             config%l_ascii_output = lget('samoa_asciioutput')
@@ -295,8 +307,11 @@ module config
                 PRINT '(A)',            ""
                 PRINT '(A)',            " Scenario specific arguments:"
 #       	    if defined(_DARCY)
-                    PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
-                    PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
+#    	            if defined(_ASAGI)
+                        PRINT '(A, A, A)',  "	-fperm <value>          permeability file (value: ", trim(config%s_permeability_file), ")"
+                        PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
+#                   endif
+
                     PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, " Pa s)"
                     PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " Pa s)"
                     PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
@@ -318,11 +333,14 @@ module config
                     PRINT '(A, ES9.2, A)',  "	-p_ref_th               pressure refinement threshold (value: ", config%p_refinement_threshold, ")"
                     PRINT '(A, ES9.2, A)',  "	-S_ref_th               saturation refinement threshold (value: ", config%S_refinement_threshold, ")"
 #          	    elif defined(_SWE)
+#    	            if defined(_ASAGI)
+                        PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
+                        PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
+#                   endif
+
                     PRINT '(A, A, A)',  "	-stestpoints            probe positions (example: -stestpoints 1.2334 4.0,-7.8 0.12 (value: ", trim(config%s_testpoints), ")"
                     PRINT '(A, L, A)',  "	-asciioutput               [usage of -tout required] turns on ascii output (value: ", config%l_ascii_output, ")"
                     PRINT '(A, I0, A)', "	-asciioutput_width <value> width of ascii output (value: ", config%i_ascii_width, ")"
-                    PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
-                    PRINT '(A, A, A)',  "	-fdispl <value>         displacement file (value: ", trim(config%s_displacement_file), ")"
                     PRINT '(A, ES8.1, A)',  "	-drytolerance           dry tolerance, determines up to which water height a cell is considered dry (value: ", config%dry_tolerance, " m)"
 #         	    elif defined(_FLASH)
                     PRINT '(A, A, A)',  "	-fbath <value>          bathymetry file (value: ", trim(config%s_bathymetry_file), ")"
@@ -511,14 +529,16 @@ module config
 #           endif
 
             !check if the data files exixst
+#    	    if defined(_ASAGI)
+                inquire(file=trim(config%s_permeability_file), exist=b_valid)
+                try(b_valid, "permeability data file " // trim(config%s_permeability_file) // " could not be found")
 
-            inquire(file=trim(config%s_permeability_file), exist=b_valid)
-            try(b_valid, "permeability data file " // trim(config%s_permeability_file) // " could not be found")
+                inquire(file=trim(config%s_porosity_file), exist=b_valid)
+                try(b_valid, "porosity data file " // trim(config%s_porosity_file) // " could not be found")
 
-            inquire(file=trim(config%s_porosity_file), exist=b_valid)
-            try(b_valid, "porosity data file " // trim(config%s_porosity_file) // " could not be found")
+                _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
+#           endif
 
-            _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
             _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
             _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
             _log_write(0, '(" Darcy: injection well pressure: ", ES8.1, ", production well pressure: ", ES8.1)') config%r_p_in, config%r_p_prod
@@ -531,14 +551,16 @@ module config
 #		elif defined(_SWE)
 
             !check if the data files exixst
+#    	    if defined(_ASAGI)
+                inquire(file=trim(config%s_bathymetry_file), exist=b_valid)
+                try(b_valid, "bathymetry data file " // trim(config%s_bathymetry_file) // " could not be found")
 
-            inquire(file=trim(config%s_bathymetry_file), exist=b_valid)
-            try(b_valid, "bathymetry data file " // trim(config%s_bathymetry_file) // " could not be found")
+                inquire(file=trim(config%s_displacement_file), exist=b_valid)
+                try(b_valid, "displacement data file " // trim(config%s_displacement_file) // " could not be found")
 
-            inquire(file=trim(config%s_displacement_file), exist=b_valid)
-            try(b_valid, "displacement data file " // trim(config%s_displacement_file) // " could not be found")
+                _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
+#           endif
 
-            _log_write(0, '(" SWE: bathymetry file: ", A, ", displacement file: ", A)') trim(config%s_bathymetry_file), trim(config%s_displacement_file)
             _log_write(0, '(" SWE: dry_tolerance: ", ES8.1)') config%dry_tolerance
 #		endif
 
