@@ -288,7 +288,7 @@ if env['target'] == 'debug':
     env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
     env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -g -O0 -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow'
+    env['F90FLAGS'] += ' -g -O0 -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=nan'
     env['LINKFLAGS'] += ' -g -O0'
 elif env['target'] == 'profile':
   env.SetDefault(debug_level = '1')
@@ -326,8 +326,7 @@ if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -xSSE4.2'
   elif env['machine'] == 'AVX':
     env['F90FLAGS'] += ' -xAVX'
-
-if env['compiler'] == 'gnu':
+elif env['compiler'] == 'gnu':
   if env['machine'] == 'host':
     env['F90FLAGS'] += ' -march=native'
   elif env['machine'] == 'SSE4.2':

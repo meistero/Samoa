@@ -336,8 +336,8 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end where
 
-            assert_ge(minval(saturation), 0.0_SR)
-            assert_le(maxval(saturation), 1.0_SR)
+            assert_ge(minval(saturation), -0.1_SR)
+            assert_le(maxval(saturation), 1.1_SR)
 		end subroutine
 
         !> Update saturation and produce fluid
@@ -363,8 +363,8 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
             end if
 
-            assert_pure(saturation .ge. 0.0_SR)
-            assert_pure(saturation .le. 1.0_SR)
+            assert_pure(saturation .ge. -0.1_SR)
+            assert_pure(saturation .le. 1.1_SR)
 		end subroutine
 
         !> Update saturation and inject fluid
@@ -387,8 +387,8 @@
                 saturation = max(0.0_SR, min(1.0_SR, saturation + flux_n))
             end if
 
-            !assert_pure(saturation .ge. 0.0_SR)
-            assert_pure(saturation .le. 1.0_SR)
+            assert_pure(saturation .ge. -0.1_SR)
+            assert_pure(saturation .le. 1.1_SR)
 		end subroutine
 
 		!> Compute production rates at the wells

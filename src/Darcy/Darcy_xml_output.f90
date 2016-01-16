@@ -419,11 +419,11 @@
 
                 call omp_set_lock(index_lock)
                     i_cell_data_index = cell_data%index
-                    cell_data%index = cell_data%index + _DARCY_LAYERS
+                    cell_data%index = cell_data%index + max(1_SI, _DARCY_LAYERS)
                 call omp_unset_lock(index_lock)
 #           else
                 i_cell_data_index = cell_data%index
-                cell_data%index = cell_data%index + _DARCY_LAYERS
+                cell_data%index = cell_data%index + max(1_SI, _DARCY_LAYERS)
 #           endif
 
             lambda_w = l_w(saturation)
