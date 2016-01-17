@@ -33,13 +33,13 @@ before_script:
  - scons exe=samoa_test machine=SSE4.2 scenario=$SCENARIO compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI layers=$LAYERS flux_solver=$FLUX_SOLVER -j2
 
 script:
- - if [[ "$MPI" == "nompi" ]] ; then
-     if [[ "$OPENMP" == "noomp" ]] ; then
-       bin/samoa_test -dmax 8 -threads 1 -sections 4 -tmax -1.0 -tsteps 10 -output_dir .
-     else
-       bin/samoa_test -dmax 8 -threads 2 -sections 2 -tmax -1.0 -tsteps 10 -output_dir .
-     fi
-   else
-     mpiexec -n 2 bin/samoa_test -dmax 8 -threads 1 -sections 2 -tmax -1.0 -tsteps 10 -output_dir .
+ - if [[ "$MPI" == "nompi" ]] ; then 
+     if [[ "$OPENMP" == "noomp" ]] ; then 
+       bin/samoa_test -dmax 8 -threads 1 -sections 4 -tmax -1.0 -tsteps 10 -output_dir . ; 
+     else 
+       bin/samoa_test -dmax 8 -threads 2 -sections 2 -tmax -1.0 -tsteps 10 -output_dir . ; 
+     fi ; 
+   else 
+     mpiexec -n 2 bin/samoa_test -dmax 8 -threads 1 -sections 2 -tmax -1.0 -tsteps 10 -output_dir . ; 
    fi
  
