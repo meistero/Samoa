@@ -3,11 +3,11 @@ language: c++
 install: 
  - sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
  - sudo apt-get update -qq
- - sudo apt-get install -qq gfortran scons mpich2 libopenmpi-dev
+ - sudo apt-get install -qq gfortran scons mpich2 libopenmpi-dev mpi-default-bin
 
 env:
  global:
-  - OMP_NUM_THREADS=4
+  - OMP_NUM_THREADS=2
   - ASAGI=no
   - COMPILER=gnu
   - ASSERTIONS=no
@@ -32,8 +32,14 @@ env:
 before_script: 
  - scons exe=samoa_test machine=SSE4.2 scenario=$SCENARIO compiler=$COMPILER target=$TARGET assertions=$ASSERTIONS mpi=$MPI openmp=$OPENMP asagi=$ASAGI layers=$LAYERS flux_solver=$FLUX_SOLVER -j2
 
-script: 
- - bin/samoa_test -dmax 8 -threads 1 -sections 4 -tmax -1.0 -tsteps 10 -output_dir .
- - if [[ "$MPI" -ne "nompi" ]] ; then mpiexec -n 2 bin/samoa_test -dmax 8 -threads 1 -sections 2 -tmax -1.0 -tsteps 10 -output_dir . ; fi
- - if [[ "$OPENMPI" -ne "noomp" ]] ; then bin/samoa_test -dmax 8 -threads 2 -sections 2 -tmax -1.0 -tsteps 10 -output_dir . ; fi
+script:
+ - if [[ "$MPI" == "nompi" ]] ; then
+     if [[ "$OPENMP" == "noomp" ]] ; then
+       bin/samoa_test -dmax 8 -threads 1 -sections 4 -tmax -1.0 -tsteps 10 -output_dir .
+     else
+       bin/samoa_test -dmax 8 -threads 2 -sections 2 -tmax -1.0 -tsteps 10 -output_dir .
+     fi
+   else
+     mpiexec -n 2 bin/samoa_test -dmax 8 -threads 1 -sections 2 -tmax -1.0 -tsteps 10 -output_dir .
+   fi
  
