@@ -241,17 +241,19 @@
             !> we allow only scalar changes to the DoF column
             !> hence, add up all residuals and pretend they are a single value.
 
-#           if defined(_DARCY_INJ_PRESSURE)
-                call gv_boundary_condition%read_from_element(element, boundary_condition)
+#           if defined(_ASAGI)
+#               if defined(_DARCY_INJ_PRESSURE)
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
 
-                if (any(boundary_condition > 0)) then
-                    do i = 1, 3
-                        if (boundary_condition(i) > 0) then
-                            r((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1)) = &
-                                sum(r((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1))) / (_DARCY_LAYERS + 1)
-                        end if
-                    end do
-                end if
+                    if (any(boundary_condition > 0)) then
+                        do i = 1, 3
+                            if (boundary_condition(i) > 0) then
+                                r((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1)) = &
+                                    sum(r((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1))) / (_DARCY_LAYERS + 1)
+                            end if
+                        end do
+                    end if
+#               endif
 #           endif
         end subroutine
 
@@ -337,17 +339,19 @@
             !> we allow only scalar changes to the DoF column
             !> hence, add up all traces and pretend they are a single value.
 
-#           if defined(_DARCY_INJ_PRESSURE)
-                call gv_boundary_condition%read_from_element(element, boundary_condition)
+#           if defined(_ASAGI)
+#               if defined(_DARCY_INJ_PRESSURE)
+                    call gv_boundary_condition%read_from_element(element, boundary_condition)
 
-                if (any(boundary_condition > 0)) then
-                    do i = 1, 3
-                        if (boundary_condition(i) > 0) then
-                            d((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1)) = &
-                                sum(d((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1))) / (_DARCY_LAYERS + 1)
-                        end if
-                    end do
-                end if
+                    if (any(boundary_condition > 0)) then
+                        do i = 1, 3
+                            if (boundary_condition(i) > 0) then
+                                d((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1)) = &
+                                    sum(d((i - 1) * (_DARCY_LAYERS + 1) + 1 : i * (_DARCY_LAYERS + 1))) / (_DARCY_LAYERS + 1)
+                            end if
+                        end do
+                    end if
+#               endif
 #           endif
         end subroutine
 
