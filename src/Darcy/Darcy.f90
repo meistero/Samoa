@@ -331,8 +331,9 @@
 			!set pressure initial condition
 			call darcy%init_pressure%traverse(grid)
 
-            !do some initial load balancing
+            !do some initial load balancing and set relative error criterion
 			call darcy%adaption%traverse(grid)
+            call darcy%pressure_solver%set_parameter(LS_REL_ERROR, real(cfg%r_epsilon, SR))
 
 			do
                 i_nle_iterations = 0
