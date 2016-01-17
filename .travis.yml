@@ -22,9 +22,8 @@ env:
  matrix:
   - TARGET=debug ASSERTIONS=yes
   - MPI=mpich2
-  - MPI=openmpi
+  - MPI=openmpi OPENMP=noomp
   - MPI=nompi
-  - OPENMP=noomp
   - SCENARIO=darcy FLUX_SOLVER=upwind LAYERS=8
   - SCENARIO=swe FLUX_SOLVER=llfbath
   - SCENARIO=swe FLUX_SOLVER=aug_riemann
