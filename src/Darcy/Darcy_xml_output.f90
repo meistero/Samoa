@@ -415,7 +415,7 @@
             integer  (kind = GRID_SI)       :: i_cell_data_index
 
 #           if defined(_OPENMP)
-                integer, save :: index_lock
+                integer (kind=OMP_LOCK_KIND), save :: index_lock
 
                 call omp_set_lock(index_lock)
                     i_cell_data_index = cell_data%index
@@ -550,7 +550,7 @@
 			integer (kind = GRID_SI) :: i, i_point_data_index
 
 #           if defined(_OPENMP)
-                integer, save :: index_lock
+                integer (kind=OMP_LOCK_KIND), save :: index_lock
 
                 call omp_set_lock(index_lock)
                     i_point_data_index = traversal%point_data%index

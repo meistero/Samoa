@@ -364,17 +364,15 @@ module SFC_edge_traversal
         _log_write(4, '(4X, A, I0, 1X, I0)') "#neighbors: ", rank_list%get_size()
     end subroutine
 
-    subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_color)
+subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_color)
         type(t_grid), intent(inout)						    :: grid
         type(t_integer_list), intent(inout)                 :: rank_list
         type(t_int64_list), allocatable, intent(inout)      :: neighbor_min_distances(:)
         integer (BYTE), intent(in)				            :: i_color
 
         integer(kind = GRID_DI)                             :: local_min_distances(grid%sections%get_size())
-        integer							                    :: requests(rank_list%get_size(), 2)
-        integer                                             :: state(MPI_STATUS_SIZE)
-        integer											    :: i_comm, i_neighbors, i_neighbor_sections, i_section, i_error, i_sections
-        logical                                             :: exists
+        integer							                    :: requests(rank_list%get_size(), 2), i_neighbor_sections(rank_list%get_size())
+        integer											    :: i_comm, i_neighbors, i_section, i_error, i_sections
 
         !Collect minimum distances from all sections of all neighbor processes
         _log_write(3, '(3X, A, A)') "collect minimum distances from sections: ", trim(color_to_char(i_color))
@@ -391,20 +389,32 @@ module SFC_edge_traversal
                 _log_write(4, '(5X, A, I0, A, F0.4)') "local section ", i_section, " distance: ", decode_distance(local_min_distances(i_section))
             end do
 
-		    do i_comm = 1, i_neighbors
-                call mpi_isend(local_min_distances(1), i_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
- 		    end do
-
             allocate(neighbor_min_distances(i_neighbors), stat = i_error); assert_eq(i_error, 0)
 
+            !send/receive distances
+            assert_veq(requests, MPI_REQUEST_NULL)
+
 		    do i_comm = 1, i_neighbors
-                call mpi_probe(rank_list%elements(i_comm), 0, MPI_COMM_WORLD, state, i_error); assert_eq(i_error, 0)
-                call mpi_get_count(state, MPI_INTEGER8, i_neighbor_sections, i_error); assert_eq(i_error, 0)
-                call neighbor_min_distances(i_comm)%resize(i_neighbor_sections)
-                call mpi_recv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
+                call mpi_irecv(i_neighbor_sections(i_comm), 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_isend(i_sections, 1, MPI_INTEGER, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
  		    end do
 
             call mpi_waitall(i_neighbors, requests(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+            call mpi_waitall(i_neighbors, requests(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+
+		    do i_comm = 1, i_neighbors
+                call neighbor_min_distances(i_comm)%resize(i_neighbor_sections(i_comm))
+ 		    end do
+
+            assert_veq(requests, MPI_REQUEST_NULL)
+
+		    do i_comm = 1, i_neighbors
+                call mpi_irecv(neighbor_min_distances(i_comm)%elements(1), i_neighbor_sections(i_comm), MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 2), i_error); assert_eq(i_error, 0)
+                call mpi_isend(local_min_distances(1), i_sections, MPI_INTEGER8, rank_list%elements(i_comm), 0, MPI_COMM_WORLD, requests(i_comm, 1), i_error); assert_eq(i_error, 0)
+ 		    end do
+
+            call mpi_waitall(i_neighbors, requests(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+            call mpi_waitall(i_neighbors, requests(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
             do i_comm = 1, i_neighbors
                 _log_write(4, '(4X, A, I0)') "rank: ", rank_list%elements(i_comm)
