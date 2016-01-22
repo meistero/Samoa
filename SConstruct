@@ -201,11 +201,6 @@ if env['openmp'] != 'noomp':
     env['F90FLAGS'] += ' -fopenmp'
     env['LINKFLAGS'] += ' -fopenmp'
 
-    if env['openmp'] != 'notasks':
-      print "******************************************************"
-      print "Warning: gnu compiler does not currently support tasks"
-      print "******************************************************"
-
 #set compilation flags and preprocessor macros for the ASAGI library
 if env['asagi']:
   env.Append(F90PATH = os.path.abspath(env['asagi_dir'] + '/include'))
