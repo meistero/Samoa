@@ -152,9 +152,9 @@
 			real (kind = GRID_SR), intent(in)		            :: t						!< simulation time
             real (kind = GRID_SR)								:: bathymetry				!< bathymetry
 
-            real (kind = GRID_SR)                               :: xs(3)
+            real (kind = c_double)                              :: xs(3)
 
-            xs(1:2) = cfg%scaling * x + cfg%offset
+            xs(1:2) = real(cfg%scaling * x + cfg%offset, c_double)
 
 #			if defined(_ASAGI)
 #               if defined(_ASAGI_TIMING)
@@ -165,17 +165,17 @@
                         .and. xs(1) <= asagi_grid_max(cfg%afh_bathymetry, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_bathymetry, 1)) then
 
                     xs(3) = 0.0
-                    bathymetry = asagi_grid_get_float(cfg%afh_bathymetry, real(xs, c_double), 0)
+                    bathymetry = asagi_grid_get_float(cfg%afh_bathymetry, xs, 0)
                 else
-                    bathymetry = -5000.0 !we assume that the sea floor is constant here
+                    bathymetry = -5000.0_SR !we assume that the sea floor is constant here
                 end if
 
                 if (asagi_grid_min(cfg%afh_displacement, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_displacement, 1) <= xs(2) &
                         .and. xs(1) <= asagi_grid_max(cfg%afh_displacement, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_displacement, 1) &
                         .and. t > cfg%t_min_eq) then
 
-                    xs(3) = min(t, cfg%t_max_eq)
-                    bathymetry = bathymetry + asagi_grid_get_float(cfg%afh_displacement, real(xs, c_double), 0)
+                    xs(3) = real(min(t, cfg%t_max_eq), c_double)
+                    bathymetry = bathymetry + asagi_grid_get_float(cfg%afh_displacement, xs, 0)
                 end if
 
 #               if defined(_ASAGI_TIMING)
