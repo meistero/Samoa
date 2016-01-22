@@ -10,7 +10,7 @@
 #endif
 
 module config
-	use M_kracken
+    use M_kracken
 	use Tools_log
     use Tools_openmp
     use Tools_mpi
@@ -25,9 +25,6 @@ module config
     public cfg
 
     type t_config
-        character(1024)                         :: arguments
-        character(2048)                         :: help
-
         integer			                        :: i_threads			                            !< number of OpenMP threads
         integer (kind = selected_int_kind(1))   :: i_sections_per_thread						    !< number of sections per thread
         integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
@@ -70,21 +67,21 @@ module config
             logical                             :: l_lse_output                                     !< print out the linear equation system
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
-			double precision				    :: r_nu_w		                                    !< viscosity of the wetting phase [Pa s]
-			double precision				    :: r_nu_n		                                    !< viscosity of the non-wetting phase [Pa s]
-			double precision				    :: r_rho_w		                                    !< density of the wetting phase [kg/m^3]
-			double precision				    :: r_rho_n		                                    !< density of the non-wetting phase [kg/m^3]
+			double precision				    :: r_nu_w, r_nu_w_SI		                        !< viscosity of the wetting phase [Pa s]
+			double precision				    :: r_nu_n, r_nu_n_SI		                        !< viscosity of the non-wetting phase [Pa s]
+			double precision				    :: r_rho_w, r_rho_w_SI	                            !< density of the wetting phase [kg/m^3]
+			double precision				    :: r_rho_n, r_rho_n_SI		                        !< density of the non-wetting phase [kg/m^3]
 			double precision			        :: S_wr		                                        !< residual saturation of the wetting phase
 			double precision			        :: S_nr		                                        !< residual saturation of the non-wetting phase
-			double precision				    :: r_p_in			                                !< injection well pressure [psi]
-			double precision				    :: r_p_prod			                                !< production well pressure [psi]
-			double precision				    :: r_well_radius		                            !< well radius for injection and production wells [in]
-			double precision				    :: r_inflow		                                    !< injection well inflow [bbl/d]
+			double precision				    :: r_p_in, r_p_in_AU			                    !< injection well pressure [psi]
+			double precision				    :: r_p_prod, r_p_prod_AU			                !< production well pressure [psi]
+			double precision				    :: r_well_radius, r_well_radius_AU		            !< well radius for injection and production wells [in]
+			double precision				    :: r_inflow, r_inflow_AU	                        !< injection well inflow [bbl/d]
 
             double precision			        :: r_pos_in(2, _DARCY_INJECTOR_WELLS)				!< injector positions [m]
             double precision			        :: r_pos_prod(2, _DARCY_PRODUCER_WELLS)				!< producer positions [m]
 
-			double precision			        :: g(3)				                                !< gravity vector [m/s^2]
+			double precision			        :: g(3), g_SI(3)				                    !< gravity vector [m/s^2]
 
 			double precision			        :: p_refinement_threshold				            !< pressure refinement threshold
 			double precision			        :: S_refinement_threshold				            !< saturation refinement threshold
@@ -122,8 +119,14 @@ module config
 
         contains
 
-        procedure, pass :: read_from_arguments
+        procedure, pass :: read_from_program_arguments
+        procedure, pass :: read_from_string
         procedure, pass :: print => config_print
+
+        procedure, private, pass :: define_arguments
+        procedure, private, pass :: parse_program_arguments
+        procedure, private, pass :: parse_string
+        procedure, private, pass :: update
     end type
 
     type(t_config) :: cfg
@@ -131,24 +134,18 @@ module config
 
     contains
 
-    subroutine add_real_parameter(config, name, default_value, help, address)
+    subroutine read_from_program_arguments(config)
         class(t_config), intent(inout)          :: config
-        character(*), intent(in)          		:: name, default_value, help
-        double precision, pointer, intent(in)   :: address
 
-        write(config%arguments, '(A, A, " ", A, " ")') config%arguments, name, default_value
+        character(1024)    :: arguments
 
-        write(config%help, '(A, A, T15, A, "(default: ", A, ")", /)') config%help, name, help, default_value
+        call config%define_arguments(arguments)
+        call config%parse_program_arguments(arguments)
     end subroutine
 
-    subroutine read_from_arguments(config)
-        class(t_config), intent(inout)          :: config
-
-        logical					                :: l_help, l_version
-        integer          					    :: i, i_error
-        character(1024)                         :: arguments
-        character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
-        character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
+    subroutine define_arguments(config, arguments)
+        class(t_config), intent(inout)  :: config
+        character(*), intent(inout)     :: arguments
 
         !define default command arguments and default values for all scenarios
 
@@ -189,12 +186,34 @@ module config
             write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -tmax 5 -tout -1.0d0"
 #    	elif defined(_GENERIC)
             write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -tmax 5 -tout -1.0d0"
-
 #    	else
 #           error No scenario selected!
 #    	endif
+    end subroutine
+
+    subroutine parse_string(config, string)
+        class(t_config), intent(inout)  :: config
+        character(*), intent(inout)     :: string
+
+        call parse('samoa', string, "no_add")
+        call config%update()
+    end subroutine
+
+    subroutine parse_program_arguments(config, arguments)
+        class(t_config), intent(inout)  :: config
+        character(*), intent(inout)     :: arguments
 
         call kracken('samoa', arguments)
+        call config%update()
+    end subroutine
+
+    subroutine update(config)
+        class(t_config), intent(inout)  :: config
+
+        logical					        :: l_help, l_version
+        integer          			    :: i, i_error
+        character(64), parameter        :: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
+        character(64), parameter        :: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
         !  get values
         l_help = lget('samoa_-help') .or. lget('samoa_h')
@@ -227,25 +246,26 @@ module config
 #           endif
 
             config%r_epsilon = rget('samoa_epsilon')
-			config%r_nu_w = rget('samoa_nu_w')
-			config%r_nu_n = rget('samoa_nu_n')
-			config%r_rho_w = rget('samoa_rho_w')
-			config%r_rho_n = rget('samoa_rho_n')
 			config%S_wr = rget('samoa_S_wr')
 			config%S_nr = rget('samoa_S_nr')
-			config%r_p_in = rget('samoa_p_in')
-			config%r_p_prod = rget('samoa_p_prod')
             config%i_max_iterations = iget('samoa_max_iter')
             config%i_lse_skip = iget('samoa_lse_skip')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
-            config%r_well_radius = rget('samoa_well_radius')
-            config%r_inflow = rget('samoa_inflow')
+
+			config%r_nu_w_SI = rget('samoa_nu_w')
+			config%r_nu_n_SI = rget('samoa_nu_n')
+			config%r_rho_w_SI = rget('samoa_rho_w')
+			config%r_rho_n_SI = rget('samoa_rho_n')
+            config%g_SI = [rget('samoa_g_x'), rget('samoa_g_y'), rget('samoa_g_z')]
+
+			config%r_p_in_AU = rget('samoa_p_in')
+			config%r_p_prod_AU = rget('samoa_p_prod')
+            config%r_well_radius_AU = rget('samoa_well_radius')
+            config%r_inflow_AU = rget('samoa_inflow')
 
             config%p_refinement_threshold = rget('samoa_p_ref_th')
             config%S_refinement_threshold = rget('samoa_S_ref_th')
-
-            config%g = [rget('samoa_g_x'), rget('samoa_g_y'), rget('samoa_g_z')]
 
             config%l_lse_output = lget('samoa_lseoutput')
             config%l_well_output = lget('samoa_welloutput')
@@ -273,7 +293,7 @@ module config
              _log_write(0, ' (" sam(oa)²: Space filling curves and Adaptive Meshes for Oceanic and Other Applications")')
             !if the version option was set was called, display program version
             if (l_version) then
-                _log_write(0, '(" version ", I0, ".", I0, ".", I0)') 0, 5, 2
+                _log_write(0, '(" version ", I0, ".", I0, ".", I0)') 0, 7, 0
             end if
 
             !if the help option was set, display the list of arguments
