@@ -64,9 +64,15 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
 
     integer (kind = GRID_SI)                :: i_src_start, i_dest_start, i_count
 	integer                                 :: i_error, i
-    _T, pointer                             :: elements_temp(:)
+    _T, pointer                             :: elements_temp_alloc(:), elements_temp(:)
 
-    allocate(elements_temp(i_elements), stat = i_error); assert_eq(i_error, 0)
+    allocate(elements_temp_alloc(i_elements), stat = i_error); assert_eq(i_error, 0)
+
+    if (list%is_forward() .or. i_elements < 1) then
+        elements_temp => elements_temp_alloc
+    else
+        elements_temp => elements_temp_alloc(i_elements : 1 : -1)
+    end if
 
     if (present(i_src_start_arg)) then
         i_src_start = i_src_start_arg
@@ -90,20 +96,17 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
         !HOTFIX: GFortran does not support defined subarray assignment for derived types
 #       if defined(__GFORTRAN__)
             do i = 0, i_count - 1
-                elements_temp(i_dest_start + i) = list%elements_alloc(i_src_start  + i)
+                elements_temp(i_dest_start + i) = list%elements(i_src_start  + i)
             end do
 #       else
-            elements_temp(i_dest_start : i_dest_start + i_count - 1) = list%elements_alloc(i_src_start : i_src_start + i_count - 1)
+            elements_temp(i_dest_start : i_dest_start + i_count - 1) = list%elements(i_src_start : i_src_start + i_count - 1)
 #       endif
+
+        deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
     end if
 
-    list%elements_alloc => elements_temp
-
-    if (list%is_forward()) then
-        list%elements => elements_temp
-    else
-        list%elements => elements_temp(i_elements : 1 : -1)
-    end if
+    list%elements => elements_temp
+    list%elements_alloc => elements_temp_alloc
 end subroutine
 
 !> Adds an element at the end of a list
@@ -111,7 +114,7 @@ subroutine add_element(list, element)
 	class(_CNT), intent(inout)		        :: list						!< list object
 	_T, intent(in)							:: element
 
-	call list%add_after(size(list%elements), element)
+	call list%add_after(list%get_size(), element)
 end subroutine
 
 !> Adds an element after the current location
@@ -121,45 +124,39 @@ subroutine add_after(list, i_current_element, element)
 	_T, intent(in)							:: element
 
 	integer                                 :: i_error, i
-    _T, pointer                             :: elements_temp(:)
+    _T, pointer                             :: elements_temp_alloc(:), elements_temp(:)
 
-    if (.not. associated(list%elements_alloc)) then
-        allocate(elements_temp(1), stat = i_error); assert_eq(i_error, 0)
-        elements_temp(1) = element
+    allocate(elements_temp_alloc(list%get_size() + 1), stat = i_error); assert_eq(i_error, 0)
+
+    if (list%is_forward() .or. size(elements_temp_alloc) < 1) then
+        elements_temp => elements_temp_alloc
     else
-        allocate(elements_temp(size(list%elements_alloc) + 1), stat = i_error); assert_eq(i_error, 0)
+        elements_temp => elements_temp_alloc(size(elements_temp_alloc) : 1 : -1)
+    end if
 
     !HOTFIX: GFortran does not support defined subarray assignment for derived types
 #   if defined(__GFORTRAN__)
         do i = 1, i_current_element
-             elements_temp(i) = list%elements_alloc(i)
+             elements_temp(i) = list%elements(i)
         end do
 
         elements_temp(i_current_element + 1) = element
 
-        do i = i_current_element + 2, size(list%elements_alloc) + 1
-            elements_temp(i) = list%elements_alloc(i - 1)
+        do i = i_current_element + 2, list%get_size() + 1
+            elements_temp(i) = list%elements(i - 1)
         end do
 #   else
-        elements_temp(1 : i_current_element) = list%elements_alloc(1 : i_current_element)
+        elements_temp(1 : i_current_element) = list%elements(1 : i_current_element)
         elements_temp(i_current_element + 1) = element
-        elements_temp(i_current_element + 2 : ) = list%elements_alloc(i_current_element + 1 : )
+        elements_temp(i_current_element + 2 : ) = list%elements(i_current_element + 1 : )
 #   endif
 
-        if (associated(list%elements_alloc)) then
-            deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
-        else
-            nullify(list%elements_alloc)
-        end if
+    if (associated(list%elements_alloc)) then
+        deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
     end if
 
-    list%elements_alloc => elements_temp
-
-    if (list%forward) then
-        list%elements => elements_temp
-    else
-        list%elements => elements_temp(size(elements_temp) : 1 : -1)
-    end if
+    list%elements => elements_temp
+    list%elements_alloc => elements_temp_alloc
 end subroutine
 
 subroutine remove_at(list, i_current_element)
@@ -167,69 +164,73 @@ subroutine remove_at(list, i_current_element)
 	integer, intent(in)                     	    :: i_current_element
 
 	integer                                         :: i_error, i
-    _T, pointer                                     :: elements_temp(:)
+    _T, pointer                                     :: elements_temp_alloc(:), elements_temp(:)
 
     assert(associated(list%elements_alloc))
     assert_ge(i_current_element, 1)
     assert_le(i_current_element, size(list%elements_alloc))
 
-    allocate(elements_temp(size(list%elements_alloc) - 1), stat = i_error); assert_eq(i_error, 0)
+    allocate(elements_temp_alloc(size(list%elements_alloc) - 1), stat = i_error); assert_eq(i_error, 0)
+
+    if (list%is_forward() .or. size(elements_temp_alloc) < 1) then
+        elements_temp => elements_temp_alloc
+    else
+        elements_temp => elements_temp_alloc(size(elements_temp_alloc) : 1 : -1)
+    end if
 
     !HOTFIX: GFortran does not support defined subarray assignment for derived types
 #   if defined(__GFORTRAN__)
         do i = 1, i_current_element - 1
-            elements_temp(i) = list%elements_alloc(i)
+            elements_temp(i) = list%elements(i)
         end do
 
-        do i = i_current_element, size(list%elements_alloc) - 1
-            elements_temp(i) = list%elements_alloc(i + 1)
+        do i = i_current_element, size(list%elements) - 1
+            elements_temp(i) = list%elements(i + 1)
         end do
 #   else
-        elements_temp(1 : i_current_element - 1) = list%elements_alloc(1 : i_current_element - 1)
-        elements_temp(i_current_element : size(list%elements_alloc) - 1) = list%elements_alloc(i_current_element + 1 : size(list%elements_alloc))
+        elements_temp(1 : i_current_element - 1) = list%elements(1 : i_current_element - 1)
+        elements_temp(i_current_element : size(list%elements) - 1) = list%elements(i_current_element + 1 : size(list%elements))
 #   endif
 
     deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
 
-    list%elements_alloc => elements_temp
-
-    if (list%forward) then
-        list%elements => elements_temp
-    else
-        list%elements => elements_temp(size(elements_temp) : 1 : -1)
-    end if
+    list%elements_alloc => elements_temp_alloc
+    list%elements => elements_temp
 end subroutine
 
-!> merges the list with a second list
+!> merges two lists
 function merge(list1, list2) result(list)
 	class(_CNT), intent(in)		            :: list1, list2				!< list object
 	type(_CNT)		                        :: list						!< list object
 
-	_T, pointer				                :: elements_temp(:)
-	integer                                 :: total_size, i_error, i
+	_T, pointer				                :: elements_temp_alloc(:), elements_temp(:)
+	integer                                 :: i_error, i
+	integer                                 :: list1_size, list2_size
+
+    assert_eqv(list1%is_forward(), list2%is_forward())
 
     !merge array parts
 
-    total_size = 0
-    if (associated(list1%elements)) then
-        total_size = total_size + size(list1%elements)
-    end if
+    list1_size = list1%get_size()
+    list2_size = list2%get_size()
 
-    if (associated(list1%elements)) then
-        total_size = total_size + size(list2%elements)
-    end if
+    if (list1_size + list2_size > 0) then
+        allocate(elements_temp_alloc(list1_size + list2_size), stat = i_error); assert_eq(i_error, 0)
 
-    if (total_size > 0) then
-        allocate(elements_temp(total_size), stat = i_error); assert_eq(i_error, 0)
+        if (list1%is_forward() .or. list1_size + list2_size < 1) then
+            elements_temp => elements_temp_alloc
+        else
+            elements_temp => elements_temp_alloc(list1_size + list2_size : 1 : -1)
+        end if
 
         if (associated(list1%elements)) then
             !HOTFIX: GFortran does not support defined subarray assignment for derived types
 #           if defined(__GFORTRAN__)
-                do i = 1, size(list1%elements)
+                do i = 1, list1_size
                     elements_temp(i) = list1%elements(i)
                 end do
 #           else
-                elements_temp(1 : size(list1%elements)) = list1%elements
+                elements_temp(1 : list1_size) = list1%elements
 #           endif
         end if
 
@@ -237,15 +238,16 @@ function merge(list1, list2) result(list)
             !HOTFIX: GFortran does not support defined subarray assignment for derived types
 #           if defined(__GFORTRAN__)
                 do i = 1, size(list2%elements)
-                    elements_temp(total_size - size(list2%elements) + i) = list2%elements(i)
+                    elements_temp(list1_size + i) = list2%elements(i)
                 end do
 #           else
-                elements_temp(total_size - size(list2%elements) + 1 : total_size) = list2%elements
+                elements_temp(list1_size + 1 : list1_size + list2_size) = list2%elements
 #           endif
         end if
 
-        list%elements_alloc => elements_temp
+        list%elements_alloc => elements_temp_alloc
         list%elements => elements_temp
+        list%forward = list1%is_forward()
     end if
 end function
 
@@ -254,17 +256,19 @@ subroutine reverse(list)
 
 	_T, dimension(:), pointer				:: elements_temp
 
+    list%forward = .not. list%is_forward()
+
     !reverse array part
-	if (associated(list%elements)) then
-        elements_temp => list%elements(size(list%elements) : 1 : -1)
+	if (list%get_size() > 0) then
+        elements_temp => list%elements(list%get_size() : 1 : -1)
         list%elements => elements_temp
     end if
 
-    list%forward = .not. list%forward
-
-    if (list%get_size() > 1) then
-        assert_pure((loc(list%elements(1)) < loc(list%elements(size(list%elements)))) .eqv. list%forward)
-    end if
+#   if defined(_ASSERT)
+        if (list%get_size() > 1) then
+            assert_pure((loc(list%elements(1)) < loc(list%elements(size(list%elements)))) .eqv. list%is_forward())
+        end if
+#   endif
 end subroutine
 
 subroutine clear(list)
@@ -292,6 +296,12 @@ end function
 function is_forward(list)
 	class(_CNT), intent(in)     :: list					!< list object
     logical                     :: is_forward
+
+#   if defined _ASSERT
+        if (list%get_size() > 1) then
+            assert(loc(list%elements(1)) .lt. loc(list%elements(size(list%elements))) .eqv. list%forward)
+        end if
+#   endif
 
     is_forward = list%forward
 end function

@@ -250,11 +250,11 @@ subroutine traverse_in_place(traversal, grid)
 	type(t_grid), save							        :: grid_temp
 	type(t_adaptive_statistics)                         :: thread_stats
 
-    if (.not. associated(traversal%threads)) then
+    if (.not. associated(traversal%threads) .or. size(traversal%threads) .ne. cfg%i_threads) then
         !$omp barrier
 
         !$omp single
-        allocate(traversal%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
+        allocate(traversal%threads(cfg%i_threads), stat = i_error); assert_eq(i_error, 0)
         !$omp end single
 
     	assert(.not. associated(traversal%threads(i_thread)%p_dest_element))
@@ -632,6 +632,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%coords(:,2) = thread_traversal%p_src_element%nodes(3)%ptr%position
 				thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position + (thread_traversal%p_src_element%nodes(2)%ptr%position - thread_traversal%p_src_element%nodes(1)%ptr%position)
+
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -665,6 +669,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
                 thread_traversal%p_dest_element%coords(:,2) = thread_traversal%p_src_element%nodes(2)%ptr%position
                 thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -694,6 +699,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 				thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -705,6 +711,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
                 p_dest_element_2%coords(:,2) = thread_traversal%p_dest_element%coords(:,2)
 				p_dest_element_2%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
+                assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
@@ -737,6 +744,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
 				thread_traversal%p_dest_element%coords(:,3) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -748,6 +756,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
                 p_dest_element_2%coords(:,2) = thread_traversal%p_dest_element%coords(:,2)
 				p_dest_element_2%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
+                assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
@@ -759,6 +768,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
                 p_dest_element_3%coords(:,2) = p_dest_element_2%coords(:,1)
 				p_dest_element_3%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
+                assert_veq(p_dest_element_3%coords, p_dest_element_3%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
@@ -791,6 +801,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 				thread_traversal%p_dest_element%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -802,6 +813,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
 				p_dest_element_2%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
                 p_dest_element_2%coords(:,3) = thread_traversal%p_dest_element%coords(:,2)
+                assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
@@ -813,6 +825,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
 				p_dest_element_3%coords(:,2) = p_dest_element_2%coords(:,2)
 				p_dest_element_3%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
+                assert_veq(p_dest_element_3%coords, p_dest_element_3%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
@@ -848,6 +861,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
 				thread_traversal%p_dest_element%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(2)%ptr%position)
 				thread_traversal%p_dest_element%coords(:,3) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(1)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
+                assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
@@ -859,6 +873,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
 				p_dest_element_2%coords(:,2) = thread_traversal%p_dest_element%coords(:,2)
 				p_dest_element_2%coords(:,3) = thread_traversal%p_src_element%nodes(2)%ptr%position
+                assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
@@ -870,6 +885,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
 				p_dest_element_3%coords(:,2) = 0.5_GRID_SR * (thread_traversal%p_src_element%nodes(2)%ptr%position + thread_traversal%p_src_element%nodes(3)%ptr%position)
 				p_dest_element_3%coords(:,3) = p_dest_element_2%coords(:,1)
+                assert_veq(p_dest_element_3%coords, p_dest_element_3%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
@@ -881,6 +897,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				p_dest_element_4%coords(:,1) = p_dest_element_3%coords(:,3)
 				p_dest_element_4%coords(:,2) = p_dest_element_3%coords(:,2)
 				p_dest_element_4%coords(:,3) = thread_traversal%p_src_element%nodes(3)%ptr%position
+                assert_veq(p_dest_element_4%coords, p_dest_element_4%coords)
 #			endif
 
 			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
