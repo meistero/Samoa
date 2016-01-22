@@ -14,7 +14,7 @@ PROGRAM samoa
     call init_mpi()
 
     !read config from program arguments and print it out
-    call cfg%read_from_arguments()
+    call cfg%read_from_program_arguments()
 
     if (rank_MPI == 0) then
         call cfg%print()

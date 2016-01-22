@@ -56,8 +56,6 @@ MODULE SFC_traversal
            type(t_generic)                                                  :: generic
 #	    endif
 
-        call set_signals()
-
 		!create, run and destroy scenario
 
 #		if defined(_TESTS)
@@ -136,57 +134,4 @@ MODULE SFC_traversal
 			call generic%destroy(cfg%l_log)
 #		endif
 	end subroutine sfc_generic
-
-    subroutine set_signals()
-#       if !defined(__GFORTRAN__)
-            use ifport
-#       endif
-
-        integer :: i_status
-
-#       if defined(__GFORTRAN__)
-            !i_status = signal(2, signal_interrupt)
-#       else
-            !i_status = signal(2, signal_interrupt, -1)
-#       endif
-    end subroutine
-
-    subroutine unset_signal(i_signal)
-#       if !defined(__GFORTRAN__)
-            use ifport
-#       endif
-
-        integer(4), intent(in) :: i_signal
-
-        integer :: i_status
-
-#       if defined(__GFORTRAN__)
-            !i_status = signal(i_signal, 0)
-#       else
-            !i_status = signal(i_signal, signal_interrupt, 0)
-#       endif
-    end subroutine
-
-	function signal_interrupt() result(rcode)
-        integer(4) :: rcode
-
-        print '("*****************************************************")'
-        print '("*** Interrupt signal caught, initiating soft exit ***")'
-        print '("*****************************************************")'
-
-        !initiate a soft exit by setting all possible exit conditions to return immediately
-        cfg%i_min_depth = 1
-        cfg%i_max_depth = 1
-        cfg%i_max_time_steps = 0
-        cfg%r_max_time = 0.0_GRID_SR
-
-#       if defined (_DARCY)
-            cfg%i_max_iterations = 0
-#       endif
-
-        !if ctrl-c is pressed again, the program should terminate immediately
-        call unset_signal(2)
-
-        rcode = 0
-    end function
 end MODULE SFC_traversal
