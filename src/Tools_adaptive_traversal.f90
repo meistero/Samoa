@@ -476,8 +476,11 @@
             type(t_traversal_element), intent(inout)	        :: element
 #       endif
 
-		integer(kind = BYTE)								        :: i_color_edge_color
+		integer(kind = BYTE)								    :: i_color_edge_color
 		real (kind = GRID_SI), dimension(2, 3), parameter	    :: node_offset = reshape([0.0, 1.0, -1.0, 1.0, -1.0, 0.0], [2, 3])
+        real (kind = GRID_SI)                                   :: new_position(2)
+        type (t_node_data), pointer                             :: dummy_node
+        type(t_edge_data), pointer                              :: dummy_edge
 
 #		if defined(_GT_SKELETON_OP) || defined(_GT_CELL_UPDATE_OP)
             type(num_cell_update)                               :: color_edge_local_update, next_edge_local_update
@@ -495,10 +498,13 @@
 
 			!read transfer nodes from the process node stream and push them on the stacks
 			_GT_N(element%color_node_out%ptr => thread%nodes_stack(i_color_edge_color)%push())
-			_GT_N(call section%boundary_nodes(i_color_edge_color)%read(element%color_node_out%ptr))
-
 			_GT_N(element%transfer_node%ptr => thread%nodes_stack(RED + GREEN - i_color_edge_color)%push())
-			_GT_N(call section%boundary_nodes(RED + GREEN - i_color_edge_color)%read(element%transfer_node%ptr))
+
+            !even if INPUT is disabled, we have to read the boundary stream
+            !as the first touch operator might have been called on the boundary stream
+
+            _GT_N(call section%boundary_nodes(i_color_edge_color)%read(element%color_node_out%ptr))
+            _GT_N(call section%boundary_nodes(RED + GREEN - i_color_edge_color)%read(element%transfer_node%ptr))
 #		endif
 
 		!read color edge and color node
@@ -509,33 +515,49 @@
 			_GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%current())
 #		elif (_GT_COLOR_EDGE_TYPE == _NEW)
 			_GT_E(element%color_edge%ptr => thread%edges_stack(i_color_edge_color)%push())
-			_GT_ER(call section%color_edges_in%read(element%color_edge%ptr%t_color_edge_stream_data))
+            _GT_ER(call section%color_edges_in%read(element%color_edge%ptr%t_color_edge_stream_data))
 
 			_GT_N(element%color_node_out%ptr => thread%nodes_stack(i_color_edge_color)%current())
 			_GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%push())
-			_GT_NR(call section%nodes_in%read(element%color_node_in%ptr%t_node_stream_data))
+            _GT_NR(call section%nodes_in%read(element%color_node_in%ptr%t_node_stream_data))
 #		elif (_GT_COLOR_EDGE_TYPE == _OLD_BND) || (_GT_COLOR_EDGE_TYPE == _NEW_BND)
 			_GT_E(element%color_edge%ptr => section%boundary_edges(i_color_edge_color)%next())
 
-			_GT_N(element%color_node_out%ptr => section%boundary_nodes(i_color_edge_color)%current())
-			_GT_N(call thread%nodes_stack(i_color_edge_color)%pop_data(element%color_node_out%ptr))
+            !Carfeul: With concurrent read access, the output variant appears to temporarily invalidate data
+            !and cause race conditions. This is only relevant for the source grid in adaptive traversal though.
+            !which is treated now with the last case !defined(_GT_OUTPUT):
 
-			_GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%push())
-			_GT_N(call section%boundary_nodes(i_color_edge_color)%read(element%color_node_in%ptr))
+#           if defined(_GT_OUTPUT)
+                _GT_N(element%color_node_out%ptr => section%boundary_nodes(i_color_edge_color)%current())
+
+                _GT_N(call thread%nodes_stack(i_color_edge_color)%pop_data(element%color_node_out%ptr))
+
+                _GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%push())
+                _GT_N(call section%boundary_nodes(i_color_edge_color)%read(element%color_node_in%ptr))
+#           elif !defined(_GT_OUTPUT)
+                !if we don't care what happens with the source grid, we push the boundary node after we processed it
+                _GT_N(element%color_node_out%ptr => thread%nodes_stack(i_color_edge_color)%pop())
+                _GT_N(element%color_node_in%ptr => section%boundary_nodes(i_color_edge_color)%next())
+#           endif
 #		endif
 
 		!read next crossed edge
 #		if (_GT_NEXT_EDGE_TYPE == _NEW)
-			_GT_ER(call section%crossed_edges_in%read(element%next_edge%ptr%t_crossed_edge_stream_data))
+            _GT_ER(call section%crossed_edges_in%read(element%next_edge%ptr%t_crossed_edge_stream_data))
 #		elif (_GT_NEXT_EDGE_TYPE == _NEW_BND)
 			_GT_E(element%next_edge%ptr => section%boundary_edges(RED)%next())
 
 			!pop transfer nodes from the stacks and write them to the process node streams
-			_GT_N(element%color_node_in%ptr => section%boundary_nodes(i_color_edge_color)%current())
-			_GT_N(call thread%nodes_stack(i_color_edge_color)%pop_data(element%color_node_in%ptr))
+#           if defined(_GT_OUTPUT)
+                _GT_N(element%color_node_in%ptr => section%boundary_nodes(i_color_edge_color)%current())
+                _GT_N(call thread%nodes_stack(i_color_edge_color)%pop_data(element%color_node_in%ptr))
 
-			_GT_N(element%transfer_node%ptr => section%boundary_nodes(RED + GREEN - i_color_edge_color)%current())
-			_GT_N(call thread%nodes_stack(RED + GREEN - i_color_edge_color)%pop_data(element%transfer_node%ptr))
+                _GT_N(element%transfer_node%ptr => section%boundary_nodes(RED + GREEN - i_color_edge_color)%current())
+                _GT_N(call thread%nodes_stack(RED + GREEN - i_color_edge_color)%pop_data(element%transfer_node%ptr))
+#           else
+                _GT_N(element%color_node_in%ptr => section%boundary_nodes(i_color_edge_color)%current())
+                _GT_N(element%transfer_node%ptr => thread%nodes_stack(RED + GREEN - i_color_edge_color)%pop())
+#           endif
 #		endif
 
 		!set element tranformation data (must be defined)
@@ -554,10 +576,19 @@
 #               endif
 #		    elif !defined(_STORE_NODE_COORDS)
 #               if (_GT_COLOR_EDGE_TYPE == _NEW)
-                    element%color_node_in%ptr%position = element%color_node_out%ptr%position + element%transform_data%custom_data%scaling * matmul(element%transform_data%plotter_data%jacobian, node_offset(:, element%cell%geometry%i_turtle_type))
+                    new_position = element%color_node_out%ptr%position + element%transform_data%custom_data%scaling * matmul(element%transform_data%plotter_data%jacobian, node_offset(:, element%cell%geometry%i_turtle_type))
+                    element%color_node_in%ptr%position = new_position
 #               endif
 #           endif
 #		endif
+
+        assert_veq(element%nodes(1)%ptr%position, element%nodes(1)%ptr%position)
+        assert_veq(element%nodes(2)%ptr%position, element%nodes(2)%ptr%position)
+        assert_veq(element%nodes(3)%ptr%position, element%nodes(3)%ptr%position)
+
+        assert(.not. any(element%nodes(1)%ptr%position > 0.0_SR .and. element%nodes(1)%ptr%position < 1.0e-100_SR))
+        assert(.not. any(element%nodes(2)%ptr%position > 0.0_SR .and. element%nodes(2)%ptr%position < 1.0e-100_SR))
+        assert(.not. any(element%nodes(3)%ptr%position > 0.0_SR .and. element%nodes(3)%ptr%position < 1.0e-100_SR))
 
 		!First Touch Hooks
 
@@ -636,7 +667,7 @@
             type(t_traversal_element), intent(inout)	        :: element
 #       endif
 
-		integer (kind = BYTE)							            :: i_color_edge_color
+		integer (kind = BYTE)							        :: i_color_edge_color
 
 		i_color_edge_color = element%cell%geometry%i_color_edge_color
 
@@ -706,12 +737,23 @@
 
 		!write color edge & transfer node to stream if the edge is old or on the boundary, otherwise on the stack
 #		if (_GT_COLOR_EDGE_TYPE == _OLD)
-			_GT_EW(call section%color_edges_out%write(element%color_edge%ptr%t_color_edge_stream_data))
-			_GT_NW(call section%nodes_out%write(element%color_node_out%ptr%t_node_stream_data))
+            _GT_EW(call section%color_edges_out%write(element%color_edge%ptr%t_color_edge_stream_data))
+            _GT_NW(call section%nodes_out%write(element%color_node_out%ptr%t_node_stream_data))
+#		elif (_GT_COLOR_EDGE_TYPE == _OLD_BND) || (_GT_COLOR_EDGE_TYPE == _NEW_BND)
+#           if !defined(_GT_OUTPUT)
+                !push the boundary node
+                _GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%push())
+                _GT_N(element%color_node_in%ptr = section%boundary_nodes(i_color_edge_color)%current())
+#           endif
 #		endif
 
 #		if (_GT_NEXT_EDGE_TYPE == _NEW_BND)
             _GT_E(element%next_edge%ptr => element%next%previous_edge%ptr)
+
+#           if !defined(_GT_OUTPUT)
+                !pop the boundary node
+                _GT_N(element%color_node_in%ptr => thread%nodes_stack(i_color_edge_color)%pop())
+#           endif
 #		endif
 
 #       if defined(_GT_OUTPUT)
