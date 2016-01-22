@@ -120,7 +120,6 @@ module config
         contains
 
         procedure, pass :: read_from_program_arguments
-        procedure, pass :: read_from_string
         procedure, pass :: print => config_print
 
         procedure, private, pass :: define_arguments
