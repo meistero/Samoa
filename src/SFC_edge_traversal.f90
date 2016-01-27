@@ -1328,7 +1328,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         integer (kind = GRID_DI)                        :: i_total_load, i_max_load
         integer (kind = GRID_SI)						:: i_first_local_section, i_last_local_section, i_section
         integer, pointer                                :: i_rank_out(:), i_section_index_out(:), i_rank_in(:)
-        type(t_grid)						            :: grid_temp
+        type(t_grid), save						        :: grid_temp
         integer	(BYTE)  		                        :: i_color
         logical                                         :: l_early_exit
 
@@ -1428,8 +1428,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 	            assert_veq(decode_distance(grid%end_distance), decode_distance(grid%sections%elements(grid%sections%get_size())%end_distance))
 			end if
 
+            grid_temp%sections = t_grid_section_list()
             call grid_temp%sections%resize(size(i_rank_in))
-            !$omp end single copyprivate(grid_temp)
+            !$omp end single
 
             !if necessary, reverse order to match source and destination grid
             if (.not. grid%sections%is_forward()) then

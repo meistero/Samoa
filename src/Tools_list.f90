@@ -93,14 +93,12 @@ subroutine resize(list, i_elements, i_src_start_arg, i_dest_start_arg, i_count_a
     end if
 
     if (associated(list%elements)) then
-        !HOTFIX: GFortran does not support defined subarray assignment for derived types
-#       if defined(__GFORTRAN__)
-            do i = 0, i_count - 1
-                elements_temp(i_dest_start + i) = list%elements(i_src_start  + i)
-            end do
-#       else
-            elements_temp(i_dest_start : i_dest_start + i_count - 1) = list%elements(i_src_start : i_src_start + i_count - 1)
-#       endif
+        !GFortran does not support defined subarray assignment for derived types
+        !so we use a loop
+
+        do i = 0, i_count - 1
+            elements_temp(i_dest_start + i) = list%elements(i_src_start  + i)
+        end do
 
         deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
     end if
@@ -134,22 +132,18 @@ subroutine add_after(list, i_current_element, element)
         elements_temp => elements_temp_alloc(size(elements_temp_alloc) : 1 : -1)
     end if
 
-    !HOTFIX: GFortran does not support defined subarray assignment for derived types
-#   if defined(__GFORTRAN__)
-        do i = 1, i_current_element
-             elements_temp(i) = list%elements(i)
-        end do
+    !GFortran does not support defined subarray assignment for derived types
+    !so we use a loop
 
-        elements_temp(i_current_element + 1) = element
+    do i = 1, i_current_element
+         elements_temp(i) = list%elements(i)
+    end do
 
-        do i = i_current_element + 2, list%get_size() + 1
-            elements_temp(i) = list%elements(i - 1)
-        end do
-#   else
-        elements_temp(1 : i_current_element) = list%elements(1 : i_current_element)
-        elements_temp(i_current_element + 1) = element
-        elements_temp(i_current_element + 2 : ) = list%elements(i_current_element + 1 : )
-#   endif
+    elements_temp(i_current_element + 1) = element
+
+    do i = i_current_element + 2, list%get_size() + 1
+        elements_temp(i) = list%elements(i - 1)
+    end do
 
     if (associated(list%elements_alloc)) then
         deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
@@ -178,19 +172,16 @@ subroutine remove_at(list, i_current_element)
         elements_temp => elements_temp_alloc(size(elements_temp_alloc) : 1 : -1)
     end if
 
-    !HOTFIX: GFortran does not support defined subarray assignment for derived types
-#   if defined(__GFORTRAN__)
-        do i = 1, i_current_element - 1
-            elements_temp(i) = list%elements(i)
-        end do
+    !GFortran does not support defined subarray assignment for derived types
+    !so we use a loop
 
-        do i = i_current_element, size(list%elements) - 1
-            elements_temp(i) = list%elements(i + 1)
-        end do
-#   else
-        elements_temp(1 : i_current_element - 1) = list%elements(1 : i_current_element - 1)
-        elements_temp(i_current_element : size(list%elements) - 1) = list%elements(i_current_element + 1 : size(list%elements))
-#   endif
+    do i = 1, i_current_element - 1
+        elements_temp(i) = list%elements(i)
+    end do
+
+    do i = i_current_element, size(list%elements) - 1
+        elements_temp(i) = list%elements(i + 1)
+    end do
 
     deallocate(list%elements_alloc, stat = i_error); assert_eq(i_error, 0)
 
@@ -224,25 +215,21 @@ function merge(list1, list2) result(list)
         end if
 
         if (associated(list1%elements)) then
-            !HOTFIX: GFortran does not support defined subarray assignment for derived types
-#           if defined(__GFORTRAN__)
-                do i = 1, list1_size
-                    elements_temp(i) = list1%elements(i)
-                end do
-#           else
-                elements_temp(1 : list1_size) = list1%elements
-#           endif
+            !GFortran does not support defined subarray assignment for derived types
+            !so we use a loop
+
+            do i = 1, list1_size
+                elements_temp(i) = list1%elements(i)
+            end do
         end if
 
         if (associated(list2%elements)) then
-            !HOTFIX: GFortran does not support defined subarray assignment for derived types
-#           if defined(__GFORTRAN__)
-                do i = 1, size(list2%elements)
-                    elements_temp(list1_size + i) = list2%elements(i)
-                end do
-#           else
-                elements_temp(list1_size + 1 : list1_size + list2_size) = list2%elements
-#           endif
+            !GFortran does not support defined subarray assignment for derived types
+            !so we use a loop
+
+            do i = 1, size(list2%elements)
+                elements_temp(list1_size + i) = list2%elements(i)
+            end do
         end if
 
         list%elements_alloc => elements_temp_alloc
