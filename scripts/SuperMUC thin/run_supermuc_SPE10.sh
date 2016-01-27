@@ -18,8 +18,7 @@ echo "Compiling..."
 
 limit=48:00:00
 layers=85
-postfix=_noomp_ibm_upwind_l$layers
-sections=1
+postfix=_spe10
 
 if [ $layers = 0 ] ; then
     p_ref_th=3.0e-9
@@ -34,7 +33,7 @@ module switch mpi.intel mpi.ibm
 module unload gcc
 module load gcc/4.7
 
-#scons config=supermuc_ibm.py scenario=darcy flux_solver=upwind layers=$layers openmp=noomp -j4 &
+#scons config=supermuc_ibm.py scenario=darcy flux_solver=upwind layers=$layers exe=samoa_darcy_spe10 -j4 &
 #wait
 
 if [ $? -ne 0 ]; then
@@ -45,13 +44,15 @@ mkdir -p $output_dir
 
 echo "Running scenarios..."
 
+sections=1
+
 for dmax in 14
 do
-	for cores in 128
+	for cores in 256
 	do
-		processes=$cores
-		threads=1
-		nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
+	    processes=$(( ($cores - 1) / 16 + 1 ))
+	    threads=$(( $cores / $processes )) 
+	    nodes=$(( ($processes * $threads - 1) / 16 + 1 ))
 		islands=$(( ($nodes - 1) / 512 + 1 ))
 
 		if [ $nodes -le 32 ]; then
