@@ -62,17 +62,15 @@ type _CNT
 	procedure, private, pass :: current_element
 	procedure, private, pass :: next_element
 	procedure, private, pass :: read_element
-	procedure, private, pass :: read_elements
 	procedure, private, pass :: write_element
-	procedure, private, pass :: write_elements
 	procedure, private, pass :: add_element
 
 	procedure, pass :: to_string
 
 	generic :: current => current_element
 	generic :: next => next_element
-	generic :: read => read_element, read_elements
-	generic :: write => write_element, write_elements
+	generic :: read => read_element
+	generic :: write => write_element
 	generic :: add => add_element
 end type
 
@@ -126,6 +124,7 @@ subroutine resize_by_value(stream, i_elements)
 
 	integer(kind = GRID_SI), intent(in)             :: i_elements
     _T, pointer                                     :: elements_temp_alloc(:), elements_temp(:)
+	integer(kind = GRID_SI)                         :: i
 	integer                                         :: i_error
 
     assert(i_elements .ge. 0)
@@ -147,7 +146,9 @@ subroutine resize_by_value(stream, i_elements)
     end if
 
 	if (associated(stream%elements)) then
-        elements_temp(1 : min(i_elements, size(stream%elements))) = stream%elements(1 : min(i_elements, size(stream%elements)))
+	    do i = 1, min(i_elements, size(stream%elements))
+            elements_temp(i) = stream%elements(i)
+        end do
 
         call free_wrapper(stream%elements_alloc)
     end if
@@ -259,20 +260,6 @@ subroutine read_element(stream, data)
 	data = stream%elements(stream%i_current_element)
 end subroutine
 
-!> increments the current element index, then reads a block of elements from the stream
-subroutine read_elements(stream, data)
-	class(_CNT), intent(inout)					:: stream					!< stream object
-	_T, intent(out)								:: data(:)					!< data
-
-	stream%i_current_element = stream%i_current_element + size(data)
-
-	!check for overflow
-	assert_ge(stream%i_current_element, size(data))
-	assert_le(stream%i_current_element, stream%get_size())
-
-	data = stream%elements(stream%i_current_element - size(data) + 1 : stream%i_current_element)
-end subroutine
-
 !> increments the current element index, then writes the current element to the stream
 subroutine write_element(stream, data)
 	class(_CNT), intent(inout)					:: stream					!< stream object
@@ -285,20 +272,6 @@ subroutine write_element(stream, data)
 	assert_le(stream%i_current_element, stream%get_size())
 
 	stream%elements(stream%i_current_element) = data
-end subroutine
-
-!> increments the current element index, then writes a chunk of elements to the stream
-subroutine write_elements(stream, data)
-	class(_CNT), intent(inout)					:: stream					!< stream object
-	_T, intent(in)								:: data(:)					!< data
-
-	stream%i_current_element = stream%i_current_element + size(data)
-
-	!check for overflow
-	assert_ge(stream%i_current_element, size(data))
-	assert_le(stream%i_current_element, stream%get_size())
-
-	stream%elements(stream%i_current_element - size(data) + 1 : stream%i_current_element) = data
 end subroutine
 
 !> adds an element to a self-managed stream. If necessary, the size of the stream is increased to fit the element.
@@ -326,7 +299,7 @@ function merge_streams(stream1, stream2) result(stream)
 	type(_CNT)              					:: stream               !< stream objects
 
 	_T, pointer					                :: elements_temp_alloc(:), elements_temp(:)
-	integer (kind = GRID_SI)                    :: stream1_size, stream2_size
+	integer (kind = GRID_SI)                    :: stream1_size, stream2_size, i
 
     assert(.not. associated(stream%elements))
     assert(.not. associated(stream%elements_alloc))
@@ -346,11 +319,15 @@ function merge_streams(stream1, stream2) result(stream)
         end if
 
         if (associated(stream1%elements)) then
-            elements_temp(1 : stream1_size) = stream1%elements
+            do i = 1, stream1_size
+                elements_temp(i) = stream1%elements(i)
+            end do
         end if
 
         if (associated(stream2%elements)) then
-            elements_temp(stream1_size + 1 : stream1_size + stream2_size) = stream2%elements
+            do i = 1, stream2_size
+                elements_temp(stream1_size + i) = stream2%elements(i)
+            end do
         end if
 
         stream%elements_alloc => elements_temp_alloc

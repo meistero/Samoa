@@ -49,7 +49,7 @@
         end type
 
 		private
-		public t_darcy
+		public t_darcy, load_scenario, unload_scenario
 
 		contains
 
