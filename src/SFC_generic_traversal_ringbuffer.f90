@@ -255,11 +255,11 @@ subroutine traverse(traversal, grid)
         !$omp end single
     end if
 
-    if (.not. associated(traversal%threads)) then
+    if (.not. associated(traversal%threads) .or. size(traversal%threads) .ne. cfg%i_threads) then
         !$omp barrier
 
         !$omp single
-        allocate(traversal%threads(omp_get_max_threads()), stat = i_error); assert_eq(i_error, 0)
+        allocate(traversal%threads(cfg%i_threads), stat = i_error); assert_eq(i_error, 0)
         !$omp end single
 
         i_thread = 1 + omp_get_thread_num()

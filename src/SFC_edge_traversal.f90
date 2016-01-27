@@ -335,6 +335,9 @@ module SFC_edge_traversal
 
         _log_write(4, '(3X, A, A)') "get neighbors: ", trim(color_to_char(i_color))
 
+        !orient rank list along the traversal direction
+        rank_list%forward = grid%sections%forward
+
         do i_section = 1, grid%sections%get_size()
             section => grid%sections%elements(i_section)
 
@@ -357,7 +360,7 @@ module SFC_edge_traversal
             end do
         end do
 
-        if (.not. grid%sections%is_forward()) then
+        if (.not. rank_list%is_forward()) then
             call rank_list%reverse()
         end if
 
@@ -500,8 +503,13 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
         !clear comm list if it is not empty
         assert_eq(section%comms(i_color)%get_size(), 0)
-        section%comms_type(OLD, i_color)%elements => null()
-        section%comms_type(NEW, i_color)%elements => null()
+        call section%comms_type(OLD, i_color)%unattach()
+        call section%comms_type(NEW, i_color)%unattach()
+
+        !we build the old communicators in forward traversal order
+        !and the new communicators in reverse order
+        section%comms_type(OLD, i_color)%forward = .true.
+        section%comms_type(NEW, i_color)%forward = .false.
 
         !first, iterate over old boundary
         max_distance = max(section%start_distance(i_color), section%end_distance(i_color))
@@ -594,13 +602,12 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         call section%comms_type(NEW, i_color)%clear()
 
         if (grid%sections%is_forward()) then
-            section%comms_type(OLD, i_color)%elements => section%comms(i_color)%elements(1 : i_comms_old)
-            section%comms_type(NEW, i_color)%elements => section%comms(i_color)%elements(i_comms_old + 1 : )
+            call section%comms_type(OLD, i_color)%attach(section%comms(i_color)%elements(1 : i_comms_old), .true.)
+            call section%comms_type(NEW, i_color)%attach(section%comms(i_color)%elements(i_comms_old + 1 : ), .true.)
         else
             call section%comms(i_color)%reverse()
-
-            section%comms_type(OLD, i_color)%elements => section%comms(i_color)%elements(1 : i_comms_new)
-            section%comms_type(NEW, i_color)%elements => section%comms(i_color)%elements(i_comms_new + 1 : )
+            call section%comms_type(OLD, i_color)%attach(section%comms(i_color)%elements(1 : i_comms_new), .false.)
+            call section%comms_type(NEW, i_color)%attach(section%comms(i_color)%elements(i_comms_new + 1 : ), .false.)
         end if
     end subroutine
 
@@ -618,6 +625,10 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
         _log_write(4, '(5X, A, I0)') "count section boundary elements: section ", section%index
 
+        assert_eqv(section%comms(i_color)%is_forward(), section%cells%is_forward())
+        assert_eqv(section%comms_type(OLD, i_color)%is_forward(), section%cells%is_forward())
+        assert_eqv(section%comms_type(NEW, i_color)%is_forward(), section%cells%is_forward())
+
         !reverse new neighbors in order to compare decreasing distances
         call section%boundary_type_edges(NEW, i_color)%reverse()
         call section%boundary_type_nodes(NEW, i_color)%reverse()
@@ -626,6 +637,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         do i_pass = OLD, NEW
             _log_write(4, '(6X, A, A)') "pass: ", edge_type_to_char(i_pass)
             _log_write(4, '(7X, A)') "compare edges:"
+
+            assert_eqv(section%comms_type(i_pass, i_color)%is_forward(), section%boundary_type_nodes(i_pass, i_color)%is_forward())
+            assert_eqv(section%comms_type(i_pass, i_color)%is_forward(), section%boundary_type_edges(i_pass, i_color)%is_forward())
 
             i_comm = 1
             assert_le(i_comm, section%comms_type(i_pass, i_color)%get_size())
@@ -714,6 +728,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         i_last_node = 0
 
         l_forward = section%boundary_nodes(i_color)%is_forward()
+
+        assert_eqv(section%comms(i_color)%is_forward(), section%boundary_edges(i_color)%is_forward())
+        assert_eqv(section%comms(i_color)%is_forward(), section%boundary_nodes(i_color)%is_forward())
 
         do i_comm = 1, section%comms(i_color)%get_size()
             comm => section%comms(i_color)%elements(i_comm)
@@ -812,6 +829,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                     assert_eq(comm%i_nodes, comm_2%i_nodes)
                     assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm_2%p_local_edges(comm%i_edges : 1 : -1)%min_distance))
                     assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm_2%p_local_nodes(comm%i_nodes : 1 : -1)%distance))
+                    assert_veq(comm%p_local_nodes%position(1), comm_2%p_local_nodes(comm%i_nodes : 1 : -1)%position(1))
+                    assert_veq(comm%p_local_nodes%position(2), comm_2%p_local_nodes(comm%i_nodes : 1 : -1)%position(2))
                 else if (comm%neighbor_rank .ge. 0) then
                     call comm%create_buffer()
 
@@ -1411,6 +1430,14 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
             call grid_temp%sections%resize(size(i_rank_in))
             !$omp end single copyprivate(grid_temp)
+
+            !if necessary, reverse order to match source and destination grid
+            if (.not. grid%sections%is_forward()) then
+                !$omp barrier
+                _log_write(4, '(X, A)') "Reverse destination grid.."
+                call grid_temp%reverse()
+                !$omp barrier
+            end if
 
 			call send_recv_section_infos(grid, grid_temp, i_rank_out, i_rank_in)
 			call send_recv_section_data(grid, grid_temp, i_rank_out, i_rank_in)
@@ -2100,7 +2127,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 		    type(t_grid), intent(inout)	                    :: src_grid, dest_grid
 		    integer, intent(in)                             :: i_rank_out(:), i_rank_in(:)
 
-		    integer						                    :: i_section, i_error, i_comm
+		    integer						                    :: i_section, i_error, i_comm, i_color
             integer (kind = GRID_SI)						:: i_first_src_section, i_last_src_section, i_first_dest_section, i_last_dest_section
 			type(t_section_info), allocatable               :: src_infos(:), dest_infos(:)
 		    integer, allocatable 						    :: src_requests(:), dest_requests(:)
@@ -2157,13 +2184,11 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 		    type(t_grid), intent(inout)		                :: src_grid, dest_grid
 		    integer, intent(in)                             :: i_rank_out(:), i_rank_in(:)
 
-		    integer						                    :: i_section, i_comm, i_error
+		    integer						                    :: i_section, i_comm, i_error, i_color
             integer (kind = GRID_SI)						:: i_first_src_section, i_last_src_section, i_first_dest_section, i_last_dest_section
-		    integer (BYTE)						            :: i_color
 		    type(t_grid_section), pointer					:: section
 		    integer, allocatable 						    :: src_requests(:,:), dest_requests(:,:)
             integer (kind = GRID_DI)						:: tmp_distances(RED: GREEN)
-            logical                                         :: l_reverse_section_list
 
 	        call src_grid%get_local_sections(i_first_src_section, i_last_src_section)
 	        call dest_grid%get_local_sections(i_first_dest_section, i_last_dest_section)
@@ -2199,6 +2224,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
 		    do i_section = i_first_src_section, i_last_src_section
                 section => src_grid%sections%elements_alloc(i_section)
+
+	            assert(section%is_forward() .eqv. src_grid%sections%is_forward())
 
                 select case (i_rank_out(i_section) - rank_MPI)
 				case (0)
@@ -2236,8 +2263,6 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 end select
  		    end do
 
- 		    l_reverse_section_list = .not. src_grid%sections%is_forward()
-
 			do i_section = i_first_dest_section, i_last_dest_section
 				section => dest_grid%sections%elements_alloc(i_section)
 
@@ -2251,35 +2276,11 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                         src_grid%max_dest_stack(RED) = src_grid%max_dest_stack(RED) + section%max_dest_stack(RED) - section%min_dest_stack(RED) + 1
                         !$omp atomic
                         src_grid%max_dest_stack(GREEN) = src_grid%max_dest_stack(GREEN) + section%max_dest_stack(GREEN) - section%min_dest_stack(GREEN) + 1
-
-                        if (section%cells%elements(1)%get_previous_edge_type() .ne. OLD_BND) then
-                            _log_write(4, '("Reversing section ", I0)') i_section
-                            call section%reverse()
-
-                            !do not swap distances
-                            tmp_distances = section%start_distance
-                            section%start_distance = section%end_distance
-                            section%end_distance = tmp_distances
-
-                            l_reverse_section_list = .true.
-                        end if
                 end select
 
+	            assert(section%is_forward() .eqv. src_grid%sections%is_forward())
 	            assert_eq(section%cells%elements(1)%get_previous_edge_type(), OLD_BND)
-	            assert(section%cells%is_forward() .eqv. section%boundary_edges(RED)%is_forward())
-
-	            !fix the order of old/new comms
-	            do i_color = RED, GREEN
-	                section%comms_type(OLD, i_color)%elements => section%comms(i_color)%elements(1 : section%comms_type(OLD, i_color)%get_size())
-	                section%comms_type(NEW, i_color)%elements => section%comms(i_color)%elements(section%comms_type(OLD, i_color)%get_size() + 1 : section%comms(i_color)%get_size())
-	            end do
 	        end do
-
-            !$omp critical
-            if (l_reverse_section_list .and. dest_grid%sections%is_forward()) then
-                call dest_grid%sections%reverse()
-            end if
-            !$omp end critical
 
 			deallocate(src_requests, stat=i_error); assert_eq(i_error, 0)
 			deallocate(dest_requests, stat=i_error); assert_eq(i_error, 0)
@@ -2298,7 +2299,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
         _log_write(4, '(2X, A, I0)') "find section boundary elements: ", section%index
 
-        !set the last cell of the current section to a new boundary cell
+        !The next edge of the last cell is a new boundary edge.
+        !As the cell is already reversed, we therefore have to set the PREVIOUS EDGE to an OLD BOUNDARY edge instead.
+
         assert_ge(last_cell_index, 1)
         assert_le(last_cell_index, section%cells%get_size())
         call section%cells%elements(last_cell_index)%set_previous_edge_type(int(OLD_BND, 1))
@@ -2309,7 +2312,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
         !find additional process edges and nodes
         do i_color = RED, GREEN
-            !all cell indices that remain on the index stack are of new boundary cells
+            !All cell indices that remain on the index stack are of cells with new boundary color edges.
+            !As the cells are already reversed, we therefore have to set the COLOR EDGE to an OLD BOUNDARY EDGE for each cell instead.
+
             do i = 1, thread%indices_stack(i_color)%i_current_element
                 call section%cells%elements(thread%indices_stack(i_color)%elements(i))%set_color_edge_type(int(OLD_BND, 1))
             end do
@@ -2320,7 +2325,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
             i_edges = section%boundary_edges(i_color)%i_current_element
             p_edges => section%boundary_edges(i_color)%elements(i_edges : 1 : -1)
-            call section%boundary_type_edges(OLD, i_color)%attach(p_edges)
+            call section%boundary_type_edges(OLD, i_color)%attach(p_edges, .not. section%boundary_edges(i_color)%is_forward())
+
+            !reverse the stream so it is aligned with the traversal direction
             call section%boundary_type_edges(OLD, i_color)%reverse()
 
             if (i_edges > 0) then
@@ -2337,7 +2344,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
             i_nodes = section%boundary_nodes(i_color)%i_current_element
             p_nodes => section%boundary_nodes(i_color)%elements(i_nodes : 1 : -1)
-            call section%boundary_type_nodes(OLD, i_color)%attach(p_nodes)
+            call section%boundary_type_nodes(OLD, i_color)%attach(p_nodes, .not. section%boundary_nodes(i_color)%is_forward())
+
+            !reverse the stream so it is aligned with the traversal direction
             call section%boundary_type_nodes(OLD, i_color)%reverse()
 
             if (i_nodes > i_edges) then
@@ -2354,7 +2363,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             p_edges => section%boundary_edges(i_color)%elements(section%boundary_edges(i_color)%i_current_element + 1 : section%boundary_edges(i_color)%i_current_element + i_edges)
             section%boundary_edges(i_color)%i_current_element = section%boundary_edges(i_color)%i_current_element + i_edges
             p_edges = thread%edges_stack(i_color)%elements(1 : i_edges)
-            call section%boundary_type_edges(NEW, i_color)%attach(p_edges)
+            call section%boundary_type_edges(NEW, i_color)%attach(p_edges, section%boundary_edges(i_color)%is_forward())
 
             if (i_edges > 0) then
                 p_edges(1)%min_distance = 0
@@ -2372,7 +2381,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             p_nodes => section%boundary_nodes(i_color)%elements(section%boundary_nodes(i_color)%i_current_element : section%boundary_nodes(i_color)%i_current_element + i_nodes - 1)
             section%boundary_nodes(i_color)%i_current_element = section%boundary_nodes(i_color)%i_current_element + i_nodes - 1
             p_nodes = thread%nodes_stack(i_color)%elements(1 : i_nodes)
-            call section%boundary_type_nodes(NEW, i_color)%attach(p_nodes)
+            call section%boundary_type_nodes(NEW, i_color)%attach(p_nodes, section%boundary_nodes(i_color)%is_forward())
 
             if (i_nodes > i_edges) then
                 assert_eq(i_nodes, i_edges + 1)

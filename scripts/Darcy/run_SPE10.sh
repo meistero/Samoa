@@ -4,7 +4,7 @@ fperm="data/darcy_five_spot/spe_perm_renamed.nc"
 fpor="data/darcy_five_spot/spe_phi_renamed.nc"
 layers=85
 max_depths='14 16'
-epsilon=1.0e-5
+epsilon=1.0e-4
 S_ref_th=1.0e2
 
 if [ $layers = 0 ] ; then

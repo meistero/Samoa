@@ -277,10 +277,10 @@
                 real (kind = GRID_SR)							:: permeability		!< permeability tensor
 #           endif
 
-            real (kind = GRID_SR)                               :: xs(3)
+            real(kind = c_double)                               :: xs(3)
 
-            xs(1:2) = cfg%scaling * x(1:2) + cfg%offset(1:2)
-            xs(3) = cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3) + cfg%offset(3)
+            xs(1:2) =  real(cfg%scaling * x(1:2) + cfg%offset(1:2), c_double)
+            xs(3) = real(cfg%scaling * max(1, _DARCY_LAYERS) * cfg%dz * x(3) + cfg%offset(3), c_double)
 
             assert_ge(x(1), 0.0); assert_ge(x(2), 0.0)
             assert_le(x(1), 1.0); assert_le(x(2), 1.0)
@@ -294,14 +294,14 @@
                         .and. xs(1) <= asagi_grid_max(cfg%afh_permeability_X, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_permeability_X, 1)) then
 
 #                   if (_DARCY_LAYERS > 0)
-                        permeability(1) = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        permeability(1) = asagi_grid_get_float(cfg%afh_permeability_X, xs, 0)
                         !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
-                        permeability(2) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
+                        permeability(2) = asagi_grid_get_float(cfg%afh_permeability_Z, xs, 0)
 
                         !assume horizontally isotropic permeability
                         !assert(abs(buffer(1) - buffer(2)) < epsilon(1.0_SR))
 #                   else
-                        permeability = asagi_grid_get_float(cfg%afh_permeability_X, real(xs, c_double), 0)
+                        permeability = asagi_grid_get_float(cfg%afh_permeability_X, xs, 0)
                         !buffer(2) = asagi_grid_get_float(cfg%afh_permeability_Y, real(xs, c_double), 0)
                         !buffer(3) = asagi_grid_get_float(cfg%afh_permeability_Z, real(xs, c_double), 0)
 #                   endif
@@ -315,7 +315,7 @@
                 if (asagi_grid_min(cfg%afh_porosity, 0) <= xs(1) .and. asagi_grid_min(cfg%afh_porosity, 1) <= xs(2) &
                         .and. xs(1) <= asagi_grid_max(cfg%afh_porosity, 0) .and. xs(2) <= asagi_grid_max(cfg%afh_porosity, 1)) then
 
-                    porosity = asagi_grid_get_float(cfg%afh_porosity, real(xs, c_double), 0)
+                    porosity = asagi_grid_get_float(cfg%afh_porosity, xs, 0)
                 else
                     porosity = 0.0_SR
                 end if
@@ -539,6 +539,9 @@
                     element%cell%geometry%refinement = 1
                     traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                 end if
+                assert_veq(element%nodes(1)%ptr%position, element%nodes(1)%ptr%position)
+                assert_veq(element%nodes(2)%ptr%position, element%nodes(2)%ptr%position)
+                assert_veq(element%nodes(3)%ptr%position, element%nodes(3)%ptr%position)
             end if
 
             !refine wells

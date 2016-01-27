@@ -82,7 +82,7 @@
             call darcy%error_estimate%create()
             call darcy%adaption%create()
 
-			call load_scenario(grid)
+			call load_scenario()
 
  			select case (cfg%i_lsolver)
                 case (0)
@@ -119,9 +119,7 @@
 			endif
 		end subroutine
 
-		subroutine load_scenario(grid)
-			type(t_grid), intent(inout)		        :: grid
-
+		subroutine load_scenario()
             integer                                 :: i_asagi_hints
 			integer									:: i_error, i, j, i_ext_pos
 			character(256)					        :: s_file_name, s_tmp
@@ -240,31 +238,41 @@
 #			endif
 
             !pressure is given in ppsi
-            cfg%r_p_in = cfg%r_p_in * _PPSI
-            cfg%r_p_prod = cfg%r_p_prod * _PPSI
+            cfg%r_p_in = cfg%r_p_in_AU * _PPSI
+            cfg%r_p_prod = cfg%r_p_prod_AU * _PPSI
 
             !viscosity is given in Pa * s (or cp)
-            cfg%r_nu_w = cfg%r_nu_w * _PA * _S
-            cfg%r_nu_n = cfg%r_nu_n * _PA * _S
+            cfg%r_nu_w = cfg%r_nu_w_SI * _PA * _S
+            cfg%r_nu_n = cfg%r_nu_n_SI * _PA * _S
 
             !density is given in kg/m^3 (or lb/ft^3)
-            cfg%r_rho_w = cfg%r_rho_w * _KG / (_M ** 3)
-            cfg%r_rho_n = cfg%r_rho_n * _KG / (_M ** 3)
+            cfg%r_rho_w = cfg%r_rho_w_SI * _KG / (_M ** 3)
+            cfg%r_rho_n = cfg%r_rho_n_SI * _KG / (_M ** 3)
 
             !Inflow is given in bbl/d
-            cfg%r_inflow = cfg%r_inflow * _BBL / _D
-
-#           if _DARCY_LAYERS == 0
-                !In 3D, each layer has the correct height cfg%dz, in 2D the height is normed to 1.0
+#           if (_DARCY_LAYERS > 0)
+                !In 3D, each layer has the correct height cfg%dz.
+                cfg%r_inflow = cfg%r_inflow_AU * _BBL / _D
+#           else
+                !In 2D the height is normed to 1.0
                 !Hence, divide the inflow by the height of the domain.
-                cfg%r_inflow = cfg%r_inflow / cfg%dz
+                cfg%r_inflow = cfg%r_inflow_AU * _BBL / _D / cfg%dz
 #           endif
 
             !The well radius is given in inch
-            cfg%r_well_radius = cfg%r_well_radius * _INCH
+            cfg%r_well_radius = cfg%r_well_radius_AU * _INCH
 
             !gravity is given in m / s^2
-            cfg%g = cfg%g * _M / (_S ** 2)
+            cfg%g = cfg%g_SI * _M / (_S ** 2)
+		end subroutine
+
+		subroutine unload_scenario()
+#			if defined(_ASAGI)
+				call asagi_grid_close(cfg%afh_permeability_X)
+				call asagi_grid_close(cfg%afh_permeability_Y)
+				call asagi_grid_close(cfg%afh_permeability_Z)
+				call asagi_grid_close(cfg%afh_porosity)
+#			endif
 		end subroutine
 
 		!> Destroys all required runtime objects for the scenario
@@ -273,6 +281,8 @@
  			type(t_grid), intent(inout)     :: grid
             integer                         :: i_error
             logical		                    :: l_log
+
+            call unload_scenario()
 
             call darcy%init_pressure%destroy()
             call darcy%init_saturation%destroy()
@@ -294,13 +304,6 @@
 			if (l_log) then
 				_log_close_file()
 			endif
-
-#			if defined(_ASAGI)
-				call asagi_grid_close(cfg%afh_permeability_X)
-				call asagi_grid_close(cfg%afh_permeability_Y)
-				call asagi_grid_close(cfg%afh_permeability_Z)
-				call asagi_grid_close(cfg%afh_porosity)
-#			endif
 		end subroutine
 
 		!> Sets the initial values of the scenario and runs the time steps

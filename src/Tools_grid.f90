@@ -511,6 +511,7 @@ module Grid_section
 		procedure, pass :: get_info => grid_section_get_info
 		procedure, pass :: eq => grid_section_eq
 		procedure, pass :: assign => grid_section_assign
+		procedure, pass :: is_forward => grid_section_is_forward
 
         generic :: operator(.eq.) => eq
         generic :: assignment(=) => assign
@@ -523,7 +524,7 @@ module Grid_section
 
 #	include "Tools_list.f90"
 
-    !< Moves a grid to the destination grid, clearing the source grid in the process
+    !< Copies a grid section to the destination grid
 	subroutine grid_section_assign(dest_section, src_section)
 		class(t_grid_section), intent(inout)    :: dest_section
 		type(t_grid_section), intent(in)        :: src_section
@@ -563,25 +564,25 @@ module Grid_section
         section%load = section_info%i_load
         section%dest_cells = section_info%i_cells - 4
 
-		call section%cells%resize(section_info%i_cells)
-		call section%crossed_edges_in%resize(section_info%i_crossed_edges)
-		call section%crossed_edges_out%attach(section%crossed_edges_in%elements)
+		call section%cells%resize(int(section_info%i_cells, SI))
+		call section%crossed_edges_in%resize(int(section_info%i_crossed_edges, SI))
+		call section%crossed_edges_out%attach(section%crossed_edges_in%elements, section%cells%is_forward())
 
-		call section%color_edges_in%resize(section_info%i_color_edges)
-		call section%color_edges_out%attach(section%color_edges_in%elements)
+		call section%color_edges_in%resize(int(section_info%i_color_edges))
+		call section%color_edges_out%attach(section%color_edges_in%elements, section%cells%is_forward())
 
-		call section%nodes_in%resize(section_info%i_nodes)
-		call section%nodes_out%attach(section%nodes_in%elements)
+		call section%nodes_in%resize(int(section_info%i_nodes))
+		call section%nodes_out%attach(section%nodes_in%elements, section%cells%is_forward())
 
 		do i_color = RED, GREEN
-			call section%boundary_edges(i_color)%resize(int(section_info%i_boundary_edges(i_color), GRID_DI))
-			call section%boundary_nodes(i_color)%resize(int(section_info%i_boundary_nodes(i_color), GRID_DI))
-            call section%comms(i_color)%resize(int(section_info%i_comms(i_color), GRID_DI))
+			call section%boundary_edges(i_color)%resize(section_info%i_boundary_edges(i_color))
+			call section%boundary_nodes(i_color)%resize(section_info%i_boundary_nodes(i_color))
+            call section%comms(i_color)%resize(section_info%i_comms(i_color))
 
 			assert_eq(section_info%i_comms(i_color), section_info%i_comms_type(OLD, i_color) + section_info%i_comms_type(NEW, i_color))
 
-			section%comms_type(OLD, i_color)%elements => section%comms(i_color)%elements(1 : section_info%i_comms_type(OLD, i_color))
-			section%comms_type(NEW, i_color)%elements => section%comms(i_color)%elements(section_info%i_comms_type(NEW, i_color) + 1 : size(section%comms(i_color)%elements))
+			call section%comms_type(OLD, i_color)%attach(section%comms(i_color)%elements(1 : section_info%i_comms_type(OLD, i_color)), section%comms(i_color)%is_forward())
+			call section%comms_type(NEW, i_color)%attach(section%comms(i_color)%elements(section_info%i_comms_type(OLD, i_color) + 1 : ), section%comms(i_color)%is_forward())
 		end do
 	end subroutine
 
@@ -615,7 +616,7 @@ module Grid_section
 		end do
 	end subroutine
 
-    elemental subroutine grid_section_reset(section)
+    subroutine grid_section_reset(section)
 		class(t_grid_section), intent(inout)		        :: section
 		integer (kind = BYTE)                                  :: i_color
 
@@ -777,6 +778,41 @@ module Grid_section
             end do
         end do
 	end subroutine
+
+	function grid_section_is_forward(section) result(is_forward)
+		class(t_grid_section), intent(in)	:: section
+        logical                             :: is_forward
+
+        integer :: i_color
+
+        is_forward = section%cells%is_forward()
+
+        assert_eqv(is_forward, section%crossed_edges_in%is_forward())
+        assert_eqv(is_forward, section%crossed_edges_out%is_forward())
+
+		assert_eqv(is_forward, section%crossed_edges_in%is_forward())
+		assert_eqv(is_forward, section%crossed_edges_out%is_forward())
+
+		assert_eqv(is_forward, section%color_edges_in%is_forward())
+		assert_eqv(is_forward, section%color_edges_out%is_forward())
+
+		assert_eqv(is_forward, section%nodes_in%is_forward())
+		assert_eqv(is_forward, section%nodes_out%is_forward())
+
+		do i_color = RED, GREEN
+            assert_eqv(is_forward, section%boundary_edges(i_color)%is_forward())
+            assert_eqv(is_forward, section%boundary_type_edges(OLD, i_color)%is_forward())
+            assert_eqv(is_forward, section%boundary_type_edges(NEW, i_color)%is_forward())
+
+            assert_eqv(is_forward, section%boundary_nodes(i_color)%is_forward())
+            assert_eqv(is_forward, section%boundary_type_nodes(OLD, i_color)%is_forward())
+            assert_eqv(is_forward, section%boundary_type_nodes(NEW, i_color)%is_forward())
+
+            assert_eqv(is_forward, section%comms(i_color)%is_forward())
+            assert_eqv(is_forward, section%comms_type(OLD, i_color)%is_forward())
+            assert_eqv(is_forward, section%comms_type(NEW, i_color)%is_forward())
+		end do
+	end function
 end module
 
 module Grid
@@ -1021,7 +1057,7 @@ module Grid
         call grid%get_local_sections(i_first_local_section_alloc, i_last_local_section_alloc)
         i_sections = grid%sections%get_size()
 
-        if (grid%sections%forward) then
+        if (grid%sections%is_forward()) then
             i_first_local_section = i_first_local_section_alloc
             i_last_local_section = i_last_local_section_alloc
         else
@@ -1042,7 +1078,6 @@ module Grid
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
 		do i_section = i_first_local_section, i_last_local_section
-            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
             call grid%sections%elements_alloc(i_section)%reverse()
 		end do
 
