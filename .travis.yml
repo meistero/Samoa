@@ -34,11 +34,11 @@ before_script:
 script:
  - if [[ "$MPI" == "nompi" ]] ; then 
      if [[ "$OPENMP" == "noomp" ]] ; then 
-       bin/samoa_test -dmax 8 -threads 1 -sections 4 -tmax -1.0 -tsteps 10 -output_dir . ; 
+       bin/samoa_test -dmax 8 -threads 1 -sections 4 -tmax -1.0 -nmax 10 -output_dir . ; 
      else 
-       bin/samoa_test -dmax 8 -threads 2 -sections 2 -tmax -1.0 -tsteps 10 -output_dir . ; 
+       bin/samoa_test -dmax 8 -threads 2 -sections 2 -tmax -1.0 -nmax 10 -output_dir . ; 
      fi ; 
    else 
-     mpiexec -n 2 bin/samoa_test -dmax 8 -threads 1 -sections 2 -tmax -1.0 -tsteps 10 -output_dir . ; 
+     mpiexec -n 2 bin/samoa_test -dmax 8 -threads 1 -sections 2 -tmax -1.0 -nmax 10 -output_dir . ; 
    fi
  
