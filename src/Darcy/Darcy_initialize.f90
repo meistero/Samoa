@@ -350,34 +350,27 @@
 	MODULE Darcy_initialize_saturation
 		use SFC_edge_traversal
         use Samoa_darcy
-		use Darcy_permeability
 		use Darcy_error_estimate
 
 		implicit none
 
         type num_traversal_data
             integer (kind = GRID_DI)			:: i_refinements_issued
-            logical                             :: is_matrix_modified
         end type
 
 		type(darcy_gv_saturation)				:: gv_saturation
 		type(darcy_gv_p)						:: gv_p
-		type(darcy_gv_rhs)						:: gv_rhs
 		type(darcy_gv_boundary_condition)       :: gv_boundary_condition
-		type(darcy_gv_volume)					:: gv_inflow
 
 #		define	_GT_NAME						t_darcy_init_saturation_traversal
 
 #		define _GT_NODES
 
 #		define _GT_NODE_FIRST_TOUCH_OP		    node_first_touch_op
-#		define _GT_NODE_LAST_TOUCH_OP		    node_last_touch_op
 
 #		define	_GT_POST_TRAVERSAL_GRID_OP		post_traversal_grid_op
 #		define	_GT_PRE_TRAVERSAL_OP			pre_traversal_op
 #		define	_GT_ELEMENT_OP					element_op
-
-#		define _GT_NODE_MERGE_OP		        node_merge_op
 
 #		include "SFC_generic_traversal_ringbuffer.f90"
 
@@ -386,7 +379,6 @@
  			type(t_grid), intent(inout)							        :: grid
 
 			call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
-            call reduce(traversal%is_matrix_modified, traversal%children%is_matrix_modified, MPI_LOR, .true.)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)
@@ -395,7 +387,6 @@
 
 			!this variable will be incremented for each cell with a refinement request
 			traversal%i_refinements_issued = 0
-            traversal%is_matrix_modified = .false.
 		end subroutine
 
 		!******************
@@ -407,7 +398,7 @@
  			type(t_grid_section), intent(in)					:: section
 			type(t_node_data), intent(inout)			        :: node
 
-            call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%p, node%data_pers%saturation, node%data_pers%r, node%data_pers%rhs, node%data_temp%volume)
+            call flow_pre_dof_op(node%position(1), node%position(2), node%data_pers%saturation)
 		end subroutine
 
 		subroutine element_op(traversal, section, element)
@@ -418,62 +409,27 @@
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR)   :: saturation(_DARCY_LAYERS + 1, 3)
                 real (kind = GRID_SR)   :: p(_DARCY_LAYERS + 1, 3)
-                real (kind = GRID_SR)   :: rhs(_DARCY_LAYERS + 1, 3)
 #           else
                 real (kind = GRID_SR)   :: saturation(3)
                 real (kind = GRID_SR)   :: p(3)
-                real (kind = GRID_SR)   :: rhs(3)
 #           endif
 
 			call gv_saturation%read_from_element(element, saturation)
 			call gv_p%read_from_element(element, p)
 
 			!call element operator
-			call alpha_volume_op(traversal, element, saturation, p, rhs, element%cell%data_pers%base_permeability)
-
-			call gv_rhs%add_to_element(element, rhs)
-		end subroutine
-
-		elemental subroutine node_merge_op(local_node, neighbor_node)
-			type(t_node_data), intent(inout)		:: local_node
- 			type(t_node_data), intent(in)		    :: neighbor_node
-
-			local_node%data_pers%r = local_node%data_pers%r + neighbor_node%data_pers%r
-			local_node%data_pers%rhs = local_node%data_pers%rhs + neighbor_node%data_pers%rhs
-			local_node%data_temp%volume = local_node%data_temp%volume + neighbor_node%data_temp%volume
-		end subroutine
-
-		elemental subroutine node_last_touch_op(traversal, section, node)
- 			type(t_darcy_init_saturation_traversal), intent(in)         :: traversal
- 			type(t_grid_section), intent(in)							:: section
-			type(t_node_data), intent(inout)			                :: node
-
-#           if defined(_ASAGI)
-#               if defined(_DARCY_INJ_INFLOW)
-                    if (any(node%data_pers%boundary_condition > 0)) then
-                        call inflow_post_dof_op(node%data_pers%rhs, node%data_pers%r, node%data_temp%volume)
-                    end if
-#               elif defined(_DARCY_INJ_PRESSURE)
-                    if (any(node%data_pers%boundary_condition > 0)) then
-                        call pressure_post_dof_op(node%data_pers%rhs)
-                    end if
-#               endif
-#           endif
+			call alpha_volume_op(traversal, element, saturation, p, element%cell%data_pers%base_permeability)
 		end subroutine
 
 		!*******************************
 		!Volume and DoF operators
 		!*******************************
 
-		elemental subroutine flow_pre_dof_op(pos_x, pos_y, p, saturation, r, rhs, inflow)
+		elemental subroutine flow_pre_dof_op(pos_x, pos_y, saturation)
 			real (kind = GRID_SR), intent(in)					:: pos_x, pos_y
-			real (kind = GRID_SR), intent(inout)				:: p, saturation
-			real (kind = GRID_SR), intent(out)					:: r, rhs, inflow
+			real (kind = GRID_SR), intent(inout)				:: saturation
 
             saturation = 0.0_SR
-			r = 0.0_SR
-			rhs = 0.0_SR
-			inflow = 0.0_SR
 
 #           if !defined(_ASAGI)
                 if (pos_x < 0.5_SR) then
@@ -486,20 +442,7 @@
 #           endif
 		end subroutine
 
-		pure subroutine inflow_post_dof_op(rhs, r, d)
-			real (kind = GRID_SR), intent(inout)				:: rhs(:)
-			real (kind = GRID_SR), intent(in)				    :: r(:), d(:)
-
-            rhs = rhs + cfg%r_inflow / sum(d) * d
-		end subroutine
-
-		pure subroutine pressure_post_dof_op(rhs)
-			real (kind = GRID_SR), intent(inout)				:: rhs(:)
-
-            rhs = (sum(rhs) + cfg%r_inflow) / (_DARCY_LAYERS + 1)
-		end subroutine
-
-		subroutine alpha_volume_op(traversal, element, saturation, p, rhs, base_permeability)
+		subroutine alpha_volume_op(traversal, element, saturation, p, base_permeability)
  			type(t_darcy_init_saturation_traversal)                             :: traversal
 			type(t_element_base), intent(inout)									:: element
 
@@ -509,26 +452,21 @@
 #           if (_DARCY_LAYERS > 0)
                 real (kind = GRID_SR), intent(inout)		        :: saturation(:, :)
                 real (kind = GRID_SR), intent(inout)			    :: p(:, :)
-                real (kind = GRID_SR), intent(inout)				:: rhs(:, :)
                 real (kind = GRID_SR), intent(inout)                :: base_permeability(:, :)
 #           else
                 real (kind = GRID_SR), intent(inout)		        :: saturation(:)
                 real (kind = GRID_SR), intent(inout)			    :: p(:)
-                real (kind = GRID_SR), intent(inout)				:: rhs(:)
                 real (kind = GRID_SR), intent(in)                   :: base_permeability
 #           endif
-
-            !set boundary conditions and source terms
-
-            call initialize_rhs(element, saturation, p, rhs, base_permeability, traversal%is_matrix_modified)
 
 			!check refinement indicator
             !make sure no coarsening happens during the initial phase
 			call compute_refinement_indicator(element, traversal%i_refinements_issued, element%cell%geometry%i_depth, element%cell%geometry%refinement, saturation, p, element%cell%data_pers%base_permeability)
             element%cell%geometry%refinement = max(element%cell%geometry%refinement, 0)
 
-            !refine the domain boundary
             if (element%cell%geometry%i_depth < cfg%i_max_depth) then
+                !refine the domain boundary
+
                 pos_min = min(element%nodes(1)%ptr%position, element%nodes(2)%ptr%position, element%nodes(3)%ptr%position)
                 pos_max = max(element%nodes(1)%ptr%position, element%nodes(2)%ptr%position, element%nodes(3)%ptr%position)
 
@@ -539,20 +477,18 @@
                     element%cell%geometry%refinement = 1
                     traversal%i_refinements_issued = traversal%i_refinements_issued + 1
                 end if
+
                 assert_veq(element%nodes(1)%ptr%position, element%nodes(1)%ptr%position)
                 assert_veq(element%nodes(2)%ptr%position, element%nodes(2)%ptr%position)
                 assert_veq(element%nodes(3)%ptr%position, element%nodes(3)%ptr%position)
-            end if
 
-            !refine wells
-            call gv_boundary_condition%read_from_element(element, boundary_condition)
+                !refine wells
 
-            if (any(boundary_condition .ne. 0)) then
-                if (element%cell%geometry%i_depth < cfg%i_max_depth) then
+                call gv_boundary_condition%read_from_element(element, boundary_condition)
+
+                if (any(boundary_condition .ne. 0)) then
                     element%cell%geometry%refinement = 1
                     traversal%i_refinements_issued = traversal%i_refinements_issued + 1
-                else
-                    element%cell%geometry%refinement = 0
                 end if
             end if
 		end subroutine

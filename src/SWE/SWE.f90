@@ -326,11 +326,15 @@
                         exit
                     end if
 
-                    !do an euler time step
-                    call swe%adaption%traverse(grid)
-
-                    call swe%euler%traverse(grid)
                     i_time_step = i_time_step + 1
+
+                    if (cfg%i_adapt_time_steps >= 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
+                        !refine grid
+                        call swe%adaption%traverse(grid)
+                    end if
+
+                    !do an euler time step
+                    call swe%euler%traverse(grid)
 
                     !displace time-dependent bathymetry
                     call swe%displace%traverse(grid)
@@ -374,11 +378,15 @@
 					exit
 				end if
 
-				call swe%adaption%traverse(grid)
+				i_time_step = i_time_step + 1
+
+                if (cfg%i_adapt_time_steps >= 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
+                    !refine grid
+                    call swe%adaption%traverse(grid)
+                end if
 
 				!do a time step
 				call swe%euler%traverse(grid)
-				i_time_step = i_time_step + 1
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)

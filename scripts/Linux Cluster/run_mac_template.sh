@@ -26,10 +26,10 @@ echo "  Sections: "$sections
 echo "  ASAGI mode: "$asagimode
 
 echo "  Running Darcy..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -lbsplit -dmin 26 -dmax 40 -tsteps 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_darcy$postfix -lbsplit -dmin 26 -dmax 40 -nmax 10 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/darcy"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 
 echo "  Running SWE..."
-mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -lbsplit -dmin 8 -dmax 29 -tsteps 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+mpiexec -prepend-rank -n $processes ./bin/samoa_swe$postfix -lbsplit -dmin 8 -dmax 29 -nmax 100 -asagihints $asagimode -threads $threads -sections $sections > $output_dir"/swe"$postfix"_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 echo "  Done."
 

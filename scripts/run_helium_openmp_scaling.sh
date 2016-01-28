@@ -40,11 +40,11 @@ do
 			nodes=$(( ($processes * $threads - 1) / 40 + 1 ))
 
 			echo "  Running Darcy..."
-			./bin/samoa_darcy_nompi -asagihints $asagimode -dmin 16 -dmax 24 -tsteps 10 -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+			./bin/samoa_darcy_nompi -asagihints $asagimode -dmin 16 -dmax 24 -nmax 10 -threads $threads -sections $sections > $output_dir"/darcy_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 			echo "  Done."
 
 			echo "  Running SWE..."
-			./bin/samoa_swe_nompi -asagihints $asagimode -dmin 8 -dmax 18 -tsteps 100 -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
+			./bin/samoa_swe_nompi -asagihints $asagimode -dmin 8 -dmax 18 -nmax 100 -threads $threads -sections $sections > $output_dir"/swe_p"$processes"_t"$threads"_s"$sections"_a"$asagimode".log"
 			echo "  Done."
 		done
 	done

@@ -27,9 +27,10 @@ module config
     type t_config
         integer			                        :: i_threads			                            !< number of OpenMP threads
         integer (kind = selected_int_kind(1))   :: i_sections_per_thread						    !< number of sections per thread
-        integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
         double precision                        :: r_max_time					                    !< maximum simulation time
+        integer (kind = selected_int_kind(8))   :: i_max_time_steps				                    !< number of simulation time steps
         double precision                        :: r_output_time_step					            !< grid output time step
+        integer                                 :: i_output_time_steps					            !< grid output time step
         integer                                 :: i_stats_phases					                !< number of times intermediate stats should be printed during time steps
         logical			                        :: l_log                                            !< if true, a log file is used
         integer (kind = selected_int_kind(1))   :: i_min_depth, i_max_depth, i_start_depth			!< minimum, maximum and start scenario depth
@@ -39,6 +40,8 @@ module config
         double precision                        :: r_boundary_weight                                !< boundary weight for the count-based load estimate
         logical                                 :: l_split_sections                                 !< if true, MPI load balancing may split sections, if false sections are treated as atomic units
         logical                                 :: l_serial_lb                                      !< if true, MPI load balancing is serialized, if false a distributed algorithm is used
+        double precision                        :: r_adapt_time_step					            !< grid output time step
+        integer			        	            :: i_adapt_time_steps			                            !< number of time steps between each linear solver solution
 
 	    logical 				                :: l_gridoutput			                            !< grid output on/off
 	    character(256)				            :: output_dir			                            !< output directory
@@ -63,7 +66,8 @@ module config
             integer			        	        :: i_lsolver			                		    !< linear solver
             integer			        	        :: i_max_iterations			                		!< maximum iterations of the linear solver
             integer			        	        :: i_CG_restart			                            !< CG restart interval
-            integer			        	        :: i_lse_skip			                            !< number of time steps between each linear solver solution
+            double precision                    :: r_solver_time_step					            !< grid output time step
+            integer			        	        :: i_solver_time_steps			                            !< number of time steps between each linear solver solution
             logical                             :: l_lse_output                                     !< print out the linear equation system
 
 			double precision			        :: r_epsilon				                        !< linear solver error bound
@@ -150,15 +154,15 @@ module config
 
         write(arguments, '(A)') "-v .false. --version .false. -h .false. --help .false."
         write(arguments, '(A, A)') trim(arguments),   " -lbtime .false. -lbsplit .false. -lbserial .false. -lbcellweight 1.0d0 -lbbndweight 0.0d0"
-        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -asciioutput_width 60 -output_dir output -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
+        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -tadapt -1.0 -nadapt 0 -asciioutput_width 60 -output_dir output -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
         write(arguments, '(A, A, I0)') trim(arguments), " -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
 #    	if defined(_DARCY)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.5d0 " // &
-            "-tmax 2.0d1 -tout -1.0d0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -courant 0.5d0 " // &
+            "-nout -1 -tout -1.0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
             "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 1025.18d0 -rho_n 848.98d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
-            "-max_iter -1 -lse_skip 0 -cg_restart 256 -lseoutput .false. -welloutput .true. "
+            "-max_iter -1 -tsolver -1.0 -nsolver 0 -cg_restart 256 -lseoutput .false. -welloutput .true. "
 
 #           if (_DARCY_LAYERS > 0)
                 write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d0 -S_ref_th 1.0d0 "
@@ -167,24 +171,24 @@ module config
 #           endif
 
 #           if defined(_ASAGI)
-                write(arguments, '(A, A)') trim(arguments), " -g_x 0.0d0 -g_y 0.0d0 -g_z -9.80665d0 " // &
+                write(arguments, '(A, A)') trim(arguments), " -nmax -1 -tmax 172.8d6 -g_x 0.0d0 -g_y 0.0d0 -g_z -9.80665d0 " // &
                 "-inflow 5000.0d0 -well_radius 5.0d0 -S_wr 0.2 -S_nr 0.2"
 #           else
-                write(arguments, '(A, A)') trim(arguments), " -g_x 9.80665d0 -g_y 0.0d0 -g_z 0.0d0 " // &
+                write(arguments, '(A, A)') trim(arguments), " -nmax -1 -tmax 2.0d1 -g_x 9.80665d0 -g_y 0.0d0 -g_z 0.0d0 " // &
                 "-inflow 0.5434396505 -well_radius 5.0d0  -S_wr 0.0 -S_nr 0.0"
 #           endif
 #    	elif defined(_HEAT_EQ)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 16 -dstart 0 -tsteps -1 -tmax 1.0d0 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 16 -dstart 0 -nmax -1 -tmax 1.0d0 -nout -1 -tout -1.0d0"
 #    	elif defined(_SWE)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -courant 0.45d0 -nmax -1 -tmax 3600.0d0 -nout -1 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #	    elif defined(_FLASH)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.45d0 -tmax 3600.0d0 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -courant 0.45d0 -nmax -1 -tmax 3600.0d0 -nout -1 -tout -1.0d0 -drytolerance 0.01d0 -fbath data/tohoku_static/bath.nc -fdispl data/tohoku_static/displ.nc"
 #    	elif defined(_NUMA)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -courant 0.45d0 -tmax 5 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -courant 0.45d -nmax -1 -tmax 5 -nout -1 -tout -1.0d0"
 #    	elif defined(_TESTS)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -tmax 5 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -nmax -1 -tmax 5 -nout -1 -tout -1.0d0"
 #    	elif defined(_GENERIC)
-            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -tsteps -1 -tmax 5 -tout -1.0d0"
+            write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -nmax -1 -tmax 5 -nout -1 -tout -1.0d0"
 #    	else
 #           error No scenario selected!
 #    	endif
@@ -221,8 +225,9 @@ module config
         config%i_min_depth = iget('samoa_dmin')
         config%i_max_depth = iget('samoa_dmax')
         config%i_start_depth = iget('samoa_dstart')
-        config%i_max_time_steps = iget('samoa_tsteps')
+        config%i_max_time_steps = iget('samoa_nmax')
         config%r_max_time = rget('samoa_tmax')
+        config%i_output_time_steps = rget('samoa_nout')
         config%r_output_time_step = rget('samoa_tout')
         config%i_stats_phases = rget('samoa_phases')
         config%l_log = lget('samoa_noprint')
@@ -234,6 +239,8 @@ module config
         config%l_serial_lb = lget('samoa_lbserial')
         config%i_sections_per_thread = iget('samoa_sections')
         config%i_asagi_mode = iget('samoa_asagihints')
+        config%i_adapt_time_steps = iget('samoa_nadapt')
+        config%r_adapt_time_step = iget('samoa_tadapt')
         config%courant_number = rget('samoa_courant')
         config%l_gridoutput = lget('samoa_xmloutput')
         config%output_dir = sget('samoa_output_dir', 256)
@@ -248,7 +255,8 @@ module config
 			config%S_wr = rget('samoa_S_wr')
 			config%S_nr = rget('samoa_S_nr')
             config%i_max_iterations = iget('samoa_max_iter')
-            config%i_lse_skip = iget('samoa_lse_skip')
+            config%i_solver_time_steps = iget('samoa_nsolver')
+            config%r_solver_time_step = iget('samoa_tsolver')
             config%i_lsolver = iget('samoa_lsolver')
             config%i_CG_restart = iget('samoa_cg_restart')
 
@@ -305,8 +313,9 @@ module config
                 PRINT '(A, I0, A)',     " 	-dmin <value>           minimum grid depth (value: ", config%i_min_depth, ")"
                 PRINT '(A, I0, A)',     "	-dmax <value>           maximum grid depth (value: ", config%i_max_depth, ")"
                 PRINT '(A, I0, A)',     "	-dstart <value>         start grid depth (value: ", config%i_start_depth, ")"
-                PRINT '(A, I0, A)',     "	-tsteps <value>         maximum number of time steps, less than 0: disabled (value: ", config%i_max_time_steps, ")"
+                PRINT '(A, I0, A)',     "	-nmax <value>           maximum number of time steps, less than 0: disabled (value: ", config%i_max_time_steps, ")"
                 PRINT '(A, ES8.1, A)',  "	-tmax <value>           maximum simulation time in seconds, less than 0: disabled (value: ", config%r_max_time, ")"
+                PRINT '(A, I0, A)',     "	-nout <value>           output time step interval, less than 0: disabled (value: ", config%i_output_time_steps, ")"
                 PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: disabled (value: ", config%r_output_time_step, ")"
                 PRINT '(A, I0, A)',     "	-phases <value>         number of times intermediate stats should be printed during time steps (value: ", config%i_stats_phases, ")"
                 PRINT '(A, I0, A)',     "	-threads <value>        number of OpenMP threads (value: ", config%i_threads, ")"
@@ -316,6 +325,9 @@ module config
                 PRINT '(A, L, A)',      "	-lbserial               if true, MPI load balancing is serialized, if false a distributed algorithm is used (value: ", config%l_serial_lb, ")"
                 PRINT '(A, F0.3, A)',  "	-lbcellweight           cell weight for the count-based load estimate (value: ", config%r_cell_weight, ")"
                 PRINT '(A, F0.3, A)',  "	-lbbndweight            boundary weight for the count-based load estimate (value: ", config%r_boundary_weight, ")"
+                PRINT '(A, I0, A)',    "	-nadapt                 remeshing time step interval, less than 0: disabled (value: ", config%i_adapt_time_steps, ")"
+                !This argument is not supported for now
+                !PRINT '(A, I0, A)',   "	-tadapt                 remeshing time step in seconds, less than 0: disabled (value: ", config%r_adapt_time_step, ")"
                 PRINT '(A, F0.3, A)',  "	-courant                time step size relative to the CFL condition (value: ", config%courant_number, ")"
         		PRINT '(A, L, A)',     "	-xmloutput              [-tout required] turns on grid output (value: ", config%l_gridoutput, ")"
         		PRINT '(A, A, A)',     "	-output_dir             output directory (value: ", trim(config%output_dir), ")"
@@ -331,21 +343,23 @@ module config
                         PRINT '(A, A, A)',  "	-fpor <value>           porosity file (value: ", trim(config%s_porosity_file), ")"
 #                   endif
 
-                    PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w, " Pa s)"
-                    PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n, " Pa s)"
-                    PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w, " kg / m^3)"
-                    PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n, " kg / m^3)"
+                    PRINT '(A, ES8.1, A)',  "	-nu_w	                viscosity of the wetting phase (value: ", config%r_nu_w_SI, " Pa s)"
+                    PRINT '(A, ES8.1, A)',  "	-nu_n	                viscosity of the non-wetting phase (value: ", config%r_nu_n_SI, " Pa s)"
+                    PRINT '(A, ES8.1, A)',  "	-rho_w	                density of the wetting phase (value: ", config%r_rho_w_SI, " kg / m^3)"
+                    PRINT '(A, ES8.1, A)',  "	-rho_n	                density of the non-wetting phase (value: ", config%r_rho_n_SI, " kg / m^3)"
                     PRINT '(A, ES8.1, A)',  "	-S_wr	                residual saturation of the wetting phase (value: ", config%S_wr, ")"
                     PRINT '(A, ES8.1, A)',  "	-S_nr	                residual saturation of the non-wetting phase (value: ", config%S_nr, ")"
-                    PRINT '(A, ES8.1, A)',  "	-p_in                   injection well pressure (value: ", config%r_p_in, " psi)"
-                    PRINT '(A, ES8.1, A)',  "	-p_prod                 production well pressure (value: ", config%r_p_prod, " psi)"
-                    PRINT '(A, ES9.2, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow, " BBL/d)"
-                    PRINT '(A, 3(ES9.2, X), A)',  "	-g_x -g_y -g_z          gravity vector (value: (", config%g, ") m/s^2)"
-                    PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius, " inch)"
+                    PRINT '(A, ES8.1, A)',  "	-p_in                   injection well pressure (value: ", config%r_p_in_AU, " psi)"
+                    PRINT '(A, ES8.1, A)',  "	-p_prod                 production well pressure (value: ", config%r_p_prod_AU, " psi)"
+                    PRINT '(A, ES9.2, A)',  "	-inflow                 inflow condition (value: ", config%r_inflow_AU, " BBL/d)"
+                    PRINT '(A, 3(ES9.2, X), A)',  "	-g_x -g_y -g_z          gravity vector (value: (", config%g_SI, ") m/s^2)"
+                    PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius_AU, " inch)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver                linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
                     PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
-                    PRINT '(A, I0, A)',        "	-lse_skip               number of time steps between each linear solver solution, 0: disabled (value: ", config%i_lse_skip, ")"
+                    PRINT '(A, I0, A)',        "	-nsolver            linear solver time step interval, less than 0: disabled (value: ", config%i_solver_time_steps, ")"
+                    !This argument is not supported for now
+                    !PRINT '(A, I0, A)',        "	-tsolver            linear solver time step in seconds, less than 0: disabled (value: ", config%r_solver_time_step, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart             CG restart interval (value: ", config%i_CG_restart, ")"
                     PRINT '(A, L, A)',     "	-lseoutput              enable LSE output (value: ", config%l_lse_output, ")"
                     PRINT '(A, L, A)',     "	-welloutput             enable well data output (value: ", config%l_well_output, ")"
@@ -558,9 +572,9 @@ module config
                 _log_write(0, '(" Darcy: permeability file: ", A, ", porosity file: ", A)') trim(config%s_permeability_file),  trim(config%s_porosity_file)
 #           endif
 
-            _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w, config%r_nu_n
-            _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w, config%r_rho_n
-            _log_write(0, '(" Darcy: injection well pressure: ", ES8.1, ", production well pressure: ", ES8.1)') config%r_p_in, config%r_p_prod
+            _log_write(0, '(" Darcy: vicosities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_nu_w_SI, config%r_nu_n_SI
+            _log_write(0, '(" Darcy: densities: wetting phase: ", ES8.1, ", non-wetting phase: ", ES8.1)') config%r_rho_w_SI, config%r_rho_n_SI
+            _log_write(0, '(" Darcy: injection well pressure: ", ES8.1, ", production well pressure: ", ES8.1)') config%r_p_in_AU, config%r_p_prod_AU
             _log_write(0, '(" Darcy: linear solver: ", I0, ": ", A)') config%i_lsolver, trim(lsolver_to_char(config%i_lsolver))
             _log_write(0, '(" Darcy: linear solver: error bound: ", ES8.1, ", max iterations: ", I0)') config%r_epsilon, config%i_max_iterations
             _log_write(0, '(" Darcy: CG restart interval: ", I0)') config%i_CG_restart

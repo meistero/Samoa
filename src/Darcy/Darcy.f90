@@ -331,12 +331,13 @@
 
             i_initial_step = 0
 
+            call darcy%pressure_solver%set_parameter(LS_REL_ERROR, real(cfg%r_epsilon, SR))
+
 			!set pressure initial condition
 			call darcy%init_pressure%traverse(grid)
 
             !do some initial load balancing and set relative error criterion
 			call darcy%adaption%traverse(grid)
-            call darcy%pressure_solver%set_parameter(LS_REL_ERROR, real(cfg%r_epsilon, SR))
 
 			do
                 i_nle_iterations = 0
@@ -344,15 +345,16 @@
 
                 call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
+                !reset saturation to initial condition
+                call darcy%init_saturation%traverse(grid)
+
+                !repeatedly setup and solve the linear system until the system matrix does not change anymore
+                !the rhs will not be changed either and the system remains in a solved state
+
 				do
-                    !reset saturation to initial condition, setup pressure equation and set refinement flags
+				    call darcy%permeability%traverse(grid)
 
-                    call darcy%init_saturation%traverse(grid)
-
-                    !repeatedly solve the linear system until the system matrix does not change anymore
-                    !the rhs will not be changed either and the system remains in a solved state
-
-                    if (.not. darcy%init_saturation%is_matrix_modified) then
+                    if (.not. darcy%permeability%is_matrix_modified) then
                         exit
                     end if
 
@@ -453,61 +455,63 @@
 					exit
 				end if
 
-                !refine grid
-                call darcy%adaption%traverse(grid)
+				i_time_step = i_time_step + 1
+
+                if (cfg%i_adapt_time_steps >= 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
+                    !set refinement flags
+                    call darcy%error_estimate%traverse(grid)
+
+                    !refine grid
+                    call darcy%adaption%traverse(grid)
+                end if
 
                 i_nle_iterations = 0
                 i_lse_iterations = 0
 
-                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
+                if (cfg%i_solver_time_steps >= 0 .and. mod(i_time_step, cfg%i_solver_time_steps) == 0) then
+                    call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
-                do
-                    !setup pressure equation
-
-                    call darcy%permeability%traverse(grid)
-
-                    !repeatedly solve the linear system until the system matrix does not change anymore
+                    !repeatedly setup and solve the linear system until the system matrix does not change anymore
                     !the rhs will not be changed either and the system remains in a solved state
 
-                    if (.not. darcy%permeability%is_matrix_modified) then
-                        exit
-                    end if
+                    do
+                        !setup pressure equation
+                        call darcy%permeability%traverse(grid)
 
-                    !solve pressure equation
+                        if (.not. darcy%permeability%is_matrix_modified) then
+                            exit
+                        end if
 
-                    if (cfg%l_lse_output .and. mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
-                        call darcy%lse_output%traverse(grid)
-                        call darcy%pressure_solver%solve(grid)
-                        call darcy%lse_output%traverse(grid)
-                    else if (mod(i_time_step, cfg%i_lse_skip + 1) == 0) then
-                        call darcy%pressure_solver%solve(grid)
-                    else
-                        exit
-                    end if
+                        !solve pressure equation
 
-                    if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
-                        exit
-                    end if
+                        if (cfg%l_lse_output) then
+                            call darcy%lse_output%traverse(grid)
+                            call darcy%pressure_solver%solve(grid)
+                            call darcy%lse_output%traverse(grid)
+                        else
+                            call darcy%pressure_solver%solve(grid)
+                        end if
 
-                    i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
-                    i_nle_iterations = i_nle_iterations + 1
+                        if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
+                            exit
+                        end if
 
-                    if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
-                        !$omp master
-                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
-                        !$omp end master
-                    end if
-                end do
+                        i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+                        i_nle_iterations = i_nle_iterations + 1
+
+                        if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
+                            !$omp master
+                            _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
+                            !$omp end master
+                        end if
+                    end do
+                end if
 
 				!compute velocity field (to determine the time step size)
 				call darcy%grad_p%traverse(grid)
 
 				!transport equation time step
 				call darcy%transport_eq%traverse(grid)
-				i_time_step = i_time_step + 1
-
-				!set refinement flags
-				call darcy%error_estimate%traverse(grid)
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
@@ -518,7 +522,7 @@
                 end if
 
 				!output grid
-				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+				if ((cfg%i_output_time_steps >= 0 .and. mod(i_time_step, cfg%i_output_time_steps) == 0) .or. cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
                     if (cfg%l_well_output) then
                         call darcy%well_output%traverse(grid)
                     end if
