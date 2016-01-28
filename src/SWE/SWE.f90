@@ -278,7 +278,7 @@
 			end if
 
 			!output initial grid
-			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
+			if (cfg%i_output_time_steps > 0 .or. cfg%r_output_time_step >= 0.0_GRID_SR) then
                 if (cfg%l_ascii_output) then
                     call swe%ascii_output%traverse(grid)
                 end if
@@ -328,7 +328,7 @@
 
                     i_time_step = i_time_step + 1
 
-                    if (cfg%i_adapt_time_steps >= 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
+                    if (cfg%i_adapt_time_steps > 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
                         !refine grid
                         call swe%adaption%traverse(grid)
                     end if
@@ -348,7 +348,9 @@
                     end if
 
                     !output grid
-                    if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+                    if ((cfg%i_output_time_steps > 0 .and. mod(i_time_step, cfg%i_output_time_steps) == 0) .or. &
+                        (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output)) then
+
                         if (cfg%l_ascii_output) then
                             call swe%ascii_output%traverse(grid)
                         end if
@@ -380,7 +382,7 @@
 
 				i_time_step = i_time_step + 1
 
-                if (cfg%i_adapt_time_steps >= 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
+                if (cfg%i_adapt_time_steps > 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
                     !refine grid
                     call swe%adaption%traverse(grid)
                 end if
@@ -397,7 +399,9 @@
                 end if
 
 				!output grid
-				if (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+				if ((cfg%i_output_time_steps > 0 .and. mod(i_time_step, cfg%i_output_time_steps) == 0) .or. &
+				    (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output)) then
+
                     if (cfg%l_ascii_output) then
              	       call swe%ascii_output%traverse(grid)
                	    end if
