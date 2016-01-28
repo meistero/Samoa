@@ -36,7 +36,6 @@ MODULE SFC_traversal
 	contains
 
 	subroutine sfc_generic()
-
 		! local variables
 		type(t_grid)														:: grid
 
@@ -55,6 +54,8 @@ MODULE SFC_traversal
 #	    elif defined(_GENERIC)
            type(t_generic)                                                  :: generic
 #	    endif
+
+        call set_terminate_signal()
 
 		!create, run and destroy scenario
 
@@ -133,5 +134,60 @@ MODULE SFC_traversal
 			call generic%run()
 			call generic%destroy(cfg%l_log)
 #		endif
+
+        call unset_terminate_signal()
 	end subroutine sfc_generic
+
+    subroutine set_terminate_signal()
+#       if defined(__INTEL_COMPILER)
+            use ifport
+            integer(kind = 4) :: i_status
+
+            i_status = signal(SIGTERM, signal_terminate, -1_4)
+#       else
+            integer(kind = 4), parameter :: SIGTERM = 15_4
+            integer(kind = 4) :: i_status
+
+            i_status = signal(SIGTERM, signal_terminate)
+#       endif
+    end subroutine
+
+    subroutine unset_terminate_signal()
+#       if defined(__INTEL_COMPILER)
+            use ifport
+            integer(kind = 4) :: i_status, i_dummy
+
+            i_status = signal(SIGTERM, signal_dummy, 0_4)
+#       else
+            integer(kind = 4), parameter :: SIGTERM = 15_4
+            integer(kind = 4) :: i_status
+
+            i_status = signal(SIGTERM, 0)
+#       endif
+    end subroutine
+
+	function signal_terminate() result(rcode)
+        integer(kind = 4) :: rcode
+
+        print '("*****************************************************")'
+        print '("*** Terminate signal caught, initiating soft exit ***")'
+        print '("*****************************************************")'
+
+        !initiate a soft exit by setting all possible exit conditions to return immediately
+        cfg%i_min_depth = 0
+        cfg%i_max_depth = 0
+        cfg%i_max_time_steps = 0
+
+#       if defined (_DARCY)
+            cfg%i_max_iterations = 0
+#       endif
+
+        rcode = 0
+    end function
+
+	function signal_dummy() result(rcode)
+        integer(kind = 4) :: rcode
+
+        rcode = 0
+    end function
 end MODULE SFC_traversal
