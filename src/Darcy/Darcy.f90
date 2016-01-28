@@ -425,7 +425,7 @@
             end if
 
 			!output initial grid
-			if (cfg%r_output_time_step >= 0.0_GRID_SR) then
+			if (cfg%i_output_time_steps > 0 .or. cfg%r_output_time_step >= 0.0_GRID_SR) then
                 if (cfg%l_well_output) then
                     !do a dummy transport step first to determine the initial production rates
                     grid%r_dt = 0.0_SR
@@ -457,7 +457,7 @@
 
 				i_time_step = i_time_step + 1
 
-                if (cfg%i_adapt_time_steps >= 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
+                if (cfg%i_adapt_time_steps > 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
                     !set refinement flags
                     call darcy%error_estimate%traverse(grid)
 
@@ -468,7 +468,7 @@
                 i_nle_iterations = 0
                 i_lse_iterations = 0
 
-                if (cfg%i_solver_time_steps >= 0 .and. mod(i_time_step, cfg%i_solver_time_steps) == 0) then
+                if (cfg%i_solver_time_steps > 0 .and. mod(i_time_step, cfg%i_solver_time_steps) == 0) then
                     call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
                     !repeatedly setup and solve the linear system until the system matrix does not change anymore
@@ -522,7 +522,9 @@
                 end if
 
 				!output grid
-				if ((cfg%i_output_time_steps >= 0 .and. mod(i_time_step, cfg%i_output_time_steps) == 0) .or. cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output) then
+				if ((cfg%i_output_time_steps > 0 .and. mod(i_time_step, cfg%i_output_time_steps) == 0) .or. &
+				    (cfg%r_output_time_step >= 0.0_GRID_SR .and. grid%r_time >= r_time_next_output)) then
+
                     if (cfg%l_well_output) then
                         call darcy%well_output%traverse(grid)
                     end if

@@ -154,7 +154,7 @@ module config
 
         write(arguments, '(A)') "-v .false. --version .false. -h .false. --help .false."
         write(arguments, '(A, A)') trim(arguments),   " -lbtime .false. -lbsplit .false. -lbserial .false. -lbcellweight 1.0d0 -lbbndweight 0.0d0"
-        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -tadapt -1.0 -nadapt 0 -asciioutput_width 60 -output_dir output -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
+        write(arguments, '(A, A)') trim(arguments),  " -asagihints 2 -phases 1 -tadapt -1.0 -nadapt 1 -asciioutput_width 60 -output_dir output -asciioutput .false. -xmloutput .false. -stestpoints '' -noprint .false. -sections 4"
         write(arguments, '(A, A, I0)') trim(arguments), " -threads ", omp_get_max_threads()
 
         !define additional command arguments and default values depending on the choice of the scenario
@@ -162,7 +162,7 @@ module config
             write(arguments, '(A, A)') trim(arguments), " -dmin 0 -dmax 14 -dstart 0 -courant 0.5d0 " // &
             "-nout -1 -tout -1.0 -fperm data/darcy_five_spot/spe_perm_renamed.nc -fpor data/darcy_five_spot/spe_phi_renamed.nc "  // &
             "-p_in 10.0d3 -p_prod 4.0d3 -epsilon 1.0d-4 -rho_w 1025.18d0 -rho_n 848.98d0 -nu_w 0.3d-3 -nu_n 3.0d-3 -lsolver 2 " // &
-            "-max_iter -1 -tsolver -1.0 -nsolver 0 -cg_restart 256 -lseoutput .false. -welloutput .true. "
+            "-max_iter -1 -tsolver -1.0 -nsolver 1 -cg_restart 256 -lseoutput .false. -welloutput .true. "
 
 #           if (_DARCY_LAYERS > 0)
                 write(arguments, '(A, A)') trim(arguments), " -p_ref_th 1.0d0 -S_ref_th 1.0d0 "
@@ -315,7 +315,7 @@ module config
                 PRINT '(A, I0, A)',     "	-dstart <value>         start grid depth (value: ", config%i_start_depth, ")"
                 PRINT '(A, I0, A)',     "	-nmax <value>           maximum number of time steps, less than 0: disabled (value: ", config%i_max_time_steps, ")"
                 PRINT '(A, ES8.1, A)',  "	-tmax <value>           maximum simulation time in seconds, less than 0: disabled (value: ", config%r_max_time, ")"
-                PRINT '(A, I0, A)',     "	-nout <value>           output time step interval, less than 0: disabled (value: ", config%i_output_time_steps, ")"
+                PRINT '(A, I0, A)',     "	-nout <value>           output time step interval, less than 1: disabled (value: ", config%i_output_time_steps, ")"
                 PRINT '(A, ES8.1, A)',  "	-tout <value>           output time step in seconds, less than 0: disabled (value: ", config%r_output_time_step, ")"
                 PRINT '(A, I0, A)',     "	-phases <value>         number of times intermediate stats should be printed during time steps (value: ", config%i_stats_phases, ")"
                 PRINT '(A, I0, A)',     "	-threads <value>        number of OpenMP threads (value: ", config%i_threads, ")"
@@ -356,8 +356,8 @@ module config
                     PRINT '(A, ES8.1, A)',  "	-well_radius            injection and production well radius (value: ", config%r_well_radius_AU, " inch)"
                     PRINT '(A, I0, ": ", A, A)',  "	-lsolver                linear solver (0: Jacobi, 1: CG, 2: Pipelined CG) (value: ", config%i_lsolver, trim(lsolver_to_char(config%i_lsolver)), ")"
                     PRINT '(A, ES8.1, A)',  "	-epsilon                linear solver error bound (value: ", config%r_epsilon, ")"
-                    PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 0: disabled (value: ", config%i_max_iterations, ")"
-                    PRINT '(A, I0, A)',        "	-nsolver            linear solver time step interval, less than 0: disabled (value: ", config%i_solver_time_steps, ")"
+                    PRINT '(A, I0, A)',        "	-max_iter               maximum iterations of the linear solver, less than 1: disabled (value: ", config%i_max_iterations, ")"
+                    PRINT '(A, I0, A)',        "	-nsolver            linear solver time step interval, less than 1: disabled (value: ", config%i_solver_time_steps, ")"
                     !This argument is not supported for now
                     !PRINT '(A, I0, A)',        "	-tsolver            linear solver time step in seconds, less than 0: disabled (value: ", config%r_solver_time_step, ")"
                     PRINT '(A, I0, A)',     "	-cg_restart             CG restart interval (value: ", config%i_CG_restart, ")"
