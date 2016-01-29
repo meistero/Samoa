@@ -2350,11 +2350,12 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             !reverse the stream so it is aligned with the traversal direction
             call section%boundary_type_nodes(OLD, i_color)%reverse()
 
-            if (i_nodes > i_edges) then
+            if (i_color == GREEN) then
                 assert_eq(i_nodes, i_edges + 1)
                 p_nodes(1 : i_edges)%distance = p_edges%min_distance
                 p_nodes(i_nodes)%distance = section%start_distance(i_color)
             else
+                assert_eq(i_nodes, i_edges)
                 p_nodes%distance = p_edges%min_distance
             end if
 
@@ -2379,16 +2380,17 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             !all remaining nodes on the stack are new boundary nodes
 
             i_nodes = thread%nodes_stack(i_color)%i_current_element
-            p_nodes => section%boundary_nodes(i_color)%elements(section%boundary_nodes(i_color)%i_current_element : section%boundary_nodes(i_color)%i_current_element + i_nodes - 1)
-            section%boundary_nodes(i_color)%i_current_element = section%boundary_nodes(i_color)%i_current_element + i_nodes - 1
-            p_nodes = thread%nodes_stack(i_color)%elements(1 : i_nodes)
+            p_nodes => section%boundary_nodes(i_color)%elements(section%boundary_nodes(i_color)%i_current_element : section%boundary_nodes(i_color)%i_current_element + i_nodes)
+            section%boundary_nodes(i_color)%i_current_element = section%boundary_nodes(i_color)%i_current_element + i_nodes
+            p_nodes(2:) = thread%nodes_stack(i_color)%elements(1 : i_nodes)
             call section%boundary_type_nodes(NEW, i_color)%attach(p_nodes, section%boundary_nodes(i_color)%is_forward())
 
-            if (i_nodes > i_edges) then
-                assert_eq(i_nodes, i_edges + 1)
-                p_nodes(1 : i_edges)%distance = p_edges%min_distance
-                p_nodes(i_nodes)%distance = section%end_distance(i_color)
+            if (i_color == GREEN) then
+                assert_eq(i_nodes , i_edges)
+                p_nodes(1 : i_nodes)%distance = p_edges%min_distance
+                p_nodes(i_nodes + 1)%distance = section%end_distance(i_color)
             else
+                assert_eq(i_nodes + 1, i_edges)
                 p_nodes%distance = p_edges%min_distance
             end if
 

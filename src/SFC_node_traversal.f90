@@ -171,17 +171,19 @@ MODULE SFC_node_traversal
 		select case (i_previous_edge_type)
 			case (OLD)
 				previous_edge => section%crossed_edges_out%current()
-				transfer_node => thread%nodes_stack(RED + GREEN - i_color_edge_color)%current()
+
+				if (thread%nodes_stack(RED + GREEN - i_color_edge_color)%is_empty()) then
+				    transfer_node => section%boundary_nodes(RED + GREEN - i_color_edge_color)%current()
+				else
+				    transfer_node => thread%nodes_stack(RED + GREEN - i_color_edge_color)%current()
+				end if
 			case (OLD_BND)
 				boundary_edge => section%boundary_edges(RED)%next()
                 boundary_edge%depth = edge_depths(i_previous_edge_index)
 				previous_edge => boundary_edge%t_crossed_edge_stream_data
 
-                color_node_out => thread%nodes_stack(i_color_edge_color)%push()
-                call section%boundary_nodes(i_color_edge_color)%read(color_node_out)
-
-                transfer_node => thread%nodes_stack(RED + GREEN - i_color_edge_color)%push()
-                call section%boundary_nodes(RED + GREEN - i_color_edge_color)%read(transfer_node)
+                color_node_out => section%boundary_nodes(i_color_edge_color)%next()
+                transfer_node => section%boundary_nodes(RED + GREEN - i_color_edge_color)%next()
 		end select
 
 		select case (i_color_edge_type)
@@ -189,25 +191,37 @@ MODULE SFC_node_traversal
 				call thread%edges_stack(i_color_edge_color)%pop_data(color_edge)
 
 				color_node_out => thread%nodes_stack(i_color_edge_color)%pop()
-				color_node_in => thread%nodes_stack(i_color_edge_color)%current()
+
+				if (thread%nodes_stack(i_color_edge_color)%is_empty()) then
+				    color_node_in => section%boundary_nodes(i_color_edge_color)%current()
+				else
+				    color_node_in => thread%nodes_stack(i_color_edge_color)%current()
+				end if
 			case (NEW)
 				call thread%edges_stack(i_color_edge_color)%push_data(color_edge)
 
-				color_node_out => thread%nodes_stack(i_color_edge_color)%current()
+				if (thread%nodes_stack(i_color_edge_color)%is_empty()) then
+				    color_node_out => section%boundary_nodes(i_color_edge_color)%current()
+				else
+				    color_node_out => thread%nodes_stack(i_color_edge_color)%current()
+				end if
+
 				color_node_in => thread%nodes_stack(i_color_edge_color)%push()
 			case (OLD_BND)
                 color_edge%depth = edge_depths(i_color_edge_index)
 
 				color_node_out => section%boundary_nodes(i_color_edge_color)%current()
-				call thread%nodes_stack(i_color_edge_color)%pop_data(color_node_out)
-
-				color_node_in => thread%nodes_stack(i_color_edge_color)%push()
-				call section%boundary_nodes(i_color_edge_color)%read(color_node_in)
+				color_node_in => section%boundary_nodes(i_color_edge_color)%next()
 			case (NEW_BND)
                 color_edge%depth = edge_depths(i_color_edge_index)
 				call thread%edges_stack(i_color_edge_color)%push_data(color_edge)
 
-				color_node_out => thread%nodes_stack(i_color_edge_color)%current()
+				if (thread%nodes_stack(i_color_edge_color)%is_empty()) then
+				    color_node_out => section%boundary_nodes(i_color_edge_color)%current()
+				else
+				    color_node_out => thread%nodes_stack(i_color_edge_color)%current()
+				end if
+
 				color_node_in => thread%nodes_stack(i_color_edge_color)%push()
 		end select
 
