@@ -45,6 +45,7 @@
 
             procedure , pass :: create => darcy_create
             procedure , pass :: run => darcy_run
+            procedure , pass :: pressure_solve => darcy_pressure_solve
             procedure , pass :: destroy => darcy_destroy
         end type
 
@@ -306,6 +307,53 @@
 			endif
 		end subroutine
 
+        subroutine darcy_pressure_solve(darcy, grid, i_nle_iterations, i_lse_iterations)
+            class(t_darcy), intent(inout)	        :: darcy
+ 			type(t_grid), intent(inout)			    :: grid
+ 			integer (kind = GRID_SI), intent(out)   :: i_nle_iterations, i_lse_iterations
+
+            call darcy%pressure_solver%set_parameter(LS_REL_ERROR, real(cfg%r_epsilon, SR))
+            call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
+
+            i_nle_iterations = 0
+            i_lse_iterations = 0
+
+            !repeatedly setup and solve the linear system until the system matrix does not change anymore
+            !the rhs will not be changed either and the system remains in a solved state
+
+            do
+                !setup pressure equation
+                call darcy%permeability%traverse(grid)
+
+                if (.not. darcy%permeability%is_matrix_modified) then
+                    exit
+                end if
+
+                !solve pressure equation
+
+                if (cfg%l_lse_output) then
+                    call darcy%lse_output%traverse(grid)
+                    call darcy%pressure_solver%solve(grid)
+                    call darcy%lse_output%traverse(grid)
+                else
+                    call darcy%pressure_solver%solve(grid)
+                end if
+
+                if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
+                    exit
+                end if
+
+                i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+                i_nle_iterations = i_nle_iterations + 1
+
+                if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
+                    !$omp master
+                    _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
+                    !$omp end master
+                end if
+            end do
+        end subroutine
+
 		!> Sets the initial values of the scenario and runs the time steps
 		subroutine darcy_run(darcy, grid)
             class(t_darcy), intent(inout)	                            :: darcy
@@ -331,8 +379,6 @@
 
             i_initial_step = 0
 
-            call darcy%pressure_solver%set_parameter(LS_REL_ERROR, real(cfg%r_epsilon, SR))
-
 			!set pressure initial condition
 			call darcy%init_pressure%traverse(grid)
 
@@ -340,43 +386,11 @@
 			call darcy%adaption%traverse(grid)
 
 			do
-                i_nle_iterations = 0
-                i_lse_iterations = 0
-
-                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
-
                 !reset saturation to initial condition
                 call darcy%init_saturation%traverse(grid)
 
-                !repeatedly setup and solve the linear system until the system matrix does not change anymore
-                !the rhs will not be changed either and the system remains in a solved state
-
-				do
-				    call darcy%permeability%traverse(grid)
-
-                    if (.not. darcy%permeability%is_matrix_modified) then
-                        exit
-                    end if
-
-                    !solve pressure equation
-
-                    if (cfg%l_lse_output) then
-                        call darcy%lse_output%traverse(grid)
-                        call darcy%pressure_solver%solve(grid)
-                        call darcy%lse_output%traverse(grid)
-                    else
-                        call darcy%pressure_solver%solve(grid)
-                    end if
-
-                    i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
-                    i_nle_iterations = i_nle_iterations + 1
-
-                    if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
-                        !$omp master
-                        _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
-                        !$omp end master
-                    end if
-                end do
+                !solve the nonlinear pressure equation
+                call darcy%pressure_solve(grid, i_nle_iterations, i_lse_iterations)
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
@@ -465,46 +479,12 @@
                     call darcy%adaption%traverse(grid)
                 end if
 
-                i_nle_iterations = 0
-                i_lse_iterations = 0
-
                 if (cfg%i_solver_time_steps > 0 .and. mod(i_time_step, cfg%i_solver_time_steps) == 0) then
-                    call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
-
-                    !repeatedly setup and solve the linear system until the system matrix does not change anymore
-                    !the rhs will not be changed either and the system remains in a solved state
-
-                    do
-                        !setup pressure equation
-                        call darcy%permeability%traverse(grid)
-
-                        if (.not. darcy%permeability%is_matrix_modified) then
-                            exit
-                        end if
-
-                        !solve pressure equation
-
-                        if (cfg%l_lse_output) then
-                            call darcy%lse_output%traverse(grid)
-                            call darcy%pressure_solver%solve(grid)
-                            call darcy%lse_output%traverse(grid)
-                        else
-                            call darcy%pressure_solver%solve(grid)
-                        end if
-
-                        if (darcy%pressure_solver%get_info(LS_CUR_ITERS) == 0) then
-                            exit
-                        end if
-
-                        i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
-                        i_nle_iterations = i_nle_iterations + 1
-
-                        if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
-                            !$omp master
-                            _log_write(1, '(" Darcy:  coupling iters: ", I0, ", linear iters: ", I0)') i_nle_iterations, i_lse_iterations
-                            !$omp end master
-                        end if
-                    end do
+                    !solve the nonlinear pressure equation
+                    call darcy%pressure_solve(grid, i_nle_iterations, i_lse_iterations)
+                else
+                    i_nle_iterations = 0
+                    i_lse_iterations = 0
                 end if
 
 				!compute velocity field (to determine the time step size)
