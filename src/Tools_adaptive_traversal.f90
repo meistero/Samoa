@@ -479,8 +479,6 @@
 		integer(kind = BYTE)								    :: i_color_edge_color
 		real (kind = GRID_SI), dimension(2, 3), parameter	    :: node_offset = reshape([0.0, 1.0, -1.0, 1.0, -1.0, 0.0], [2, 3])
         real (kind = GRID_SI)                                   :: new_position(2)
-        type (t_node_data), pointer                             :: dummy_node
-        type(t_edge_data), pointer                              :: dummy_edge
 
 #		if defined(_GT_SKELETON_OP) || defined(_GT_CELL_UPDATE_OP)
             type(num_cell_update)                               :: color_edge_local_update, next_edge_local_update
