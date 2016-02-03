@@ -82,8 +82,6 @@
 			type(t_darcy_transport_eq_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            !Dual cells have a size of of edge_length, the maximum Eigenvalue of the system is (2 S_max u_max) / (\Phi nu) = (2 u_max) / (\Phi nu)
-            !This gives an upper bound of \Delta t \leq (\Phi nu edge_length) / (2 u_max)
 			call scatter(grid%r_dt, grid%sections%elements_alloc%r_dt)
 
             traversal%prod_w = 0.0_SR
@@ -113,7 +111,7 @@
 
             !the injector pressure must be shared over all mpi ranks as it is used for the linear solver exit criterion
             do i = 1, _DARCY_INJECTOR_WELLS
-                call reduce(traversal%p_bh(i), traversal%children%p_bh(i), MPI_MAX, .true.)
+                call reduce(traversal%p_bh(i), traversal%children%p_bh(i), MPI_MAX, .false.)
             end do
 
             !In the 2D case we always assumed that the height of the domain is 1, when in fact it should be delta_z.
@@ -130,6 +128,8 @@
             !production rate in bbl/d
             grid%prod_w = traversal%prod_w
             grid%prod_n = traversal%prod_n
+
+            !injector bottom hole pressure
             grid%p_bh = traversal%p_bh
 
 			grid%r_time = grid%r_time + grid%r_dt

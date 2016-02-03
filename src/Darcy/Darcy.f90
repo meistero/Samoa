@@ -313,7 +313,6 @@
  			integer (kind = GRID_SI), intent(out)   :: i_nle_iterations, i_lse_iterations
 
             call darcy%pressure_solver%set_parameter(LS_REL_ERROR, real(cfg%r_epsilon, SR))
-            call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
             i_nle_iterations = 0
             i_lse_iterations = 0
@@ -328,6 +327,8 @@
                 if (.not. darcy%permeability%is_matrix_modified) then
                     exit
                 end if
+
+                call darcy%pressure_solver%set_parameter(LS_ABS_ERROR, real(cfg%r_epsilon * abs(cfg%r_p_prod - maxval(grid%p_bh)), SR))
 
                 !solve pressure equation
 
@@ -478,13 +479,13 @@
                 if (cfg%i_solver_time_steps > 0 .and. mod(i_time_step, cfg%i_solver_time_steps) == 0) then
                     !solve the nonlinear pressure equation
                     call darcy%pressure_solve(grid, i_nle_iterations, i_lse_iterations)
+
+				    !compute velocity field (to determine the time step size)
+				    call darcy%grad_p%traverse(grid)
                 else
                     i_nle_iterations = 0
                     i_lse_iterations = 0
                 end if
-
-				!compute velocity field (to determine the time step size)
-				call darcy%grad_p%traverse(grid)
 
 				!transport equation time step
 				call darcy%transport_eq%traverse(grid)

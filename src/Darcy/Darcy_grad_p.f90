@@ -252,9 +252,6 @@
                 call compute_base_fluxes_2D(p, base_permeability, dx, dy, Ax, Ay, g_local(1:2), u_w, u_n)
                 call compute_wave_speeds_2D(saturation, u_w, u_n, xi_w, xi_n)
 #           endif
-
-            !Careful: the FEM pressure solution implies that u = 0 on the boundary.
-            !If we define an outflow condition in the FV step, we will get a non-zero divergence.
 		end subroutine
 	END MODULE
 #endif
