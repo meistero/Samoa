@@ -323,21 +323,25 @@
         !> S'_w := S_w + dt/V * f_w
         !> S'_n := S_n + dt/V * f_n
         !> \Rightarrow S'_w + S'_n = S_w + S_n + dt/V * (f_w + f_n) = S_w + S_n
-		subroutine post_dof_op(dt, saturation, flux_w, flux_n, volume)
+		elemental subroutine post_dof_op(dt, saturation, flux_w, flux_n, volume)
 			real (kind = GRID_SR), intent(in)		:: dt
-			real (kind = GRID_SR), intent(inout)	:: saturation(:)
-			real (kind = GRID_SR), intent(in)		:: flux_w(:)
-			real (kind = GRID_SR), intent(in)		:: flux_n(:)
-			real (kind = GRID_SR), intent(in)		:: volume(:)
+			real (kind = GRID_SR), intent(inout)	:: saturation
+			real (kind = GRID_SR), intent(in)		:: flux_w, flux_n
+			real (kind = GRID_SR), intent(in)		:: volume
 
-            where (volume > 0.0_SR)
-                saturation = saturation - dt / volume * flux_w
-            else where
+            real (kind = GRID_SR)                   :: lambda_w, lambda_n
+
+            if (volume > 0.0_SR) then
+                lambda_w = l_w(saturation)
+                lambda_n = l_n(saturation)
+
+                saturation = saturation - dt / volume * (lambda_n * flux_w - lambda_w * flux_n) / (lambda_w + lambda_n)
+            else
                 saturation = max(0.0_SR, min(1.0_SR, saturation - flux_w))
-            end where
+            end if
 
-            assert_ge(minval(saturation), -0.1_SR)
-            assert_le(maxval(saturation), 1.1_SR)
+            assert_pure(saturation .ge. -0.1_SR)
+            assert_pure(saturation .le. 1.1_SR)
 		end subroutine
 
         !> Update saturation and produce fluid
