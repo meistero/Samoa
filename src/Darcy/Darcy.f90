@@ -313,7 +313,7 @@
 
             integer (kind = GRID_SI)									:: i_initial_step, i_time_step, i_nle_iterations, i_lse_iterations
 			real (kind = GRID_SR)										:: r_time_next_output
-			type(t_grid_info)           	                            :: grid_info, grid_info_max
+			type(t_grid_info)           	                            :: grid_info
             integer  (kind = GRID_SI)                                   :: i_stats_phase
 
 			!init parameters
@@ -413,14 +413,10 @@
 				i_initial_step = i_initial_step + 1
 			end do
 
-            grid_info = grid%get_info(MPI_SUM, .true.)
-
             if (rank_MPI == 0) then
                 !$omp master
                 _log_write(0, *) "Darcy: done."
                 _log_write(0, *) ""
-
-                call grid_info%print()
                 !$omp end master
             end if
 
@@ -544,20 +540,6 @@
                     i_stats_phase = i_stats_phase + 1
                 end if
 			end do
-
-            grid_info = grid%get_info(MPI_SUM, .true.)
-            grid_info_max = grid%get_info(MPI_MAX, .true.)
-
-            !$omp master
-            if (rank_MPI == 0) then
-                _log_write(0, '(" Darcy: done.")')
-                _log_write(0, '()')
-                _log_write(0, '("  Cells: avg: ", I0, " max: ", I0)') grid_info%i_cells / (omp_get_max_threads() * size_MPI), grid_info_max%i_cells
-                _log_write(0, '()')
-
-                call grid_info%print()
-            end if
-            !$omp end master
 		end subroutine
 
 		subroutine update_stats(darcy, grid)
@@ -566,38 +548,53 @@
 
  			double precision, save          :: t_phase = huge(1.0d0)
 
+            integer, parameter  :: reduction_ops(1) = [MPI_SUM]
+            integer             :: i
+            type(t_grid_info)   :: grid_info
+
+            !The call to grid%get_info() must be threaded, so this is a workaround to reduce 
+            !the section info into thread info. The data in grid_info will be discarded.
+            grid_info = grid%get_info(MPI_SUM, .false.)
+
+            !$omp barrier
+
 			!$omp master
                 !Initially, just start the timer and don't print anything
                 if (t_phase < huge(1.0d0)) then
                     t_phase = t_phase + get_wtime()
 
-                    call darcy%init_saturation%reduce_stats(MPI_SUM, .true.)
-                    call darcy%transport_eq%reduce_stats(MPI_SUM, .true.)
-                    call darcy%grad_p%reduce_stats(MPI_SUM, .true.)
-                    call darcy%permeability%reduce_stats(MPI_SUM, .true.)
-                    call darcy%error_estimate%reduce_stats(MPI_SUM, .true.)
-                    call darcy%adaption%reduce_stats(MPI_SUM, .true.)
-                    call darcy%pressure_solver%reduce_stats(MPI_SUM, .true.)
-                    call grid%reduce_stats(MPI_SUM, .true.)
+                    do i = 1, size(reduction_ops)
+                        call darcy%init_saturation%reduce_stats(reduction_ops(i), .true.)
+                        call darcy%transport_eq%reduce_stats(reduction_ops(i), .true.)
+                        call darcy%grad_p%reduce_stats(reduction_ops(i), .true.)
+                        call darcy%permeability%reduce_stats(reduction_ops(i), .true.)
+                        call darcy%error_estimate%reduce_stats(reduction_ops(i), .true.)
+                        call darcy%adaption%reduce_stats(reduction_ops(i), .true.)
+                        call darcy%pressure_solver%reduce_stats(reduction_ops(i), .true.)
+                        call grid%reduce_stats(reduction_ops(i), .true.)
+                        call grid_info%reduce(grid%threads%elements(:)%info, reduction_ops(i), .true.)
 
-                    if (rank_MPI == 0) then
-                        _log_write(0, *) ""
-                        _log_write(0, *) "Phase statistics:"
-                        _log_write(0, *) ""
-                        _log_write(0, '(A, T34, A)') " Init: ", trim(darcy%init_saturation%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Transport: ", trim(darcy%transport_eq%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Gradient: ", trim(darcy%grad_p%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Permeability: ", trim(darcy%permeability%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Error Estimate: ", trim(darcy%error_estimate%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Adaptions: ", trim(darcy%adaption%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Pressure Solver: ", trim(darcy%pressure_solver%stats%to_string())
-                        _log_write(0, '(A, T34, A)') " Grid: ", trim(grid%stats%to_string())
-                        _log_write(0, '(A, T34, F12.4, A)') " Element throughput: ", 1.0d-6 * dble(grid%stats%i_traversed_cells) / t_phase, " M/s"
-                        _log_write(0, '(A, T34, F12.4, A)') " Memory throughput: ", dble(grid%stats%i_traversed_memory) / ((1024 * 1024 * 1024) * t_phase), " GB/s"
-                        _log_write(0, '(A, T34, F12.4, A)') " Asagi time:", grid%stats%r_asagi_time, " s"
-                        _log_write(0, '(A, T34, F12.4, A)') " Phase time:", t_phase, " s"
-                        _log_write(0, *) ""
-                    end if
+                        if (rank_MPI == 0) then
+                            _log_write(0, '()')
+                            _log_write(0, '("Phase statistics: ")')
+                            _log_write(0, '()')
+                            _log_write(0, '(" Init: ", T34, A)') trim(darcy%init_saturation%stats%to_string())
+                            _log_write(0, '(" Transport: ", T34, A)') trim(darcy%transport_eq%stats%to_string())
+                            _log_write(0, '(" Gradient: ", T34, A)') trim(darcy%grad_p%stats%to_string())
+                            _log_write(0, '(" Permeability: ", T34, A)') trim(darcy%permeability%stats%to_string())
+                            _log_write(0, '(" Error Estimate: ", T34, A)') trim(darcy%error_estimate%stats%to_string())
+                            _log_write(0, '(" Adaptions: ", T34, A)') trim(darcy%adaption%stats%to_string())
+                            _log_write(0, '(" Pressure Solver: ", T34, A)') trim(darcy%pressure_solver%stats%to_string())
+                            _log_write(0, '(" Grid: ", T34, A)') trim(grid%stats%to_string())
+                            _log_write(0, '(" Element throughput: ", T34, F12.4, " M/s")') 1.0d-6 * dble(grid%stats%i_traversed_cells) / t_phase
+                            _log_write(0, '(" Memory throughput: ", T34, F12.4, " GB/s")') dble(grid%stats%i_traversed_memory) / ((1024 * 1024 * 1024) * t_phase)
+                            _log_write(0, '(" Asagi time:", T34, F12.4, " s")') grid%stats%r_asagi_time
+                            _log_write(0, '(" Phase time:", T34, F12.4, " s")') t_phase
+                            _log_write(0, '()')
+
+                            call grid_info%print()
+                        end if
+                    end do
                 end if
 
                 call darcy%init_saturation%clear_stats()

@@ -33,8 +33,8 @@ module switch mpi.intel mpi.ibm
 module unload gcc
 module load gcc/4.7
 
-#scons config=supermuc_ibm.py scenario=darcy flux_solver=upwind layers=$layers exe=samoa_darcy_spe10 -j4 &
-#wait
+scons config=supermuc_ibm.py scenario=darcy flux_solver=upwind layers=$layers exe=samoa_darcy_spe10 -j4 &
+wait
 
 if [ $? -ne 0 ]; then
     exit
@@ -48,7 +48,7 @@ sections=1
 
 for dmax in 14
 do
-	for cores in 256
+	for cores in 128
 	do
 	    processes=$(( ($cores - 1) / 16 + 1 ))
 	    threads=$(( $cores / $processes )) 
