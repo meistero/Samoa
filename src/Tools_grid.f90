@@ -343,10 +343,10 @@ module Section_info_list
 
  	subroutine grid_info_print(grid_info)
 		class(t_grid_info), intent(in)	:: grid_info
-		integer(kind = GRID_SI)         :: total_sections
+		integer(kind = GRID_DI)         :: total_sections
 		real(kind = GRID_SR)            :: quality
 
-		total_sections = size_MPI * cfg%i_threads * cfg%i_sections_per_thread
+		total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI) * int(size_MPI, GRID_DI)
 		!Compute average section circumference
 		quality = sum(grid_info%i_boundary_edges) / real(total_sections, SR) * (sqrt(2.0_SR) / 3.0_SR + 2.0_SR/3.0_SR)
 		!Divide by ideal circumference of a square section
