@@ -418,7 +418,7 @@
         !Hence, the pressure error is
         ! \tilde p(n) - p(n * dr)
         ! = Q / (2 pi k) * log(n*dr/r_w) - Q / (2 pi k) * (H_{n - 1/2} + log(4))
-        ! = Q / (2 pi k) * (log(dr/r_w) + log(n) - (H_{n - 1/2} + log(4))
+        ! = Q / (2 pi k) * (log(dr/r_w) + log(n) - (H_{n - 1/2} - log(4))
         !which in the limit n -> infinity converges to:
         ! = Q / (2 pi k) * (log(dx/r_w) - gamma - log(4)).
 

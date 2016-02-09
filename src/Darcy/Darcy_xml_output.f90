@@ -170,7 +170,7 @@
                 _log_write(1, '(A, I0, A, I0)') " Darcy: output step: ", traversal%i_output_iteration
             end if
 
-            !we can not use grid%get_infoi in a seqeuntioal OpenMP environment, hence reduce the grid info manually
+            !we can not use grid%get_info in a sequential OpenMP environment, hence reduce the grid info manually
 
             grid_info = t_grid_info()
 
@@ -414,17 +414,10 @@
             real (kind = GRID_SR)			:: edge_length, dz
             integer  (kind = GRID_SI)       :: i_cell_data_index
 
-#           if defined(_OPENMP)
-                integer (kind=OMP_LOCK_KIND), save :: index_lock
-
-                call omp_set_lock(index_lock)
-                    i_cell_data_index = cell_data%index
-                    cell_data%index = cell_data%index + max(1_SI, _DARCY_LAYERS)
-                call omp_unset_lock(index_lock)
-#           else
+            !$omp critical(cell_data_index)
                 i_cell_data_index = cell_data%index
                 cell_data%index = cell_data%index + max(1_SI, _DARCY_LAYERS)
-#           endif
+            !$omp end critical(cell_data_index)
 
             lambda_w = l_w(saturation)
             lambda_n = l_n(saturation)
@@ -547,19 +540,12 @@
  			type(t_grid_section), intent(in)				    :: section
 			type(t_node_data), intent(inout)				    :: node
 
-			integer (kind = GRID_SI) :: i, i_point_data_index
+            integer (kind = GRID_SI) :: i, i_point_data_index
 
-#           if defined(_OPENMP)
-                integer (kind=OMP_LOCK_KIND), save :: index_lock
-
-                call omp_set_lock(index_lock)
-                    i_point_data_index = traversal%point_data%index
-                    traversal%point_data%index = traversal%point_data%index + _DARCY_LAYERS + 1
-                call omp_unset_lock(index_lock)
-#           else
+            !$omp critical(point_data_index)
                 i_point_data_index = traversal%point_data%index
                 traversal%point_data%index = traversal%point_data%index + _DARCY_LAYERS + 1
-#           endif
+            !$omp end critical(point_data_index)
 
             do i = 1, _DARCY_LAYERS + 1
                 call pre_dof_op(i_point_data_index + i - 1, node%data_pers%r(i))
