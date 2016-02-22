@@ -317,6 +317,18 @@ subroutine traverse(traversal, grid)
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
         thread_traversal%stats%r_pre_compute_time = thread_traversal%stats%r_pre_compute_time + get_wtime()
 
+        thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time - get_wtime()
+#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
+#       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=traversal%mpi_node_type)
+#       elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type)
+#       else
+            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
+#       endif
+        thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
+
 #       if defined(_OPENMP_TASKS)
             !$omp end task
 #       endif
@@ -330,17 +342,8 @@ subroutine traverse(traversal, grid)
     call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
     thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
 
-    do i_section = i_first_local_section, i_last_local_section
-#       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
-            call recv_mpi_boundary(grid%sections%elements_alloc(i_section))
-#       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
-            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_node_type_optional=traversal%mpi_node_type)
-#       elif defined(_GT_EDGE_MPI_TYPE) && !defined(_GT_NODE_MPI_TYPE)
-            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type)
-#       else
-            call recv_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
-#       endif
-    end do
+    !wait until all boundary data has been copied
+    !$omp barrier
 
     do i_section = i_first_local_section, i_last_local_section
 #       if defined(_OPENMP_TASKS)
@@ -351,6 +354,7 @@ subroutine traverse(traversal, grid)
         call traverse_section_wrapper(thread_traversal, traversal%children(i_section), grid%threads%elements(i_thread), grid%sections%elements_alloc(i_section))
         traversal%children(i_section)%stats%r_computation_time = traversal%children(i_section)%stats%r_computation_time + get_wtime()
 
+        thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time - get_wtime()
 #       if !defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
             call send_mpi_boundary(grid%sections%elements_alloc(i_section))
 #       elif defined(_GT_NODE_MPI_TYPE) && !defined(_GT_EDGE_MPI_TYPE)
@@ -360,6 +364,7 @@ subroutine traverse(traversal, grid)
 #       else
             call send_mpi_boundary(grid%sections%elements_alloc(i_section), mpi_edge_type_optional=traversal%mpi_edge_type, mpi_node_type_optional=traversal%mpi_node_type)
 #       endif
+        thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time + get_wtime()
 
 #       if defined(_OPENMP_TASKS)
             !$omp end task
@@ -369,6 +374,9 @@ subroutine traverse(traversal, grid)
 #   if defined(_OPENMP_TASKS)
         !$omp taskwait
 #   endif
+
+    !wait until all computation is done
+    !$omp barrier
 
     !sync and call post traversal operator
     thread_traversal%stats%r_sync_time = thread_traversal%stats%r_sync_time - get_wtime()

@@ -394,6 +394,10 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
             allocate(neighbor_min_distances(i_neighbors), stat = i_error); assert_eq(i_error, 0)
 
+            if (i_neighbors == 0) then
+                return
+            end if
+
             !send/receive distances
             assert_veq(requests, MPI_REQUEST_NULL)
 
@@ -874,22 +878,23 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 #        if defined(_MPI)
             if (present(mpi_edge_type_optional)) then
                 mpi_edge_type = mpi_edge_type_optional
+                call MPI_Type_size(mpi_edge_type, mpi_edge_size, i_error); assert_eq(i_error, 0)
                 mpi_edge_extent = 1
             else
                 mpi_edge_type = MPI_BYTE
+                mpi_edge_size = 1
                 mpi_edge_extent = sizeof(section%boundary_edges(RED)%elements(1))
             end if
 
             if (present(mpi_node_type_optional)) then
                 mpi_node_type = mpi_node_type_optional
+                call MPI_Type_size(mpi_node_type, mpi_node_size, i_error); assert_eq(i_error, 0)
                 mpi_node_extent = 1
             else
                 mpi_node_type = MPI_BYTE
+                mpi_node_size = 1
                 mpi_node_extent = sizeof(section%boundary_nodes(RED)%elements(1))
             end if
-
-            call MPI_Type_size(mpi_edge_type, mpi_edge_size, i_error); assert_eq(i_error, 0)
-            call MPI_Type_size(mpi_node_type, mpi_node_size, i_error); assert_eq(i_error, 0)
 
             _log_write(4, '(4X, A, I0)') "send mpi boundary: section ", section%index
 
@@ -917,13 +922,13 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
                         _log_write(5, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "send from: ", comm%local_rank, comm%local_section,  " to  : ", comm%neighbor_rank, comm%neighbor_section, " send tag: ", send_tag
 
-                        if (mpi_edge_size > 0) then
+                        if (comm%i_edges * mpi_edge_size > 0) then
                             assert_eq(comm%send_requests(1), MPI_REQUEST_NULL)
                             call mpi_isend(get_c_pointer(comm%p_local_edges), comm%i_edges * mpi_edge_extent, mpi_edge_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(1), i_error); assert_eq(i_error, 0)
                             assert_ne(comm%send_requests(1), MPI_REQUEST_NULL)
                         end if
 
-                        if (mpi_node_size > 0) then
+                        if (comm%i_nodes * mpi_node_size > 0) then
                             assert_eq(comm%send_requests(2), MPI_REQUEST_NULL)
                             call mpi_isend(get_c_pointer(comm%p_local_nodes), comm%i_nodes * mpi_node_extent, mpi_node_type, comm%neighbor_rank, send_tag, MPI_COMM_WORLD, comm%send_requests(2), i_error); assert_eq(i_error, 0)
                             assert_ne(comm%send_requests(2), MPI_REQUEST_NULL)
@@ -991,13 +996,13 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
                         _log_write(5, '(7X, A, I0, X, I0, A, I0, X, I0, A, I0)') "recv to  : ", comm%local_rank, comm%local_section, " from: ", comm%neighbor_rank, comm%neighbor_section, " recv tag: ", recv_tag
 
-                        if (mpi_edge_size > 0) then
+                        if (comm%i_edges * mpi_edge_size > 0) then
                             assert_eq(comm%recv_requests(1), MPI_REQUEST_NULL)
                             call mpi_irecv(get_c_pointer(comm%p_neighbor_edges), comm%i_edges * mpi_edge_extent, mpi_edge_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(1), i_error); assert_eq(i_error, 0)
                             assert_ne(comm%recv_requests(1), MPI_REQUEST_NULL)
                         end if
 
-                        if (mpi_node_size > 0) then
+                        if (comm%i_nodes * mpi_node_size > 0) then
                             assert_eq(comm%recv_requests(2), MPI_REQUEST_NULL)
                             call mpi_irecv(get_c_pointer(comm%p_neighbor_nodes), comm%i_nodes * mpi_node_extent, mpi_node_type, comm%neighbor_rank, recv_tag, MPI_COMM_WORLD, comm%recv_requests(2), i_error); assert_eq(i_error, 0)
                             assert_ne(comm%recv_requests(2), MPI_REQUEST_NULL)
@@ -1013,32 +1018,31 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         integer (BYTE), intent(in)					    :: i_color
         integer, intent(in)                             :: mpi_edge_size, mpi_node_size
 
-        integer (kind = GRID_SI)						:: i_comm
-        integer                                         :: i_error
-        type(t_comm_interface), pointer			        :: comm
-
 #       if defined(_MPI)
+            integer (kind = GRID_SI)				    :: i_comm
+            integer                                     :: i_error
+            type(t_comm_interface), pointer			    :: comm
+
             do i_comm = 1, section%comms(i_color)%get_size()
                 comm => section%comms(i_color)%elements(i_comm)
-
-                assert(associated(comm%p_local_edges))
-                assert(associated(comm%p_local_nodes))
 
                 if (comm%neighbor_rank .ne. rank_MPI .and. comm%neighbor_rank .ge. 0) then
                     _log_write(4, '(7X, (A))') trim(comm%to_string())
 
+                    assert(associated(comm%p_local_edges))
+                    assert(associated(comm%p_local_nodes))
                     assert(associated(comm%p_neighbor_edges))
                     assert(associated(comm%p_neighbor_nodes))
 
                     _log_write(5, '(8X, A, I0, X, I0, A, I0, X, I0)') "send from : ", comm%local_rank, comm%local_section, " to  : ", comm%neighbor_rank, comm%neighbor_section
 
-                    if (mpi_edge_size > 0) then
+                    if (comm%i_edges * mpi_edge_size > 0) then
                         assert_ne(comm%send_requests(1), MPI_REQUEST_NULL)
                         call mpi_wait(comm%send_requests(1), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                         assert_eq(comm%send_requests(1), MPI_REQUEST_NULL)
                     end if
 
-                    if (mpi_node_size > 0) then
+                    if (comm%i_nodes * mpi_node_size > 0) then
                         assert_ne(comm%send_requests(2), MPI_REQUEST_NULL)
                         call mpi_wait(comm%send_requests(2), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                         assert_eq(comm%send_requests(2), MPI_REQUEST_NULL)
@@ -1048,6 +1052,68 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 #       endif
     end subroutine
 
+    function merge_comm(comm, edge_merge_op, node_merge_op) result(l_conform)
+        type(t_comm_interface), intent(inout)			:: comm
+        procedure(op_edge_merge)                        :: edge_merge_op
+        procedure(op_node_merge)                        :: node_merge_op
+        logical                                         :: l_conform
+
+        integer                                         :: i_error, i
+        integer (kind = GRID_SI)       					:: i_first_node, i_last_node
+
+        l_conform = .true.
+
+        !gather data in section with lowest index
+
+        assert(associated(comm%p_local_edges))
+        assert(associated(comm%p_local_nodes))
+        assert(associated(comm%p_neighbor_edges))
+        assert(associated(comm%p_neighbor_nodes))
+        assert_eq(size(comm%p_local_edges), size(comm%p_neighbor_edges))
+        assert_eq(size(comm%p_local_nodes), size(comm%p_neighbor_nodes))
+        assert_eq(size(comm%p_local_edges), comm%i_edges)
+        assert_eq(size(comm%p_local_nodes), comm%i_nodes)
+
+        _log_write(4, '(7X, (A))') trim(comm%to_string())
+
+        !merge on local edges
+        !only the owner may execute merge operations (a race condition might occur otherwise)
+
+        assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
+
+        do i = 1, comm%i_edges
+            assert(comm%p_local_edges(i)%owned_locally)
+            assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
+
+            l_conform = l_conform .and. edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
+        end do
+
+        assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
+        assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
+        assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
+
+        !merge on local nodes
+        !only the owner may execute merge operations (which is the local section)
+        !a race condition can occur otherwise
+
+        i_first_node = 1
+        if (.not. comm%p_local_nodes(1)%owned_locally) then
+            i_first_node = 2
+        end if
+
+        i_last_node = comm%i_nodes
+        if (.not. comm%p_local_nodes(comm%i_nodes)%owned_locally) then
+            i_last_node = comm%i_nodes - 1
+        end if
+
+        do i = i_first_node, i_last_node
+            assert(comm%p_local_nodes(i)%owned_locally)
+            assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
+
+            l_conform = l_conform .and. node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
+        end do
+    end function
+
     subroutine finish_receive_and_merge(section, i_color, edge_merge_op, node_merge_op, mpi_edge_size, mpi_node_size)
         type(t_grid_section), intent(inout)			    :: section
         integer (BYTE), intent(in)					    :: i_color
@@ -1055,11 +1121,10 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         procedure(op_node_merge)                        :: node_merge_op
         integer, intent(in)                             :: mpi_edge_size, mpi_node_size
 
+        integer                                         :: i_error
         integer (kind = GRID_SI)						:: i_comm
-        integer                                         :: i_error, i
+        logical                                         :: l_section_conform
         type(t_comm_interface), pointer			        :: comm
-        integer (kind = GRID_SI)       					:: i_first_node, i_last_node
-        logical                                         :: l_conform, l_section_conform
 
         _log_write(4, '(3X, A)') "sync boundary sections:"
 
@@ -1070,15 +1135,26 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         l_section_conform = .true.
 
         do i_comm = 1, section%comms(i_color)%get_size()
-            comm => section%comms(i_color)%elements(i_comm)
+            !proceed with edge and node merging
 
-            assert(associated(comm%p_local_edges))
-            assert(associated(comm%p_local_nodes))
+            !The way we defined ownership implies that the current section cannot own
+            !any edges or nodes, if the neighbor section is of lower index.
+            !In this case we can skip communication with this particular section.
 
-#           if defined(_MPI)
+            if (section%comms(i_color)%elements(i_comm)%neighbor_rank .eq. rank_MPI .and. section%comms(i_color)%elements(i_comm)%neighbor_section > section%index) then
+                l_section_conform = l_section_conform .and. merge_comm(section%comms(i_color)%elements(i_comm), edge_merge_op, node_merge_op)
+            end if
+        end do
+
+#       if defined(_MPI)
+            do i_comm = 1, section%comms(i_color)%get_size()
+                comm => section%comms(i_color)%elements(i_comm)
+
                 if (comm%neighbor_rank .ne. rank_MPI .and. comm%neighbor_rank .ge. 0) then
                     _log_write(4, '(7X, (A))') trim(comm%to_string())
 
+                    assert(associated(comm%p_local_edges))
+                    assert(associated(comm%p_local_nodes))
                     assert(associated(comm%p_neighbor_edges))
                     assert(associated(comm%p_neighbor_nodes))
                     assert_eq(size(comm%p_local_edges), size(comm%p_neighbor_edges))
@@ -1086,80 +1162,24 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
                     _log_write(5, '(8X, A, I0, X, I0, A, I0, X, I0)') "receive at: ", comm%local_rank, comm%local_section, " from: ", comm%neighbor_rank, comm%neighbor_section
 
-                    if (mpi_edge_size > 0) then
+                    if (comm%i_edges * mpi_edge_size > 0) then
                         assert_ne(comm%recv_requests(1), MPI_REQUEST_NULL)
                         call mpi_wait(comm%recv_requests(1), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                         assert_eq(comm%recv_requests(1), MPI_REQUEST_NULL)
                     end if
 
-                    if (mpi_node_size > 0) then
+                    if (comm%i_nodes * mpi_node_size > 0) then
                         assert_ne(comm%recv_requests(2), MPI_REQUEST_NULL)
                         call mpi_wait(comm%recv_requests(2), MPI_STATUS_IGNORE, i_error); assert_eq(i_error, 0)
                         assert_eq(comm%recv_requests(2), MPI_REQUEST_NULL)
                     end if
+
+                    !proceed with edge and node merging
+
+                    l_section_conform = l_section_conform .and. merge_comm(comm, edge_merge_op, node_merge_op)       
                 end if
-#           endif
-
-            !proceed with edge and node merging
-            !gather data in section with lowest index
-
-            if (comm%neighbor_rank .ge. 0) then
-                assert(associated(comm%p_neighbor_edges))
-                assert(associated(comm%p_neighbor_nodes))
-                assert_eq(size(comm%p_local_edges), size(comm%p_neighbor_edges))
-                assert_eq(size(comm%p_local_nodes), size(comm%p_neighbor_nodes))
-                assert_eq(size(comm%p_local_edges), comm%i_edges)
-                assert_eq(size(comm%p_local_nodes), comm%i_nodes)
-
-                if (comm%neighbor_rank .eq. rank_MPI) then
-                    !The way we defined ownership implies that the current section cannot own
-                    !any edges or nodes, if the neighbor section is of lower index.
-                    !In this case we can skip communication with this particular section.
-                    if (comm%neighbor_section < section%index) cycle
-                end if
-
-                _log_write(4, '(7X, (A))') trim(comm%to_string())
-
-                !merge on local edges
-                !only the owner may execute merge operations (a race condition might occur otherwise)
-
-                assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
-
-                do i = 1, comm%i_edges
-                    assert(comm%p_local_edges(i)%owned_locally)
-                    assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
-
-                    l_conform = edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
-                    l_section_conform = l_section_conform .and. l_conform
-                end do
-
-                assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
-                assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
-                assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
-
-                !merge on local nodes
-                !only the owner may execute merge operations (which is the local section)
-                !a race condition can occur otherwise
-
-                i_first_node = 1
-                if (.not. comm%p_local_nodes(1)%owned_locally) then
-                    i_first_node = 2
-                end if
-
-                i_last_node = comm%i_nodes
-                if (.not. comm%p_local_nodes(comm%i_nodes)%owned_locally) then
-                    i_last_node = comm%i_nodes - 1
-                end if
-
-                do i = i_first_node, i_last_node
-                    assert(comm%p_local_nodes(i)%owned_locally)
-                    assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
-
-                    l_conform = node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
-                    l_section_conform = l_section_conform .and. l_conform
-                end do
-            end if
-        end do
+            end do
+#       endif
 
         if (.not. l_section_conform) then
             !Careful, this is concurrent write access, but should not cause a race condition
@@ -1261,34 +1281,24 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             else
                 mpi_node_size = 1
             end if
-
-            _log_write(4, '(6X, "wait for MPI sends:")')
-
-            do i_section = i_first_local_section, i_last_local_section
-                _log_write(4, '(4X, A, I0)') "section: ", i_section
-
-                do i_color = RED, GREEN
-                    _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
-
-                    call finish_send(grid%sections%elements_alloc(i_section), i_color, mpi_edge_size, mpi_node_size)
-                end do
-            end do
 #       endif
 
-        !$omp barrier
-
-        !receive all boundary data, then merge and write back
-
-        _log_write(4, '(3X, A, I0)') "wait for MPI receives, read and write merged data"
+        _log_write(4, '(6X, "wait for MPI sends/receives and merge:")')
 
         do i_section = i_first_local_section, i_last_local_section
-            assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
-
             _log_write(4, '(4X, A, I0)') "section: ", i_section
 
             do i_color = RED, GREEN
                 _log_write(4, '(5X, A, A)') trim(color_to_char(i_color)), ":"
 
+                !send all boundary data
+                !This must be done for all communicators of the section before merging the boundary, as boundary data may overlap.
+                !If one communicator started overwriting a vertex when another communicator has not finished sending, 
+                !the vertex may be overwritten before it is sent.
+      
+                call finish_send(grid%sections%elements_alloc(i_section), i_color, mpi_edge_size, mpi_node_size)
+
+                !receive all boundary data, then merge
                 call finish_receive_and_merge(grid%sections%elements_alloc(i_section), i_color, edge_merge_op, node_merge_op, mpi_edge_size, mpi_node_size)
             end do
         end do
@@ -1302,7 +1312,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         integer (kind = GRID_SI)						:: i_section, i_first_local_section, i_last_local_section
         integer (BYTE)							        :: i_color
 
-        _log_write(4, '(3X, A)') "write back boundary sections:"
+        _log_write(4, '(3X, A)') "duplicate boundary data from owner sections:"
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
@@ -1317,8 +1327,6 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 call duplicate_section_boundary_data(grid, grid%sections%elements_alloc(i_section), i_color, edge_write_op, node_write_op)
             end do
         end do
-
-        !$omp barrier
     end subroutine
 
     subroutine distribute_load(grid, r_max_imbalance)
@@ -1715,8 +1723,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 _log_write(3, '("send: from: ", I0, " to: ", I0, " I am your last input rank")') rank_MPI, i_last_rank_out
 			end if
 
-			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(i_first_rank_out:i_last_rank_out, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(i_first_rank_out:i_last_rank_out, 2), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 			call mpi_waitall(2, requests, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 			_log_write(3, '(4X, "count sections: out ranks ", I0, " to ", I0, " in ranks: ", I0, " to ", I0)') i_first_rank_out, i_last_rank_out, i_first_rank_in, i_last_rank_in
@@ -1752,7 +1760,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 call mpi_isend(i_sections_out(i_rank), 1, MPI_INTEGER, i_rank, 0, MPI_COMM_WORLD, requests_out(i_rank, 1), i_error); assert_eq(i_error, 0)
         	end do
 
-			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(i_first_rank_out:i_last_rank_out, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
  	    	call mpi_waitall(i_last_rank_in - i_first_rank_in + 1, requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 	        assert_veq(requests_out, MPI_REQUEST_NULL)
@@ -1789,8 +1797,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 end if
             end do
 
-			call mpi_waitall(size(requests_out(:, 1)), requests_out(:, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
-	    	call mpi_waitall(size(requests_in), requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+			call mpi_waitall(i_last_rank_out - i_first_rank_out + 1, requests_out(i_first_rank_out:i_last_rank_out, 1), MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
+	    	call mpi_waitall(i_last_rank_in - i_first_rank_in + 1, requests_in, MPI_STATUSES_IGNORE, i_error); assert_eq(i_error, 0)
 
 			_log_write(3, '(4X, "compute new indices of all outgoing sections")')
 

@@ -291,7 +291,8 @@ subroutine traverse_in_place(traversal, grid)
     call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
     thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
 
-    !!$omp barrier is included in duplicate_boundary_data
+    !wait until all boundary data has been copied
+    !$omp barrier
 
     !balance load BEFORE refinement if splitting is DISABLED
     if (.not. cfg%l_split_sections) then
@@ -335,6 +336,9 @@ subroutine traverse_in_place(traversal, grid)
             thread_stats%r_sync_time = thread_stats%r_sync_time - get_wtime()
             call duplicate_boundary_data(grid, edge_write_wrapper_op, node_write_wrapper_op)
             thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+
+            !wait until all boundary data has been copied
+            !$omp barrier
 
 	        !exchange destination grid sections with neighbors
             thread_stats%r_load_balancing_time = -get_wtime()

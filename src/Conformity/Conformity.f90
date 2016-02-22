@@ -291,10 +291,20 @@ module Conformity
 
         thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
 
+        !wait until all computation is done
+        !$omp barrier
+
         thread_stats%r_sync_time = -get_wtime()
         call collect_boundary_data(grid, edge_merge_op_integrity, node_merge_op_integrity, mpi_node_type_optional=conformity%mpi_node_type)
+
+        !wait until all boundary data has been collected
+        !$omp barrier
+
         call duplicate_boundary_data(grid, edge_write_op_integrity, node_write_op_integrity)
         thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+
+        !wait until all boundary data has been copied
+        !$omp barrier
 
         thread_stats%r_barrier_time = -get_wtime()
 
