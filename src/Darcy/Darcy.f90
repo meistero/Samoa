@@ -466,8 +466,6 @@
 					exit
 				end if
 
-				i_time_step = i_time_step + 1
-
                 if (cfg%i_adapt_time_steps > 0 .and. mod(i_time_step, cfg%i_adapt_time_steps) == 0) then
                     !set refinement flags
                     call darcy%error_estimate%traverse(grid)
@@ -489,6 +487,8 @@
 
 				!transport equation time step
 				call darcy%transport_eq%traverse(grid)
+
+				i_time_step = i_time_step + 1
 
                 if (rank_MPI == 0) then
                     grid_info%i_cells = grid%get_cells(MPI_SUM, .false.)
