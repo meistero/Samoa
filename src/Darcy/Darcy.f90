@@ -191,7 +191,9 @@
                     x_max = anint(x_max * 1.0e3_SR) / 1.0e3_SR
                     dx = anint(dx * 1.0e3_SR) / 1.0e3_SR
 
+                    !HACK: increase scaling to match source cells and grid cells
                     cfg%scaling = 32.0_SR/15.0_SR * (x_max(1) - x_min(1))
+                    !cfg%scaling = x_max(1) - x_min(1)
                     cfg%offset = [0.5_SR * (x_min(1:2) + x_max(1:2) - cfg%scaling), x_min(3)]
                     cfg%dz = (x_max(3) - x_min(3)) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
 
@@ -533,7 +535,7 @@
             integer             :: i
             type(t_grid_info)   :: grid_info
 
-            !The call to grid%get_info() must be threaded, so this is a workaround to reduce 
+            !The call to grid%get_info() must be threaded, so this is a workaround to reduce
             !the section info into thread info. The data in grid_info will be discarded.
             grid_info = grid%get_info(MPI_SUM, .false.)
 

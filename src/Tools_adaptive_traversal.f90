@@ -221,7 +221,7 @@
                             call _GT_EDGE_FIRST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
                         endif
 #			        endif
-               end do
+                end do
 #			endif
 
 #			if defined(_GT_NODES)
@@ -264,7 +264,7 @@
                             call _GT_EDGE_REDUCE_OP(traversal, section, section%boundary_edges(i_color)%elements(i_edge))
                         endif
 #			        endif
-               end do
+                end do
 #			endif
 
 #			if defined(_GT_NODES)
