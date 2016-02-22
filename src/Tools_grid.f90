@@ -343,14 +343,12 @@ module Section_info_list
 
  	subroutine grid_info_print(grid_info)
 		class(t_grid_info), intent(in)	:: grid_info
-		integer(kind = GRID_DI)         :: total_sections
 		real(kind = GRID_SR)            :: quality
 
-		total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI) * int(size_MPI, GRID_DI)
-		!Compute average section circumference
-		quality = sum(grid_info%i_boundary_edges) / real(total_sections, SR) * (sqrt(2.0_SR) / 3.0_SR + 2.0_SR/3.0_SR)
-		!Divide by ideal circumference of a square section
-		quality = quality * 0.25_SR / sqrt(real(grid_info%i_cells, SR) / (2.0_SR * real(total_sections, SR)))
+		!Compute average partition circumference
+		quality = sum(grid_info%i_boundary_edges) / real(size_MPI, SR) * (sqrt(2.0_SR) / 3.0_SR + 2.0_SR/3.0_SR)
+		!Divide by ideal circumference of a square partition
+		quality = quality * 0.25_SR / sqrt(real(grid_info%i_cells, SR) / (2.0_SR * real(size_MPI, SR)))
 
 		_log_write(0, "(A)")			"  Info:"
 		_log_write(0, '(A)')			""
@@ -366,7 +364,7 @@ module Section_info_list
 
 		_log_write(0, "(A, 2(I14))")	"  Comms (red/green)             :", grid_info%i_comms
 
-		_log_write(0, "(A, F0.4)")	    "  Mesh quality (1.0: perfect, infinity: worst): ", quality
+		_log_write(0, "(A, F0.4)")	    "  Partition quality (1.0: perfect, infinity: worst): ", quality
 
 		_log_write(0, *) ""
 	end subroutine
@@ -483,7 +481,6 @@ module Grid_section
 		type(t_adaptive_statistics)												    :: stats
 
  		integer (kind = GRID_SI)													:: index					                    !< source rank of the section
-		!logical                                                                    :: is_synchronized(RED:GREEN)                   !< if true, the boundary is sychronized with neighbors
 
 		type(t_cell_stream)															:: cells										!< cell geometry + pers data + refinement stream
 		type(t_crossed_edge_stream)													:: crossed_edges_in, crossed_edges_out			!< crossed edge geometry + pers data stream
@@ -1034,7 +1031,7 @@ module Grid
 
         !TODO: a more sophisticated scheduler could use the (prefix sum over the)
         !number of cells per section to decide which threads get which sections
-        !this is required only if the sections are not of uniform size.
+        !this is required only if the sections are not of uniform load.
 
         i_thread = omp_get_thread_num()
         i_threads = omp_get_num_threads()
