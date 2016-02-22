@@ -411,7 +411,7 @@
 #           endif
 
             integer                         :: i, layer
-            real (kind = GRID_SR)			:: edge_length, dz
+            real (kind = GRID_SR)			:: edge_length, dz, pos_tmp(3)
             integer  (kind = GRID_SI)       :: i_cell_data_index
 
             !$omp critical(cell_data_index)
@@ -481,13 +481,16 @@
                 end do
 
                 do layer = 1, _DARCY_LAYERS + 1
-                    forall (i = 1 : 3)
-                        point_data%coords(point_data_indices(layer, i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
-                        point_data%coords(point_data_indices(layer, i), 3) = cfg%scaling * real(layer - 1, SR) * cfg%dz + cfg%offset(3)
+                    do i = 1, 3
+                        pos_tmp(1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
+                        pos_tmp(3) = cfg%scaling * real(layer - 1, SR) * cfg%dz + cfg%offset(3)
+
+                        !these are potential concurrent write accesses as other threads are able to access the data at the same time
+                        point_data%coords(point_data_indices(layer, i), :) = pos_tmp
                         point_data%p(point_data_indices(layer, i)) = p(layer, i) / _PPSI                !return the pressure in ppsi
                         point_data%rhs(point_data_indices(layer, i)) = rhs(layer, i) / ((_M ** 3) / _S) !return the rhs in m^3 / s
                         point_data%S(point_data_indices(layer, i)) = saturation(layer, i)
-                    end forall
+                    end do
                 end do
 #           else
                 edge_length = element%cell%geometry%get_leg_size()
@@ -515,13 +518,16 @@
                 cell_data%depth(i_cell_data_index) = element%cell%geometry%i_depth
                 cell_data%refinement(i_cell_data_index) = element%cell%geometry%refinement
 
-                forall (i = 1 : 3)
-                    point_data%coords(point_data_indices(i), 1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
-                    point_data%coords(point_data_indices(i), 3) = cfg%offset(3)
+                do i = 1, 3
+                    pos_tmp(1:2) = cfg%scaling * samoa_barycentric_to_world_point(element%transform_data, samoa_basis_p_get_dof_coords(i)) + cfg%offset(1:2)
+                    pos_tmp(3) = cfg%offset(3)
+
+                    !these are potential concurrent write accesses as other threads are able to access the data at the same time
+                    point_data%coords(point_data_indices(i), :) = pos_tmp
                     point_data%p(point_data_indices(i)) = p(i) / _PPSI                  !return the pressure in ppsi
                     point_data%rhs(point_data_indices(i)) = rhs(i) / ((_M ** 2) / _S)   !return the rhs in m^2 / s
                     point_data%S(point_data_indices(i)) = saturation(i)
-                end forall
+                end do
 
                 if (element%transform_data%plotter_data%orientation > 0) then
                     cell_data%connectivity(3 * i_cell_data_index - 2) = point_data_indices(1) - 1

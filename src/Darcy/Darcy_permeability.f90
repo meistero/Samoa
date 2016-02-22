@@ -406,42 +406,22 @@
             end subroutine
 #       endif
 
-        !Apply a pressure correction term near wells:
-        !the total flux is assumed radial and constant, hence
-        ! Q / (2 pi r) = q(r) = -k p_r(r)
-        ! p_r(r) = -Q / (2 pi r k).
-        !The pressure is logarithmic:
-        ! p(r) = p(r_w) - Q/(2 pi k) * log(r/r_w).
+        !According to the Peaceman well model, the pressure error is approximately
+        ! err = Q / (2 pi lambda k) * (log(dx/r_w) + log(0.2)).
 
-        !Setting n := r / dr for dr > 0, we approximate the pressure with Finite Differences as
-        ! (\tilde p(n + 1) - \tilde p(n)) / dr = q(dr * (n + 1/2))/k = -Q / (2 pi (dr * (n + 1/2)) k).
-        !Solving the recurrence equation returns
-        ! \tilde p(n) = p_w - Q / (2 pi k) * (H_{n - 1/2} + log(4)).
-
-        !Hence, the pressure error is
-        ! \tilde p(n) - p(n * dr)
-        ! = Q / (2 pi k) * log(n*dr/r_w) - Q / (2 pi k) * (H_{n - 1/2} + log(4))
-        ! = Q / (2 pi k) * (log(dr/r_w) + log(n) - (H_{n - 1/2} - log(4))
-        !which in the limit n -> infinity converges to:
-        ! = Q / (2 pi k) * (log(dx/r_w) - gamma - log(4)).
-
-        !Using the pressure correction p'_w := p_w - Q / (2 pi k) * (log(dx/r_w) - gamma - log(4))
+        !Using the pressure correction p'_w := p_w - err
         !we get (p(1) - p_w) / dx = (p(1) - p'_w) / dx +
-        ! Q / (2 pi k) * (log(dx/r_w) - gamma - log(4))) / dx
-        !At the well the discretization gives -(p(1) - p'_w)/dx * dx/ 2 = Q / (8 k), so
+        ! Q / (2 pi lambda k) * (log(dx/r_w) - gamma - log(4))) / dx
+        !At the well the discretization gives -(p(1) - p'_w)/dx * dx/2 = Q / (8 lambda k), so
         ! (p(1) - p_w) / dx =
-        ! = (p(1) - p'_w) / dx + (p(1) - p'_w) / 2 * (4 / pi) * (log(dx/r_w) - gamma - log(4))) / dx
-        ! = (p(1) - p'_w) / dx * (1 + (2 / pi) * (log(dx/r_w) - gamma - log(4)))
-        !Thus (p(1) - p'_w) / dx = (p(1) - p_w) / (dx * (1 + (2 / pi) * (log(dx/r_w) - gamma - log(4))))
+        ! = (p(1) - p'_w) / dx + (p(1) - p'_w) / 2 * (4 / pi) * (log(dx/r_w) + log(0.2))) / dx
+        ! = (p(1) - p'_w) / dx * (1 + (2 / pi) * (log(dx/r_w) + log(0.2)))
+        !Thus (p(1) - p'_w) / dx = (p(1) - p_w) / (dx * (1 + (2 / pi) * (log(dx/r_w) + log(0.2))))
 
 #       if (_DARCY_LAYERS > 0)
             subroutine get_areas_and_lengths(element, dx, dy, dz, Ax, Ay, Az)
                 type(t_element_base), intent(inout)				:: element
                 real (kind = GRID_SR), intent(inout)		    :: dx, dy, dz, Ax, Ay, Az
-
-                !> \gamma is the limit of the difference of harmonic function and logarithm at n = infinity
-                !> \gamma = (sum_(i = 0)^n H_n - log(n))
-                real (kind = GRID_SR), parameter                :: euler_gamma = 0.57721566490153286061_SR
 
                 integer (kind = SI)                             :: boundary_condition(3)
 
@@ -457,11 +437,11 @@
 
                     if (any(boundary_condition .ne. 0)) then
                         if (boundary_condition(1) .ne. 0 .or. boundary_condition(2) .ne. 0) then
-                            dx = dx + dx * 2.0_SR / PI * (log(dx / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
+                            dx = dx + dx * 2.0_SR / PI * (log(dx / cfg%r_well_radius) + log(0.2_SR))
                         end if
 
                         if (boundary_condition(3) .ne. 0 .or. boundary_condition(2) .ne. 0) then
-                            dy = dy + dy * 2.0_SR / PI * (log(dy / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
+                            dy = dy + dy * 2.0_SR / PI * (log(dy / cfg%r_well_radius) + log(0.2_SR))
                         end if
                     end if
 #               endif
@@ -470,10 +450,6 @@
             subroutine get_areas_and_lengths(element, dx, dy, Ax, Ay)
                 type(t_element_base), intent(inout)				:: element
                 real (kind = GRID_SR), intent(inout)		    :: dx, dy, Ax, Ay
-
-                !> \gamma is the limit of the difference of harmonic function and logarithm at n = infinity
-                !> \gamma = (sum_(i = 0)^n H_n - log(n))
-                real (kind = GRID_SR), parameter                :: euler_gamma = 0.57721566490153286061_SR
 
                 integer (kind = SI)                             :: boundary_condition(3)
 
@@ -487,11 +463,11 @@
 
                     if (any(boundary_condition .ne. 0)) then
                         if (boundary_condition(1) .ne. 0 .or. boundary_condition(2) .ne. 0) then
-                            dx = dx + dx * 2.0_SR / PI * (log(dx / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
+                            dx = dx + dx * 2.0_SR / PI * (log(dx / cfg%r_well_radius) + log(0.2_SR))
                         end if
 
                         if (boundary_condition(3) .ne. 0 .or. boundary_condition(2) .ne. 0) then
-                            dy = dy + dy * 2.0_SR / PI * (log(dy / cfg%r_well_radius) - euler_gamma - log(4.0_SR))
+                            dy = dy + dy * 2.0_SR / PI * (log(dy / cfg%r_well_radius) + log(0.2_SR))
                         end if
                     end if
 #               endif
