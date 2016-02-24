@@ -121,10 +121,9 @@
 		end subroutine
 
 		subroutine load_scenario()
-            integer                                 :: i_asagi_hints
-			integer									:: i_error, i, j, i_ext_pos
-			character(256)					        :: s_file_name, s_tmp
-			real (kind = SR)                        :: x_min(3), x_max(3), dx(3)
+			integer									:: i_error
+			character(256)					        :: s_tmp
+			real (kind = SR)                        :: x_min(3), x_max(3), dx(3), n(3)
 
 #			if defined(_ASAGI)
                 cfg%afh_permeability_X = asagi_grid_create(ASAGI_FLOAT)
@@ -191,9 +190,14 @@
                     x_max = anint(x_max * 1.0e3_SR) / 1.0e3_SR
                     dx = anint(dx * 1.0e3_SR) / 1.0e3_SR
 
-                    !HACK: increase scaling to match source cells and grid cells
-                    cfg%scaling = 32.0_SR/15.0_SR * (x_max(1) - x_min(1))
-                    !cfg%scaling = x_max(1) - x_min(1)
+                    !compute number of source cells in all dimensions
+                    n = (x_max - x_min) / dx
+
+                    !set domain scaling to match source cells and grid cells
+                    !the idea is to round n up to the nearest power of two (=m) and then use m * dx as a candidate for domain scaling.
+                    !we do this for the x and y component and take the maximum to ensure that the source data fits into the domain.
+                    cfg%scaling = maxval((2.0_SR ** ceiling(log(n(1:2)) / log(2.0_SR))) * dx(1:2))
+
                     cfg%offset = [0.5_SR * (x_min(1:2) + x_max(1:2) - cfg%scaling), x_min(3)]
                     cfg%dz = (x_max(3) - x_min(3)) / (cfg%scaling * real(max(1, _DARCY_LAYERS), SR))
 
@@ -346,7 +350,7 @@
                     exit
                 end if
 
-                i_lse_iterations = i_lse_iterations + darcy%pressure_solver%get_info(LS_CUR_ITERS)
+                i_lse_iterations = i_lse_iterations + int(darcy%pressure_solver%get_info(LS_CUR_ITERS), GRID_SI)
                 i_nle_iterations = i_nle_iterations + 1
 
                 if (rank_MPI == 0 .and. iand(i_nle_iterations, 7) == 0) then
