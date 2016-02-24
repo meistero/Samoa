@@ -1052,16 +1052,16 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 #       endif
     end subroutine
 
-    function merge_comm(comm, edge_merge_op, node_merge_op) result(l_conform)
+    function merge_comm(comm, edge_merge_op, node_merge_op) result(l_comm_conform)
         type(t_comm_interface), intent(inout)			:: comm
         procedure(op_edge_merge)                        :: edge_merge_op
         procedure(op_node_merge)                        :: node_merge_op
-        logical                                         :: l_conform
+        logical                                         :: l_comm_conform, l_conform
 
         integer                                         :: i_error, i
         integer (kind = GRID_SI)       					:: i_first_node, i_last_node
 
-        l_conform = .true.
+        l_comm_conform = .true.
 
         !gather data in section with lowest index
 
@@ -1084,8 +1084,14 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         do i = 1, comm%i_edges
             assert(comm%p_local_edges(i)%owned_locally)
             assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
+            
+            !Careful: the Fortran standard does neither define if logical expressions are executed nor the order of operations.
+            !Hence, under the assumption that edge_merge_op() must always be executed, the code below is incorrect as it may short circuit:
+            ! l_section_conform = l_section_conform .and. edge_merge_op(...)
+            !This is the correct way:
 
-            l_conform = l_conform .and. edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
+            l_conform = edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
+            l_comm_conform = l_comm_conform .and. l_conform
         end do
 
         assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
@@ -1110,7 +1116,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             assert(comm%p_local_nodes(i)%owned_locally)
             assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
 
-            l_conform = l_conform .and. node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
+            l_conform = node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
+            l_comm_conform = l_comm_conform .and. l_conform
         end do
     end function
 
@@ -1123,7 +1130,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
         integer                                         :: i_error
         integer (kind = GRID_SI)						:: i_comm
-        logical                                         :: l_section_conform
+        logical                                         :: l_conform, l_section_conform
         type(t_comm_interface), pointer			        :: comm
 
         _log_write(4, '(3X, A)') "sync boundary sections:"
@@ -1135,14 +1142,16 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         l_section_conform = .true.
 
         do i_comm = 1, section%comms(i_color)%get_size()
+            comm => section%comms(i_color)%elements(i_comm)
             !proceed with edge and node merging
 
             !The way we defined ownership implies that the current section cannot own
             !any edges or nodes, if the neighbor section is of lower index.
             !In this case we can skip communication with this particular section.
 
-            if (section%comms(i_color)%elements(i_comm)%neighbor_rank .eq. rank_MPI .and. section%comms(i_color)%elements(i_comm)%neighbor_section > section%index) then
-                l_section_conform = l_section_conform .and. merge_comm(section%comms(i_color)%elements(i_comm), edge_merge_op, node_merge_op)
+            if (comm%neighbor_rank .eq. rank_MPI .and. comm%neighbor_section > section%index) then
+                l_conform = merge_comm(comm, edge_merge_op, node_merge_op)
+                l_section_conform = l_section_conform .and. l_conform
             end if
         end do
 
@@ -1176,7 +1185,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
                     !proceed with edge and node merging
 
-                    l_section_conform = l_section_conform .and. merge_comm(comm, edge_merge_op, node_merge_op)       
+                    l_conform = merge_comm(comm, edge_merge_op, node_merge_op)
+                    l_section_conform = l_section_conform .and. l_conform
                 end if
             end do
 #       endif
@@ -1293,9 +1303,9 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
 
                 !send all boundary data
                 !This must be done for all communicators of the section before merging the boundary, as boundary data may overlap.
-                !If one communicator started overwriting a vertex when another communicator has not finished sending, 
+                !If one communicator started overwriting a vertex when another communicator has not finished sending,
                 !the vertex may be overwritten before it is sent.
-      
+
                 call finish_send(grid%sections%elements_alloc(i_section), i_color, mpi_edge_size, mpi_node_size)
 
                 !receive all boundary data, then merge
