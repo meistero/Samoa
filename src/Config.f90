@@ -214,7 +214,6 @@ module config
         class(t_config), intent(inout)  :: config
 
         logical					        :: l_help, l_version
-        integer          			    :: i, i_error
         character(64), parameter        :: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter        :: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
 
@@ -222,14 +221,14 @@ module config
         l_help = lget('samoa_-help') .or. lget('samoa_h')
         l_version = lget('samoa_-version') .or. lget('samoa_v')
 
-        config%i_min_depth = iget('samoa_dmin')
-        config%i_max_depth = iget('samoa_dmax')
-        config%i_start_depth = iget('samoa_dstart')
+        config%i_min_depth = int(iget('samoa_dmin'), selected_int_kind(1))
+        config%i_max_depth = int(iget('samoa_dmax'), selected_int_kind(1))
+        config%i_start_depth = int(iget('samoa_dstart'), selected_int_kind(1))
         config%i_max_time_steps = iget('samoa_nmax')
         config%r_max_time = rget('samoa_tmax')
-        config%i_output_time_steps = rget('samoa_nout')
+        config%i_output_time_steps = iget('samoa_nout')
         config%r_output_time_step = rget('samoa_tout')
-        config%i_stats_phases = rget('samoa_phases')
+        config%i_stats_phases = iget('samoa_phases')
         config%l_log = lget('samoa_noprint')
         config%i_threads = iget('samoa_threads')
         config%l_timed_load = lget('samoa_lbtime')

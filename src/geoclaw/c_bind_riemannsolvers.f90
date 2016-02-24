@@ -33,7 +33,6 @@ module c_bind_riemannsolvers
       double precision                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, delphi;
       double precision                                    :: sL, sR, sRoe1, sRoe2, sE1, sE2, s1m, s2m;
       logical                                             :: rare1,rare2;
-      double precision, dimension(3)                      :: correctionL, correctionR, midCorrection;
 
 
   !******************************************************************
@@ -196,7 +195,6 @@ module c_bind_riemannsolvers
       real                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, delphi;
       real                                    :: sL, sR, sRoe1, sRoe2, sE1, sE2, s1m, s2m;
       logical                                             :: rare1,rare2;
-      real, dimension(3)                      :: correctionL, correctionR, midCorrection;
 
 
   !******************************************************************
@@ -365,7 +363,6 @@ module c_bind_riemannsolvers
       real (kind = QP)                                    :: hstar, hstartest, uL, uR, vL, vR, uhat, chat, delphi;
       real (kind = QP)                                    :: sL, sR, sRoe1, sRoe2, sE1, sE2, s1m, s2m;
       logical                                             :: rare1,rare2;
-      real (kind = QP), dimension(3)                      :: correctionL, correctionR, midCorrection;
 
 
   !******************************************************************

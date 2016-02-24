@@ -178,11 +178,11 @@
 		type(_GT), intent(inout)					                :: traversal
 		type(t_grid_section), intent(inout)					        :: section
 
-		integer (kind = GRID_SI)							        :: i_color
-        integer (kind = GRID_SI)							        :: i_comm
-        type(t_comm_interface), pointer                             :: comm
-
 #       if defined(_GT_EDGES) && defined(_GT_SKELETON_OP)
+	        integer (kind = GRID_SI)							    :: i_color
+            integer (kind = GRID_SI)							    :: i_comm
+            type(t_comm_interface), pointer                         :: comm
+
             do i_color = RED, GREEN
                 do i_comm = 1, size(section%comms(i_color)%elements)
                     comm => section%comms(i_color)%elements(i_comm)
@@ -478,7 +478,10 @@
 
 		integer(kind = BYTE)								    :: i_color_edge_color
 		real (kind = GRID_SI), dimension(2, 3), parameter	    :: node_offset = reshape([0.0, 1.0, -1.0, 1.0, -1.0, 0.0], [2, 3])
-        real (kind = GRID_SI)                                   :: new_position(2)
+
+#       if !defined(_GT_NO_COORDS) && !defined(_GT_PASS_COORDS) && !defined(_STORE_NODE_COORDS) && (_GT_COLOR_EDGE_TYPE == _NEW)
+            real (kind = GRID_SI)                               :: new_position(2)
+#       endif
 
 #		if defined(_GT_SKELETON_OP) || defined(_GT_CELL_UPDATE_OP)
             type(num_cell_update)                               :: color_edge_local_update, next_edge_local_update
@@ -566,9 +569,9 @@
         assert_veq(element%nodes(2)%ptr%position, element%nodes(2)%ptr%position)
         assert_veq(element%nodes(3)%ptr%position, element%nodes(3)%ptr%position)
 
-        assert(.not. any(element%nodes(1)%ptr%position > 0.0_SR .and. element%nodes(1)%ptr%position < 1.0e-100_SR))
-        assert(.not. any(element%nodes(2)%ptr%position > 0.0_SR .and. element%nodes(2)%ptr%position < 1.0e-100_SR))
-        assert(.not. any(element%nodes(3)%ptr%position > 0.0_SR .and. element%nodes(3)%ptr%position < 1.0e-100_SR))
+        !assert(.not. any(element%nodes(1)%ptr%position > 0.0_SR .and. element%nodes(1)%ptr%position < 1.0e-100_SR))
+        !assert(.not. any(element%nodes(2)%ptr%position > 0.0_SR .and. element%nodes(2)%ptr%position < 1.0e-100_SR))
+        !assert(.not. any(element%nodes(3)%ptr%position > 0.0_SR .and. element%nodes(3)%ptr%position < 1.0e-100_SR))
 
 		!First Touch Hooks
 

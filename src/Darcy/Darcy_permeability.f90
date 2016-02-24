@@ -88,7 +88,7 @@
 			type(t_grid), intent(inout)							    :: grid
 
             call reduce(traversal%is_matrix_modified, traversal%children%is_matrix_modified, MPI_LOR, .true.)
-            
+
             !also reduce the injector pressure as it is used for the linear solver exit criterion
             call reduce(grid%p_bh, MPI_MAX)
 		end subroutine

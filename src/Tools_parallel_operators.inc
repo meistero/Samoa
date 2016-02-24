@@ -150,10 +150,11 @@
 
 pure subroutine _T_(prefix_sum_sequential)(y, x)
     _T, intent(inout)	:: y(:)
-    _T, intent(in)	:: x(:)
-    integer                         :: i
+    _T, intent(in)	    :: x(:)
 
 #   if _T_CLASS == _T_CLASS_ARITHMETIC
+        integer         :: i
+
         if (size(x) == 0) then
             return
         end if
@@ -175,7 +176,6 @@ pure subroutine _T_(prefix_sum_vectorized)(y, x)
     _T, intent(in)      :: x(:)
 
 #   if _T_CLASS == _T_CLASS_ARITHMETIC
-        _T		            :: tmp
         integer             :: i, k, n
 
         if (size(x) == 0) then
@@ -216,9 +216,9 @@ subroutine _T_(prefix_sum_mpi)(s, mpi_op)
     _T, intent(inout)	        :: s
     integer, intent(in)		    :: mpi_op
 
-    integer				        :: i_error
-
 #   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
+        integer				        :: i_error
+
 #       if defined(__GFORTRAN__)
             _T	        :: r
 
@@ -264,9 +264,9 @@ subroutine _T_(reduce_mpi)(s, mpi_op)
     _T, intent(inout)	        :: s
     integer, intent(in)		    :: mpi_op
 
-    integer				        :: i_error
-
 #   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
+        integer				    :: i_error
+
 #       if defined(__GFORTRAN__)
             _T	        :: r
 
@@ -285,9 +285,9 @@ subroutine _T_(reduce_mpi_vector)(s, mpi_op)
     _T, intent(inout)	        :: s(:)
     integer, intent(in)		    :: mpi_op
 
-    integer				        :: i_error
-
 #   if defined(_MPI) &&_T_CLASS != _T_CLASS_STRING
+        integer				    :: i_error
+
 #       if defined(__GFORTRAN__)
             _T	        :: r(size(s))
 

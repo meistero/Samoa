@@ -76,7 +76,7 @@ vars.AddVariables(
                 allowed_values=('nompi', 'default', 'intel', 'mpich2', 'openmpi', 'ibm')
               ),
 
-  BoolVariable( 'standard', 'check for Fortran 2003 standard compatibility', False),
+  BoolVariable( 'standard', 'check for Fortran 2008 standard compatibility', False),
 
   BoolVariable( 'asagi', 'ASAGI support', True),
 
@@ -338,7 +338,7 @@ if env['standard']:
   if env['compiler'] == 'intel':
     env['F90FLAGS'] += ' -stand f08'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -std=f2008 -Wtabs'
+    env['F90FLAGS'] += ' -Waliasing -Wampersand -Wconversion -Wsurprising -Wc-binding-type -Wintrinsics-std -Wintrinsic-shadow -Wline-truncation -Wtarget-lifetime -Wreal-q-constant -Wunused '
 
 #Create a shared library instead of an executable
 if env['library']:

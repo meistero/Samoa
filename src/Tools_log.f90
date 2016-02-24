@@ -220,104 +220,6 @@ MODULE Tools_log
         i = i / i
     end subroutine
 
-	function binary_search(v, s) result(i)
-        integer, intent(in)                :: v(:)
-        integer, intent(in)                :: s
-
-        integer                            :: i_start, i_end, i
-        integer, parameter                 :: vector_threshold = 4 - 1
-
-        i_start = 1
-        i_end = size(v)
-
-        if (v(i_end) - v(i_start) .ge. 0) then
-            do while (i_end - i_start > vector_threshold)
-                i = (i_start + i_end) / 2
-
-                select case (v(i) - s)
-                    case(0)
-                        return
-                    case(1:)
-                        i_end = i - 1
-                    case(:-1)
-                        i_start = i + 1
-                end select
-            end do
-        else
-            do while (i_end - i_start > vector_threshold)
-                i = (i_start + i_end) / 2
-
-                select case (s - v(i))
-                    case(0)
-                        return
-                    case(1:)
-                        i_end = i - 1
-                    case(:-1)
-                        i_start = i + 1
-                end select
-            end do
-        end if
-
-        !switch to a linear search for small arrays
-        i = minloc(abs(v(i_start : i_end) - s), 1)
-
-        assert_eq(v(i), s)
-    end function
-
-    function interpolation_search(v, s) result(i)
-        integer, intent(in)                :: v(:)
-        integer, intent(in)                :: s
-
-        integer                            :: i_start, i_end, i
-        integer, parameter                 :: vector_threshold = 4 - 1
-
-        i_start = 1
-        i_end = size(v)
-
-        if (v(i_end) - v(i_start) .ge. 0) then
-            do while (i_end - i_start > vector_threshold)
-                i = i_start + ((i_end - i_start) * (s - v(i_start))) / (v(i_end) - v(i_start))
-
-                select case (v(i) - s)
-                    case(0)
-                        return
-                    case (:-1)
-                        i_start = i + 1
-                    case (1:)
-                        i_end = i - 1
-                end select
-            end do
-        else
-            do while (i_end - i_start > vector_threshold)
-                i = i_start + ((i_end - i_start) * (s - v(i_start))) / (v(i_end) - v(i_start))
-
-                select case (s - v(i))
-                    case(0)
-                        return
-                    case (:-1)
-                        i_start = i + 1
-                    case (1:)
-                        i_end = i - 1
-                end select
-            end do
-        end if
-
-        !switch to a linear search for small arrays
-        i = minloc(abs(v(i_start : i_end) - s), 1)
-
-        assert_eq(v(i), s)
-    end function
-
-    function get_wtime_internal() result(time)
-        double precision :: time
-
-        integer(kind = selected_int_kind(16)) :: counts, count_rate
-
-        call system_clock(counts, count_rate)
-
-        time = dble(counts) / dble(count_rate)
-    end function
-
     function get_wtime() result(wtime)
         double precision :: wtime
 
@@ -326,7 +228,11 @@ MODULE Tools_log
 #       elif defined(_MPI)
             wtime = MPI_wtime()
 #       else
-            wtime = get_wtime_internal()
+            integer(kind = selected_int_kind(16))   :: counts, count_rate
+
+            call system_clock(counts, count_rate)
+
+            time = dble(counts) / dble(count_rate)
 #       endif
     end function
 
@@ -339,13 +245,13 @@ MODULE Tools_log
         integer (kind = 8)              :: i_unit_values(7)
         integer                         :: i_unit, i_units
 
-        i_unit_values(1) = int(time, kind=8) / (24 * 60 * 60)
-        i_unit_values(2) = mod(int(time, kind=8) / (60 * 60), 24)
-        i_unit_values(3) = mod(int(time, kind=8) / 60, 60)
-        i_unit_values(4) = mod(int(time, kind=8), 60)
-        i_unit_values(5) = mod(int(time * 1e3, kind=8), 1000)
-        i_unit_values(6) = mod(int(time * 1e6, kind=8), 1000)
-        i_unit_values(7) = mod(int(time * 1e9, kind=8), 1000)
+        i_unit_values(1) = int(time, kind=8) / (24_8 * 60_8 * 60_8)
+        i_unit_values(2) = mod(int(time, kind=8) / (60_8 * 60_8), 24_8)
+        i_unit_values(3) = mod(int(time, kind=8) / 60_8, 60_8)
+        i_unit_values(4) = mod(int(time, kind=8), 60_8)
+        i_unit_values(5) = mod(int(time * 1e3_8, kind=8), 1000_8)
+        i_unit_values(6) = mod(int(time * 1e6_8, kind=8), 1000_8)
+        i_unit_values(7) = mod(int(time * 1e9_8, kind=8), 1000_8)
 
         str = ""
         i_units = 0

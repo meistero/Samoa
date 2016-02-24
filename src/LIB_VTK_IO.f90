@@ -2718,7 +2718,6 @@ contains
   class(t_vtk_writer), intent(inout) :: vtk_writer
   integer(I4P)::             E_IO       ! Input/Output inquiring flag: $0$ if IO is done, $> 0$ if IO is not done
   real(R8P), intent(in)::    var        ! type indicator
-  character(len=maxlen)::    s_buffer   ! buffer string
   !--------------------------------------------------------------------------------------------------------------------------------
 
   !--------------------------------------------------------------------------------------------------------------------------------
@@ -2750,7 +2749,6 @@ contains
   class(t_vtk_writer), intent(inout) :: vtk_writer
   integer(I4P)::             E_IO       ! Input/Output inquiring flag: $0$ if IO is done, $> 0$ if IO is not done
   real(R4P), intent(in)::    var !      type indicator
-  character(len=maxlen)::    s_buffer   ! buffer string
   !--------------------------------------------------------------------------------------------------------------------------------
 
   !--------------------------------------------------------------------------------------------------------------------------------

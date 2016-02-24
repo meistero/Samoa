@@ -323,10 +323,9 @@ MODULE SFC_data_types
 	function t_edge_data_get_c_pointer(array) result(ptr)
         type(t_edge_data), pointer, intent(inout)	:: array(:)
         type(t_edge_data), pointer					:: ptr
-        type(t_edge_data), target	:: dummy
 
         if (.not. associated(array) .or. size(array) .eq. 0) then
-            ptr => dummy
+            nullify(ptr)
         else if (loc(array(1)) < loc(array(size(array)))) then
             ptr => array(1)
         else
@@ -337,10 +336,9 @@ MODULE SFC_data_types
 	function t_node_data_get_c_pointer(array) result(ptr)
         type(t_node_data), pointer, intent(inout)	:: array(:)
         type(t_node_data), pointer					:: ptr
-        type(t_node_data), target	:: dummy
 
         if (.not. associated(array) .or. size(array) .eq. 0) then
-            ptr => dummy
+            nullify(ptr)
         else if (loc(array(1)) < loc(array(size(array)))) then
             ptr => array(1)
         else
@@ -374,9 +372,9 @@ MODULE SFC_data_types
 		integer (kind = BYTE), intent(out)			:: i_next_edge
 
 		integer (kind = BYTE), dimension(3, 3), parameter :: indices = reshape( \
-			[LEFT_EDGE, RIGHT_EDGE, HYPOTENUSE, \
+			int([LEFT_EDGE, RIGHT_EDGE, HYPOTENUSE, \
 			LEFT_EDGE, HYPOTENUSE, RIGHT_EDGE, \
-			HYPOTENUSE, LEFT_EDGE, RIGHT_EDGE], [3, 3])
+			HYPOTENUSE, LEFT_EDGE, RIGHT_EDGE], BYTE), [3, 3])
 
 		i_previous_edge = indices(1, cell%i_turtle_type)
 		i_color_edge = indices(2, cell%i_turtle_type)
@@ -390,9 +388,9 @@ MODULE SFC_data_types
 		integer (kind = BYTE), intent(out)			:: i_color_node_in
 
 		integer (kind = BYTE), dimension(3, 3), parameter :: indices = reshape( \
-			[TOP_NODE, LEFT_NODE, RIGHT_NODE, \
+			int([TOP_NODE, LEFT_NODE, RIGHT_NODE, \
 			LEFT_NODE, TOP_NODE, RIGHT_NODE, \
-			LEFT_NODE, RIGHT_NODE, TOP_NODE], [3, 3])
+			LEFT_NODE, RIGHT_NODE, TOP_NODE], BYTE), [3, 3])
 
 		i_color_node_out = indices(1, cell%i_turtle_type)
 		i_transfer_node = indices(2, cell%i_turtle_type)
@@ -458,14 +456,14 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_set_next_edge_type(cell, i_next_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (kind = BYTE), intent(in)			:: i_next_edge_type
+		integer (kind = BYTE), intent(in)	    :: i_next_edge_type
 
 		call mvbits(i_next_edge_type, 1, 1, cell%i_entity_types, 2)
 	end subroutine
 
 	elemental subroutine cell_set_color_edge_type(cell, i_color_edge_type)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (kind = BYTE), intent(in)			:: i_color_edge_type
+		integer (kind = BYTE), intent(in)	    :: i_color_edge_type
 
 		call mvbits(i_color_edge_type, 0, 2, cell%i_entity_types, 0)
 	end subroutine
@@ -476,10 +474,10 @@ MODULE SFC_data_types
         !invert edge types: swap previous and next edge and invert old/new bits
         cell%i_entity_types = ishftc(cell%i_entity_types, 1, 4)
         cell%i_entity_types = ishftc(cell%i_entity_types, -1, 3)
-        cell%i_entity_types = ieor(cell%i_entity_types, 1)
+        cell%i_entity_types = ieor(cell%i_entity_types, 1_BYTE)
 
         !invert turtle type: (K, V, H) -> (H, V, K)
-        cell%i_turtle_type = 4 - cell%i_turtle_type
+        cell%i_turtle_type = 4_BYTE - cell%i_turtle_type
 
         !invert plotter type
         cell%i_plotter_type = -cell%i_plotter_type
@@ -489,10 +487,10 @@ MODULE SFC_data_types
 		class(fine_triangle), intent(inout)		:: cell
 
         !invert edge types: invert old/new color edge bit
-        cell%i_entity_types = ieor(cell%i_entity_types, 1)
+        cell%i_entity_types = ieor(cell%i_entity_types, 1_BYTE)
 
         !invert turtle type: (K, V, H) -> (H, V, K)
-        cell%i_turtle_type = 4 - cell%i_turtle_type
+        cell%i_turtle_type = 4_BYTE - cell%i_turtle_type
 
         !invert plotter type
         cell%i_plotter_type = -cell%i_plotter_type
@@ -500,7 +498,7 @@ MODULE SFC_data_types
 
 	elemental subroutine cell_reverse_refinement(cell)
 		class(fine_triangle), intent(inout)		:: cell
-		integer (kind = BYTE), parameter           :: flip_2_3(-1:4) = [-1, 0, 1, 3, 2, 4]
+		integer (kind = BYTE), parameter        :: flip_2_3(-1:4) = [-1_BYTE, 0_BYTE, 1_BYTE, 3_BYTE, 2_BYTE, 4_BYTE]
 
         !invert refinement flag: flip 2 and 3
         cell%refinement = flip_2_3(cell%refinement)
@@ -619,10 +617,8 @@ MODULE SFC_data_types
 	subroutine init_transform_data()
 		type(t_edge_transform_data), pointer				:: p_edge_data
 		integer (kind = BYTE)							    :: i_plotter_type, i, j
-		integer                                             :: i_error
 		real (kind = GRID_SR)								:: r_angle
 		real (kind = GRID_SR)				                :: edge_vectors(2, 3), edge_normals(2, 3)
-		type(t_global_data)                                 :: global_data
 
 		!set transformation matrices for the 8 different plotter grammar patterns
 
@@ -672,13 +668,13 @@ MODULE SFC_data_types
                         p_edge_data%index = i
 
                         if (edge_vectors(2, i) == 0.0_GRID_SR) then
-                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 0.0_GRID_SR]))
+                            p_edge_data%orientation = int(sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 0.0_GRID_SR])), BYTE)
                         else if (edge_vectors(1, i) == 0.0_GRID_SR) then
-                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [0.0_GRID_SR, 1.0_GRID_SR]))
+                            p_edge_data%orientation = int(sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [0.0_GRID_SR, 1.0_GRID_SR])), BYTE)
                         else if (edge_vectors(1, i) - edge_vectors(2, i) == 0.0_GRID_SR) then
-                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 1.0_GRID_SR]))
+                            p_edge_data%orientation = int(sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, 1.0_GRID_SR])), BYTE)
                         else if (edge_vectors(1, i) + edge_vectors(2, i) == 0.0_GRID_SR) then
-                            p_edge_data%orientation = sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, -1.0_GRID_SR]))
+                            p_edge_data%orientation = int(sign(1.0_GRID_SR, dot_product(edge_vectors(:, i), [1.0_GRID_SR, -1.0_GRID_SR])), BYTE)
                         else
                             !something's wrong
                             assert(.false.)
