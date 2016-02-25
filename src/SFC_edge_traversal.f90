@@ -70,14 +70,17 @@ module SFC_edge_traversal
             call reduce(i_total_load, MPI_SUM)
 
             i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI) * int(size_MPI, GRID_DI)
-
-            i_dest_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1) / i_total_load &
-                - (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
         else
-            i_dest_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI)
+            i_grid_partial_load = i_grid_load
+            i_total_load = max(1_DI, i_grid_load)
+
+            i_total_sections = int(cfg%i_sections_per_thread, GRID_DI) * int(cfg%i_threads, GRID_DI)
         end if
 
-        if (.not. cfg%l_split_sections .or. src_grid%dest_cells < i_dest_sections * min_section_size) then
+        i_dest_sections = (i_total_sections * i_grid_partial_load + i_total_load - 1) / i_total_load &
+            - (i_total_sections * (i_grid_partial_load - i_grid_load)) / i_total_load
+
+        if (src_grid%dest_cells < i_dest_sections * min_section_size) then
             i_dest_sections = min(src_grid%dest_cells / min_section_size, i_dest_sections)
 
             if (src_grid%dest_cells > 0) then
