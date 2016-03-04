@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<CodeBlocks_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="Samoa" />
+		<Option makefile_is_custom="1" />
+		<Option pch_mode="2" />
+		<Option default_target="swe_debug" />
+		<Option compiler="gfortran" />
+		<MakeCommands>
+			<Build command="" />
+			<CompileFile command="" />
+			<Clean command="" />
+			<DistClean command="" />
+			<AskRebuildNeeded command="" />
+			<SilentBuild command=" &gt; $(CMD_NULL)" />
+		</MakeCommands>
+		<Build>
+			<Target title="darcy">
+				<Option output="bin/samoa_darcy" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gfortran" />
+				<Option parameters=" -threads 8 -sections 1 -epsilon 1.0" />
+				<Option projectCompilerOptionsRelation="0" />
+				<Option projectLinkerOptionsRelation="0" />
+				<Option projectIncludeDirsRelation="0" />
+				<Option projectResourceIncludeDirsRelation="0" />
+				<Option projectLibDirsRelation="0" />
+				<MakeCommands>
+					<Build command="scons config=gnu_debug.py mpi=nompi scenario=darcy exe=samoa_darcy -j4" />
+					<CompileFile command="" />
+					<Clean command="rm -r bin/build_samoa_darcy bin/samoa_darcy" />
+					<DistClean command="" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="scons config=gnu_debug.py mpi=nompi scenario=darcy exe=samoa_darcy -j4 &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+			<Target title="swe">
+				<Option output="bin/samoa_swe" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Release/" />
+				<Option type="1" />
+				<Option compiler="gfortran" />
+				<Option parameters="-threads 4 -sections 4 -xmloutput -tout 0.0 -tmax -1.0 -nmax 10" />
+				<Compiler>
+					<Add option="-O2" />
+				</Compiler>
+				<MakeCommands>
+					<Build command="scons config=gnu_debug.py scenario=swe flux_solver=aug_riemann exe=samoa_swe  -j4" />
+					<CompileFile command="" />
+					<Clean command="rm -r bin/build_samoa_swe bin/samoa_swe" />
+					<DistClean command="$make -f $makefile distclean$target" />
+					<AskRebuildNeeded command="" />
+					<SilentBuild command="scons config=gnu_debug.py scenario=swe flux_solver=aug_riemann exe=samoa_swe  -j4 &gt; $(CMD_NULL)" />
+				</MakeCommands>
+			</Target>
+		</Build>
+		<Unit filename="README.md" />
+		<Unit filename="SConstruct" />
+		<Unit filename="sierpinski.doxygen" />
+		<Unit filename="src/Compilation_control.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Config.f90" />
+		<Unit filename="src/Conformity/Conformity.f90" />
+		<Unit filename="src/Darcy/Darcy.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy.py">
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_adapt.f90">
+			<Option weight="6" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_basis.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_error_estimate.f90" />
+		<Unit filename="src/Darcy/Darcy_grad_p.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_initialize.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_laplace_cg.f90">
+			<Option weight="6" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_laplace_jacobi.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_laplace_pipecg.f90" />
+		<Unit filename="src/Darcy/Darcy_local_function_spaces.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_lse_output" />
+		<Unit filename="src/Darcy/Darcy_lse_output.f90" />
+		<Unit filename="src/Darcy/Darcy_permeability.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_transport_eq.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Darcy/Darcy_well_output.f90" />
+		<Unit filename="src/Darcy/Darcy_xml_output.f90">
+			<Option weight="6" />
+			<Option target="darcy" />
+		</Unit>
+		<Unit filename="src/Flash/FLASH.f90" />
+		<Unit filename="src/Flash/FLASH.py" />
+		<Unit filename="src/Flash/FLASH_adapt.f90" />
+		<Unit filename="src/Flash/FLASH_basis.f90" />
+		<Unit filename="src/Flash/FLASH_data_types.f90" />
+		<Unit filename="src/Flash/FLASH_dg_element.f90" />
+		<Unit filename="src/Flash/FLASH_euler_timestep.f90" />
+		<Unit filename="src/Flash/FLASH_initialize.f90" />
+		<Unit filename="src/Flash/FLASH_local_function_spaces.f90" />
+		<Unit filename="src/Flash/FLASH_output.f90" />
+		<Unit filename="src/Flash/FLASH_xml_output.f90" />
+		<Unit filename="src/Generic/Generic.f90" />
+		<Unit filename="src/Generic/Generic_adapt_template.f90" />
+		<Unit filename="src/Generic/Generic_data_types.f90" />
+		<Unit filename="src/Generic/Generic_initialize.f90" />
+		<Unit filename="src/Generic/Generic_template.f90" />
+		<Unit filename="src/Generic/Makefile" />
+		<Unit filename="src/Generic/print_kernel_test.cpp" />
+		<Unit filename="src/Generic/samoa.h" />
+		<Unit filename="src/Heat_Equation/Heat_Eq.f90">
+			<Option weight="8" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq.py">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_adapt.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_basis.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_euler_timestep.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_heun_timestep.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_initialize.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_jacobi.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_local_function_spaces.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_midpoint_timestep.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_output.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Heat_Equation/Heat_Eq_xml_output.f90">
+			<Option weight="6" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="src/LIB_VTK_IO.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/M_kracken.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/NUMA/numa.py" />
+		<Unit filename="src/SConscript" />
+		<Unit filename="src/SFC_data_types.f90">
+			<Option weight="1" />
+		</Unit>
+		<Unit filename="src/SFC_edge_traversal.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="src/SFC_generic_adaptive_traversal.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/SFC_generic_traversal_ringbuffer.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/SFC_main.f90">
+			<Option weight="11" />
+		</Unit>
+		<Unit filename="src/SFC_node_traversal.f90">
+			<Option weight="5" />
+		</Unit>
+		<Unit filename="src/SFC_traversal.f90">
+			<Option weight="10" />
+		</Unit>
+		<Unit filename="src/SWE/SWE.f90">
+			<Option weight="9" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_adapt.f90">
+			<Option weight="8" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_basis.f90">
+			<Option weight="4" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_displace.f90" />
+		<Unit filename="src/SWE/SWE_euler_timestep.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_initialize.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_local_function_spaces.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="src/SWE/SWE_point_output.f90" />
+		<Unit filename="src/SWE/SWE_xml_output.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/SWE/ascii_output_model.f90" />
+		<Unit filename="src/SWE/ascii_output_view.f90" />
+		<Unit filename="src/SWE/swe.py" />
+		<Unit filename="src/Samoa/Samoa.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="src/Samoa/Tools_boundary_basis.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Samoa/Tools_hierarchical_basis.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Samoa/Tools_lagrange_basis.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Samoa/Tools_quadrature_rule.f90">
+			<Option weight="3" />
+		</Unit>
+		<Unit filename="src/Samoa/Tools_quadrature_rule_base.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="src/Samoa/basis.py" />
+		<Unit filename="src/Samoa/dunavant.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Samoa/load_balancing.py" />
+		<Unit filename="src/Solver/CG.f90" />
+		<Unit filename="src/Solver/Jacobi.f90" />
+		<Unit filename="src/Solver/LinearSolver.f90" />
+		<Unit filename="src/Solver/PipeCG.f90" />
+		<Unit filename="src/Tests/Tests.f90">
+			<Option weight="7" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_basis_functions.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_consistency_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_data_types.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_flops_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_initialize.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_memory_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Tests/Tests_node_dummy_traversal.f90">
+			<Option weight="6" />
+		</Unit>
+		<Unit filename="src/Tools_adaptive_traversal.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tools_grid.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="src/Tools_grid_variable.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tools_list.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tools_local_function_space.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tools_log.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tools_noise.f90">
+			<Option weight="2" />
+		</Unit>
+		<Unit filename="src/Tools_parallel_operators.inc" />
+		<Unit filename="src/Tools_stack.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/Tools_statistics.f90" />
+		<Unit filename="src/Tools_stream.f90">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/geoclaw/c_bind_riemannsolvers.f90">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/geoclaw/riemannsolvers.f">
+			<Option weight="0" />
+		</Unit>
+		<Unit filename="src/geoclaw/riemannsolvers_qp.f" />
+		<Unit filename="src/geoclaw/riemannsolvers_sp.f" />
+		<Extensions>
+			<code_completion />
+			<envvars set="default" />
+			<debugger>
+				<remote_debugging>
+					<options conn_type="0" serial_baud="115200" skip_ld_path="1" />
+				</remote_debugging>
+				<remote_debugging target="darcy">
+					<options conn_type="0" serial_baud="115200" skip_ld_path="1" />
+				</remote_debugging>
+				<remote_debugging target="swe">
+					<options conn_type="0" serial_baud="115200" skip_ld_path="1" />
+				</remote_debugging>
+			</debugger>
+			<DoxyBlocks>
+				<comment_style block="0" line="0" />
+				<doxyfile_project />
+				<doxyfile_build />
+				<doxyfile_warnings />
+				<doxyfile_output />
+				<doxyfile_dot />
+				<general />
+			</DoxyBlocks>
+		</Extensions>
+	</Project>
+</CodeBlocks_project_file>
