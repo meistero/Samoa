@@ -299,7 +299,7 @@ module config
              _log_write(0, ' (" sam(oa)²: Space filling curves and Adaptive Meshes for Oceanic and Other Applications")')
             !if the version option was set was called, display program version
             if (l_version) then
-                _log_write(0, '(" version ", I0, ".", I0, ".", I0)') 0, 7, 0
+                _log_write(0, '(" version ", I0, ".", I0, ".", I0)') 0, 8, 0
             end if
 
             !if the help option was set, display the list of arguments
