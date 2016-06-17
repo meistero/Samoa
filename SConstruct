@@ -208,8 +208,8 @@ if env['openmp'] != 'noomp':
 if env['asagi']:
   env.Append(F90PATH = os.path.abspath(env['asagi_dir'] + '/include'))
   env['F90FLAGS'] += ' -D_ASAGI'
-  env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir'])
-  env.Append(LIBPATH = env['asagi_dir'])
+  env['LINKFLAGS'] += ' -Wl,--rpath,' + os.path.abspath(env['asagi_dir']) + '/lib'
+  env.Append(LIBPATH = env['asagi_dir'] + '/lib')
   env.Append(LIBS = ['asagi', 'numa'])
 
 #Enable or disable timing of ASAGI calls
