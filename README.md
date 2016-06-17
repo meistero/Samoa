@@ -20,7 +20,7 @@ The following prerequisites are necessary in order to install and run sam(oa)²:
 * [git](http://git-scm.com/)
 * [scons](http://www.scons.org/)
 * gfortran 4.7 or higher OR Intel Fortran Compiler 13.0 or higher
-* (Optional) [ASAGI](https://github.com/tum-i5/ASAGI) and netcdf data files for production runs (not publicly available, contact the developers)
+* (Optional) [ASAGI](https://github.com/tum-i5/ASAGI) v0.5.0 or higher and netcdf data files for production runs (not publicly available, contact the developers)
 
 ## Installation
 

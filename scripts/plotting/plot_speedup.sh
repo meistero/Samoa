@@ -83,6 +83,7 @@ set terminal postscript enhanced color font ',30'
 set xlabel "Cores"
 set ylabel "Mio. Elements per sec."
 set key left top
+set xtics rotate
 
 title(n) = sprintf("%d section(s)", n)
 

@@ -26,7 +26,7 @@ for file in darcy*.log ; do
 
     i=0
     for phase in xx* ; do
-	    echo -n $(($processes * $threads * $layers)) \"$layers\"" " >> "darcy"$i".plt"
+	    echo -n $(($processes * $threads * ($layers + 1))) \"$processes{/Symbol \\264}$threads{/Symbol \\264}$layers\"" " >> "darcy"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "integrity: [-]*[0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "load balancing: [-]*[0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "darcy"$i".plt"
@@ -66,7 +66,7 @@ for file in swe*.log ; do
 
     i=0
     for phase in xx* ; do
-	    echo -n $(($processes * $threads * $layers)) \"$processes{/Symbol \\264}$threads\"" " >> "swe"$i".plt"
+	    echo -n $(($processes * $threads * ($layers + 1))) \"$processes{/Symbol \\264}$threads\"" " >> "swe"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "(ET|time): [-]*[0-9]*\.?[0-9]+" | grep -oE "[0-9]*\.?[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "integrity: [-]*[0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
 	    grep -E "r0.*Adaptions" $phase | grep -oE "load balancing: [-]*[0-9]*\.[0-9]+" | grep -oE "[0-9]*\.[0-9]+" | tr "\n" " " | cat >> "swe"$i".plt"
@@ -102,7 +102,7 @@ done
 gnuplot &>/dev/null << EOT
 
 set terminal postscript enhanced color font ',20'
-set xlabel "Layers"
+set xlabel "Processes, Threads, Layers"
 set key below font ",20" spacing 1.0 width -2
 set xtics rotate
 set yrange [0:*]
@@ -164,6 +164,7 @@ do for [i=1:20] {
     infile = sprintf('swe%i.plt', i)
 
     set title "SWE component breakdown"
+    set xlabel "Processes, Threads"
     set ylabel "Sec. per Mio. Elements per core"
 
     unset output

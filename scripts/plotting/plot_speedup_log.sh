@@ -86,6 +86,7 @@ set xlabel "Cores"
 set ylabel "Mio. Elements per sec."
 set key left top
 set logscale xy 2
+set xtics rotate
 
 title(n) = sprintf("%d section(s)", n)
 

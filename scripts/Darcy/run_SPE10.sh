@@ -1,9 +1,9 @@
-compiler='gnu'
+compiler='intel'
 perm_averagings='geometric'
 fperm="data/darcy_five_spot/spe_perm_renamed.nc"
 fpor="data/darcy_five_spot/spe_phi_renamed.nc"
 layers=85
-max_depths='14 16'
+max_depths='14'
 epsilon=1.0e-4
 S_ref_th=1.0e2
 
@@ -48,7 +48,7 @@ do
         output_dir="output/SPE10_"$compiler"_l"$layers"_"$perm_averaging"_d"$dmax
         mkdir -p $output_dir
 
-        command="bin/$exe -fperm $fperm -fpor $fpor -sections 1 -threads $cores -dmax $dmax -xmloutput -tout 86.4e4 -tmax 172.8e6 -epsilon $epsilon -S_ref_th $S_ref_th -p_ref_th $p_ref_th -courant 1.0 -output_dir $output_dir"
+        command="bin/$exe -fperm $fperm -fpor $fpor -sections 1 -threads $cores -dmax $dmax -xmloutput -tout 86.4e3 -tmax 172.8e6 -epsilon $epsilon -S_ref_th $S_ref_th -p_ref_th $p_ref_th -courant 1.0 -output_dir $output_dir"
 
         echo $command > $output_dir"/SPE10_"$compiler"_l"$layers"_"$perm_averaging"_d"$dmax.log
         $command | tee -a $output_dir"/SPE10_"$compiler"_l"$layers"_"$perm_averaging"_d"$dmax.log

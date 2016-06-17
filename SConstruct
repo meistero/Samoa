@@ -89,7 +89,10 @@ vars.AddVariables(
               ),
 
   EnumVariable( 'vec_report', 'vectorization report', '0',
-                allowed_values=('0', '1', '2', '3', '4', '5', '6', '7')
+                allowed_values=('0', '1', '2', '3', '4', '5')
+              ),
+  EnumVariable( 'vec_phase', 'vectorization phase, multiple phases possible: cg,ipo,loop,offload,openmp,par,pgo,tcollect,vec, all', 'all',
+                allowed_values=('cg', 'ipo', 'loop', 'offload', 'openmp', 'par', 'pgo', 'tcollect', 'vec', 'vec,loop', 'all')
               ),
 
   EnumVariable( 'debug_level', 'debug output level', '1',
@@ -97,7 +100,7 @@ vars.AddVariables(
               ),
 
   EnumVariable( 'machine', 'target machine', 'host',
-                allowed_values=('SSE4.2', 'AVX', 'host')
+                allowed_values=('SSE4.2', 'AVX', 'host', 'mic')
               ),
 
   BoolVariable( 'library', 'build samoa as a library', False),
@@ -308,7 +311,8 @@ elif env['target'] == 'release':
 
 #In case the Intel compiler is active, add a vectorization report
 if env['compiler'] == 'intel':
-  env['LINKFLAGS'] += ' -vec-report' + env['vec_report']
+  env['LINKFLAGS'] += ' -qopt-report' + env['vec_report']
+  env['LINKFLAGS'] += ' -qopt-report-phase=' + env['vec_phase']
 else:
   env['F90FLAGS'] += ' -ftree-vectorizer-verbose=' + env['vec_report']
   env['LINKFLAGS'] += ' -ftree-vectorizer-verbose=' + env['vec_report']
@@ -317,6 +321,9 @@ else:
 if env['compiler'] == 'intel':
   if env['machine'] == 'host':
     env['F90FLAGS'] += ' -xHost'
+  elif env['machine'] == 'mic':
+    env['F90'] += ' -mmic'
+    env['LINK'] += ' -mmic'
   elif env['machine'] == 'SSE4.2':
     env['F90FLAGS'] += ' -xSSE4.2'
   elif env['machine'] == 'AVX':
@@ -384,6 +391,9 @@ if env['exe'] == 'samoa':
 
     if env['target'] != 'release':
       program_name += '_' + env['target']
+
+    if env['machine'] == 'mic':
+      program_name += '_mic'
 else:
     program_name = env['exe']
 
