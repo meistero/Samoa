@@ -20,7 +20,8 @@ The following prerequisites are necessary in order to install and run sam(oa)²:
 * [git](http://git-scm.com/)
 * [scons](http://www.scons.org/)
 * gfortran 4.7 or higher OR Intel Fortran Compiler 13.0 or higher
-* (Optional) [ASAGI](https://github.com/tum-i5/ASAGI) and netcdf data files for production runs (not publicly available, contact the developers)
+* (Optional) [ASAGI](https://github.com/tum-i5/ASAGI) v0.4.0 for external geodata
+* (Optional) Netcdf data files for ASAGI: For porous media flow, a script is included in the data directory that generates netcdf files. For the tsunami scenario these can be generated from our [Tsunami repository](https://github.com/TUM-I5/tsunami)
 
 ## Installation
 
