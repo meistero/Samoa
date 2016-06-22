@@ -1,8 +1,10 @@
-Samoa
-=====
+![Logo](https://github.com/meistero/Samoa/blob/master/logo_small.png) 
 
-sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications.
-Website: [sam(oa)²](https://github.com/meistero/Samoa)
+sam(oa)² 
+=======
+
+SFCs and Adaptive Meshes for Oceanic And Other Applications. <br>
+Github repository: [https://github.com/meistero/Samoa](https://github.com/meistero/Samoa)
 
 ## Contents
 
