@@ -1,4 +1,4 @@
-![Logo](https://github.com/meistero/Samoa/blob/master/logo_small.png) 
+![Logo](https://raw.githubusercontent.com/meistero/Samoa/master/logo_small.png) 
 
 sam(oa)² 
 =======
