@@ -102,6 +102,7 @@ Executables will be created in the directory samoa_dir/bin and should be run fro
 
 For execution parameters refer to the online help by calling the executable with '-h' or '--help'.
 
-##Build Status
+## Build Status
 
 [![Build Status](https://travis-ci.org/meistero/Samoa.svg)](https://travis-ci.org/meistero/Samoa)
+
