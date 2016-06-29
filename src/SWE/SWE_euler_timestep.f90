@@ -343,7 +343,9 @@
 				i_refinement = -1
 			endif
 
-			r_dt_new = min(r_dt_new, volume / dot_product(edge_lengths, fluxes%max_wave_speed))
+            !This will cause a division by zero if the wave speeds are 0.
+            !Bue to the min operator, the error will not affect the time step.
+            r_dt_new = min(r_dt_new, volume / dot_product(edge_lengths, fluxes%max_wave_speed))
 
             do i = 1, _SWE_CELL_SIZE
                 dQ(i)%t_dof_state = dQ(i)%t_dof_state * (-r_dt / volume)

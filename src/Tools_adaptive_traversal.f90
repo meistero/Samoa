@@ -296,26 +296,26 @@
 	end subroutine
 
     subroutine _OP0(set_stats_counters)(stats, section)
-        type(t_statistics), intent(inout)		    :: stats
+        class(t_base_statistics), intent(inout)		:: stats
         type(t_grid_section), intent(in)			:: section
 
         type(t_section_info)               	        :: info
 
         info = section%get_info()
 
-        stats%i_traversals = 1
-        stats%i_traversed_cells = info%i_cells
-       	stats%i_traversed_memory = sizeof(section%cells%elements(1)) * info%i_cells
+        call stats%add_counter(traversals, 1_8)
+        call stats%add_counter(traversed_cells, info%i_cells)
+       	call stats%add_counter(traversed_memory, sizeof(section%cells%elements(1)) * info%i_cells)
 
 #   	if defined(_GT_NODES)
-            stats%i_traversed_nodes = info%i_nodes + sum(info%i_boundary_nodes)
-            stats%i_traversed_memory = stats%i_traversed_memory + sizeof(section%boundary_nodes(RED)%elements(1)%t_node_stream_data) * (info%i_nodes + sum(info%i_boundary_nodes))
+            call stats%add_counter(traversed_nodes, info%i_nodes + sum(info%i_boundary_nodes))
+            call stats%add_counter(traversed_memory, sizeof(section%boundary_nodes(RED)%elements(1)%t_node_stream_data) * (info%i_nodes + sum(info%i_boundary_nodes)))
 #   	endif
 
 #   	if defined(_GT_EDGES)
-            stats%i_traversed_edges = info%i_crossed_edges + info%i_color_edges + sum(info%i_boundary_edges)
-            stats%i_traversed_memory = stats%i_traversed_memory + sizeof(section%boundary_edges(RED)%elements(1)%t_crossed_edge_stream_data) * info%i_crossed_edges
-            stats%i_traversed_memory = stats%i_traversed_memory + sizeof(section%boundary_edges(RED)%elements(1)%t_color_edge_stream_data) * (info%i_color_edges + sum(info%i_boundary_edges))
+            call stats%add_counter(traversed_edges, info%i_crossed_edges + info%i_color_edges + sum(info%i_boundary_edges))
+            call stats%add_counter(traversed_memory, sizeof(section%boundary_edges(RED)%elements(1)%t_crossed_edge_stream_data) * info%i_crossed_edges)
+            call stats%add_counter(traversed_memory, sizeof(section%boundary_edges(RED)%elements(1)%t_color_edge_stream_data) * (info%i_color_edges + sum(info%i_boundary_edges)))
 #   	endif
     end subroutine
 

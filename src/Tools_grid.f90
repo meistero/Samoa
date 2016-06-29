@@ -701,7 +701,7 @@ module Grid_section
 		class(t_grid_section), intent(inout)		        :: section
 
         if (cfg%l_timed_load) then
-            section%load = (int(section%stats%r_computation_time * 1.0d6, GRID_DI) * section%dest_cells) / section%cells%get_size()
+            section%load = (int((section%stats%get_time(pre_compute_time) + section%stats%get_time(inner_compute_time) + section%stats%get_time(post_compute_time)) * 1.0d6, GRID_DI) * section%dest_cells) / section%cells%get_size()
 		else
             section%load = int(cfg%r_cell_weight * section%dest_cells + cfg%r_boundary_weight * (section%boundary_nodes(RED)%get_size() + section%boundary_nodes(GREEN)%get_size()), GRID_DI)
 		endif
@@ -1030,7 +1030,7 @@ module Grid
 		integer (kind = GRID_SI)			            :: i_thread, i_threads, i_sections
 
         !TODO: a more sophisticated scheduler could use the (prefix sum over the)
-        !number of cells per section to decide which threads get which sections
+        !load per section to decide which threads get which sections
         !this is required only if the sections are not of uniform load.
 
         i_thread = omp_get_thread_num()

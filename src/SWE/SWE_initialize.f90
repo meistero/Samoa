@@ -330,7 +330,9 @@
 				max_wave_speed = 0.0_GRID_SR
 			end where
 
-			section%r_dt_new = min(section%r_dt_new, element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(max_wave_speed)))
+            !This will cause a division by zero if the wave speeds are 0.
+            !Bue to the min operator, the error will not affect the time step.
+            section%r_dt_new = min(section%r_dt_new, element%cell%geometry%get_volume() / (sum(element%cell%geometry%get_edge_sizes()) * maxval(max_wave_speed)))
 		end subroutine
 
 		function get_initial_dof_state_at_element(section, element) result(Q)

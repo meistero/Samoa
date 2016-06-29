@@ -222,8 +222,8 @@ module Conformity
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        thread_stats%r_traversal_time = -get_wtime()
-        thread_stats%r_computation_time = -get_wtime()
+        call thread_stats%start_time(traversal_time)
+        call thread_stats%start_time(inner_compute_time)
 
         do i_section = i_first_local_section, i_last_local_section
 #           if defined(_OPENMP_TASKS)
@@ -242,8 +242,8 @@ module Conformity
             !$omp taskwait
 #       endif
 
-        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
-        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+        call thread_stats%stop_time(inner_compute_time)
+        call thread_stats%stop_time(traversal_time)
 
         conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
     end subroutine
@@ -259,8 +259,8 @@ module Conformity
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        thread_stats%r_traversal_time = -get_wtime()
-        thread_stats%r_computation_time = -get_wtime()
+        call thread_stats%start_time(traversal_time)
+        call thread_stats%start_time(inner_compute_time)
 
         do i_section = i_first_local_section, i_last_local_section
             assert_eq(i_section, grid%sections%elements_alloc(i_section)%index)
@@ -289,32 +289,34 @@ module Conformity
             !$omp taskwait
 #       endif
 
-        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+        call thread_stats%stop_time(inner_compute_time)
 
         !wait until all computation is done
         !$omp barrier
 
-        thread_stats%r_sync_time = -get_wtime()
+        call thread_stats%start_time(sync_time)
         call collect_boundary_data(grid, edge_merge_op_integrity, node_merge_op_integrity, mpi_node_type_optional=conformity%mpi_node_type)
+        call thread_stats%stop_time(sync_time)
 
         !wait until all boundary data has been collected
         !$omp barrier
 
+        call thread_stats%start_time(sync_time)
         call duplicate_boundary_data(grid, edge_write_op_integrity, node_write_op_integrity)
-        thread_stats%r_sync_time = thread_stats%r_sync_time + get_wtime()
+        call thread_stats%stop_time(sync_time)
 
         !wait until all boundary data has been copied
         !$omp barrier
 
-        thread_stats%r_barrier_time = -get_wtime()
+        call thread_stats%start_time(barrier_time)
 
         !$omp single
         call reduce(grid%l_conform, grid%sections%elements_alloc%l_conform, MPI_LAND, .true.)
         !$omp end single
 
-        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+        call thread_stats%stop_time(barrier_time)
 
-        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+        call thread_stats%stop_time(traversal_time)
 
         conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
     end subroutine
@@ -330,8 +332,9 @@ module Conformity
 
         call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-        thread_stats%r_traversal_time = -get_wtime()
-        thread_stats%r_computation_time = -get_wtime()
+        call thread_stats%start_time(traversal_time)
+
+        call thread_stats%start_time(inner_compute_time)
 
         do i_section = i_first_local_section, i_last_local_section
 #           if defined(_OPENMP_TASKS)
@@ -355,9 +358,9 @@ module Conformity
             !$omp taskwait
 #       endif
 
-        thread_stats%r_computation_time = thread_stats%r_computation_time + get_wtime()
+        call thread_stats%stop_time(inner_compute_time)
 
-        thread_stats%r_barrier_time = -get_wtime()
+        call thread_stats%start_time(barrier_time)
 
         !$omp barrier
 
@@ -365,9 +368,9 @@ module Conformity
         call gather_integrity(grid%t_global_data, grid%sections%elements%t_global_data)
         !$omp end single
 
-        thread_stats%r_barrier_time = thread_stats%r_barrier_time + get_wtime()
+        call thread_stats%stop_time(barrier_time)
 
-        thread_stats%r_traversal_time = thread_stats%r_traversal_time + get_wtime()
+        call thread_stats%stop_time(traversal_time)
 
         conformity%threads(i_thread)%stats = conformity%threads(i_thread)%stats + thread_stats
 
