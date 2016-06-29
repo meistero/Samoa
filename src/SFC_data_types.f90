@@ -178,8 +178,8 @@ MODULE SFC_data_types
 #		endif
 
         integer (kind = GRID_DI)                            :: min_distance             !< edge minimum distance (only defined for boundary edges)
-        logical                                             :: owned_locally = .true.   !< if true, the current section owns the edge, defined only for boundary nodes!
-        logical                                             :: owned_globally = .true.  !< if true, the current rank owns the edge, defined only for boundary nodes!
+        logical                                             :: owned_locally = .true.   !< if true, the current section owns the edge, defined only for boundary edges!
+        logical                                             :: owned_globally = .true.  !< if true, the current rank owns the edge, defined only for boundary edges! owned_globally alwas implies owned_locally.
         integer (kind = BYTE)                               :: depth                    !< edge depth
 
 		type(t_edge_transform_data), pointer				:: transform_data		    !< local edge transform data
@@ -209,7 +209,7 @@ MODULE SFC_data_types
 
         integer (kind = GRID_DI)                            :: distance             !< node distance, defined only for boundary nodes!
         logical                                             :: owned_locally = .true.        !< if true, the current section owns the node, defined only for boundary nodes!
-        logical                                             :: owned_globally = .true.       !< if true, the current rank owns the node, defined only for boundary nodes!
+        logical                                             :: owned_globally = .true.       !< if true, the current rank owns the node, defined only for boundary nodes! owned_globally alwas implies owned_locally.
 	end type
 
 	!traversal data types
@@ -554,7 +554,7 @@ MODULE SFC_data_types
 		real (kind = GRID_SR)           		:: edge_sizes(3)
 
         integer (kind = BYTE)                      :: i
-        real (kind = GRID_SR), parameter, dimension(0 : MAX_DEPTH)	:: r_leg_sizes = [ (sqrt(0.5_GRID_SR) ** i, i = 0, MAX_DEPTH) ]
+        real (kind = GRID_SR), parameter, dimension(-1 : MAX_DEPTH)	:: r_leg_sizes = [ (sqrt(0.5_GRID_SR) ** i, i = -1, MAX_DEPTH) ]
 
 		edge_sizes = [r_leg_sizes(cell%i_depth), r_leg_sizes(cell%i_depth - 1), r_leg_sizes(cell%i_depth)]
 	end function

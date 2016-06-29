@@ -1,7 +1,5 @@
-ASAGI
 bin
 scripts/cache
-output/*
 doxygen
 Samoa.layout
 Samoa.cbp
@@ -9,3 +7,7 @@ Samoa.cbp
 *~
 *.nc
 *.dat
+*.csv
+*.*vtu
+*.log
+*.pyc

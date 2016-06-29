@@ -45,8 +45,6 @@ module SFC_edge_traversal
 		type(t_grid), intent(inout)           	                :: dest_grid
 
 		integer (kind = GRID_DI), parameter                     :: min_section_size = 4_GRID_DI
-		integer                                                 :: i_first_src_section, i_last_src_section
-		integer                                                 :: i_first_dest_section, i_last_dest_section
 		type(t_grid_section), pointer                           :: section
 		type(t_section_info_list), save                         :: section_descs
 		integer (kind = GRID_DI)                                :: i_grid_load, i_total_load, i_grid_partial_load, i_src_section_partial_load, i_section_partial_load, i_section_partial_load_prev
@@ -715,6 +713,8 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         type(t_grid_section), intent(inout)				:: section
         integer (kind = BYTE), intent(in)			        :: i_color
 
+        integer, parameter                              :: divisor = 4
+
         integer (KIND = GRID_SI)                        :: i_comm
         integer (KIND = GRID_SI)                        :: i_first_edge, i_first_node, i_last_edge, i_last_node
         logical                                         :: l_forward
@@ -764,11 +764,18 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             if (comm%neighbor_rank .ge. 0 .and. comm%neighbor_rank < rank_MPI) then
                 comm%p_local_edges%owned_globally = .false.
                 comm%p_local_nodes%owned_globally = .false.
-            else if (comm%neighbor_rank == rank_MPI .and. comm%neighbor_section < section%index) then
-                comm%p_local_edges%owned_locally = .false.
-                comm%p_local_edges%owned_globally = .false.
-                comm%p_local_nodes%owned_locally = .false.
-                comm%p_local_nodes%owned_globally = .false.
+            else if (comm%neighbor_rank == rank_MPI) then
+                if (comm%neighbor_section < section%index) then
+                    comm%p_local_edges%owned_locally = .false.
+                    comm%p_local_edges%owned_globally = .false.
+                    comm%p_local_nodes((comm%i_nodes - 1)/divisor + 2 : comm%i_nodes - 1 - (comm%i_nodes - 1)/divisor)%owned_locally = .false.
+                    comm%p_local_nodes((comm%i_nodes - 1)/divisor + 2 : comm%i_nodes - 1 - (comm%i_nodes - 1)/divisor)%owned_globally = .false.
+                else
+                    comm%p_local_nodes(1:(comm%i_nodes - 1)/divisor + 1)%owned_locally = .false.
+                    comm%p_local_nodes(1:(comm%i_nodes - 1)/divisor + 1)%owned_globally = .false.
+                    comm%p_local_nodes(comm%i_nodes - (comm%i_nodes - 1)/divisor : comm%i_nodes)%owned_locally = .false.
+                    comm%p_local_nodes(comm%i_nodes - (comm%i_nodes - 1)/divisor : comm%i_nodes)%owned_globally = .false.
+                end if
             end if
 
             assert_eq(size(comm%p_local_edges), comm%i_edges)
@@ -1085,16 +1092,17 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
 
         do i = 1, comm%i_edges
-            assert(comm%p_local_edges(i)%owned_locally)
-            assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
-            
-            !Careful: the Fortran standard does neither define if logical expressions are executed nor the order of operations.
-            !Hence, under the assumption that edge_merge_op() must always be executed, the code below is incorrect as it may short circuit:
-            ! l_section_conform = l_section_conform .and. edge_merge_op(...)
-            !This is the correct way:
+            if (comm%p_local_edges(i)%owned_locally) then
+                assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
 
-            l_conform = edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
-            l_comm_conform = l_comm_conform .and. l_conform
+                !Careful: the Fortran standard does neither define if logical expressions are executed nor the order of operations.
+                !Hence, under the assumption that edge_merge_op() must always be executed, the code below is incorrect as it may short circuit:
+                ! l_section_conform = l_section_conform .and. edge_merge_op(...)
+                !This is the correct way:
+
+                l_conform = edge_merge_op(comm%p_local_edges(i), comm%p_neighbor_edges(comm%i_edges + 1 - i))
+                l_comm_conform = l_comm_conform .and. l_conform
+            end if
         end do
 
         assert_veq(decode_distance(comm%p_local_nodes%distance), decode_distance(comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%distance))
@@ -1105,22 +1113,13 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         !only the owner may execute merge operations (which is the local section)
         !a race condition can occur otherwise
 
-        i_first_node = 1
-        if (.not. comm%p_local_nodes(1)%owned_locally) then
-            i_first_node = 2
-        end if
+        do i = 1, comm%i_nodes
+            if (comm%p_local_nodes(i)%owned_locally) then
+                assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
 
-        i_last_node = comm%i_nodes
-        if (.not. comm%p_local_nodes(comm%i_nodes)%owned_locally) then
-            i_last_node = comm%i_nodes - 1
-        end if
-
-        do i = i_first_node, i_last_node
-            assert(comm%p_local_nodes(i)%owned_locally)
-            assert(comm%neighbor_rank .ne. rank_MPI .or. .not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
-
-            l_conform = node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
-            l_comm_conform = l_comm_conform .and. l_conform
+                l_conform = node_merge_op(comm%p_local_nodes(i), comm%p_neighbor_nodes(comm%i_nodes + 1 - i))
+                l_comm_conform = l_comm_conform .and. l_conform
+            end if
         end do
     end function
 
@@ -1152,7 +1151,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
             !any edges or nodes, if the neighbor section is of lower index.
             !In this case we can skip communication with this particular section.
 
-            if (comm%neighbor_rank .eq. rank_MPI .and. comm%neighbor_section > section%index) then
+            if (comm%neighbor_rank .eq. rank_MPI) then
                 l_conform = merge_comm(comm, edge_merge_op, node_merge_op)
                 l_section_conform = l_section_conform .and. l_conform
             end if
@@ -1216,7 +1215,7 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
         do i_comm = 1, section%comms(i_color)%get_size()
             comm => section%comms(i_color)%elements(i_comm)
 
-            if (comm%neighbor_rank .eq. rank_MPI .and. comm%neighbor_section > section%index) then
+            if (comm%neighbor_rank .eq. rank_MPI) then
                 _log_write(4, '(7X, (A))') trim(comm%to_string())
 
                 l_section_conform = .true.
@@ -1227,11 +1226,12 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 assert_veq(decode_distance(comm%p_local_edges%min_distance), decode_distance(comm%p_neighbor_edges(comm%i_edges : 1 : -1)%min_distance))
 
                 do i = 1, comm%i_edges
-                    assert(comm%p_local_edges(i)%owned_locally)
-                    assert(.not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
+                    if (comm%p_local_edges(i)%owned_locally) then
+                        assert(.not. comm%p_neighbor_edges(comm%i_edges + 1 - i)%owned_locally)
 
-                    l_conform = edge_write_op(comm%p_neighbor_edges(comm%i_edges + 1 - i), comm%p_local_edges(i))
-                    l_section_conform = l_section_conform .and. l_conform
+                        l_conform = edge_write_op(comm%p_neighbor_edges(comm%i_edges + 1 - i), comm%p_local_edges(i))
+                        l_section_conform = l_section_conform .and. l_conform
+                    end if
                 end do
 
                 !write to neighbor nodes
@@ -1241,22 +1241,13 @@ subroutine collect_minimum_distances(grid, rank_list, neighbor_min_distances, i_
                 assert_veq(comm%p_local_nodes%position(1), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(1))
                 assert_veq(comm%p_local_nodes%position(2), comm%p_neighbor_nodes(comm%i_nodes : 1 : -1)%position(2))
 
-                i_first_node = 1
-                if (.not. comm%p_local_nodes(1)%owned_locally) then
-                    i_first_node = 2
-                end if
+                do i = 1, comm%i_nodes
+                    if (comm%p_local_nodes(i)%owned_locally) then
+                        assert(.not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
 
-                i_last_node = comm%i_nodes
-                if (.not. comm%p_local_nodes(comm%i_nodes)%owned_locally) then
-                    i_last_node = comm%i_nodes - 1
-                end if
-
-                do i = i_first_node, i_last_node
-                    assert(comm%p_local_nodes(i)%owned_locally)
-                    assert(.not. comm%p_neighbor_nodes(comm%i_nodes + 1 - i)%owned_locally)
-
-                    l_conform = node_write_op(comm%p_neighbor_nodes(comm%i_nodes + 1 - i), comm%p_local_nodes(i))
-                    l_section_conform = l_section_conform .and. l_conform
+                        l_conform = node_write_op(comm%p_neighbor_nodes(comm%i_nodes + 1 - i), comm%p_local_nodes(i))
+                        l_section_conform = l_section_conform .and. l_conform
+                    end if
                 end do
 
                 if (.not. l_section_conform) then

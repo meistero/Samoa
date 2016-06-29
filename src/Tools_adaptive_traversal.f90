@@ -180,7 +180,7 @@
 
 #       if defined(_GT_EDGES) && defined(_GT_SKELETON_OP)
 	        integer (kind = GRID_SI)							    :: i_color
-            integer (kind = GRID_SI)							    :: i_comm
+            integer (kind = GRID_SI)							    :: i_comm, i_edge
             type(t_comm_interface), pointer                         :: comm
 
             do i_color = RED, GREEN
@@ -190,9 +190,13 @@
                     if (comm%neighbor_rank .ge. 0 .and. comm%i_edges > 0) then
                         !the skeleton operator must be called for locally owned edges only.
                         !it is sufficient to check the first edge, since all edges of the comm are flagged equally
-                        if (comm%p_local_edges(1)%owned_locally) then
-                            call _GT_SKELETON_OP(traversal, section, comm%p_local_edges, comm%p_local_edges%rep, comm%p_neighbor_edges(comm%i_edges : 1 : -1)%rep, comm%p_local_edges%update, comm%p_neighbor_edges(comm%i_edges : 1 : -1)%update)
-                        end if
+                        do i_edge = 1, comm%i_edges
+                            if (comm%p_local_edges(i_edge)%owned_locally) then
+                                call _GT_SKELETON_OP(traversal, section, comm%p_local_edges, &
+                                    comm%p_local_edges(i_edge)%rep, comm%p_neighbor_edges(comm%i_edges + 1 - i_edge)%rep, &
+                                    comm%p_local_edges(i_edge)%update, comm%p_neighbor_edges(comm%i_edges + 1 - i_edge)%update)
+                            end if
+                        end do
                     else
                         call _GT_BND_SKELETON_OP(traversal, section, comm%p_local_edges, comm%p_local_edges%rep, comm%p_local_edges%update)
                     end if
@@ -217,9 +221,9 @@
 
                 do i_edge = 1, size(section%boundary_edges(i_color)%elements)
 #			        if defined(_GT_EDGE_FIRST_TOUCH_OP)
-                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
+                        if (section%boundary_edges(i_color)%elements(i_edge)%owned_locally) then
                             call _GT_EDGE_FIRST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
-                        endif
+                        end if
 #			        endif
                 end do
 #			endif
@@ -231,7 +235,7 @@
 #    			    if defined(_GT_NODE_FIRST_TOUCH_OP)
                         if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
                             call _GT_NODE_FIRST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements(i_node))
-                        endif
+                        end if
 #                   endif
                 end do
 #			endif
@@ -254,15 +258,15 @@
 
                 do i_edge = 1, size(section%boundary_edges(i_color)%elements)
 #			        if defined(_GT_EDGE_LAST_TOUCH_OP)
-                        if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
+                        if (section%boundary_edges(i_color)%elements(i_edge)%owned_locally) then
                             call _GT_EDGE_LAST_TOUCH_OP(traversal, section, section%boundary_edges(i_color)%elements)
-                        endif
+                        end if
 #			        endif
 
 #			        if defined(_GT_EDGE_REDUCE_OP)
                         if (section%boundary_edges(i_color)%elements(i_edge)%owned_globally) then
                             call _GT_EDGE_REDUCE_OP(traversal, section, section%boundary_edges(i_color)%elements(i_edge))
-                        endif
+                        end if
 #			        endif
                 end do
 #			endif
@@ -274,13 +278,13 @@
 #    			    if defined(_GT_NODE_LAST_TOUCH_OP)
                         if (section%boundary_nodes(i_color)%elements(i_node)%owned_locally) then
                             call _GT_NODE_LAST_TOUCH_OP(traversal, section, section%boundary_nodes(i_color)%elements(i_node))
-                        endif
+                        end if
 #                   endif
 
 #    			    if defined(_GT_NODE_REDUCE_OP)
                         if (section%boundary_nodes(i_color)%elements(i_node)%owned_globally) then
                             call _GT_NODE_REDUCE_OP(traversal, section, section%boundary_nodes(i_color)%elements(i_node))
-                        endif
+                        end if
 #                   endif
                 end do
 #			endif
