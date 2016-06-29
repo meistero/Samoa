@@ -192,7 +192,7 @@
                         !it is sufficient to check the first edge, since all edges of the comm are flagged equally
                         do i_edge = 1, comm%i_edges
                             if (comm%p_local_edges(i_edge)%owned_locally) then
-                                call _GT_SKELETON_OP(traversal, section, comm%p_local_edges, &
+                                call _GT_SKELETON_OP(traversal, section, comm%p_local_edges(i_edge), &
                                     comm%p_local_edges(i_edge)%rep, comm%p_neighbor_edges(comm%i_edges + 1 - i_edge)%rep, &
                                     comm%p_local_edges(i_edge)%update, comm%p_neighbor_edges(comm%i_edges + 1 - i_edge)%update)
                             end if
