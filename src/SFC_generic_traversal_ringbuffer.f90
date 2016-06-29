@@ -57,38 +57,55 @@ type, extends(t_element_base) :: t_traversal_element
 	type(t_traversal_element), pointer					    :: previous, next							!< pointer to previous and next traversal element in the ringbuffer
 end type
 
-type, extends(num_traversal_data) :: t_thread_data
-    type(t_traversal_element)     			                :: elements(8)							    !< Element ring buffer (must contain at least 8 elements, because transfer nodes can be referenced back up to 8 elements)
-	type(t_statistics)										:: stats
+type, extends(num_traversal_data) :: t_traversal
+    type(t_statistics)                                      :: stats
+
+    contains
+
+    procedure, private, pass :: assign_traversal => t_traversal_assign
+
+    generic, public :: assignment(=) => assign_traversal
 end type
 
-type, extends(num_traversal_data) :: _GT
-    type(_GT), pointer                                      :: sections(:) => null()			!< section data
-    type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
-    type(t_statistics)                                      :: stats
+type, extends(t_traversal) :: t_thread_traversal
+    type(t_traversal_element)                               :: elements(8)                                                      !< Element ring buffer (must c
+end type
+
+#define t_section_traversal _GT
+
+type, extends(t_traversal) :: _GT
+    type(t_section_traversal), pointer                      :: sections(:) => null()                   !< section data
+    type(t_thread_traversal), pointer                       :: threads(:) => null()             !< thread data
     integer                                                 :: mpi_node_type, mpi_edge_type
 
     contains
 
-    procedure, pass :: assign => gt_assign
+    procedure, private, pass :: assign_gt => gt_assign
 
-    generic :: assignment(=) => assign
+    procedure, public, pass :: create
+    procedure, public, pass :: destroy
+    procedure, public, pass :: traverse
+    procedure, public, pass :: reduce_stats
+    procedure, public, pass :: clear_stats
 
-    procedure, pass :: create
-    procedure, pass :: destroy
-    procedure, pass :: traverse
-    procedure, pass :: reduce_stats
-    procedure, pass :: clear_stats
+    generic, public :: assignment(=) => assign_gt
 end type
 
 contains
 
-subroutine gt_assign(gt1, gt2)
-    class(_GT), intent(inout) :: gt1
-    class(_GT), intent(in) :: gt2
+subroutine t_traversal_assign(t1, t2)
+    class(t_traversal), intent(inout) :: t1
+    type(t_traversal), intent(in)  :: t2
 
-    gt1%num_traversal_data = gt2%num_traversal_data
-    gt1%stats = gt2%stats
+    t1%num_traversal_data = t2%num_traversal_data
+    t1%stats = t2%stats
+end subroutine
+
+subroutine gt_assign(gt1, gt2)
+    class(_GT), intent(inout)   :: gt1
+    type(_GT), intent(in)       :: gt2
+
+    gt1%t_traversal = gt2%t_traversal
     gt1%mpi_node_type = gt2%mpi_node_type
     gt1%mpi_edge_type = gt2%mpi_edge_type
 
@@ -239,9 +256,8 @@ subroutine traverse(traversal, grid)
 	integer (kind = GRID_SI)                            :: i_section, i_first_local_section, i_last_local_section
 	integer (kind = GRID_SI)                            :: i_error
 
-	type(t_thread_data), save                           :: thread_traversal
-	integer (kind = GRID_SI), save                      :: i_thread
-	!$omp threadprivate(thread_traversal, i_thread)
+	type(t_thread_traversal), save                      :: thread_traversal
+	!$omp threadprivate(thread_traversal)
 
     if (.not. associated(traversal%sections) .or. size(traversal%sections) .ne. grid%sections%get_size()) then
         !$omp barrier
@@ -259,10 +275,13 @@ subroutine traverse(traversal, grid)
         !$omp barrier
 
         !$omp single
+        if (associated(traversal%threads)) then
+            deallocate(traversal%threads, stat = i_error); assert_eq(i_error, 0)
+        end if
+
         allocate(traversal%threads(cfg%i_threads), stat = i_error); assert_eq(i_error, 0)
         !$omp end single
 
-        i_thread = 1 + omp_get_thread_num()
         call create_ringbuffer(thread_traversal%elements)
     end if
 
@@ -433,63 +452,64 @@ subroutine traverse(traversal, grid)
     grid%threads%elements(i_thread)%stats%t_statistics = grid%threads%elements(i_thread)%stats%t_statistics + thread_traversal%stats
 end subroutine
 
-subroutine traverse_section_wrapper(thread_traversal, traversal, thread, section)
-	type(t_thread_data), intent(inout)	                :: thread_traversal
-	type(_GT), intent(inout)	                        :: traversal
-	type(t_grid_thread), intent(inout)					:: thread
-	type(t_grid_section), intent(inout)					:: section
+subroutine traverse_section_wrapper(thread_traversal, section_traversal, thread, section)
+    type(t_thread_traversal), intent(inout)         :: thread_traversal
+    type(t_section_traversal), intent(inout)        :: section_traversal
+    type(t_grid_thread), intent(inout)              :: thread
+    type(t_grid_section), intent(inout)             :: section
 
-	type(_GT)	                :: traversal_local
-	type(t_grid_thread)			:: thread_local
-	type(t_grid_section)		:: section_local
+    type(t_section_traversal)                       :: section_traversal_local
+    type(t_grid_thread)                             :: thread_local
+    type(t_grid_section)                            :: section_local
 
-    traversal_local = traversal
+    section_traversal_local = section_traversal
     thread_local = thread
     section_local = section
 
-    call traverse_section(thread_traversal, traversal_local, thread_local, section_local)
+    call traverse_section(thread_traversal, section_traversal_local, thread_local, section_local)
 
-    traversal = traversal_local
+    section_traversal = section_traversal_local
     thread = thread_local
     section = section_local
 end subroutine
 
-subroutine pre_traversal_wrapper(traversal, section)
-	type(_GT), intent(inout)	                        :: traversal
-	type(t_grid_section), intent(inout)					:: section
 
-	type(_GT)	                :: traversal_local
-	type(t_grid_section)		:: section_local
+subroutine pre_traversal_wrapper(section_traversal, section)
+	type(t_section_traversal), intent(inout)        :: section_traversal
+	type(t_grid_section), intent(inout)			    :: section
 
-    traversal_local = traversal
+	type(t_section_traversal)	                    :: section_traversal_local
+	type(t_grid_section)		                    :: section_local
+
+    section_traversal_local = section_traversal
     section_local = section
 
-    call pre_traversal(traversal_local, section_local)
+    call pre_traversal(section_traversal_local, section_local)
 
-    traversal = traversal_local
+    section_traversal = section_traversal_local
     section = section_local
 end subroutine
 
-subroutine post_traversal_wrapper(traversal, section)
-	type(_GT), intent(inout)	                        :: traversal
-	type(t_grid_section), intent(inout)					:: section
+subroutine post_traversal_wrapper(section_traversal, section)
+	type(t_section_traversal), intent(inout)        :: section_traversal
+	type(t_grid_section), intent(inout)		        :: section
 
-	type(_GT)	                :: traversal_local
-	type(t_grid_section)		:: section_local
+	type(t_section_traversal)	                    :: section_traversal_local
+	type(t_grid_section)		                    :: section_local
 
-    traversal_local = traversal
+    section_traversal_local = section_traversal
     section_local = section
 
-    call post_traversal(traversal_local, section_local)
+    call post_traversal(section_traversal_local, section_local)
 
-    traversal = traversal_local
+    section_traversal = section_traversal_local
     section = section_local
 end subroutine
 
 !> Generic iterative traversal subroutine
-subroutine traverse_section(thread_traversal, traversal, thread, section)
-	type(t_thread_data), target, intent(inout)	        :: thread_traversal
-	type(_GT), target, intent(inout)	                :: traversal
+subroutine traverse_section(thread_traversal, section_traversal, thread, section)
+	type(t_thread_traversal), target, intent(inout)	    :: thread_traversal
+	type(t_section_traversal), target, intent(inout)	:: section_traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 
@@ -513,13 +533,13 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
         case (1)
             !process the only element
             call init(section, thread_traversal%elements(1))
-            call leaf(traversal, thread, section, thread_traversal%elements(1))
+            call leaf(section_traversal, thread, section, thread_traversal%elements(1))
         case (2:)
             call init(section, thread_traversal%elements(1))
 
             !process first element
             call init(section, thread_traversal%elements(2))
-            call leaf(traversal, thread, section, thread_traversal%elements(1))
+            call leaf(section_traversal, thread, section, thread_traversal%elements(1))
 
             i_current_element = 2
 
@@ -530,19 +550,19 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
                     case (INNER_OLD)
                         !init next element for the skeleton operator
                         call init(section, thread_traversal%elements(i_next_element))
-                        call old_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                        call old_leaf(section_traversal, thread, section, thread_traversal%elements(i_current_element))
                     case (INNER_NEW)
                         !init next element for the skeleton operator
                         call init(section, thread_traversal%elements(i_next_element))
-                        call new_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                        call new_leaf(section_traversal, thread, section, thread_traversal%elements(i_current_element))
                     case (INNER_OLD_BND)
                         !init next element for the skeleton operator
                         call init(section, thread_traversal%elements(i_next_element))
-                        call old_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                        call old_bnd_leaf(section_traversal, thread, section, thread_traversal%elements(i_current_element))
                     case (INNER_NEW_BND)
                         !init next element for the skeleton operator
                         call init(section, thread_traversal%elements(i_next_element))
-                        call new_bnd_leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+                        call new_bnd_leaf(section_traversal, thread, section, thread_traversal%elements(i_current_element))
                     case default
                         !this should happen only for the last element
                         exit
@@ -552,7 +572,7 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
             end do
 
             !process last element
-            call leaf(traversal, thread, section, thread_traversal%elements(i_current_element))
+            call leaf(section_traversal, thread, section, thread_traversal%elements(i_current_element))
     end select
 
 #	if (_DEBUG_LEVEL > 4)
@@ -569,79 +589,79 @@ subroutine traverse_section(thread_traversal, traversal, thread, section)
 #	endif
 end subroutine
 
-subroutine leaf(traversal, thread, section, current_element)
-	type(_GT), intent(inout)	                        :: traversal
+subroutine leaf(section_traversal, thread, section, current_element)
+	type(t_section_traversal), intent(inout)	        :: section_traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 	type(t_traversal_element), intent(inout)	        :: current_element
 
-	call read(traversal, thread, section, current_element)
+	call read(section_traversal, thread, section, current_element)
 
 #	if defined(_GT_ELEMENT_OP)
-		call _GT_ELEMENT_OP(traversal, section, current_element%t_element_base)
+		call _GT_ELEMENT_OP(section_traversal, section, current_element%t_element_base)
 #	endif
 
-	call write(traversal, thread, section, current_element)
+	call write(section_traversal, thread, section, current_element)
 end subroutine
 
-subroutine old_leaf(traversal, thread, section, current_element)
-	type(_GT), intent(inout)	                        :: traversal
+subroutine old_leaf(section_traversal, thread, section, current_element)
+	type(t_section_traversal), intent(inout)	        :: section_traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 	type(t_traversal_element), intent(inout)	        :: current_element
 
-	call read_oon(traversal, thread, section, current_element)
+	call read_oon(section_traversal, thread, section, current_element)
 
 #	if defined(_GT_INNER_ELEMENT_OP)
-		call _GT_INNER_ELEMENT_OP(traversal, section, current_element%t_element_base)
+		call _GT_INNER_ELEMENT_OP(section_traversal, section, current_element%t_element_base)
 #	endif
 
-	call write_oon(traversal, thread, section, current_element)
+	call write_oon(section_traversal, thread, section, current_element)
 end subroutine
 
-subroutine new_leaf(traversal, thread, section, current_element)
-	type(_GT), intent(inout)	                        :: traversal
+subroutine new_leaf(section_traversal, thread, section, current_element)
+	type(t_section_traversal), intent(inout)	        :: section_traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 	type(t_traversal_element), intent(inout)	        :: current_element
 
-	call read_onn(traversal, thread, section, current_element)
+	call read_onn(section_traversal, thread, section, current_element)
 
 #	if defined(_GT_INNER_ELEMENT_OP)
-		call _GT_INNER_ELEMENT_OP(traversal, section, current_element%t_element_base)
+		call _GT_INNER_ELEMENT_OP(section_traversal, section, current_element%t_element_base)
 #	endif
 
-	call write_onn(traversal, thread, section, current_element)
+	call write_onn(section_traversal, thread, section, current_element)
 end subroutine
 
-subroutine old_bnd_leaf(traversal, thread, section, current_element)
-	type(_GT), intent(inout)	                        :: traversal
+subroutine old_bnd_leaf(section_traversal, thread, section, current_element)
+	type(t_section_traversal), intent(inout)	        :: section_traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 	type(t_traversal_element), intent(inout)	        :: current_element
 
-	call read_odn(traversal, thread, section, current_element)
+	call read_odn(section_traversal, thread, section, current_element)
 
 #	if defined(_GT_ELEMENT_OP)
-		call _GT_ELEMENT_OP(traversal, section, current_element%t_element_base)
+		call _GT_ELEMENT_OP(section_traversal, section, current_element%t_element_base)
 #	endif
 
-	call write_odn(traversal, thread, section, current_element)
+	call write_odn(section_traversal, thread, section, current_element)
 end subroutine
 
-subroutine new_bnd_leaf(traversal, thread, section, current_element)
-	type(_GT), intent(inout)	                        :: traversal
+subroutine new_bnd_leaf(section_traversal, thread, section, current_element)
+	type(t_section_traversal), intent(inout)	        :: section_traversal
 	type(t_grid_thread), intent(inout)					:: thread
 	type(t_grid_section), intent(inout)					:: section
 	type(t_traversal_element), intent(inout)	        :: current_element
 
-	call read_obn(traversal, thread, section, current_element)
+	call read_obn(section_traversal, thread, section, current_element)
 
 #	if defined(_GT_ELEMENT_OP)
-		call _GT_ELEMENT_OP(traversal, section, current_element%t_element_base)
+		call _GT_ELEMENT_OP(section_traversal, section, current_element%t_element_base)
 #	endif
 
-	call write_obn(traversal, thread, section, current_element)
+	call write_obn(section_traversal, thread, section, current_element)
 end subroutine
 
 subroutine create_ringbuffer(elements)
@@ -710,3 +730,5 @@ end subroutine
 #undef _GT_NO_COORDS
 #undef _GT_NAME
 
+
+#undef t_section_traversal

@@ -66,21 +66,24 @@ type, extends(t_element_base) :: t_refinement_element
 	type(fine_triangle)									    :: cell_geometry_storage
 end type
 
-type, extends(num_traversal_data) :: t_thread_data
+type, extends(num_traversal_data) :: t_adaptive_traversal
+    type(t_adaptive_statistics)                                                             :: stats
+end type
+
+type, extends(t_adaptive_traversal) :: t_thread_traversal
 	type(t_refinement_element), dimension(2)				:: refinement_elements					!< Temporary refinement elements
 
     type(t_traversal_element), dimension(8)			        :: src_elements							!< Input element ring buffer (must be 8, because transfer nodes can be referenced back up to 8 elements)
     type(t_traversal_element), dimension(11)        		:: dest_elements						!< Output element ring buffer (must be 11, because transfer nodes can be referenced back up to 8 + 3 new refinement elements)
 
     type(t_traversal_element), pointer						:: p_src_element => null(), p_dest_element => null()        !< Current source and destination element
-
-	type(t_adaptive_statistics)								:: stats
 end type
 
-type, extends(num_traversal_data) :: _GT
-    type(_GT), pointer                                      :: sections(:) => null()			!< section data
-    type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
-	type(t_adaptive_statistics)								:: stats
+#define t_section_traversal _GT
+
+type, extends(t_adaptive_traversal) :: _GT
+    type(t_section_traversal), pointer                      :: sections(:) => null()			!< section data
+    type(t_thread_traversal), pointer                       :: threads(:) => null()             !< thread data
     type(t_conformity)                                      :: conformity
     integer                                                 :: mpi_node_type, mpi_edge_type
 
@@ -254,6 +257,10 @@ subroutine traverse_in_place(traversal, grid)
         !$omp barrier
 
         !$omp single
+        if (associated(traversal%threads)) then
+            deallocate(traversal%threads, stat = i_error); assert_eq(i_error, 0)
+        end if
+
         allocate(traversal%threads(cfg%i_threads), stat = i_error); assert_eq(i_error, 0)
         !$omp end single
 
@@ -270,8 +277,6 @@ subroutine traverse_in_place(traversal, grid)
 
     assert_eq(size(traversal%threads), omp_get_max_threads())
 
-    thread_stats = t_adaptive_statistics()
-
     !$omp barrier
 
     thread_stats%r_integrity_time = -get_wtime()
@@ -279,6 +284,8 @@ subroutine traverse_in_place(traversal, grid)
     thread_stats%r_integrity_time = thread_stats%r_integrity_time + get_wtime()
 
     !$omp barrier
+
+    !Estimate the load of each section
 
     call grid%get_local_sections(i_first_src_section, i_last_src_section)
 
@@ -606,9 +613,9 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     !$omp barrier
 end subroutine
 
-function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section, dest_section) result(i_dest_cells)
-    type(t_thread_data), intent(inout)          :: thread_traversal
-    type(_GT), intent(inout)                    :: traversal
+function leaf(thread_traversal, section_traversal, src_thread, dest_thread, src_section, dest_section) result(i_dest_cells)
+    type(t_thread_traversal), intent(inout)          :: thread_traversal
+    type(t_section_traversal), intent(inout)    :: section_traversal
     type(t_grid_thread), intent(inout)          :: src_thread, dest_thread
     type(t_grid_section), intent(inout)         :: src_section, dest_section
     integer  (kind = GRID_SI)                   :: i_dest_cells
@@ -630,7 +637,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call create_parent_cell(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_src_element%next%cell%geometry, thread_traversal%p_dest_element%cell%geometry)
 #			endif
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -642,20 +649,20 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call read_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call _GT_COARSEN_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call _GT_COARSEN_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
-			call _GT_COARSEN_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [2])
+			call _GT_COARSEN_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [2])
 
-			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call write_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => thread_traversal%p_dest_element%next
@@ -667,7 +674,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call copy_cell(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_dest_element%cell%geometry)
 #			endif
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
                 thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -676,12 +683,12 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call read_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call _GT_TRANSFER_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element)
-			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call _GT_TRANSFER_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element)
+			call write_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => thread_traversal%p_dest_element%next
@@ -697,7 +704,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call create_child_cells(thread_traversal%p_src_element%cell%geometry, thread_traversal%p_dest_element%cell%geometry, p_dest_element_2%cell%geometry)
 #			endif
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -706,10 +713,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call read_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
-			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
+			call write_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 #			if !defined(_GT_INPUT_DEST)
                 p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
@@ -718,12 +725,12 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [2])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [2])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => p_dest_element_2%next
@@ -742,7 +749,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call create_child_cells(thread_traversal%refinement_elements(1)%cell%geometry, thread_traversal%p_dest_element%cell%geometry, p_dest_element_2%cell%geometry)
 #			endif
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -751,10 +758,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call read_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1, 1])
-			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1, 1])
+			call write_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 #			if !defined(_GT_INPUT_DEST)
                 p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
@@ -763,10 +770,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [1, 2])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [1, 2])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
 #			if !defined(_GT_INPUT_DEST)
                 p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
@@ -775,12 +782,12 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_3%coords, p_dest_element_3%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_3)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_3)
 
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => p_dest_element_3%next
@@ -799,7 +806,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call create_child_cells(thread_traversal%refinement_elements(1)%cell%geometry, p_dest_element_2%cell%geometry, p_dest_element_3%cell%geometry)
 #			endif
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -808,10 +815,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call read_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
-			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1])
+			call write_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 #			if !defined(_GT_INPUT_DEST)
                 p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
@@ -820,10 +827,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [2, 1])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [2, 1])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
 #			if !defined(_GT_INPUT_DEST)
                 p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
@@ -832,12 +839,12 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_3%coords, p_dest_element_3%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_3)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2, 2])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2, 2])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_3)
 
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => p_dest_element_3%next
@@ -859,7 +866,7 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 				call create_child_cells(thread_traversal%refinement_elements(2)%cell%geometry, p_dest_element_3%cell%geometry, p_dest_element_4%cell%geometry)
 #			endif
 
-			call read_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 #			if !defined(_GT_INPUT_DEST)
 				thread_traversal%p_dest_element%coords(:,1) = thread_traversal%p_src_element%nodes(1)%ptr%position
@@ -868,10 +875,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(thread_traversal%p_dest_element%coords, thread_traversal%p_dest_element%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call read_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1, 1])
-			call write_dest_element(traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, thread_traversal%p_dest_element, [1, 1])
+			call write_dest_element(section_traversal, dest_thread, dest_section, thread_traversal%p_dest_element)
 
 #			if !defined(_GT_INPUT_DEST)
 				p_dest_element_2%coords(:,1) = thread_traversal%p_dest_element%coords(:,3)
@@ -880,10 +887,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_2%coords, p_dest_element_2%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [1, 2])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_2)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_2, [1, 2])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_2)
 
 #			if !defined(_GT_INPUT_DEST)
 				p_dest_element_3%coords(:,1) = p_dest_element_2%coords(:,3)
@@ -892,10 +899,10 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_3%coords, p_dest_element_3%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_3)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2, 1])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_3)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_3, [2, 1])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_3)
 
 #			if !defined(_GT_INPUT_DEST)
 				p_dest_element_4%coords(:,1) = p_dest_element_3%coords(:,3)
@@ -904,12 +911,12 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
                 assert_veq(p_dest_element_4%coords, p_dest_element_4%coords)
 #			endif
 
-			call read_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
+			call read_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_4)
 
-			call _GT_REFINE_OP(traversal, dest_section, thread_traversal%p_src_element, p_dest_element_4, [2, 2])
-			call write_dest_element(traversal, dest_thread, dest_section, p_dest_element_4)
+			call _GT_REFINE_OP(section_traversal, dest_section, thread_traversal%p_src_element, p_dest_element_4, [2, 2])
+			call write_dest_element(section_traversal, dest_thread, dest_section, p_dest_element_4)
 
-			call write_src_element(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_element(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 
 			thread_traversal%p_src_element => thread_traversal%p_src_element%next
 			thread_traversal%p_dest_element => p_dest_element_4%next
@@ -918,9 +925,9 @@ function leaf(thread_traversal, traversal, src_thread, dest_thread, src_section,
 	end select
 end function
 
-function empty_leaf(thread_traversal, traversal, src_thread, src_section) result(i_dest_cells)
-    type(t_thread_data), intent(inout)          :: thread_traversal
-    type(_GT), intent(inout)                    :: traversal
+function empty_leaf(thread_traversal, section_traversal, src_thread, src_section) result(i_dest_cells)
+    type(t_thread_traversal), intent(inout)          :: thread_traversal
+	type(t_section_traversal), intent(inout)    :: section_traversal
     type(t_grid_thread), intent(inout)          :: src_thread
     type(t_grid_section), intent(inout)         :: src_section
     integer(kind = GRID_SI)                     :: i_dest_cells
@@ -928,14 +935,14 @@ function empty_leaf(thread_traversal, traversal, src_thread, src_section) result
 	call init_src_element(src_section, thread_traversal%p_src_element)
 	select case (thread_traversal%p_src_element%cell%geometry%i_entity_types)
 		case (INNER_OLD)
-			call read_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
-			call write_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_oon(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_oon(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 		case (INNER_NEW)
-			call read_src_onn(traversal, src_thread, src_section, thread_traversal%p_src_element)
-			call write_src_onn(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src_onn(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src_onn(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 		case default
-			call read_src(traversal, src_thread, src_section, thread_traversal%p_src_element)
-			call write_src(traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call read_src(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
+			call write_src(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
 	end select
 
     select case (thread_traversal%p_src_element%cell%geometry%refinement)
@@ -945,14 +952,14 @@ function empty_leaf(thread_traversal, traversal, src_thread, src_section) result
             call init_src_element(src_section, thread_traversal%p_src_element)
             select case (thread_traversal%p_src_element%cell%geometry%i_entity_types)
                 case (INNER_OLD)
-                    call read_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
-                    call write_src_oon(traversal, src_thread, src_section, thread_traversal%p_src_element)
+                    call read_src_oon(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
+                    call write_src_oon(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
                 case (INNER_NEW)
-                    call read_src_onn(traversal, src_thread, src_section, thread_traversal%p_src_element)
-                    call write_src_onn(traversal, src_thread, src_section, thread_traversal%p_src_element)
+                    call read_src_onn(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
+                    call write_src_onn(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
                 case default
-                    call read_src(traversal, src_thread, src_section, thread_traversal%p_src_element)
-                    call write_src(traversal, src_thread, src_section, thread_traversal%p_src_element)
+                    call read_src(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
+                    call write_src(section_traversal, src_thread, src_section, thread_traversal%p_src_element)
             end select
 
             i_dest_cells = 1
@@ -1134,8 +1141,8 @@ subroutine init_dest_element(section, element)
 	element%i_cell = section%cells%i_current_element
 end subroutine
 
-subroutine read_dest_element(traversal, thread, section, element)
-	type(_GT), intent(inout)                        :: traversal
+subroutine read_dest_element(section_traversal, thread, section, element)
+	type(t_section_traversal), intent(inout)        :: section_traversal
 	type(t_grid_thread), intent(inout)              :: thread
 	type(t_grid_section), intent(inout)             :: section
 	type(t_traversal_element), intent(inout)		:: element
@@ -1159,11 +1166,11 @@ subroutine read_dest_element(traversal, thread, section, element)
             call thread%indices_stack(element%cell%geometry%i_color_edge_color)%push_data(element%i_cell)
      end select
 
-	call read_dest(traversal, thread, section, element)
+	call read_dest(section_traversal, thread, section, element)
 end subroutine
 
-subroutine write_dest_element(traversal, thread, section, element)
-	type(_GT), intent(inout)                        :: traversal
+subroutine write_dest_element(section_traversal, thread, section, element)
+	type(t_section_traversal), intent(inout)        :: section_traversal
 	type(t_grid_thread), intent(inout)              :: thread
 	type(t_grid_section), intent(inout)             :: section
 	type(t_traversal_element), intent(inout)		:: element
@@ -1180,14 +1187,14 @@ subroutine write_dest_element(traversal, thread, section, element)
 
     select case (element%cell%geometry%i_entity_types)
         case (INNER_OLD)
-            call write_dest_oon(traversal, thread, section, element)
+            call write_dest_oon(section_traversal, thread, section, element)
         case (INNER_NEW)
-            call write_dest_onn(traversal, thread, section, element)
+            call write_dest_onn(section_traversal, thread, section, element)
         case (INNER_OLD_BND)
-            call write_dest_odn(traversal, thread, section, element)
+            call write_dest_odn(section_traversal, thread, section, element)
         case (FIRST_NEW, FIRST_OLD_BND)
             element%previous_edge%ptr%remove = .false.
-            call write_dest(traversal, thread, section, element)
+            call write_dest(section_traversal, thread, section, element)
         case default
             assert(.false.)
     end select
@@ -1245,22 +1252,22 @@ subroutine init_src_element(section, element)
 	element%i_cell = section%cells%i_current_element
 end subroutine
 
-subroutine read_src_element(traversal, thread, section, element)
-	type(_GT), intent(inout)                        :: traversal
+subroutine read_src_element(section_traversal, thread, section, element)
+    type(t_section_traversal), intent(inout)        :: section_traversal
 	type(t_grid_thread), intent(inout)              :: thread
 	type(t_grid_section), intent(inout)             :: section
 	type(t_traversal_element), intent(inout)		:: element
 
-	call read_src(traversal, thread, section, element)
+	call read_src(section_traversal, thread, section, element)
 end subroutine
 
-subroutine write_src_element(traversal, thread, section, element)
-	type(_GT), intent(inout)                        :: traversal
+subroutine write_src_element(section_traversal, thread, section, element)
+	type(t_section_traversal), intent(inout)        :: section_traversal
 	type(t_grid_thread), intent(inout)              :: thread
 	type(t_grid_section), intent(inout)             :: section
 	type(t_traversal_element), intent(inout)		:: element
 
-	call write_src(traversal, thread, section, element)
+	call write_src(section_traversal, thread, section, element)
 end subroutine
 
 !---
@@ -1272,3 +1279,5 @@ end subroutine
 #undef _GT_TRANSFER_OP
 #undef _GT_REFINE_OP
 #undef _GT_COARSEN_OP
+
+#undef t_section_traversal

@@ -54,7 +54,7 @@
 
             contains
 
-            procedure, pass :: assign_num_traversal_data
+            procedure, private, pass :: assign_num_traversal_data
 
             generic :: assignment(=) => assign_num_traversal_data
         end type
