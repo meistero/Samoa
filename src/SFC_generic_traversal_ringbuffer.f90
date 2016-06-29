@@ -288,7 +288,9 @@ subroutine traverse(traversal, grid)
 
     call grid%get_local_sections(i_first_local_section, i_last_local_section)
 
-    call traversal%sections(i_first_local_section : i_last_local_section)%stats%clear()
+    do i_section = i_first_local_section, i_last_local_section
+        call traversal%sections(i_section)%stats%clear()
+    end do
 
 #   if defined(_ASAGI_TIMING)
         call grid%sections%elements_alloc(i_first_local_section : i_last_local_section)%stats%clear_time(asagi_time)

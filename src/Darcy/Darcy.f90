@@ -535,7 +535,7 @@
 
  			double precision, save          :: t_phase = huge(1.0d0)
 
-            integer, parameter  :: reduction_ops(1) = [MPI_SUM]
+            integer, parameter  :: reduction_ops(3) = [MPI_MIN, MPI_MAX, MPI_SUM]
             integer             :: i
             type(t_grid_info)   :: grid_info
 
