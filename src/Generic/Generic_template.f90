@@ -53,10 +53,10 @@
 
 			traversal%adapt = .false.
 
-			do i = 1, size(traversal%children)
-                traversal%children(i)%kernel => traversal%kernel
-                traversal%children(i)%data = traversal%data
-                traversal%children(i)%adapt = .false.
+			do i = 1, size(traversal%sections)
+                traversal%sections(i)%kernel => traversal%kernel
+                traversal%sections(i)%data = traversal%data
+                traversal%sections(i)%adapt = .false.
 			end do
 		end subroutine
 
@@ -64,7 +64,7 @@
   			type(t_generic_traversal), intent(inout)	        :: traversal
  			type(t_grid), intent(inout)					    :: grid
 
-            call reduce(traversal%adapt, traversal%children%adapt, MPI_LOR, .true.)
+            call reduce(traversal%adapt, traversal%sections%adapt, MPI_LOR, .true.)
 		end subroutine
 
  		subroutine pre_traversal_op(traversal, section)

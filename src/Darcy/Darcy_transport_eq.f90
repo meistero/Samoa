@@ -105,13 +105,13 @@
             integer                :: i
 
             do i = -_DARCY_PRODUCER_WELLS, _DARCY_INJECTOR_WELLS
-                call reduce(traversal%prod_w(i), traversal%children%prod_w(i), MPI_SUM, .false.)
-                call reduce(traversal%prod_n(i), traversal%children%prod_n(i), MPI_SUM, .false.)
+                call reduce(traversal%prod_w(i), traversal%sections%prod_w(i), MPI_SUM, .false.)
+                call reduce(traversal%prod_n(i), traversal%sections%prod_n(i), MPI_SUM, .false.)
             end do
 
             !the injector pressure must be shared over all mpi ranks as it is used for the linear solver exit criterion
             do i = 1, _DARCY_INJECTOR_WELLS
-                call reduce(traversal%p_bh(i), traversal%children%p_bh(i), MPI_MAX, .false.)
+                call reduce(traversal%p_bh(i), traversal%sections%p_bh(i), MPI_MAX, .false.)
             end do
 
             !In the 2D case we always assumed that the height of the domain is 1, when in fact it should be delta_z.

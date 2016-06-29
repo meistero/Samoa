@@ -74,14 +74,14 @@ MODULE _CG_(1)
         type(_T_CG_(1_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call scatter(traversal%beta, traversal%children%beta)
+        call scatter(traversal%beta, traversal%sections%beta)
     end subroutine
 
     subroutine post_traversal_grid_op(traversal, grid)
         type(_T_CG_(1_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .true.)
+        call reduce(traversal%d_u, traversal%sections%d_u, MPI_SUM, .true.)
     end subroutine
 
     pure subroutine pre_traversal_op(traversal, section)
@@ -268,7 +268,7 @@ MODULE _CG_(2)
         type(_T_CG_(2_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call scatter(traversal%alpha, traversal%children%alpha)
+        call scatter(traversal%alpha, traversal%sections%alpha)
     end subroutine
 
     subroutine post_traversal_grid_op(traversal, grid)
@@ -278,8 +278,8 @@ MODULE _CG_(2)
         integer                                                     :: i_error
         real (kind = GRID_SR)                                       :: reduction_set(2)
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+        call reduce(traversal%r_C_r, traversal%sections%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%sections%r_sq, MPI_SUM, .false.)
 
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq
@@ -522,8 +522,8 @@ MODULE _CG_(exact)
         integer                                                     :: i_error
         real (kind = GRID_SR)                                       :: reduction_set(2)
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+        call reduce(traversal%r_C_r, traversal%sections%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%sections%r_sq, MPI_SUM, .false.)
 
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq

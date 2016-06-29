@@ -95,8 +95,8 @@
             r_testpoints(i,7) = huge(1.0)
 		end do
 
-        call scatter(traversal%s_file_stamp, traversal%children%s_file_stamp)
-        call scatter(traversal%i_output_iteration, traversal%children%i_output_iteration)
+        call scatter(traversal%s_file_stamp, traversal%sections%s_file_stamp)
+        call scatter(traversal%i_output_iteration, traversal%sections%i_output_iteration)
         call scatter(grid%r_time, grid%sections%elements_alloc(:)%r_time)
 	end subroutine
 

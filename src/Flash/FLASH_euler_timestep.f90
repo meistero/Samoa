@@ -73,7 +73,7 @@
 			type(t_flash_euler_timestep_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
+            call reduce(traversal%i_refinements_issued, traversal%sections%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%u_max, grid%sections%elements_alloc%u_max, MPI_MAX, .true.)
 			grid%r_time = grid%r_time + grid%r_dt
 

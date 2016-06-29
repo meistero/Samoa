@@ -234,7 +234,7 @@
 			type(t_swe_init_dofs_traversal), intent(inout)		        :: traversal
 			type(t_grid), intent(inout)							    :: grid
 
-            call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
+            call reduce(traversal%i_refinements_issued, traversal%sections%i_refinements_issued, MPI_SUM, .true.)
             call reduce(grid%r_dt_new, grid%sections%elements_alloc%r_dt_new, MPI_MIN, .true.)
 
             grid%r_dt = cfg%courant_number * grid%r_dt_new

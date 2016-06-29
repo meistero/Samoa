@@ -67,8 +67,8 @@
 
 			_log_write(1, '(A, I0)') " FLASH: output step: ", traversal%i_output_iteration
 
-            call scatter(traversal%s_file_stamp, traversal%children%s_file_stamp)
-            call scatter(traversal%i_output_iteration, traversal%children%i_output_iteration)
+            call scatter(traversal%s_file_stamp, traversal%sections%s_file_stamp)
+            call scatter(traversal%i_output_iteration, traversal%sections%i_output_iteration)
 		end subroutine
 
         subroutine post_traversal_grid_op(traversal, grid)

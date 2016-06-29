@@ -99,7 +99,7 @@
   			type(t_darcy_error_estimate_traversal), intent(inout)			:: traversal
  			type(t_grid), intent(inout)							        :: grid
 
-			call reduce(traversal%i_refinements_issued, traversal%children%i_refinements_issued, MPI_SUM, .true.)
+			call reduce(traversal%i_refinements_issued, traversal%sections%i_refinements_issued, MPI_SUM, .true.)
 		end subroutine
 
 		subroutine pre_traversal_op(traversal, section)

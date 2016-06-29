@@ -80,14 +80,14 @@ MODULE _JACOBI_(1)
         type(_T_JACOBI_(traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call scatter(traversal%alpha, traversal%children%alpha)
+        call scatter(traversal%alpha, traversal%sections%alpha)
     end subroutine
 
     subroutine post_traversal_grid_op(traversal, grid)
         type(_T_JACOBI_(traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .true.)
+        call reduce(traversal%r_sq, traversal%sections%r_sq, MPI_SUM, .true.)
     end subroutine
 
     subroutine pre_traversal_op(traversal, section)

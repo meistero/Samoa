@@ -53,7 +53,7 @@
 
 			_log_write(1, '(A, I0, A, I0)') " Darcy: LSE output step: ", traversal%i_output_iteration
 
-            call scatter(traversal%i_output_iteration, traversal%children%i_output_iteration)
+            call scatter(traversal%i_output_iteration, traversal%sections%i_output_iteration)
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)

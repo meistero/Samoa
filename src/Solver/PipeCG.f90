@@ -154,8 +154,8 @@ MODULE _CG_(step)
         type(_T_CG_(step_traversal)), intent(inout)					:: traversal
         type(t_grid), intent(inout)							        :: grid
 
-        call scatter(traversal%alpha, traversal%children%alpha)
-        call scatter(traversal%beta, traversal%children%beta)
+        call scatter(traversal%alpha, traversal%sections%alpha)
+        call scatter(traversal%beta, traversal%sections%beta)
     end subroutine
 
     subroutine post_traversal_grid_op(traversal, grid)
@@ -165,10 +165,10 @@ MODULE _CG_(step)
         integer                                                     :: i_error
         real (kind = GRID_SR)                                       :: reduction_set(4)
 
-        call reduce(traversal%d_u, traversal%children%d_u, MPI_SUM, .false.)
-        call reduce(traversal%v_u, traversal%children%v_u, MPI_SUM, .false.)
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+        call reduce(traversal%d_u, traversal%sections%d_u, MPI_SUM, .false.)
+        call reduce(traversal%v_u, traversal%sections%v_u, MPI_SUM, .false.)
+        call reduce(traversal%r_C_r, traversal%sections%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%sections%r_sq, MPI_SUM, .false.)
 
         reduction_set(1) = traversal%d_u
         reduction_set(2) = traversal%v_u
@@ -587,8 +587,8 @@ MODULE _CG_(exact)
         integer                                                     :: i_error
         real (kind = GRID_SR)                                       :: reduction_set(2)
 
-        call reduce(traversal%r_C_r, traversal%children%r_C_r, MPI_SUM, .false.)
-        call reduce(traversal%r_sq, traversal%children%r_sq, MPI_SUM, .false.)
+        call reduce(traversal%r_C_r, traversal%sections%r_C_r, MPI_SUM, .false.)
+        call reduce(traversal%r_sq, traversal%sections%r_sq, MPI_SUM, .false.)
 
         reduction_set(1) = traversal%r_C_r
         reduction_set(2) = traversal%r_sq

@@ -188,13 +188,13 @@
 			call traversal%point_data%create(i_points)
 			call traversal%cell_data%create(i_cells)
 
-            do i = 1, size(traversal%children)
-                traversal%children(i)%point_data => traversal%point_data
-                traversal%children(i)%cell_data => traversal%cell_data
+            do i = 1, size(traversal%sections)
+                traversal%sections(i)%point_data => traversal%point_data
+                traversal%sections(i)%cell_data => traversal%cell_data
             end do
 
-            call scatter(traversal%s_file_stamp, traversal%children%s_file_stamp)
-            call scatter(traversal%i_output_iteration, traversal%children%i_output_iteration)
+            call scatter(traversal%s_file_stamp, traversal%sections%s_file_stamp)
+            call scatter(traversal%i_output_iteration, traversal%sections%i_output_iteration)
 		end subroutine
 
 		subroutine post_traversal_grid_op(traversal, grid)

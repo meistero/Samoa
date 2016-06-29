@@ -57,10 +57,10 @@
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-            call reduce(traversal%max_water, traversal%children%max_water, MPI_MAX, .true.)
-            call reduce(traversal%min_water, traversal%children%min_water, MPI_MIN, .true.)
-            call reduce(traversal%avg_water, traversal%children%avg_water, MPI_SUM, .true.) !-----------------
-            call reduce(traversal%cells, traversal%children%cells, MPI_SUM, .true.)
+            call reduce(traversal%max_water, traversal%sections%max_water, MPI_MAX, .true.)
+            call reduce(traversal%min_water, traversal%sections%min_water, MPI_MIN, .true.)
+            call reduce(traversal%avg_water, traversal%sections%avg_water, MPI_SUM, .true.) !-----------------
+            call reduce(traversal%cells, traversal%sections%cells, MPI_SUM, .true.)
             traversal%avg_water = traversal%avg_water / traversal%cells
 
             ascii%h_min = traversal%min_water

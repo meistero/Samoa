@@ -80,7 +80,7 @@
 			type(t_darcy_grad_p_traversal), intent(inout)		:: traversal
 			type(t_grid), intent(inout)							:: grid
 
-			call reduce(traversal%r_dt, traversal%children%r_dt, MPI_MIN, .true.)
+			call reduce(traversal%r_dt, traversal%sections%r_dt, MPI_MIN, .true.)
 			grid%r_dt = cfg%courant_number * traversal%r_dt
 
 			if (cfg%r_max_time > 0.0_SR) then

@@ -78,7 +78,7 @@ type, extends(num_traversal_data) :: t_thread_data
 end type
 
 type, extends(num_traversal_data) :: _GT
-    type(_GT), pointer                                      :: children(:) => null()			!< section data
+    type(_GT), pointer                                      :: sections(:) => null()			!< section data
     type(t_thread_data), pointer                            :: threads(:) => null()             !< thread data
 	type(t_adaptive_statistics)								:: stats
     type(t_conformity)                                      :: conformity
@@ -155,8 +155,8 @@ subroutine destroy(traversal)
         call MPI_Type_free(traversal%mpi_edge_type, i_error); assert_eq(i_error, 0)
 #    endif
 
-    if (associated(traversal%children)) then
-        deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
+    if (associated(traversal%sections)) then
+        deallocate(traversal%sections, stat = i_error); assert_eq(i_error, 0)
     end if
 
     if (associated(traversal%threads)) then
@@ -384,15 +384,15 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 	type(t_grid_section), target, save					    :: src_section
 	!$omp threadprivate(i_src_section, i_src_cell, src_section)
 
-    if (.not. associated(traversal%children) .or. size(traversal%children) .ne. dest_grid%sections%get_size()) then
+    if (.not. associated(traversal%sections) .or. size(traversal%sections) .ne. dest_grid%sections%get_size()) then
 		!$omp barrier
 
 		!$omp single
-        if (associated(traversal%children)) then
-            deallocate(traversal%children, stat = i_error); assert_eq(i_error, 0)
+        if (associated(traversal%sections)) then
+            deallocate(traversal%sections, stat = i_error); assert_eq(i_error, 0)
         end if
 
-        allocate(traversal%children(dest_grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
+        allocate(traversal%sections(dest_grid%sections%get_size()), stat = i_error); assert_eq(i_error, 0)
     	!$omp end single
     end if
 
@@ -424,7 +424,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
     !call pre traversal operator
     thread_stats%r_pre_compute_time = -get_wtime()
     do i_dest_section = i_first_local_section, i_last_local_section
-        call pre_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
+        call pre_traversal_dest(traversal%sections(i_dest_section), dest_grid%sections%elements(i_dest_section))
     end do
     thread_stats%r_pre_compute_time = thread_stats%r_pre_compute_time + get_wtime()
 
@@ -471,7 +471,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
             !traverse all unnecessary elements of the source section with an empty traversal
             do while (i_src_cell .le. dest_section%last_dest_cell - dest_section%dest_cells)
-                i_src_cell = i_src_cell + empty_leaf(traversal%threads(i_thread), traversal%children(i_dest_section), src_grid%threads%elements(i_thread), src_section)
+                i_src_cell = i_src_cell + empty_leaf(traversal%threads(i_thread), traversal%sections(i_dest_section), src_grid%threads%elements(i_thread), src_section)
             end do
         end if
 
@@ -487,7 +487,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
             !traverse all elements
             do while (i_src_cell .le. min(src_section%last_dest_cell, dest_section%last_dest_cell))
-                i_src_cell = i_src_cell + leaf(traversal%threads(i_thread), traversal%children(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
+                i_src_cell = i_src_cell + leaf(traversal%threads(i_thread), traversal%sections(i_dest_section), src_grid%threads%elements(i_thread), dest_grid%threads%elements(i_thread), src_section, dest_section)
             end do
 
             if (i_src_cell .gt. src_section%last_dest_cell .and. i_src_section < src_grid%sections%get_size()) then
@@ -561,7 +561,7 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 
     thread_stats%r_post_compute_time = -get_wtime()
     do i_dest_section = i_first_local_section, i_last_local_section
-        call post_traversal_dest(traversal%children(i_dest_section), dest_grid%sections%elements(i_dest_section))
+        call post_traversal_dest(traversal%sections(i_dest_section), dest_grid%sections%elements(i_dest_section))
     end do
     thread_stats%r_post_compute_time = thread_stats%r_post_compute_time + get_wtime()
 
@@ -589,9 +589,9 @@ subroutine traverse_grids(traversal, src_grid, dest_grid)
 #   endif
 
     do i_dest_section = i_first_local_section, i_last_local_section
-        call set_stats_counters_dest(traversal%children(i_dest_section)%stats%t_statistics, dest_grid%sections%elements_alloc(i_dest_section))
-        dest_grid%sections%elements_alloc(i_dest_section)%stats = dest_grid%sections%elements_alloc(i_dest_section)%stats + traversal%children(i_dest_section)%stats
-        thread_stats = thread_stats + traversal%children(i_dest_section)%stats
+        call set_stats_counters_dest(traversal%sections(i_dest_section)%stats%t_statistics, dest_grid%sections%elements_alloc(i_dest_section))
+        dest_grid%sections%elements_alloc(i_dest_section)%stats = dest_grid%sections%elements_alloc(i_dest_section)%stats + traversal%sections(i_dest_section)%stats
+        thread_stats = thread_stats + traversal%sections(i_dest_section)%stats
     end do
 
     traversal%threads(i_thread)%stats = traversal%threads(i_thread)%stats + thread_stats
