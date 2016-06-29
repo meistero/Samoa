@@ -283,10 +283,10 @@ if env['target'] == 'debug':
   env.SetDefault(assertions = True)
 
   if env['compiler'] == 'intel':
-    env['F90FLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
+    env['F90FLAGS'] += ' -g -O0 -D_DEBUG -traceback -check all -debug all -fpe0'
     env['LINKFLAGS'] += ' -g -O0 -traceback -check all -debug all -fpe0'
   elif  env['compiler'] == 'gnu':
-    env['F90FLAGS'] += ' -g -O0 -fcheck=all -fbacktrace -ffpe-trap=invalid,zero,overflow -finit-real=nan'
+    env['F90FLAGS'] += ' -g -O0 -D_DEBUG -fcheck=all -fbacktrace -ffpe-trap=invalid -finit-real=nan'
     env['LINKFLAGS'] += ' -g -O0'
 elif env['target'] == 'profile':
   env.SetDefault(debug_level = '1')

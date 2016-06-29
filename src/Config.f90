@@ -403,10 +403,20 @@ module config
     end function
 
     subroutine config_print(config)
+#       if defined(__INTEL_COMPILER) || __GNUC__ >= 5
+            use, intrinsic :: ieee_exceptions
+#       endif
+
         class(t_config)                         :: config
         character(64), parameter           		:: lsolver_to_char(0:3) = [character(64) :: "Jacobi", "CG", "Pipelined CG", "Pipelined CG (unstable)"]
         character(64), parameter             	:: asagi_mode_to_char(0:4) = [character(64) :: "default", "pass through", "no mpi", "no mpi + small cache", "large grid"]
         logical                                 :: b_valid
+
+#       if defined(_DEBUG) && (defined(__INTEL_COMPILER) || __GNUC__ >= 5)
+            _log_write(2, '(A)') ' Exceptions: Disabling IEEE_DIVIDE_BY_ZERO and IEEE_OVERFLOW traps for geometric/harmonic averaging and time step computation.'
+            call ieee_set_halting_mode(IEEE_DIVIDE_BY_ZERO, .false.)
+            call ieee_set_halting_mode(IEEE_OVERFLOW, .false.)
+#       endif
 
 #	    if defined(_TESTS)
             _log_write(0, '(" Scenario: Tests")')
@@ -536,16 +546,8 @@ module config
                _log_write(0, '(" Darcy: Permeability averaging: ", A)') "Arithmetic"
 #           elif defined (_PERM_MEAN_GEOMETRIC)
                _log_write(0, '(" Darcy: Permeability averaging: ", A)') "Geometric"
-
-#               if defined(_DEBUG)
-#                   warning Geometric averaging causes intended floating point overflows, use arithmetic averaging to catch floating point exceptions
-#               endif
 #           elif defined (_PERM_MEAN_HARMONIC)
                _log_write(0, '(" Darcy: Permeability averaging: ", A)') "Harmonic"
-
-#               if defined(_DEBUG)
-#                   warning Harmonic averaging causes intended floating point overflows, use arithmetic averaging to catch floating point exceptions
-#               endif
 #           else
 #               error Invalid permeability averaging!
 #           endif
