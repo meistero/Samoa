@@ -3,7 +3,7 @@
 sam(oa)² 
 =======
 
-SFCs and Adaptive Meshes for Oceanic And Other Applications. <br>
+Space-Filing Curves and Adaptive Meshes for Oceanic And Other Applications. <br>
 Github repository: [https://github.com/meistero/Samoa](https://github.com/meistero/Samoa)
 
 ## Contents
