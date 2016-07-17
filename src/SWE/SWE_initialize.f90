@@ -123,7 +123,7 @@
             real (kind = GRID_SR), intent(in)		:: t
             real (kind = GRID_SR)					:: bathymetry
 
-            real (kind = GRID_SR)   :: x, x1(2), x2(2), x3(2)
+            real (kind = GRID_SR)   :: x(2), x1(2), x2(2), x3(2)
             integer                 :: ddepth, data_depth
 
 #           if defined(_ADAPT_INTEGRATE)
