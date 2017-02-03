@@ -1,8 +1,3 @@
-! Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications
-! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
-! This program is licensed under the GPL, for details see the file LICENSE
-
-
 #include "Compilation_control.f90"
 
 #if defined(_FLASH)
@@ -76,12 +71,12 @@
 
     !> persistent scenario data on a node
     type num_node_data_pers
-      integer (kind = BYTE)                                        :: dummy    !< no data
+      integer (kind = 1)                                        :: dummy    !< no data
     END type num_node_data_pers
 
     !> persistent scenario data on an edge
     type num_edge_data_pers
-      integer (kind = BYTE), dimension(0)                          :: dummy    !< no data
+      integer (kind = 1), dimension(0)                          :: dummy    !< no data
     END type num_edge_data_pers
 
     !> persistent scenario data on a cell
@@ -91,14 +86,12 @@
 
     !> Cell representation on an edge, this would typically be everything required from a cell to compute the flux function on an edge
     type num_cell_rep
-      type(t_state), DIMENSION(_FLASH_EDGE_SIZE)                :: Q        !< cell representation
-      REAL (KIND = GRID_SR)                                     :: iswete   !< marker for wet element
-      REAL (KIND = GRID_SR)                                     :: iswetg   !< marker for wet edge
+      type(t_state), DIMENSION(_FLASH_CELL_SIZE)                :: Q        !< cell representation
     end type
 
     !> Cell update, this would typically be a flux function
     type num_cell_update
-      type(t_update), DIMENSION(_FLASH_CELL_SIZE)               :: flux     !< cell update
+      type(t_update), DIMENSION(_FLASH_EDGE_SIZE)               :: flux     !< cell update
     end type
 
     !*************************
@@ -107,17 +100,17 @@
 
     !> temporary scenario data on a node (deleted after each traversal)
     type num_node_data_temp
-      integer (kind = BYTE), dimension(0)                          :: dummy    !< no data
+      integer (kind = 1), dimension(0)                          :: dummy    !< no data
     END type num_node_data_temp
 
     !> temporary scenario data on an edge (deleted after each traversal)
     type num_edge_data_temp
-      integer (kind = BYTE), dimension(0)                          :: dummy    !< no data
+      integer (kind = 1), dimension(0)                          :: dummy    !< no data
     END type num_edge_data_temp
 
     !> temporary scenario data on a cell (deleted after each traversal)
     type num_cell_data_temp
-      integer (kind = BYTE), dimension(0)                          :: dummy    !< no data
+      integer (kind = 1), dimension(0)                          :: dummy    !< no data
     END type num_cell_data_temp
 
     !***********************
@@ -126,10 +119,11 @@
 
     !> Data type for the scenario configuration
     type num_global_data
-      real (kind = GRID_SR)                                     :: r_time           !< simulation time
       real (kind = GRID_SR)                                     :: r_dt             !< time step
       real (kind = GRID_SR)                                     :: u_max            !< maximum wave velocity for cfl condition
-      integer (kind = BYTE)                                     :: d_max            !< current maximum grid depth
+      integer (kind = 1)                                        :: d_max            !< current maximum grid depth
+      real (kind = GRID_SR)							:: r_dt_new					!< new time step for the
+      real (kind = GRID_SR)                                     :: r_time           !< simulation time
 
       contains
 
@@ -143,8 +137,7 @@
 
     !adds two state vectors
     elemental function state_add(Q1, Q2)    result(Q_out)
-      class (t_state), intent(in)                     :: Q1
-      type (t_state), intent(in)                      :: Q2
+      class (t_state), intent(in)                     :: Q1, Q2
       type (t_state)                                  :: Q_out
 
       Q_out = t_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%h_old + Q2%h_old, Q1%p_old + Q2%p_old, Q1%b + Q2%b)
@@ -152,8 +145,7 @@
 
     !adds two update vectors
     elemental function update_add(f1, f2)   result(f_out)
-      class (t_update), intent(in)                    :: f1
-      type (t_update), intent(in)                     :: f2
+      class (t_update), intent(in)                    :: f1, f2
       type (t_update)                                 :: f_out
 
       f_out = t_update(f1%h + f2%h, f1%p + f2%p, f1%h_old + f2%h_old, f1%p_old + f2%p_old, max_wave_speed = max(f1%max_wave_speed, f2%max_wave_speed))
@@ -161,8 +153,7 @@
 
     !adds two dof state vectors
     elemental function dof_state_add(Q1, Q2)        result(Q_out)
-      class (t_dof_state), intent(in)                 :: Q1
-      type (t_dof_state), intent(in)                  :: Q2
+      class (t_dof_state), intent(in)                 :: Q1, Q2
       type (t_dof_state)                              :: Q_out
 
       Q_out = t_dof_state(Q1%h + Q2%h, Q1%p + Q2%p, Q1%h_old + Q2%h_old, Q1%p_old + Q2%p_old)

@@ -1,8 +1,3 @@
-! Sam(oa)² - SFCs and Adaptive Meshes for Oceanic And Other Applications
-! Copyright (C) 2010 Oliver Meister, Kaveh Rahnema
-! This program is licensed under the GPL, for details see the file LICENSE
-
-
 #include "Compilation_control.f90"
 
 #if defined(_FLASH)
@@ -13,8 +8,6 @@
 
 		use Samoa_FLASH
 		use FLASH_euler_timestep
-    use FLASH_dg_element
-    USE DG_equation
 
 		implicit none
 
@@ -41,7 +34,7 @@
             integer (kind = GRID_SI)								:: i_cell_data_index
         end type
 
-		integer, PARAMETER											:: i_element_order = 1
+		integer, PARAMETER											:: i_element_order = 0
 
 		type(t_gv_Q)												:: gv_Q
 
@@ -137,46 +130,36 @@
 
 			write (s_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".vtk"
 
-#           if defined(_QUAD_PRECISION)
-#               warning VTK output does not work for quad precision
-#           else
-                e_io = vtk%VTK_INI('ASCII', s_file_name, 'FLASH', 'UNSTRUCTURED_GRID')
-                    e_io = vtk%VTK_GEO(i_points, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+			e_io = vtk%VTK_INI('ASCII', s_file_name, 'FLASH', 'UNSTRUCTURED_GRID')
+				e_io = vtk%VTK_GEO(i_points, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-                    e_io = vtk%VTK_CON(i_cells, i_connectivity, i_types)
+				e_io = vtk%VTK_CON(i_cells, i_connectivity, i_types)
 
-                    e_io = vtk%VTK_DAT(i_points, 'node')
+				e_io = vtk%VTK_DAT(i_points, 'node')
 
-                    if (i_element_order > 0) then
-                        e_io = vtk%VTK_VAR(i_points, 'water_height', traversal%point_data%Q%h)
-                        e_io = vtk%VTK_VAR(i_points, 'bathymetry', traversal%point_data%Q%b)
+				if (i_element_order > 0) then
+					e_io = vtk%VTK_VAR(i_points, 'water_height', traversal%point_data%Q%h)
+					e_io = vtk%VTK_VAR(i_points, 'bathymetry', traversal%point_data%Q%b)
 
-                        forall(i=1 : i_points)
-                          r_velocity(1, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(1))
-                          r_velocity(2, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(2))
-                        end forall
-                        e_io = vtk%VTK_VAR('vect', i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
-                        e_io = vtk%VTK_VAR('vect', i_points, 'momentum', traversal%point_data%Q%p(1), traversal%point_data%Q%p(2), r_empty(1:i_points))
-                    endif
+					r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+					r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+					e_io = vtk%VTK_VAR('vect', i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+				endif
 
-                    e_io = vtk%VTK_DAT(i_cells, 'cell')
+				e_io = vtk%VTK_DAT(i_cells, 'cell')
 
-                    if (i_element_order == 0) then
-                        e_io = vtk%VTK_VAR(i_cells, 'water_height', traversal%cell_data%Q%h)
-                        e_io = vtk%VTK_VAR(i_cells, 'bathymetry', traversal%cell_data%Q%b)
+				if (i_element_order == 0) then
+					e_io = vtk%VTK_VAR(i_cells, 'water_height', traversal%cell_data%Q%h)
+					e_io = vtk%VTK_VAR(i_cells, 'bathymetry', traversal%cell_data%Q%b)
 
-                        forall(i=1 : i_cells)
-                          r_velocity(1, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(1))
-                          r_velocity(2, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(2))
-                        end forall
-                        e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
-                        e_io = vtk%VTK_VAR('vect', i_cells, 'momentum', traversal%cell_data%Q%p(1), traversal%cell_data%Q%p(2), r_empty(1:i_cells))
-                    endif
+					r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+					r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+					e_io = vtk%VTK_VAR('vect', i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
+				endif
 
-                    e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
-                    e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
-                e_io = vtk%VTK_END()
-#           endif
+				e_io = vtk%VTK_VAR(i_cells, 'grid_depth', traversal%cell_data%depth)
+				e_io = vtk%VTK_VAR(i_cells, 'refinement_flag', traversal%cell_data%refinement)
+			e_io = vtk%VTK_END()
 
 			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
@@ -203,17 +186,13 @@
 			!local variables
 
 			integer (kind = GRID_SI)							:: i
-			real (kind = GRID_SR), parameter, dimension(2, 6)	:: r_test_points = reshape((/ 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.5, 0.5 /), (/ 2, 6 /))
+			real (kind = GRID_SR), parameter, dimension(2, 6)	:: r_test_points = reshape((/ 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.5, 0.5 /), (/ 2, 6 /))
 			real (kind = GRID_SR), parameter, dimension(2)		:: r_test_point0 = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
 
 			type(t_state), dimension(_FLASH_CELL_SIZE)			:: Q
 			type(t_state), dimension(6)							:: Q_test
 
 			call gv_Q%read(element, Q)
-      Q(:) = Q(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
-! 			if (element%transform_data%plotter_data%orientation <1) then
-! 				Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
-! 			endif
 
 			traversal%cell_data(traversal%i_cell_data_index)%depth = element%cell%geometry%i_depth
 			traversal%cell_data(traversal%i_cell_data_index)%refinement = element%cell%geometry%refinement

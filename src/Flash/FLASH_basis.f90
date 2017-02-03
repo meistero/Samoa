@@ -13,7 +13,7 @@
 #		define _BF_TYPE_NAME		t_basis_Q
 #		define _BF_ORDER			_FLASH_ORDER
 
-#		include "Tools_Stormflash_basis.f90"
+#		include "Tools_lagrange_basis.f90"
 	END MODULE
 
 	MODULE FLASH_flux_space

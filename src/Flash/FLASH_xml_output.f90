@@ -13,8 +13,6 @@
 
 		use Samoa_FLASH
 		use FLASH_euler_timestep
-    use FLASH_dg_element
-    USE DG_equation
 
 		implicit none
 
@@ -29,8 +27,8 @@
 			type(t_state)											:: Q
 			integer (kind = GRID_SI)								:: rank
 			integer (kind = GRID_SI)								:: section_index
-			integer (kind = BYTE)										:: depth
-			integer (kind = BYTE)										:: refinement
+			integer (kind = 1)										:: depth
+			integer (kind = 1)										:: refinement
 		end type t_output_cell_data
 
         type num_traversal_data
@@ -43,7 +41,7 @@
             integer (kind = GRID_SI)								:: i_cell_data_index
         end type
 
-		integer, parameter											:: i_element_order = 1
+		integer, parameter											:: i_element_order = 0
 
 		type(t_gv_Q)												:: gv_Q
 
@@ -87,55 +85,50 @@
                 call mpi_barrier(MPI_COMM_WORLD, i_error); assert_eq(i_error, 0)
 #           endif
 
-#           if defined(_QUAD_PRECISION)
-#               warning VTK output does not work for quad precision
-#           else
-                if (rank_MPI == 0) then
-                    write (s_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
-                    e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
+            if (rank_MPI == 0) then
+                write (s_file_name, "(A, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, ".pvtu"
 
-                    e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
-                        if (i_element_order > 0) then
-                            e_io = vtk%VTK_VAR_XML('water height', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
-                            e_io = vtk%VTK_VAR_XML('momentum', 1.0_GRID_SR, 3)
+                e_io = vtk%VTK_INI_XML('ascii', s_file_name, 'PUnstructuredGrid')
+
+                e_io = vtk%VTK_DAT_XML('pnode', 'OPEN')
+					if (i_element_order > 0) then
+						e_io = vtk%VTK_VAR_XML('water height', 1.0_GRID_SR, 1)
+						e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
+						e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+					end if
+                e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
+
+                e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
+					if (i_element_order == 0) then
+						e_io = vtk%VTK_VAR_XML('water height', 1.0_GRID_SR, 1)
+						e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
+						e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
+					end if
+
+                    e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
+                    e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
+					e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
+					e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
+                e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
+
+                e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
+
+                do i_rank = 0, size_MPI
+                    do i_section = 1, huge(1)
+                        write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
+                        inquire(file = s_file_name, exist = l_exists)
+
+                        if (l_exists) then
+                            write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
+                            e_io = vtk%VTK_GEO_XML(s_file_name)
+                        else
+                            exit
                         end if
-                    e_io = vtk%VTK_DAT_XML('pnode', 'CLOSE')
-
-                    e_io = vtk%VTK_DAT_XML('pcell', 'OPEN')
-                        if (i_element_order == 0) then
-                            e_io = vtk%VTK_VAR_XML('water height', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('bathymetry', 1.0_GRID_SR, 1)
-                            e_io = vtk%VTK_VAR_XML('velocity', 1.0_GRID_SR, 3)
-                            e_io = vtk%VTK_VAR_XML('momentum', 1.0_GRID_SR, 3)
-                        end if
-
-                        e_io = vtk%VTK_VAR_XML('rank', 1_GRID_SI, 1)
-                        e_io = vtk%VTK_VAR_XML('section index', 1_GRID_SI, 1)
-                        e_io = vtk%VTK_VAR_XML('depth', 1_1, 1)
-                        e_io = vtk%VTK_VAR_XML('refinement flag', 1_1, 1)
-                    e_io = vtk%VTK_DAT_XML('pcell', 'CLOSE')
-
-                    e_io = vtk%VTK_GEO_XML(1.0_GRID_SR)
-
-                    do i_rank = 0, size_MPI
-                        do i_section = 1, huge(1)
-                            write (s_file_name, "(A, A, I0, A, I0, A, I0, A)") trim(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", i_rank, "_s", i_section, ".vtu"
-                            inquire(file = s_file_name, exist = l_exists)
-
-                            if (l_exists) then
-                                write(s_file_name, "(A)") trim(s_file_name(scan(s_file_name, "/\", .true.) + 1 : len(s_file_name)))
-                                e_io = vtk%VTK_GEO_XML(s_file_name)
-                            else
-                                exit
-                            end if
-                        end do
                     end do
+                end do
 
-                    e_io = vtk%VTK_END_XML()
-                end if
-#           endif
+                e_io = vtk%VTK_END_XML()
+            end if
 
             traversal%i_output_iteration = traversal%i_output_iteration + 1
         end subroutine
@@ -169,8 +162,7 @@
 
 			integer (kind = GRID_SI), dimension(:), allocatable			:: i_offsets
 			integer (1), dimension(:), allocatable						:: i_types
-			integer (kind = GRID_SI), dimension(:), allocatable			:: i_connectivity, i_tmp
-      integer (kind = BYTE), dimension(:), allocatable        :: b_tmp
+			integer (kind = GRID_SI), dimension(:), allocatable			:: i_connectivity
 			real (kind = GRID_SR), dimension(:, :), allocatable			:: r_velocity
 			real (kind = GRID_SR), dimension(:), allocatable			:: r_empty
             type(t_vtk_writer)                                          :: vtk
@@ -194,7 +186,6 @@
 			allocate(i_types(i_cells), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_velocity(2, max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
 			allocate(r_empty(max(i_cells, i_points)), stat = i_error); assert_eq(i_error, 0)
-      allocate(i_tmp(i_cells), b_tmp(i_cells), stat = i_error); assert_eq(i_error, 0)
 
 			r_empty = 0.0_GRID_SR
 
@@ -216,58 +207,42 @@
 
 			write (traversal%s_file_stamp, "(A, A, I0, A, I0, A, I0, A)") TRIM(traversal%s_file_stamp), "_", traversal%i_output_iteration, "_r", rank_MPI, "_s", section%index, ".vtu"
 
-#           if defined(_QUAD_PRECISION)
-#               warning VTK output does not work for quad precision
-#           else
-                e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
-                e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
+			e_io = vtk%VTK_INI_XML('ascii', traversal%s_file_stamp, 'UnstructuredGrid')
+				e_io = vtk%VTK_GEO_XML(i_points, i_cells, traversal%point_data%coords(1), traversal%point_data%coords(2), r_empty(1:i_points))
 
-                e_io = vtk%VTK_CON_XML(i_cells, i_connectivity, i_offsets, i_types)
+				e_io = vtk%VTK_CON_XML(i_cells, i_connectivity, i_offsets, i_types)
 
-                e_io = vtk%VTK_DAT_XML('node', 'OPEN')
-                if (i_element_order > 0) then
-                    e_io = vtk%VTK_VAR_XML(i_points, 'water height', traversal%point_data%Q%h)
-                    e_io = vtk%VTK_VAR_XML(i_points, 'bathymetry', traversal%point_data%Q%b)
+				e_io = vtk%VTK_DAT_XML('node', 'OPEN')
+					if (i_element_order > 0) then
+						e_io = vtk%VTK_VAR_XML(i_points, 'water height', traversal%point_data%Q%h)
+						e_io = vtk%VTK_VAR_XML(i_points, 'bathymetry', traversal%point_data%Q%b)
 
-                    forall(i=1 : i_points)
-                      r_velocity(1, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(1))
-                      r_velocity(2, i) = velocity(traversal%point_data(i)%Q%h, traversal%point_data(i)%Q%p(2))
-                    end forall
-                    e_io = vtk%VTK_VAR_XML(i_points, 'velocity', r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
-                    e_io = vtk%VTK_VAR_XML(i_points, 'momentum', traversal%point_data%Q%p(1), traversal%point_data%Q%p(2), r_empty(1:i_points))
-                end if
-                e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
+						r_velocity(1, 1:i_points) = traversal%point_data%Q%p(1) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+						r_velocity(2, 1:i_points) = traversal%point_data%Q%p(2) / (traversal%point_data%Q%h - traversal%point_data%Q%b)
+						e_io = vtk%VTK_VAR_XML(i_points, 'velocity',  r_velocity(1, 1:i_points), r_velocity(2, 1:i_points), r_empty(1:i_points))
+					end if
+				e_io = vtk%VTK_DAT_XML('node', 'CLOSE')
 
-                e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
-                if (i_element_order == 0) then
-                    e_io = vtk%VTK_VAR_XML(i_cells, 'water height', traversal%cell_data%Q%h)
-                    e_io = vtk%VTK_VAR_XML(i_cells, 'bathymetry', traversal%cell_data%Q%b)
+				e_io = vtk%VTK_DAT_XML('cell', 'OPEN')
+					if (i_element_order == 0) then
+						e_io = vtk%VTK_VAR_XML(i_cells, 'water height', traversal%cell_data%Q%h)
+						e_io = vtk%VTK_VAR_XML(i_cells, 'bathymetry', traversal%cell_data%Q%b)
 
-                    forall(i=1 : i_cells)
-                      r_velocity(1, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(1))
-                      r_velocity(2, i) = velocity(traversal%cell_data(i)%Q%h, traversal%cell_data(i)%Q%p(2))
-                    end forall
-                    e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
-                    e_io = vtk%VTK_VAR_XML(i_cells, 'momentum', traversal%cell_data%Q%p(1), traversal%cell_data%Q%p(2), r_empty(1:i_cells))
-                end if
+						r_velocity(1, 1:i_cells) = traversal%cell_data%Q%p(1) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+						r_velocity(2, 1:i_cells) = traversal%cell_data%Q%p(2) / (traversal%cell_data%Q%h - traversal%cell_data%Q%b)
+						e_io = vtk%VTK_VAR_XML(i_cells, 'velocity', r_velocity(1, 1:i_cells), r_velocity(2, 1:i_cells), r_empty(1:i_cells))
+					end if
 
-                i_tmp = traversal%cell_data%rank
-                e_io = vtk%VTK_VAR_XML(i_cells, 'rank', i_tmp)
-                i_tmp = traversal%cell_data%section_index
-                e_io = vtk%VTK_VAR_XML(i_cells, 'section index', i_tmp)
-                b_tmp = traversal%cell_data%depth
-                e_io = vtk%VTK_VAR_XML(i_cells, 'depth', b_tmp)
-                b_tmp = traversal%cell_data%refinement
-                e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', b_tmp)
+					e_io = vtk%VTK_VAR_XML(i_cells, 'rank', traversal%cell_data%rank)
+                    e_io = vtk%VTK_VAR_XML(i_cells, 'section index', traversal%cell_data%section_index)
+					e_io = vtk%VTK_VAR_XML(i_cells, 'depth', traversal%cell_data%depth)
+					e_io = vtk%VTK_VAR_XML(i_cells, 'refinement flag', traversal%cell_data%refinement)
+				e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
 
-                e_io = vtk%VTK_DAT_XML('cell', 'CLOSE')
+				e_io = vtk%VTK_GEO_XML()
+			e_io = vtk%VTK_END_XML()
 
-                e_io = vtk%VTK_GEO_XML()
-                e_io = vtk%VTK_END_XML()
-#           endif
-
-			deallocate(i_tmp, b_tmp, stat = i_error); assert_eq(i_error, 0)
-      deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
+			deallocate(i_offsets, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_types, stat = i_error); assert_eq(i_error, 0)
 			deallocate(i_connectivity, stat = i_error); assert_eq(i_error, 0)
 			deallocate(r_velocity, stat = i_error); assert_eq(i_error, 0)
@@ -292,17 +267,13 @@
 			!local variables
 
 			integer (kind = GRID_SI)							:: i
-			real (kind = GRID_SR), parameter, dimension(2, 6)	:: r_test_points = reshape([0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.5, 0.5 ], [2, 6 ])
+			real (kind = GRID_SR), parameter, dimension(2, 6)	:: r_test_points = reshape([1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.5, 0.5, 0.0, 0.5, 0.5 ], [2, 6 ])
 			real (kind = GRID_SR), parameter, dimension(2)		:: r_test_point0 = [1.0_GRID_SR/3.0_GRID_SR, 1.0_GRID_SR/3.0_GRID_SR]
 
 			type(t_state), dimension(_FLASH_CELL_SIZE)			:: Q
 			type(t_state), dimension(6)							:: Q_test
 
 			call gv_Q%read(element, Q)
-      Q(:) = Q(i_reflect(:, (3 - element%transform_data%plotter_data%orientation) / 2))
-! 			if (element%transform_data%plotter_data%orientation <1) then
-! 				Q(:)= Q(_FLASH_CELL_SIZE:1:-1)
-! 			endif
 
             traversal%cell_data(traversal%i_cell_data_index)%rank = rank_MPI
             traversal%cell_data(traversal%i_cell_data_index)%section_index = section%index
